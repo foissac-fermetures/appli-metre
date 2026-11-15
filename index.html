@@ -8,6 +8,8 @@
 <meta name="theme-color" content="#1b2f5e">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Métré">
 <meta name="theme-color" content="#1b2f5e">
@@ -646,7 +648,7 @@ async function renderHome(){
   <div class="row"><h1>Mes métrés</h1><span class="spacer"></span>
     <button class="btn" id="hOpen">Ouvrir un fichier…</button>
     <button class="btn primary" id="hNew">+ Nouveau métré</button></div>
-  <p class="hint">Les métrés sont gardés sur cet appareil. Utilise « Enregistrer sur le Drive » dans un métré pour le sauvegarder dans <b>Appli métré-sauvegarde</b>.</p>
+  <p class="hint">Les métrés sont gardés sur cet appareil. Le bouton « ☁ Enregistrer dans Drive » d'un métré range la sauvegarde et le PDF dans <b>Mon Drive › Appli métré – Dossiers</b>.</p>
   <div class="list">${ds.map(d=>{ normaliser(d); const n=nbErreurs(d);
     return `<div class="item" data-id="${d.id}">
       <div class="row"><span class="t">${esc(d.client.nom||"Sans nom")}</span><span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span></div>
@@ -1324,7 +1326,7 @@ async function genererPDF(d){
 /* ---------- Envoi d'un dossier ---------- */
 async function envoyerDossierDrive(d){
   const nom=(d.client.nom||"Sans nom").trim(), date=(d.client.date_rdv||new Date().toISOString().slice(0,10)).split("-").reverse().join("-");
-  const base=nomFichier(d).replace(/\.json$/i,"");
+  const base=nomFichier(d).replace(/(\.metre)?\.json$/i,"");
   const racine=await dossierDrive(DRIVE_RACINE), sous=await dossierDrive(`${nom} – ${date}`, racine);
   await deposerDrive(base+".json", new Blob([JSON.stringify(d,null,1)],{type:"application/json"}), sous);
   const pdf=await genererPDF(d);

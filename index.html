@@ -665,7 +665,7 @@ async function renderHome(){
   <div class="row"><h1>Mes métrés</h1><span class="spacer"></span>
     <button class="btn" id="hOpen">Ouvrir un fichier…</button>
     <button class="btn primary" id="hNew">+ Nouveau métré</button></div>
-  <p class="hint">Chaque métré s'enregistre tout seul dans <b>Mon Drive › Appli métré – Dossiers › Devis</b> quand tu reviens à cette liste. Une fois recontrôlé, déplace son dossier dans <b>2026</b> (dans Google Drive) : la copie part toute seule chez Clémence (ECHANGES › DEVIS A FAIRE ou METRES DEFINITIF).</p>
+  <p class="hint">Chaque métré s'enregistre tout seul quand tu reviens à cette liste, dans <b>Mon Drive › Appli métré – Dossiers › Devis</b> (ou <b>› Métrés définitif</b> pour un métré définitif). Une fois recontrôlé, déplace son dossier dans le <b>2026</b> de ce même dossier : la copie part toute seule chez Clémence (DEVIS A FAIRE ou METRES DEFINITIF).</p>
   <div class="list">${ds.map(d=>{ normaliser(d); const n=nbErreurs(d);
     return `<div class="item" data-id="${d.id}">
       <div class="row"><span class="t">${esc(d.client.nom||"Sans nom")}</span><span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span></div>
@@ -687,8 +687,8 @@ function renderDossier(){
   $("#app").innerHTML=`
   <div class="circuit" role="group" aria-label="Type de métré">
     <span class="circuit-lbl">Ce métré est un :</span>
-    <button class="${def?"":"on"}" data-circuit="devis" aria-pressed="${!def}">Devis<small>copie → DEVIS A FAIRE</small></button>
-    <button class="${def?"on":""}" data-circuit="definitif" aria-pressed="${def}">Métré définitif<small>copie → METRES DEFINITIF</small></button>
+    <button class="${def?"":"on"}" data-circuit="devis" aria-pressed="${!def}">Devis<small>dossier Devis → DEVIS A FAIRE</small></button>
+    <button class="${def?"on":""}" data-circuit="definitif" aria-pressed="${def}">Métré définitif<small>dossier Métrés définitif → METRES DEFINITIF</small></button>
     <label class="f circuit-gamme">Gamme (nouvelles ouvertures)<select data-k="gamme_defaut">${opts(CAT.gammes,d.gamme_defaut)}</select></label>
   </div>
   <div class="row" style="margin-bottom:12px">
@@ -1282,15 +1282,24 @@ function construireImpression(d){
    Compte : nb@foissacfermetures.fr – projet Google Cloud « appli-metre-foissac » (application interne).
    Droit demandé : drive (l'appli doit voir les dossiers « Devis » et « 2026 » créés à la main dans le Drive).
    Circuit (15/11/2026) :
-     1. L'appli range chaque métré dans Mon Drive › « Appli métré – Dossiers » › « Devis » › « NOM – date » (PDF « NOM ME PVC.pdf » + .json).
+     1. L'appli range chaque métré dans Mon Drive › « Appli métré – Dossiers » › « Devis » (ou « Métrés définitif(s) » pour un métré définitif)
+        › « NOM – date » (PDF « NOM ME PVC.pdf » + .json).
         Enregistrement automatique au retour à la liste des métrés.
-     2. Nicolas recontrôle puis DÉPLACE LUI-MÊME le dossier dans « 2026 » (Google Drive).
+     2. Nicolas recontrôle puis DÉPLACE LUI-MÊME le dossier dans le « 2026 » de ce dossier (Google Drive).
      3. Le programme Google « Envoi métrés à Clémence » (Apps Script, 06_Script-Google/) copie le PDF dans le Drive partagé
-        ECHANGES › « DEVIS A FAIRE » ou « METRES DEFINITIF » selon le choix Devis / Métré définitif (écrit dans la description du PDF).
+        ECHANGES › « DEVIS A FAIRE » (2026 de « Devis ») ou « METRES DEFINITIF » (2026 de « Métrés définitif »).
    L'appli ne déplace jamais un dossier : une fois créé, elle met à jour les fichiers là où ils sont. */
 const GOOGLE_CLIENT_ID = "1087131197985-65k5sf880bieuc2krp9u69j5q3e0r26g.apps.googleusercontent.com";
 const DRIVE_RACINE = "Appli métré – Dossiers";
 const DRIVE_A_CONTROLER = "Devis";
+const DRIVE_DEFINITIF = "Métrés définitifs";        // nom utilisé si le dossier n'existe pas ; sinon on reprend celui de Nicolas (« Métrés définitif »…)
+/* Dossier « Métrés définitif(s) » sous la racine, quel que soit l'orthographe exacte ; créé s'il n'existe pas */
+async function dossierDefinitif(racine){
+  const q=`mimeType='application/vnd.google-apps.folder' and trashed=false and '${racine}' in parents`;
+  const r=await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id,name)&q="+encodeURIComponent(q));
+  const f=r.files.find(x=>/m[ée]tr[ée]s?\s*d[ée]finitif/i.test(x.name.replace(/\s+/g," ")));
+  return f ? f.id : dossierDrive(DRIVE_DEFINITIF, racine);
+}
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 const LIB_H2C = "lib/html2canvas.min.js";   // copiés à côté de l'appli (fonctionne hors ligne)
 const LIB_PDF = "lib/jspdf.umd.min.js";
@@ -1376,15 +1385,19 @@ function nomMetre(d){
 }
 /* Empreinte du contenu, pour savoir s'il a changé depuis le dernier envoi */
 function empreinte(d){ const {drive,drive_attente,modifie,...r}=d; const t=JSON.stringify(r); let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))|0; return String(h); }
-/* Dossier du client : créé dans « Devis » au premier envoi, puis réutilisé là où il est (même s'il a été déplacé dans « 2026 »). */
+/* Dossier du client : créé dans « Devis » ou « Métrés définitif(s) » au premier envoi, puis réutilisé là où il est.
+   S'il attend encore son contrôle (directement dans l'un des deux) et que le choix Devis / Métré définitif a changé, il passe dans l'autre. */
 async function dossierClient(d){
+  const racine=await dossierDrive(DRIVE_RACINE), devis=await dossierDrive(DRIVE_A_CONTROLER, racine), defin=await dossierDefinitif(racine);
+  const cible=estDefinitif(d)?defin:devis, autre=estDefinitif(d)?devis:defin;
   let id=d.drive && d.drive.dossier;
-  if(id){ try{ const f=await gdrive(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,trashed`); if(f.trashed) id=null; }
-          catch(e){ if(/Drive 404/.test(e.message)) id=null; else throw e; } }
+  if(id){ try{ const f=await gdrive(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,trashed,parents`);
+      if(f.trashed) id=null;
+      else if((f.parents||[]).includes(autre)) await gdrive(`https://www.googleapis.com/drive/v3/files/${id}?addParents=${cible}&removeParents=${autre}&fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:"{}"});
+    }catch(e){ if(/Drive 404/.test(e.message)) id=null; else throw e; } }
   if(id) return id;
   const nom=(d.client.nom||"Sans nom").trim(), date=(d.client.date_rdv||new Date().toISOString().slice(0,10)).split("-").reverse().join("-");
-  const racine=await dossierDrive(DRIVE_RACINE), devis=await dossierDrive(DRIVE_A_CONTROLER, racine);
-  return dossierDrive(`${nom} – ${date}`, devis);
+  return dossierDrive(`${nom} – ${date}`, cible);
 }
 async function envoyerDossierDrive(d){
   const base=nomMetre(d), sous=await dossierClient(d), circuit=estDefinitif(d)?"definitif":"devis";
@@ -1406,14 +1419,14 @@ async function envoyerDossierDrive(d){
 /* Choix bien visible Devis / Métré définitif (écrit dans « Document ») */
 function choisirCircuit(c){
   const d=S.dossier; d.type_document = c==="definitif" ? "DEVIS DÉFINITIF" : "DEVIS"; save(); renderDossier();
-  toast(c==="definitif" ? "Métré définitif : la copie ira dans ECHANGES › METRES DEFINITIF" : "Devis : la copie ira dans ECHANGES › DEVIS A FAIRE");
+  toast(c==="definitif" ? "Métré définitif : rangé dans « Métrés définitif », copie vers METRES DEFINITIF" : "Devis : rangé dans « Devis », copie vers DEVIS A FAIRE");
 }
 /* Enregistrement automatique au retour à la liste (seulement si le métré a changé) */
 async function enregistrerAuto(d){
   if(!d || !driveDispo() || !(d.client.nom||d.ouvertures.length)) return;
   if(d.drive && d.drive.sig===empreinte(d) && !d.drive_attente) return;
   if(!navigator.onLine){ d.drive_attente=true; await DB.put(d); majBandeauDrive(); return; }
-  try{ await demanderJeton(); await envoyerDossierDrive(d); toast(`Enregistré dans le Drive › ${DRIVE_A_CONTROLER}`); }
+  try{ await demanderJeton(); await envoyerDossierDrive(d); toast(`Enregistré dans le Drive › ${estDefinitif(d)?"Métrés définitif":DRIVE_A_CONTROLER}`); }
   catch(e){ d.drive_attente=true; await DB.put(d); toast(/Failed to fetch|hors ligne/i.test(e.message)?"Réseau coupé : envoi en attente":"Drive : "+e.message); }
   majBandeauDrive();
 }

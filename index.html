@@ -107,7 +107,13 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .dot{width:26px;height:26px;border-radius:50%;display:inline-block;border:2px solid #fff;box-shadow:0 0 0 1px var(--line)}
 .modal{position:fixed;inset:0;background:rgba(15,25,50,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
 .modal.open{display:flex}
-.ctrl-opt{display:flex;gap:10px;align-items:flex-start;border:1px solid #d6dbe6;border-radius:12px;padding:12px;cursor:pointer;min-height:44px}.ctrl-opt input{margin-top:4px;width:20px;height:20px}
+.circuit{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;background:#fff;border:1px solid #d6dbe6;border-radius:14px}
+.circuit-lbl{font-weight:700;color:#1b2f5e;margin-right:4px}
+.circuit button{display:flex;flex-direction:column;align-items:flex-start;min-height:52px;min-width:190px;padding:8px 16px;border-radius:12px;border:2px solid #d6dbe6;background:#f4f6fa;color:#1b2f5e;font:inherit;font-weight:700;font-size:16px;cursor:pointer}
+.circuit button small{font-weight:500;font-size:12px;color:#55607a}
+.circuit button.on[data-circuit="devis"]{background:#1b2f5e;border-color:#1b2f5e;color:#fff}
+.circuit button.on[data-circuit="definitif"]{background:#b51d28;border-color:#b51d28;color:#fff}
+.circuit button.on small{color:#e8ecf5}
 .modal .box{background:#fff;border-radius:16px;max-width:520px;width:100%;padding:20px;max-height:90vh;overflow:auto}
 .pose-pick{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:12px 0}
 .pose-pick button{min-height:72px;border-radius:12px;border:1px solid var(--line);background:#fbfcfe;font-weight:700;color:var(--navy);text-align:left;padding:10px 14px}
@@ -230,15 +236,6 @@ input:disabled{background:#eef1f7;color:#4a5368}
 <div class="modal" id="mConf"><div class="box">
   <h2 id="confTxt" style="text-transform:none;letter-spacing:0;font-size:18px"></h2>
   <div class="row" style="margin-top:18px"><button class="btn" id="confNon">Annuler</button><span class="spacer"></span><button class="btn primary" id="confOui">Confirmer</button></div>
-</div></div>
-<!-- Métré contrôlé : envoi à Clémence -->
-<div class="modal" id="mCtrl"><div class="box">
-  <h2>Métré contrôlé</h2>
-  <p class="hint">Le dossier passe de « Devis » à « 2026 » dans Mon Drive › Appli métré – Dossiers, et le PDF est copié pour Clémence dans le Drive partagé ECHANGES NICOLAS / ORIANE / CLEMENCE.</p>
-  <div id="ctrlChoix" style="display:grid;gap:10px;margin:12px 0"></div>
-  <p class="hint">Nom du PDF : <b id="ctrlNom"></b></p>
-  <p class="hint" id="ctrlAvert" style="color:#d3232f;font-weight:600"></p>
-  <div class="row" style="margin-top:16px"><button class="btn" data-close>Annuler</button><span class="spacer"></span><button class="btn primary" id="ctrlGo">Valider et envoyer</button></div>
 </div></div>
 <div class="toast" id="toast"></div>
 <div id="print"></div>
@@ -658,13 +655,13 @@ async function renderHome(){
   <div class="row"><h1>Mes métrés</h1><span class="spacer"></span>
     <button class="btn" id="hOpen">Ouvrir un fichier…</button>
     <button class="btn primary" id="hNew">+ Nouveau métré</button></div>
-  <p class="hint">Les métrés sont gardés sur cet appareil. « ☁ Enregistrer dans Drive » range la sauvegarde et le PDF dans <b>Mon Drive › Appli métré – Dossiers › Devis</b>. Une fois recontrôlé, « ✓ Contrôlé » le passe dans <b>2026</b> et envoie le PDF à Clémence (ECHANGES › DEVIS A FAIRE ou METRES DEFINITIF).</p>
+  <p class="hint">Chaque métré s'enregistre tout seul dans <b>Mon Drive › Appli métré – Dossiers › Devis</b> quand tu reviens à cette liste. Une fois recontrôlé, déplace son dossier dans <b>2026</b> (dans Google Drive) : la copie part toute seule chez Clémence (ECHANGES › DEVIS A FAIRE ou METRES DEFINITIF).</p>
   <div class="list">${ds.map(d=>{ normaliser(d); const n=nbErreurs(d);
     return `<div class="item" data-id="${d.id}">
       <div class="row"><span class="t">${esc(d.client.nom||"Sans nom")}</span><span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span></div>
       <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.length} ouverture(s)${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}</div>
       <div class="s">${esc(d.gamme_defaut||"")}</div>
-      <div>${n?`<span class="badge b-err">${n} point(s) à vérifier</span>`:`<span class="badge b-ok">Contrôle OK</span>`} ${d.controle?.le?(d.controle.attente?`<span class="badge b-n">Envoi à Clémence en attente</span>`:`<span class="badge b-ok">✓ Contrôlé · envoyé (${d.controle.type==="definitif"?"définitif":"devis"})</span>`):(d.drive?`<span class="badge b-n">Dans « Devis » – à recontrôler</span>`:"")}</div>
+      <div>${n?`<span class="badge b-err">${n} point(s) à vérifier</span>`:`<span class="badge b-ok">Contrôle OK</span>`} <span class="badge ${estDefinitif(d)?"b-err":"b-n"}">${estDefinitif(d)?"Métré définitif":"Devis"}</span> ${d.drive_attente?`<span class="badge b-n">☁ envoi en attente</span>`:d.drive?`<span class="badge b-ok">☁ dans le Drive</span>`:""}</div>
     </div>`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau métré ».</div>`}</div>`;
   $("#hNew").onclick=()=>{ S.dossier=nouveauDossier(); DB.put(S.dossier); S.tab="client"; renderDossier(); };
   $("#hOpen").onclick=()=>$("#fileOpen").click();
@@ -675,18 +672,24 @@ async function renderHome(){
 function renderDossier(){
   S.view="dossier"; S.ouv=null; const d=normaliser(S.dossier); syncVR(d); majTitre();
   const T=[["client","Fiche client"],["chantier","Chantier & devis"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["controle","Contrôle"]];
+  const def=estDefinitif(d);
   $("#app").innerHTML=`
+  <div class="circuit" role="group" aria-label="Type de métré">
+    <span class="circuit-lbl">Ce métré est un :</span>
+    <button class="${def?"":"on"}" data-circuit="devis" aria-pressed="${!def}">Devis<small>copie → DEVIS A FAIRE</small></button>
+    <button class="${def?"on":""}" data-circuit="definitif" aria-pressed="${def}">Métré définitif<small>copie → METRES DEFINITIF</small></button>
+  </div>
   <div class="row" style="margin-bottom:12px">
     <div class="tabs" style="margin:0">${T.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?"on":""}">${l}</button>`).join("")}</div>
     <span class="spacer"></span>
     <button class="btn small" id="dVar">Variante PVC / Alu / Bois</button>
     <button class="btn small" id="dPrint">Imprimer / PDF</button>
     <button class="btn small navy" id="dSave" title="${d.drive?"Dernier envoi : "+new Date(d.drive.le).toLocaleString("fr-FR"):""}">☁ Enregistrer dans Drive${d.drive_attente?" (en attente)":d.drive?" ✓":""}</button>
-    <button class="btn small ${d.controle?.le&&!d.controle.attente?"":"primary"}" id="dCtrl" title="${d.controle?.envoye?"Envoyé à Clémence le "+new Date(d.controle.envoye).toLocaleString("fr-FR"):""}">${d.controle?.le?(d.controle.attente?"✓ Contrôlé (envoi en attente)":"✓ Contrôlé – renvoyer"):"✓ Contrôlé – envoyer à Clémence"}</button>
   </div>
   <div id="tab"></div>`;
   $$("[data-tab]").forEach(b=>b.onclick=()=>{ S.tab=b.dataset.tab; renderDossier(); });
-  $("#dPrint").onclick=imprimer; $("#dSave").onclick=enregistrerDrive; $("#dCtrl").onclick=ouvrirControle; $("#dVar").onclick=ouvrirVariante;
+  $$("[data-circuit]").forEach(b=>b.onclick=()=>choisirCircuit(b.dataset.circuit));
+  $("#dPrint").onclick=imprimer; $("#dSave").onclick=enregistrerDrive; $("#dVar").onclick=ouvrirVariante;
   const t=$("#tab"), FIC=CAT.fic;
   if(S.tab==="client") t.innerHTML=`
     <div class="grid g2">
@@ -1174,7 +1177,6 @@ $("#varGo").onclick=async()=>{
 $("#posePick").innerHTML=Object.entries(CAT.poses).map(([k,p])=>`<button data-pose="${k}">${esc(p.nom)}</button>`).join("");
 $$("[data-pose]").forEach(b=>b.onclick=()=>{ const o=nouvelleOuverture(b.dataset.pose,S.dossier); S.dossier.ouvertures.push(o); save(); $("#mPose").classList.remove("open"); S.ouv=o; renderOuverture(); scrollTo(0,0); });
 $$("[data-close]").forEach(b=>b.onclick=()=>b.closest(".modal").classList.remove("open"));
-$("#ctrlGo").onclick=validerControle;
 
 /* ---------- Enregistrer / ouvrir un fichier ---------- */
 function nomFichier(d){ const s=x=>String(x||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,""); return `${d.client.date_rdv||today()}_${s(d.client.nom)||"client"}_${s(d.variante)||"V1"}.metre.json`; }
@@ -1257,19 +1259,18 @@ function construireImpression(d){
 
 /* ---------- Enregistrement automatique dans Google Drive ----------
    Compte : nb@foissacfermetures.fr – projet Google Cloud « appli-metre-foissac » (application interne).
-   Droit demandé : drive (accès au Drive, nécessaire pour déposer le PDF dans le Drive partagé de Clémence).
-   Rangement : Mon Drive / « Appli métré – Dossiers » / « Devis » (à contrôler) ou « 2026 » (contrôlés) / « NOM client – date » / .json + PDF.
-   Métré contrôlé : copie du PDF dans le Drive partagé « ECHANGES NICOLAS / ORIANE / CLEMENCE »
-     › « DEVIS A FAIRE » (premier devis) ou › « METRES DEFINITIF » (devis définitif).
-   Sans réseau : le dossier est marqué « en attente » et part dès que le réseau revient. */
+   Droit demandé : drive (l'appli doit voir les dossiers « Devis » et « 2026 » créés à la main dans le Drive).
+   Circuit (15/11/2026) :
+     1. L'appli range chaque métré dans Mon Drive › « Appli métré – Dossiers » › « Devis » › « NOM – date » (PDF « NOM ME PVC.pdf » + .json).
+        Enregistrement automatique au retour à la liste des métrés.
+     2. Nicolas recontrôle puis DÉPLACE LUI-MÊME le dossier dans « 2026 » (Google Drive).
+     3. Le programme Google « Envoi métrés à Clémence » (Apps Script, 06_Script-Google/) copie le PDF dans le Drive partagé
+        ECHANGES › « DEVIS A FAIRE » ou « METRES DEFINITIF » selon le choix Devis / Métré définitif (écrit dans la description du PDF).
+   L'appli ne déplace jamais un dossier : une fois créé, elle met à jour les fichiers là où ils sont. */
 const GOOGLE_CLIENT_ID = "1087131197985-65k5sf880bieuc2krp9u69j5q3e0r26g.apps.googleusercontent.com";
 const DRIVE_RACINE = "Appli métré – Dossiers";
-const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 const DRIVE_A_CONTROLER = "Devis";
-const CIBLES_CLEMENCE = {   // Drive partagé « ECHANGES NICOLAS / ORIANE / CLEMENCE »
-  devis:     {id:"1ZRUgVd713Gljsp2awjdqcNGYjV1Uz7Ax", nom:"DEVIS A FAIRE",    libelle:"Premier devis"},
-  definitif: {id:"170tJN-Niqmt-f2Y_lnbtQwsg1yd7goVR", nom:"METRES DEFINITIF", libelle:"Devis définitif"}
-};
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 const LIB_H2C = "lib/html2canvas.min.js";   // copiés à côté de l'appli (fonctionne hors ligne)
 const LIB_PDF = "lib/jspdf.umd.min.js";
 
@@ -1309,10 +1310,10 @@ async function dossierDrive(nom, parent){
   return (await gdrive("https://www.googleapis.com/drive/v3/files?fields=id",{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({name:nom, mimeType:"application/vnd.google-apps.folder", parents:[parent||"root"]})})).id;
 }
-async function deposerDrive(nom, blob, parent){
+async function deposerDrive(nom, blob, parent, description){
   const q=`name='${q_(nom)}' and trashed=false and '${parent}' in parents`;
   const ex=(await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id)&q="+encodeURIComponent(q))).files[0];
-  const meta=ex ? {name:nom} : {name:nom, parents:[parent]}, b="metre"+Date.now();
+  const meta=ex ? {name:nom} : {name:nom, parents:[parent]}, b="metre"+Date.now(); if(description) meta.description=description;
   const corps=new Blob([`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${b}\r\nContent-Type: ${blob.type}\r\n\r\n`, blob, `\r\n--${b}--`]);
   const url=ex ? `https://www.googleapis.com/upload/drive/v3/files/${ex.id}?uploadType=multipart&fields=id,webViewLink`
                : "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink";
@@ -1344,68 +1345,56 @@ async function genererPDF(d){
 }
 
 /* ---------- Envoi d'un dossier ---------- */
-const anneeDossier = d => (d.client.date_rdv||new Date().toISOString()).slice(0,4);
-/* Nom du PDF pour Clémence, comme d'habitude : « NOM ME PVC.pdf », « NOM ME PVC ET ALU.pdf », + « V2 »… pour les variantes */
-function nomPdfClemence(d){
+const estDefinitif = d => /D[ÉE]FINITIF/i.test(d.type_document||"");
+/* Nom du PDF, comme d'habitude : « NOM ME PVC », « NOM ME PVC ET ALU », + « V2 »… pour les variantes */
+function nomMetre(d){
   const mat=[...new Set([d.gamme_defaut,...d.ouvertures.map(o=>o.gamme)].filter(Boolean).map(g=>g.split(" - ")[0].trim().toUpperCase()))];
   const n=parseInt(String(d.variante||"").replace(/^V(\d+).*/,"$1"))||1;
   const nom=(d.client.nom||"SANS NOM").trim().toUpperCase().replace(/[\\/:*?"<>|]+/g," ");
-  return `${nom} ME ${mat.length?mat.join(" ET "):(d.vr.lignes.length?"VR":"")}${n>1?" V"+n:""}`.replace(/\s+/g," ").trim()+".pdf";
+  return `${nom} ME ${mat.length?mat.join(" ET "):(d.vr.lignes.length?"VR":"")}${n>1?" V"+n:""}`.replace(/\s+/g," ").trim();
 }
-/* Le dossier client va dans « Devis » tant qu'il n'est pas contrôlé, puis dans « 2026 » (année du RDV). */
+/* Empreinte du contenu, pour savoir s'il a changé depuis le dernier envoi */
+function empreinte(d){ const {drive,drive_attente,modifie,...r}=d; const t=JSON.stringify(r); let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))|0; return String(h); }
+/* Dossier du client : créé dans « Devis » au premier envoi, puis réutilisé là où il est (même s'il a été déplacé dans « 2026 »). */
 async function dossierClient(d){
-  const nom=(d.client.nom||"Sans nom").trim(), date=(d.client.date_rdv||new Date().toISOString().slice(0,10)).split("-").reverse().join("-");
-  const racine=await dossierDrive(DRIVE_RACINE);
-  const parent=await dossierDrive(d.controle && d.controle.le ? anneeDossier(d) : DRIVE_A_CONTROLER, racine);
   let id=d.drive && d.drive.dossier;
-  if(id){ try{ const f=await gdrive(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,parents,trashed`);
-      if(f.trashed) id=null;
-      else if(!(f.parents||[]).includes(parent)) await gdrive(`https://www.googleapis.com/drive/v3/files/${id}?addParents=${parent}&removeParents=${(f.parents||[]).join(",")}&fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:"{}"});
-    }catch(e){ if(/Drive 404/.test(e.message)) id=null; else throw e; } }
-  if(!id) id=await dossierDrive(`${nom} – ${date}`, parent);
-  return id;
+  if(id){ try{ const f=await gdrive(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,trashed`); if(f.trashed) id=null; }
+          catch(e){ if(/Drive 404/.test(e.message)) id=null; else throw e; } }
+  if(id) return id;
+  const nom=(d.client.nom||"Sans nom").trim(), date=(d.client.date_rdv||new Date().toISOString().slice(0,10)).split("-").reverse().join("-");
+  const racine=await dossierDrive(DRIVE_RACINE), devis=await dossierDrive(DRIVE_A_CONTROLER, racine);
+  return dossierDrive(`${nom} – ${date}`, devis);
 }
 async function envoyerDossierDrive(d){
-  const base=nomFichier(d).replace(/(\.metre)?\.json$/i,"");
-  const sous=await dossierClient(d);
+  const base=nomMetre(d), sous=await dossierClient(d), circuit=estDefinitif(d)?"definitif":"devis";
+  // anciens noms (avant le 15/11) : on renomme au lieu de créer un doublon
+  if(d.drive && d.drive.base && d.drive.base!==base && d.drive.dossier===sous){
+    for(const ext of [".pdf",".json"]){ try{
+      const q=`name='${q_(d.drive.base+ext)}' and trashed=false and '${sous}' in parents`;
+      const ex=(await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id)&q="+encodeURIComponent(q))).files[0];
+      if(ex) await gdrive(`https://www.googleapis.com/drive/v3/files/${ex.id}?fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:base+ext})});
+    }catch(e){} }
+  }
   await deposerDrive(base+".json", new Blob([JSON.stringify(d,null,1)],{type:"application/json"}), sous);
   const pdf=await genererPDF(d);
-  const f=await deposerDrive(base+".pdf", pdf, sous);
-  d.drive={le:new Date().toISOString(), dossier:sous, lien:f.webViewLink||""}; delete d.drive_attente;
+  const f=await deposerDrive(base+".pdf", pdf, sous, `Métré Foissac – circuit:${circuit} – ${d.type_document||""}`);
+  d.drive={le:new Date().toISOString(), dossier:sous, lien:f.webViewLink||"", base, sig:empreinte(d)}; delete d.drive_attente;
   await DB.put(d);
-  return {fichier:f, pdf};
+  return f;
 }
-/* Métré contrôlé : rangé dans « 2026 » + PDF copié chez Clémence */
-async function envoyerClemence(d){
-  const cible=CIBLES_CLEMENCE[d.controle.type]||CIBLES_CLEMENCE.devis;
-  const {pdf}=await envoyerDossierDrive(d);
-  const f=await deposerDrive(nomPdfClemence(d), pdf, cible.id);
-  d.controle={...d.controle, envoye:new Date().toISOString(), lien:f.webViewLink||"", nom_pdf:nomPdfClemence(d)}; delete d.controle.attente;
-  await DB.put(d);
-  return cible;
+/* Choix bien visible Devis / Métré définitif (écrit dans « Document ») */
+function choisirCircuit(c){
+  const d=S.dossier; d.type_document = c==="definitif" ? "DEVIS DÉFINITIF" : "DEVIS"; save(); renderDossier();
+  toast(c==="definitif" ? "Métré définitif : la copie ira dans ECHANGES › METRES DEFINITIF" : "Devis : la copie ira dans ECHANGES › DEVIS A FAIRE");
 }
-function ouvrirControle(){
-  const d=S.dossier, def=d.controle?.type || (/D[ÉE]FINITIF/i.test(d.type_document||"")?"definitif":"devis");
-  $("#ctrlChoix").innerHTML=Object.entries(CIBLES_CLEMENCE).map(([k,c])=>`<label class="ctrl-opt"><input type="radio" name="ctrlType" value="${k}" ${k===def?"checked":""}> <span><b>${c.libelle}</b><br><small>Copie du PDF dans ECHANGES › ${c.nom}</small></span></label>`).join("");
-  $("#ctrlNom").textContent=nomPdfClemence(d);
-  $("#ctrlAvert").textContent=nbErreurs(d)?`⚠ Le contrôle signale encore ${nbErreurs(d)} point(s) à vérifier.`:"";
-  $("#mCtrl").classList.add("open");
-}
-async function validerControle(){
-  const d=S.dossier, type=document.querySelector('input[name="ctrlType"]:checked')?.value||"devis";
-  $("#mCtrl").classList.remove("open");
-  if(!driveDispo()){ toast("Envoi possible seulement depuis l'appli en ligne (adresse github.io)"); return; }
-  d.controle={type, le:new Date().toISOString()};
-  if(!navigator.onLine){ d.controle.attente=true; await DB.put(d); toast("Pas de réseau : l'envoi à Clémence partira au retour du réseau"); majBandeauDrive(); renderDossier(); return; }
-  try{
-    await demanderJeton(); toast("Envoi en cours…");
-    const c=await envoyerClemence(d);
-    toast(`Contrôlé ✓ – rangé dans ${anneeDossier(d)} et envoyé dans ${c.nom}`);
-  }catch(e){
-    d.controle.attente=true; await DB.put(d);
-    toast(!navigator.onLine||/Failed to fetch|hors ligne/i.test(e.message)?"Réseau coupé : envoi en attente":"Drive : "+e.message);
-  }
-  majBandeauDrive(); renderDossier();
+/* Enregistrement automatique au retour à la liste (seulement si le métré a changé) */
+async function enregistrerAuto(d){
+  if(!d || !driveDispo() || !(d.client.nom||d.ouvertures.length)) return;
+  if(d.drive && d.drive.sig===empreinte(d) && !d.drive_attente) return;
+  if(!navigator.onLine){ d.drive_attente=true; await DB.put(d); majBandeauDrive(); return; }
+  try{ await demanderJeton(); await envoyerDossierDrive(d); toast(`Enregistré dans le Drive › ${DRIVE_A_CONTROLER}`); }
+  catch(e){ d.drive_attente=true; await DB.put(d); toast(/Failed to fetch|hors ligne/i.test(e.message)?"Réseau coupé : envoi en attente":"Drive : "+e.message); }
+  majBandeauDrive();
 }
 async function enregistrerDrive(){
   const d=S.dossier;
@@ -1415,7 +1404,7 @@ async function enregistrerDrive(){
     await demanderJeton();
     toast("Envoi dans Google Drive…");
     await envoyerDossierDrive(d);
-    toast(`Enregistré dans Mon Drive › ${DRIVE_RACINE} › ${d.controle&&d.controle.le?anneeDossier(d):DRIVE_A_CONTROLER}`); majBandeauDrive();
+    toast(`Enregistré dans le Drive (${DRIVE_RACINE})`); majBandeauDrive();
   }catch(e){
     if(!navigator.onLine || /Failed to fetch|hors ligne/i.test(e.message)){ d.drive_attente=true; await DB.put(d); toast("Réseau coupé : envoi en attente"); }
     else toast("Drive : "+e.message);
@@ -1425,14 +1414,14 @@ async function enregistrerDrive(){
 /* Retour du réseau : on envoie ce qui attend (si la connexion Google est encore valable, sinon un bandeau propose de toucher pour envoyer). */
 async function envoyerEnAttente(){
   if(!driveDispo() || !navigator.onLine) return;
-  const attente=(await DB.all()).filter(x=>x.drive_attente||x.controle?.attente); if(!attente.length){ majBandeauDrive(); return; }
+  const attente=(await DB.all()).filter(x=>x.drive_attente); if(!attente.length){ majBandeauDrive(); return; }
   if(!jetonValide()){ majBandeauDrive(attente.length); return; }
-  for(const d of attente){ try{ if(d.controle?.attente) await envoyerClemence(d); else await envoyerDossierDrive(d); }catch(e){ break; } }
+  for(const d of attente){ try{ await envoyerDossierDrive(d); }catch(e){ break; } }
   toast("Dossiers en attente envoyés dans le Drive"); majBandeauDrive();
 }
 async function majBandeauDrive(n){
   let b=document.getElementById("driveBandeau");
-  if(n==null){ try{ n=(await DB.all()).filter(x=>x.drive_attente||x.controle?.attente).length; }catch(e){ n=0; } }
+  if(n==null){ try{ n=(await DB.all()).filter(x=>x.drive_attente).length; }catch(e){ n=0; } }
   if(!n){ b?.remove(); return; }
   if(!b){ b=document.createElement("button"); b.id="driveBandeau"; b.className="btn small navy"; b.style.cssText="position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:50";
     b.onclick=async()=>{ try{ await demanderJeton(); await envoyerEnAttente(); }catch(e){ toast("Drive : "+e.message); } }; document.body.appendChild(b); }
@@ -1443,7 +1432,7 @@ setTimeout(()=>{ prechargerGoogle(); envoyerEnAttente(); }, 800);
 
 /* ---------- Démarrage ---------- */
 $("#logo").src=LOGO;
-$("#btnBack").onclick=()=>{ if(S.view==="ouverture"){ S.tab="ouvertures"; renderDossier(); } else renderHome(); scrollTo(0,0); };
+$("#btnBack").onclick=()=>{ if(S.view==="ouverture"){ S.tab="ouvertures"; renderDossier(); } else { const d=S.dossier; clearTimeout(S.saveT); if(d){ DB.put(d); enregistrerAuto(d).then(()=>{ if(S.view==="home") renderHome(); }); } renderHome(); } scrollTo(0,0); };
 DB.open().then(renderHome);
 if("serviceWorker" in navigator && location.protocol==="https:") navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>

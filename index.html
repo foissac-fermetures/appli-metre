@@ -1177,7 +1177,7 @@ async function exporter(){
     if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:name}); return; } // iPad : « Enregistrer dans Fichiers » → Google Drive
   }catch(e){ if(e.name==="AbortError") return; }
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
-  toast("Fichier téléchargé : range-le dans « Appli métré-sauvegarde »");
+  toast("Fichier téléchargé : range-le dans « Appli métré – Dossiers » (Mon Drive)");
 }
 $("#fileOpen").onchange=async e=>{
   const f=e.target.files[0]; if(!f) return; e.target.value="";

@@ -110,6 +110,7 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .circuit{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;background:#fff;border:1px solid #d6dbe6;border-radius:14px}
 .circuit-lbl{font-weight:700;color:#1b2f5e;margin-right:4px}
 .circuit button{display:flex;flex-direction:column;align-items:flex-start;min-height:52px;min-width:190px;padding:8px 16px;border-radius:12px;border:2px solid #d6dbe6;background:#f4f6fa;color:#1b2f5e;font:inherit;font-weight:700;font-size:16px;cursor:pointer}
+.circuit-gamme{margin-left:auto;min-width:260px}
 .circuit button small{font-weight:500;font-size:12px;color:#55607a}
 .circuit button.on[data-circuit="devis"]{background:#1b2f5e;border-color:#1b2f5e;color:#fff}
 .circuit button.on[data-circuit="definitif"]{background:#b51d28;border-color:#b51d28;color:#fff}
@@ -298,10 +299,11 @@ function nouvelleLigneVR(){
     fil_coffre:"", electricite:"", depose:"", option:"", avec_menuiserie:"", manoeuvre_menuis:"", coffre_hauteur:"" };
 }
 function normFinitions(o){ const f=o.finitions||(o.finitions={});
-  for(const c of ["int","ext"]){ if(!Array.isArray(f[c+"_l"])){ f[c+"_l"]=[{t:f[c]||"",c:f[c+"_cotes"]||""}]; } if(!f[c+"_l"].length) f[c+"_l"].push({t:"",c:""}); }
+  for(const c of ["int","ext"]){ if(!Array.isArray(f[c+"_l"])){ f[c+"_l"]=[{t:f[c]||"",c:f[c+"_cotes"]||""}]; } if(!f[c+"_l"].length) f[c+"_l"].push({t:"",c:""});
+    f[c+"_l"].forEach(x=>{ const m=/\+/.test(x.t||"")?null:String(x.t||"").match(/\s+sur\s+([34])\s+côtés$/i); if(m){ x.t=x.t.slice(0,m.index); if(!x.c) x.c=m[1]+" côtés"; } }); }
   return f; }
 function texteFinitions(o,c){ return normFinitions(o)[c+"_l"].filter(x=>x.t).map(x=>x.c?`${x.t} (${x.c})`:x.t); }
-function normaliser(d){ if(!d.vr) d.vr=nouveauVR(); d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
+function normaliser(d){ if(!d.vr) d.vr=nouveauVR(); if(!d.equipe_pose && d.vr.equipe) d.equipe_pose={"Seul":"Tout seul"}[d.vr.equipe]||d.vr.equipe; d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
 /* Volet roulant lié à une ouverture : repère, quantité et cotes tableau suivent la fiche ouverture */
 /* Volets roulants vendus avec la menuiserie (fabriqués avec elle) */
 const GAMME_MODELES = { "ALU - LALOI":"modeles_laloi", "PVC - REHAU PORTEO":"modeles_porteo" };
@@ -446,11 +448,11 @@ function controleOuverture(o){
   if(tL==null) E.push("Largeur tableau manquante");
   if(tH==null) E.push("Hauteur tableau manquante");
   if(o.pose!=="libre" && (f.L==null||f.H==null)) E.push("Cote de fabrication incomplète");
-  if(!o.couleur_int && !o.couleur_ext) W.push("Couleur non renseignée");
+  if(!o.couleur_int && !o.couleur_ext) E.push("Couleur non renseignée");
   const md=modeleDe(o), fam=md?.famille, sansOP=["coulissant","galandage","fixe"].includes(fam), porte=fam==="porte";
-  if(listeModeles(o.gamme) && !md) W.push("Modèle de menuiserie non choisi");
+  if(listeModeles(o.gamme) && !md) E.push("Modèle de menuiserie non choisi");
   { const Lc=f.L??tL, Hc=f.H??tH; if(md?.lmax && Lc>md.lmax) E.push(`Largeur ${Lc} > maximum ${md.lmax} du fournisseur (${md.nom})`); if(md?.hmax && Hc>md.hmax) E.push(`Hauteur ${Hc} > maximum ${md.hmax} du fournisseur (${md.nom})`); }
-  if(vt.length===0 && !sansOP) W.push("Répartition des vantaux non renseignée");
+  if(vt.length===0 && !sansOP) E.push("Répartition des vantaux non renseignée");
   if(md && (fam==="of"||fam==="pf") && md.vantaux<=3 && vt.length && vt.length!==md.vantaux) W.push(`Le modèle a ${md.vantaux} vantail(aux), la répartition en indique ${vt.length}`);
   if(tL!=null && f.L!=null && Math.abs(f.L-tL)>150) E.push("Largeur : écart fabrication / tableau > 150 mm ?");
   if(tH!=null && f.H!=null && Math.abs(f.H-tH)>150) E.push("Hauteur : écart fabrication / tableau > 150 mm ?");
@@ -545,7 +547,15 @@ const GAMME_APPUI = { "ALU - LALOI":["laloi"], "PVC - REHAU PORTEO":["REHAU – 
   "PVC - FENSTAR NEW (arrondie)":["Fenstar réno","Fenstar neuf"], "BOIS - MILLET-SYBAIE":["SYbaie"], "MIXTE - MEO":["SYbaie"] };
 const GAMME_FINITION = { "ALU - LALOI":["LALOI – Habillages intérieurs","LALOI – Habillages extérieurs","LALOI – Élargisseurs et tubes"],
   "PVC - REHAU PORTEO":["PORTEO – Habillages intérieurs","PORTEO – Habillages extérieurs"], "PVC - FENSTAR FLAT (droit)":["FENSTAR"], "PVC - FENSTAR NEW (arrondie)":["FENSTAR"], "BOIS - MILLET-SYBAIE":["BOIS"], "MIXTE - MEO":["BOIS"] };
-function listeFinitions(cote, g){ const L=CAT["finitions_"+cote], k=GAMME_FINITION[g]; if(!k) return L; return L.filter(x=>x.groupe==="DIVERS"||k.includes(x.groupe)); }
+/* Une seule ligne par profil : « sur 3 / 4 côtés » se choisit dans « Côtés… » ; les profils du fournisseur masquent leurs doublons de la liste DIVERS */
+const SANS_COTES = t => /\+/.test(t) ? t : t.replace(/\s+sur\s+[34]\s+côtés$/i,"");
+const cleProfil = t => { const m=String(t).toLowerCase().match(/^(corni[eè]re|plat)\b[^0-9]*(\d+)(?:\s*(?:x|×|par)\s*(\d+))?/); return m ? m[1].replace("è","e")+"-"+m[2]+(m[3]?"-"+m[3]:"") : null; };
+function listeFinitions(cote, g){
+  const L=CAT["finitions_"+cote], k=GAMME_FINITION[g];
+  const gr=(k ? L.filter(x=>x.groupe==="DIVERS"||k.includes(x.groupe)) : L).map(x=>x.groupe==="DIVERS"?x:{groupe:x.groupe,items:[...new Set(x.items.map(SANS_COTES))]});
+  const fr=new Set(gr.filter(x=>x.groupe!=="DIVERS").flatMap(x=>x.items.map(cleProfil)).filter(Boolean));
+  return gr.map(x=>x.groupe==="DIVERS"?{groupe:x.groupe,items:x.items.filter(t=>!fr.has(cleProfil(t)))}:x);
+}
 /* Règle LALOI : en rénovation (pose sur cadre existant) ou en pose tunnel → dormant de 67 mm obligatoire */
 const DORMANT_LALOI_67 = "Dormant rénovation de 67 mm";
 const DORMANT_LALOI_128 = "Dormant coulissant 128 mm 3 vantaux 3 rails";
@@ -576,7 +586,7 @@ function listeSemiFixe(g){ return GAMME_SEMI[g] ? CAT[GAMME_SEMI[g]] : null; }
 function nbVantaux(o){ const md=modeleDe(o); if(md) return md.vantaux; return [o.vantaux.G,o.vantaux.M,o.vantaux.D].filter(Boolean).length; }
 function aSemiFixe(o){ const md=modeleDe(o); return !!listeSemiFixe(o.gamme) && nbVantaux(o)>=2 && !["coulissant","galandage"].includes(md?.famille); }
 function listeGV(g){ return CAT.gv; }   // même liste pour toutes les gammes (Nicolas)
-function listeVitrages(g){ if(g==="ALU - LALOI") return CAT.vitrages_laloi; const fr=FRN(g).vitrages; return fr ? [{groupe:"Habituel (raccourcis)",items:CAT.vitrage_composition}, ...fr] : CAT.vitrage_composition; }
+function listeVitrages(g){ if(g==="ALU - LALOI") return CAT.vitrages_laloi; const fr=FRN(g).vitrages; return fr || CAT.vitrage_composition; }
 function listeAppuis(g){ const fr=FRN(g).appuis; return fr ? [CAT.appui_bas[0],...fr] : listeFournisseur(CAT.appui_bas,GAMME_APPUI,g); }
 function listeSB(g){ return FRN(g).soubassements || CAT.sb_type; }
 const vitrageOpaque = o => /d[ée]poli|delta mat|panneau|g200/i.test(o.vitrage||"");
@@ -661,7 +671,7 @@ async function renderHome(){
       <div class="row"><span class="t">${esc(d.client.nom||"Sans nom")}</span><span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span></div>
       <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.length} ouverture(s)${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}</div>
       <div class="s">${esc(d.gamme_defaut||"")}</div>
-      <div>${n?`<span class="badge b-err">${n} point(s) à vérifier</span>`:`<span class="badge b-ok">Contrôle OK</span>`} <span class="badge ${estDefinitif(d)?"b-err":"b-n"}">${estDefinitif(d)?"Métré définitif":"Devis"}</span> ${d.drive_attente?`<span class="badge b-n">☁ envoi en attente</span>`:d.drive?`<span class="badge b-ok">☁ dans le Drive</span>`:""}</div>
+      <div>${n?`<span class="badge b-err">${n} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} <span class="badge ${estDefinitif(d)?"b-err":"b-n"}">${estDefinitif(d)?"Métré définitif":"Devis"}</span> ${d.drive_attente?`<span class="badge b-n">☁ envoi en attente</span>`:d.drive?`<span class="badge b-ok">☁ dans le Drive</span>`:""}</div>
     </div>`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau métré ».</div>`}</div>`;
   $("#hNew").onclick=()=>{ S.dossier=nouveauDossier(); DB.put(S.dossier); S.tab="client"; renderDossier(); };
   $("#hOpen").onclick=()=>$("#fileOpen").click();
@@ -671,56 +681,69 @@ async function renderHome(){
 /* ---------- Dossier ---------- */
 function renderDossier(){
   S.view="dossier"; S.ouv=null; const d=normaliser(S.dossier); syncVR(d); majTitre();
-  const T=[["client","Fiche client"],["chantier","Chantier & devis"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["controle","Contrôle"]];
+  if(S.tab==="chantier") S.tab="client";
+  const T=[["client","Client & chantier"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["controle","Contrôle"]];
   const def=estDefinitif(d);
   $("#app").innerHTML=`
   <div class="circuit" role="group" aria-label="Type de métré">
     <span class="circuit-lbl">Ce métré est un :</span>
     <button class="${def?"":"on"}" data-circuit="devis" aria-pressed="${!def}">Devis<small>copie → DEVIS A FAIRE</small></button>
     <button class="${def?"on":""}" data-circuit="definitif" aria-pressed="${def}">Métré définitif<small>copie → METRES DEFINITIF</small></button>
+    <label class="f circuit-gamme">Gamme (nouvelles ouvertures)<select data-k="gamme_defaut">${opts(CAT.gammes,d.gamme_defaut)}</select></label>
   </div>
   <div class="row" style="margin-bottom:12px">
     <div class="tabs" style="margin:0">${T.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?"on":""}">${l}</button>`).join("")}</div>
     <span class="spacer"></span>
     <button class="btn small" id="dVar">Variante PVC / Alu / Bois</button>
     <button class="btn small" id="dPrint">Imprimer / PDF</button>
-    <button class="btn small navy" id="dSave" title="${d.drive?"Dernier envoi : "+new Date(d.drive.le).toLocaleString("fr-FR"):""}">☁ Enregistrer dans Drive${d.drive_attente?" (en attente)":d.drive?" ✓":""}</button>
+    <button class="btn small" id="dSave" title="Enregistrement automatique au retour à la liste. Toucher pour forcer un envoi.${d.drive?" Dernier envoi : "+new Date(d.drive.le).toLocaleString("fr-FR"):""}" aria-label="Forcer l'enregistrement dans le Drive">☁ Drive${d.drive_attente?" (en attente)":d.drive?" ✓":""}</button>
   </div>
   <div id="tab"></div>`;
   $$("[data-tab]").forEach(b=>b.onclick=()=>{ S.tab=b.dataset.tab; renderDossier(); });
   $$("[data-circuit]").forEach(b=>b.onclick=()=>choisirCircuit(b.dataset.circuit));
   $("#dPrint").onclick=imprimer; $("#dSave").onclick=enregistrerDrive; $("#dVar").onclick=ouvrirVariante;
   const t=$("#tab"), FIC=CAT.fic;
-  if(S.tab==="client") t.innerHTML=`
+  if(S.tab==="client"){
+    const nbCom=[d.client.origine,d.client.situation,d.client.travail,d.logement.maison,d.logement.motivation1,d.logement.motivation2,d.logement.precisions,
+      d.budget.moyens,d.budget.ressenti,d.budget.projet,d.budget.aide,d.budget.aide_laquelle,d.budget.precision,...d.concurrents].filter(Boolean).length;
+    t.innerHTML=`
     <div class="grid g2">
       <div class="card"><h2><span class="num">1</span>Le client</h2><div class="grid g2">
         ${F.text("client.nom","Nom du client",d.client.nom)}${F.date("client.date_rdv","Date du RDV",d.client.date_rdv)}
         ${F.text("client.telephone","Téléphone",d.client.telephone,'inputmode="tel"')}${F.text("client.email","E-mail",d.client.email,'inputmode="email"')}
-        ${F.sel("client.origine","Origine du contact",FIC.origine,d.client.origine)}${F.sel("client.situation","Situation",FIC.situation,d.client.situation)}
-        ${F.sel("client.travail","Travail du client",FIC.travail,d.client.travail)}${F.text("metreur","Métreur",d.metreur)}
+        ${F.text("metreur","Métreur",d.metreur)}${F.text("variante","Variante",d.variante)}
       </div></div>
-      <div class="card"><h2><span class="num">2</span>Le logement et le projet</h2><div class="grid g2">
-        ${F.sel("logement.maison","Maison",FIC.maison,d.logement.maison)}<div></div>
-        ${F.sel("logement.motivation1","Motivation 1",FIC.motivation,d.logement.motivation1)}${F.sel("logement.motivation2","Motivation 2",FIC.motivation,d.logement.motivation2)}
-      </div><div style="margin-top:12px">${F.area("logement.precisions","Précisions",d.logement.precisions)}</div></div>
-      <div class="card"><h2><span class="num">3</span>Budget et ressenti</h2><div class="grid g2">
-        ${F.sel("budget.moyens","Moyens financiers",FIC.moyens,d.budget.moyens)}${F.sel("budget.ressenti","Ressenti du RDV",FIC.ressenti,d.budget.ressenti)}
-        ${F.sel("budget.projet","Projet",FIC.projet,d.budget.projet)}${F.sel("budget.aide","Demande d'aide",FIC.aide,d.budget.aide)}
-        ${F.sel("budget.aide_laquelle","Laquelle",FIC.aide_laquelle,d.budget.aide_laquelle)}${F.text("budget.precision","Précision",d.budget.precision)}
-      </div></div>
-      <div class="card"><h2><span class="num">4</span>Concurrence</h2><div class="grid g2">
-        ${d.concurrents.map((c,i)=>F.text(`concurrents.${i}`,`Concurrent ${i+1}`,c)).join("")}
+      <div class="card"><h2><span class="num">2</span>Le chantier</h2>
+        ${F.area("adresse_chantier","Adresse du chantier",d.adresse_chantier)}
+        <div style="margin-top:12px">${F.area("observations","Observations générales",d.observations)}</div>
+      </div>
+      <div class="card" style="grid-column:1/-1"><h2><span class="num">3</span>Pose</h2><div class="grid g4">
+        ${F.sel("jours_pose","Jours de pose (menuiseries)",CAT.jours_pose,d.jours_pose)}${F.sel("equipe_pose","Équipe de pose",CAT.equipe_pose,d.equipe_pose)}
+        ${F.sel("vr.duree","Durée de pose des volets roulants",CAT.vr.duree,d.vr.duree)}${F.sel("vr.manutention","Manutention (échelle, nacelle…)",CAT.vr.manutention,d.vr.manutention)}
       </div></div>
     </div>
-    <div class="card"><h2><span class="num">5</span>Observations</h2>${F.area("notes_client","",d.notes_client)}</div>`;
-  if(S.tab==="chantier") t.innerHTML=`
-    <div class="card"><h2>En-tête du métré</h2><div class="grid g3">
-      ${F.sel("type_document","Document",CAT.type_document,d.type_document)}${F.sel("tva","TVA",CAT.tva,d.tva)}${F.text("variante","Variante",d.variante)}
-      ${F.sel("jours_pose","Jours de pose estimés",CAT.jours_pose,d.jours_pose)}${F.sel("equipe_pose","Équipe de pose",CAT.equipe_pose,d.equipe_pose)}
-      ${F.sel("gamme_defaut","Gamme par défaut (nouvelles ouvertures)",CAT.gammes,d.gamme_defaut)}
-    </div><div class="grid g2" style="margin-top:12px">
-      ${F.area("adresse_chantier","Adresse du chantier",d.adresse_chantier)}${F.area("observations","Observations générales",d.observations)}
-    </div></div>`;
+    <details class="card" id="comDet" ${S.comOpen?"open":""}><summary><h2 style="display:inline"><span class="num">4</span>Infos commerciales <small style="font-weight:400;text-transform:none">– origine, projet, budget, concurrence${nbCom?` (${nbCom} renseignée(s))`:""}</small></h2></summary>
+      <div class="grid g2" style="margin-top:12px">
+        <div class="card"><h2>Contact</h2><div class="grid g2">
+          ${F.sel("client.origine","Origine du contact",FIC.origine,d.client.origine)}${F.sel("client.situation","Situation",FIC.situation,d.client.situation)}
+          ${F.sel("client.travail","Travail du client",FIC.travail,d.client.travail)}
+        </div></div>
+        <div class="card"><h2>Le logement et le projet</h2><div class="grid g2">
+          ${F.sel("logement.maison","Maison",FIC.maison,d.logement.maison)}<div></div>
+          ${F.sel("logement.motivation1","Motivation 1",FIC.motivation,d.logement.motivation1)}${F.sel("logement.motivation2","Motivation 2",FIC.motivation,d.logement.motivation2)}
+        </div><div style="margin-top:12px">${F.area("logement.precisions","Précisions",d.logement.precisions)}</div></div>
+        <div class="card"><h2>Budget et ressenti</h2><div class="grid g2">
+          ${F.sel("budget.moyens","Moyens financiers",FIC.moyens,d.budget.moyens)}${F.sel("budget.ressenti","Ressenti du RDV",FIC.ressenti,d.budget.ressenti)}
+          ${F.sel("budget.projet","Projet",FIC.projet,d.budget.projet)}${F.sel("budget.aide","Demande d'aide",FIC.aide,d.budget.aide)}
+          ${F.sel("budget.aide_laquelle","Laquelle",FIC.aide_laquelle,d.budget.aide_laquelle)}${F.text("budget.precision","Précision",d.budget.precision)}
+        </div></div>
+        <div class="card"><h2>Concurrence</h2><div class="grid g2">
+          ${d.concurrents.map((c,i)=>F.text(`concurrents.${i}`,`Concurrent ${i+1}`,c)).join("")}
+        </div></div>
+      </div>
+    </details>`;
+    $("#comDet").addEventListener("toggle",e=>{ S.comOpen=e.target.open; });
+  }
   if(S.tab==="ouvertures"){
     t.innerHTML=`<div class="row" style="margin-bottom:12px"><span class="hint">Une fiche par ouverture (repère). Appuie sur une fiche pour la remplir.</span><span class="spacer"></span><button class="btn primary" id="oAdd">+ Ajouter une ouverture</button></div>
     <div class="list">${d.ouvertures.map((o,i)=>{ const c=controleOuverture(o), f=calcFab(o);
@@ -729,7 +752,7 @@ function renderDossier(){
         <div class="s">${esc(libellePose(o))}${vrLie(d,o)?` <span class="badge b-n">+ Volet roulant</span>`:""}</div>
         <div class="s">${esc(o.gamme||"Gamme ?")}${modeleDe(o)?` · ${esc(modeleDe(o).nom)}`:""}</div>
         <div class="s">Tableau ${esc(coteTab(o,"L")||"?")} × ${esc(coteTab(o,"H")||"?")} · Fab <b>${f.L??"?"} × ${f.H??"?"}</b></div>
-        <div>${c.E.length?`<span class="badge b-err">${c.E.length} erreur(s)</span> `:""}${c.W.length?`<span class="badge b-warn">${c.W.length} à vérifier</span>`:""}${!c.E.length&&!c.W.length?`<span class="badge b-ok">OK</span>`:""}</div>
+        <div>${c.E.length?`<span class="badge b-err">${c.E.length} à corriger</span> `:""}${c.W.length?`<span class="badge b-warn">${c.W.length} conseillé(s)</span>`:""}${!c.E.length&&!c.W.length?`<span class="badge b-ok">OK</span>`:""}</div>
         <div class="row"><button class="btn small" data-dup="${o.id}">Dupliquer</button><button class="btn small danger" data-del="${o.id}">Supprimer</button></div>
       </div>`; }).join("")}</div>`;
     $("#oAdd").onclick=()=>$("#mPose").classList.add("open");
@@ -745,7 +768,7 @@ function renderDossier(){
     const cd=controleDossier(d);
     const bloc=(titre,c)=>`<div class="card"><h2>${esc(titre)}</h2>${!c.E.length&&!c.W.length?`<span class="badge b-ok">Rien à signaler</span>`:
       `<ul>${c.E.map(x=>`<li style="color:var(--err)">${esc(x)}</li>`).join("")}${c.W.map(x=>`<li style="color:var(--warn)">${esc(x)}</li>`).join("")}</ul>`}</div>`;
-    t.innerHTML=bloc("Dossier",cd)+d.ouvertures.map((o,i)=>bloc(`${i+1}. ${o.repere||"Sans repère"}`,controleOuverture(o))).join("")
+    t.innerHTML=`<p class="hint"><span class="badge b-err">À corriger</span> bloque le métré (cotes, modèle, couleur, vantaux…) · <span class="badge b-warn">Conseillé</span> à compléter si possible (adresse, jours de pose, repère…)</p>`+bloc("Dossier",cd)+d.ouvertures.map((o,i)=>bloc(`${i+1}. ${o.repere||"Sans repère"}`,controleOuverture(o))).join("")
       +(d.vr.lignes.length?bloc("Volets roulants – en-tête",controleVREntete(d.vr))+d.vr.lignes.map((l,i)=>bloc(`VR ${i+1}. ${l.repere||"Sans repère"}`,controleLigneVR(l,d.vr))).join(""):"");
   }
   if(S.tab!=="ouvertures") majTitre();
@@ -755,10 +778,8 @@ function renderDossier(){
 function renderVR(t){
   const d=S.dossier, v=d.vr, C=CAT.vr;
   t.innerHTML=`
-  <div class="card"><h2>Volet roulant – en-tête</h2><div class="grid g4">
-    ${F.sel("vr.document","Document",C.document,v.document)}${F.sel("vr.equipe","Pose (équipe)",C.equipe,v.equipe)}
-    ${F.sel("vr.duree","Durée de pose",C.duree,v.duree)}${F.sel("vr.manutention","Manutention",C.manutention,v.manutention)}
-  </div>
+  <div class="card"><h2>Volet roulant – en-tête</h2>
+  <p class="hint">Équipe, durée de pose et manutention : onglet « Client & chantier », rubrique Pose.</p>
   <div class="hint" style="margin:14px 0 6px">Type de pose</div>
   <div class="vrpose">${C.types_pose.map(p=>`<button data-vrpose="${p.id}" class="${v.type_pose===p.id?"on":""}"><img src="${SCHEMAS[p.img]||""}" alt=""><span>${esc(p.nom)}</span></button>`).join("")}</div>
   <div class="grid g4" style="margin-top:14px">
@@ -797,7 +818,7 @@ function renderVR(t){
   majVR();
 }
 function majVR(){
-  const v=S.dossier.vr, badge=c=>c.E.length?`<span class="badge b-err" title="${esc([...c.E,...c.W].join(" · "))}">${c.E.length} erreur(s)</span>`:c.W.length?`<span class="badge b-warn" title="${esc(c.W.join(" · "))}">${c.W.length} à vérifier</span>`:`<span class="badge b-ok">OK</span>`;
+  const v=S.dossier.vr, badge=c=>c.E.length?`<span class="badge b-err" title="${esc([...c.E,...c.W].join(" · "))}">${c.E.length} à corriger</span>`:c.W.length?`<span class="badge b-warn" title="${esc(c.W.join(" · "))}">${c.W.length} conseillé(s)</span>`:`<span class="badge b-ok">OK</span>`;
   const h=$("#vrCtlH"); if(h){ const c=controleVREntete(v); h.innerHTML=c.E.length||c.W.length?`<ul style="margin:0;padding-left:20px">${c.E.map(x=>`<li style="color:var(--err)">${esc(x)}</li>`).join("")}${c.W.map(x=>`<li style="color:var(--warn)">${esc(x)}</li>`).join("")}</ul>`:""; }
   v.lignes.forEach((l,i)=>{ const fb=fabVR(l,v);
     [["L","vrfl","fab_l"],["H","vrfh","fab_h"]].forEach(([K,id,f])=>{ const a=K==="L"?fb.autoL:fb.autoH, inp=$(`[data-k="vr.lignes.${i}.${f}"]`), lab=$("#"+id+i);
@@ -858,7 +879,7 @@ function renderOuverture(){
   </div></div>
 
   <div class="card"><h2><span class="num">5</span>Vitrage, soubassement, imposte et appui</h2><div class="grid g4">
-    <div style="grid-column:span 2">${F.sel("vitrage","Composition du vitrage",listeVitrages(o.gamme),o.vitrage)}</div>${F.sel("teinte","Teinte",CAT.vitrage_teinte,o.teinte)}${FRN(o.gamme).intercalaires?F.sel("intercalaire","Intercalaire",FRN(o.gamme).intercalaires,o.intercalaire):""}
+    <div style="grid-column:span 2">${F.sel("vitrage","Composition du vitrage",listeVitrages(o.gamme),o.vitrage)}</div>${o.teinte?F.sel("teinte","Teinte (ancien champ)",CAT.vitrage_teinte,o.teinte):""}${FRN(o.gamme).intercalaires?F.sel("intercalaire","Intercalaire",FRN(o.gamme).intercalaires,o.intercalaire):""}
     ${F.sel("appui_bas","Profil : appui bas",listeAppuis(o.gamme),o.appui_bas)}
     ${F.numb("sb","Soubassement (SB) en mm",o.sb)}${F.sel("sb_type","Type de soubassement",listeSB(o.gamme),o.sb_type)}${F.text("imposte","Imposte",o.imposte)}${F.sel("imposte_type","Type d'imposte",CAT.sb_type,o.imposte_type)}
   </div></div>
@@ -869,7 +890,7 @@ function renderOuverture(){
     ${o.pb_motif==="perso"?`<div class="grid g4" style="margin-top:8px">${F.numb("pb_c","Carreaux en largeur",o.pb_c)}${F.numb("pb_r","Carreaux en hauteur",o.pb_r)}</div>`:""}</div>
 
   <div class="card"><h2><span class="num">7</span>Quincaillerie et seuils <small style="font-weight:400;text-transform:none">– poignées, serrures, portes et portes-fenêtres</small></h2><div class="grid g4">
-    ${F.sel("poignee","Poignée (position / type)",CAT.poignee,o.poignee)}${FRN(o.gamme).poignees?F.sel("poignee_modele",`Poignée ${esc(FRN(o.gamme).fournisseur||"")}`,FRN(o.gamme).poignees,o.poignee_modele):""}${F.sel("serrure","Serrure à pêne",CAT.serrure,o.serrure)}${FRN(o.gamme).fermeture?F.sel("fermeture","Fermeture / serrure",FRN(o.gamme).fermeture,o.fermeture):""}
+    ${FRN(o.gamme).poignees?F.sel("poignee_modele",`Poignée ${esc(FRN(o.gamme).fournisseur||"")}`,FRN(o.gamme).poignees,o.poignee_modele):F.sel("poignee","Poignée (position / type)",CAT.poignee,o.poignee)}${FRN(o.gamme).fermeture?F.sel("fermeture","Fermeture / serrure",FRN(o.gamme).fermeture,o.fermeture):""}
     ${FRN(o.gamme).seuils?F.sel("seuil_type","Seuil (fournisseur)",FRN(o.gamme).seuils,o.seuil_type):""}${(FRN(o.gamme).modeles_porte||FRN(o.gamme).panneaux)&&(modeleDe(o)?.famille==="porte")?F.sel("modele_porte","Modèle / panneau de porte",FRN(o.gamme).modeles_porte||FRN(o.gamme).panneaux,o.modele_porte):""}${FRN(o.gamme).sens_porte&&(modeleDe(o)?.famille==="porte")?F.sel("sens_porte","Sens d'ouverture (vue extérieure)",FRN(o.gamme).sens_porte,o.sens_porte):""}
   </div><div class="checks" style="margin-top:12px">${F.chk("seuil_std","Seuil alu standard",o.seuil_std)}${F.chk("seuil_plat","Seuil alu PLAT",o.seuil_plat)}</div>
   <div style="margin-top:12px">${listeCylindres(o.gamme)||aSemiFixe(o)?`<div class="grid g2" style="margin-bottom:12px">${listeCylindres(o.gamme)?F.sel("cylindre","Cylindre (barillet)",listeCylindres(o.gamme),o.cylindre):""}${aSemiFixe(o)?F.sel("semi_fixe","Fermeture de l'ouvrant secondaire (semi-fixe)",listeSemiFixe(o.gamme),o.semi_fixe):""}</div>`:""}
@@ -883,7 +904,7 @@ function renderOuverture(){
     ${["int","ext"].map(c=>`<div><div class="hint" style="font-weight:700;color:var(--navy);margin-bottom:6px">${c==="int"?"INTÉRIEURES":"EXTÉRIEURES"}</div>
       ${o.finitions[c+"_l"].map((x,i)=>`<div class="finrow">
         <select data-k="finitions.${c}_l.${i}.t">${opts(listeFinitions(c,o.gamme),x.t,"Finition…")}</select>
-        <select data-k="finitions.${c}_l.${i}.c" class="fincote">${opts(CAT.finitions_cotes,x.c,"Côtés…")}</select>
+        <select data-k="finitions.${c}_l.${i}.c" class="fincote">${opts(CAT.finitions_cotes.includes("4 côtés")?CAT.finitions_cotes:[...CAT.finitions_cotes.slice(0,6),"4 côtés",...CAT.finitions_cotes.slice(6)],x.c,"Côtés…")}</select>
         ${o.finitions[c+"_l"].length>1?`<button class="btn small danger" data-findel="${c}:${i}" title="Retirer">✕</button>`:""}</div>`).join("")}
       <button class="btn small" data-finadd="${c}">+ Ajouter une finition ${c==="int"?"intérieure":"extérieure"}</button></div>`).join("")}
   </div></div>
@@ -954,8 +975,8 @@ function majVRInline(){
   [["L","#vrInFl","fab_l"],["H","#vrInFh","fab_h"]].forEach(([K,id,f])=>{ const a=K==="L"?fb.autoL:fb.autoH, inp=$(`[data-dk="vr.lignes.${i}.${f}"]`);
     if(inp) inp.placeholder = a!=null?String(a):(fb.auto?"":"à saisir");
     $(id).textContent = fb.auto ? (a!=null?(num(l[f])!=null?`(calcul : ${a}, remplacé)`:`(auto : ${a})`):"(auto)") : ""; });
-  $("#vrInBadge").innerHTML = c.E.length?`<span class="badge b-err">${c.E.length} erreur(s)</span> <span class="hint">${esc([...c.E,...c.W].join(" · "))}</span>`
-    : c.W.length?`<span class="badge b-warn">${c.W.length} à vérifier</span> <span class="hint">${esc(c.W.join(" · "))}</span>`:`<span class="badge b-ok">OK</span>`;
+  $("#vrInBadge").innerHTML = c.E.length?`<span class="badge b-err">${c.E.length} à corriger</span> <span class="hint">${esc([...c.E,...c.W].join(" · "))}</span>`
+    : c.W.length?`<span class="badge b-warn">${c.W.length} conseillé(s)</span> <span class="hint">${esc(c.W.join(" · "))}</span>`:`<span class="badge b-ok">OK</span>`;
 }
 function majFab(){
   const o=S.ouv, f=calcFab(o);
@@ -967,7 +988,7 @@ function majFab(){
 function majControle(){
   const c=controleOuverture(S.ouv), el=$("#ctl"); if(!el) return;
   el.innerHTML = !c.E.length&&!c.W.length ? `<span class="badge b-ok">Contrôle OK</span> <span class="hint">Aucune anomalie détectée sur cette ouverture.</span>`
-   : `<div class="row"><b>Contrôle</b>${c.E.length?`<span class="badge b-err">${c.E.length} erreur(s)</span>`:""}${c.W.length?`<span class="badge b-warn">${c.W.length} à vérifier</span>`:""}
+   : `<div class="row"><b>Contrôle</b>${c.E.length?`<span class="badge b-err">${c.E.length} à corriger</span>`:""}${c.W.length?`<span class="badge b-warn">${c.W.length} conseillé(s)</span>`:""}
         <span class="hint" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${S.ctlOpen?"":esc([...c.E,...c.W][0])}</span>
         <button class="btn small" id="ctlTog">${S.ctlOpen?"Réduire":"Détails"}</button></div>
       ${S.ctlOpen?`<ul>${c.E.map(x=>`<li class="err">${esc(x)}</li>`).join("")}${c.W.map(x=>`<li class="warn">${esc(x)}</li>`).join("")}</ul>`:""}`;
@@ -1209,7 +1230,7 @@ function construireImpression(d){
       <table class="pt">${row([["Maison",d.logement.maison],["Motivation 1",d.logement.motivation1],["Motivation 2",d.logement.motivation2],["Précisions",d.logement.precisions]])}</table></div>
     <div><table class="pt">${row([["Moyens financiers",d.budget.moyens],["Ressenti",d.budget.ressenti],["Projet",d.budget.projet],["Demande d'aide",d.budget.aide],["Laquelle",d.budget.aide_laquelle],["Précision",d.budget.precision]])}</table>
       <table class="pt">${row(d.concurrents.map((c,i)=>[`Concurrent ${i+1}`,c]))}</table>
-      <table class="pt">${row([["TVA",d.tva],["Jours de pose",d.jours_pose],["Équipe",d.equipe_pose],["Observations",d.observations],["Notes",d.notes_client]])}</table></div></div>
+      <table class="pt">${row([["Jours de pose",d.jours_pose],["Équipe",d.equipe_pose],["Observations",d.observations],["Notes",d.notes_client]])}</table></div></div>
     ${!d.ouvertures.length?"":`<table class="pt"><tr><th>#</th><th>Repère</th><th>Qté</th><th>Pose</th><th>Gamme</th><th>Tableau L×H</th><th>Fabrication L×H</th><th>Vantaux</th></tr>
     ${d.ouvertures.map((o,i)=>{const f=calcFab(o);return `<tr><td>${i+1}</td><td>${esc(o.repere)}</td><td>${esc(o.quantite)}</td><td>${esc(libellePose(o))}</td><td>${esc(o.gamme)}</td><td>${esc(coteTab(o,"L"))} × ${esc(coteTab(o,"H"))}</td><td><b>${f.L??""} × ${f.H??""}</b></td><td>${esc([o.vantaux.G,o.vantaux.M,o.vantaux.D].filter(Boolean).join(" · "))}</td></tr>`;}).join("")}</table>`}</div>`;
   d.ouvertures.forEach((o,i)=>{ const f=calcFab(o), P=CAT.poses[o.pose], c=controleOuverture(o);
@@ -1240,9 +1261,9 @@ function construireImpression(d){
   if(v && v.lignes.length){
     const tp=CAT.vr.types_pose.find(p=>p.id===v.type_pose), ck=b=>b?"✔":"", ch=controleVREntete(v);
     const errs=[...ch.E,...ch.W.map(x=>x)].map(x=>"En-tête : "+x).concat(v.lignes.flatMap((l,i)=>{const c=controleLigneVR(l,v); return [...c.E,...c.W].map(x=>`${i+1}. ${l.repere||"?"} : ${x}`);}));
-    h+=`<div class="pg">${head(`Volet roulant – ${v.document} – ${d.client.nom||""}`)}
+    h+=`<div class="pg">${head(`Volet roulant – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
       <div class="pcols" style="grid-template-columns:3fr 1fr"><div>
-      <table class="pt">${row([["Client",d.client.nom],["Adresse",d.adresse_chantier],["Pose",[v.equipe,v.duree].filter(Boolean).join(" – ")],["Type de pose",tp?.nom||""],["Manutention",v.manutention],["Assurance",v.assurance?"Oui":""]])}</table></div>
+      <table class="pt">${row([["Client",d.client.nom],["Adresse",d.adresse_chantier],["Pose",[d.equipe_pose||v.equipe,v.duree].filter(Boolean).join(" – ")],["Type de pose",tp?.nom||""],["Manutention",v.manutention],["Assurance",v.assurance?"Oui":""]])}</table></div>
       <div><table class="pt">${row([["Coffre",v.coffre],["Couleur coffre",v.couleur_coffre],["Couleur coulisses",v.couleur_coulisses],["Couleur tablier",v.couleur_tablier],["Motorisation",v.motorisation],["Options",v.options_sup]])}</table></div></div>
       <div class="pcols" style="grid-template-columns:5fr 1fr;align-items:start"><div>
       <table class="pt vrt"><tr><th rowspan="2">Repère</th><th rowspan="2">Qté</th><th colspan="2">Tableau</th><th colspan="2">Fabrication</th><th colspan="2">Sortie de fil<br>vue int.</th><th colspan="2">Perçage<br>coulisse</th><th rowspan="2">Sortie de fil<br>coffre</th><th rowspan="2">Électricité</th><th rowspan="2">Dépose</th><th rowspan="2">Option</th></tr>

@@ -1329,7 +1329,7 @@ function construireImpression(d){
       <div class="pst" style="margin-top:6px">DESSIN <small>– vue de l'intérieur</small></div>${dessinMenuiserie(o,{cls:"pdessin"+(o.croquis?" pdpetit":"")})}
       ${o.croquis?`<div class="pst" style="margin-top:6px">CROQUIS</div><img class="pimg pcroq" src="${o.croquis}">`:""}
       </div><div class="pbas">
-      ${c.E.length||c.W.length?`<div class="pwarn">À vérifier : ${esc([...c.E,...c.W].join(" · "))}</div>`:`<div class="pok">✓ Contrôle OK</div>`}
+      ${c.E.length||c.W.length?`<div class="pwarn">À vérifier : ${esc([...c.E,...c.W].join(" · "))}</div>`:""}
 </div></div></div>`+pagesPhotos(d,o,head); });
   const v=d.vr;
   if(v && v.lignes.length){
@@ -1346,7 +1346,7 @@ function construireImpression(d){
           <td>${ck(l.fil_gauche)}</td><td>${ck(l.fil_droite)}</td><td>${ck(l.percage_tableau)}</td><td>${ck(l.percage_face)}</td><td>${esc(l.fil_coffre)}</td><td>${esc(l.electricite)}</td><td>${esc(l.depose)}</td><td>${esc(l.option)}</td></tr>`).join("")}
       </table>
       ${v.observation?`<table class="pt"><tr><th>Observation</th><td>${esc(v.observation)}</td></tr></table>`:""}
-      ${errs.length?`<div class="pwarn">À vérifier : ${esc(errs.join(" · "))}</div>`:`<div class="pok">✓ Contrôle OK</div>`}</div>
+      ${errs.length?`<div class="pwarn">À vérifier : ${esc(errs.join(" · "))}</div>`:""}</div>
       <div>${tp&&SCHEMAS[tp.img]?`<img src="${SCHEMAS[tp.img]}" style="max-width:100%;border:1px solid #9aa3b5"><div style="text-align:center;font-weight:700">${esc(tp.nom)}</div>`:""}</div></div></div>`;
   }
   return h;

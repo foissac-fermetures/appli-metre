@@ -1719,13 +1719,18 @@ const CLIM_TEMPS = ["½ jour","1 jour","1,5 jour","2 jours","2,5 jours","3 jours
 const CLIM_HAUTEUR = ["SOL","Support mural","Toit terrasse","Balcon"];
 const CLIM_RAL = ["IVOIRE","BLANC","MARRON","GRIS","NOIR","Sans goulotte"];
 const CLIM_TYPES = ["Split","Console","Gainable","Cassette"];
-const CLIM_UNITES = ["Unité 1","Unité 2"];
+const CLIM_MAX_UE = 8;
+/* Nombre de groupes extérieurs : 2 au départ, « + groupe » jusqu'à 8 (grosses maisons) */
+function climNbUE(c){ const used=(c.lignes||[]).map(l=>parseInt(String(l.unite||"").replace(/\D/g,""))||1);
+  return Math.min(CLIM_MAX_UE, Math.max(2, c.nb_ue||2, ...used)); }
+const climUnites = c => Array.from({length:climNbUE(c)},(_,i)=>`Unité ${i+1}`);
+function climUE(c,n){ if(!c["ue"+n]) c["ue"+n]={h_sol:"", cable:""}; return c["ue"+n]; }
 /* Légende des couleurs du schéma clim (stylos) et étiquettes reprises du schéma Numbers de Nicolas */
 const CLIM_LEGENDE = [
   {c:"#111111", l:"Murs / pièces"}, {c:"#1f4fd8", l:"Unité intérieure (split)"}, {c:"#7b2cbf", l:"Console"},
   {c:"#d3232f", l:"Groupe extérieur"}, {c:"#1f9d3a", l:"Goulotte / liaisons"}, {c:"#e07b00", l:"Tableau électrique / câble 3G"},
   {c:"#00a3c4", l:"Évacuation des condensats"}, {c:"#8a8f99", l:"Menuiserie"} ];
-const CLIM_ETIQUETTES = [["Split","#1f4fd8"],["Console","#7b2cbf"],["Groupe extérieur","#d3232f"],["Unité 1","#d3232f"],["Unité 2","#d3232f"],["Goulotte","#1f9d3a"],["Tableau","#e07b00"],["Pompe de relevage","#00a3c4"],["Menuiserie","#8a8f99"],["Chauffe-eau","#111111"]];
+const CLIM_ETIQUETTES = [["Split","#1f4fd8"],["Console","#7b2cbf"],["Groupe extérieur","#d3232f"],["Goulotte","#1f9d3a"],["Tableau","#e07b00"],["Pompe de relevage","#00a3c4"],["Menuiserie","#8a8f99"],["Chauffe-eau","#111111"]];
 const CLIM_TABLEAU_PLACE = ["Oui, assez de place pour se rebrancher","Non, prévoir un petit tableau indépendant à côté","À vérifier par l'électricien"];
 const legendeClimHTML = () => `<div class="clim-leg">${CLIM_LEGENDE.map(x=>`<span><i style="background:${x.c}"></i>${esc(x.l)}</span>`).join("")}</div>`;
 const nouvelleClim = () => ({ mono:false, multi:false, modele:"", option:"", annee:"", temps_pose:"",
@@ -1748,13 +1753,12 @@ function controleClim(d){
   if(!c.lignes.length) E.push("Aucune pièce saisie");
   if(!c.tableau?.img) E.push("Photo du tableau électrique obligatoire (place pour se rebrancher ?)");
   if(!c.tableau?.place) W.push("Tableau électrique : préciser s'il y a assez de place ou s'il faut un petit tableau indépendant");
-  const u2=c.lignes.some(l=>l.unite==="Unité 2");
-  if(!c.ue1.h_sol) W.push("Hauteur du sol de l'unité extérieure 1 non renseignée");
-  if(!num(c.ue1.cable)) W.push("Longueur de câble au tableau (unité 1) non renseignée");
-  if(u2 && !c.ue2.h_sol) W.push("Une pièce est sur l'unité 2 : hauteur du sol de l'unité extérieure 2 non renseignée");
-  if(u2 && !num(c.ue2.cable)) W.push("Une pièce est sur l'unité 2 : longueur de câble au tableau non renseignée");
+  climUnites(c).forEach((u,i)=>{ const n=i+1, ue=climUE(c,n), sert=n===1||c.lignes.some(l=>l.unite===u);
+    if(!sert) return; const pre=n===1?"":`Une pièce est sur l'unité ${n} : `;
+    if(!ue.h_sol) W.push(`${pre}hauteur du sol de l'unité extérieure ${n} non renseignée`);
+    if(!num(ue.cable)) W.push(`${pre}longueur de câble au tableau (unité ${n}) non renseignée`); });
   if(c.mono && !c.multi && climLignes(d).filter(l=>l.unite==="Unité 1").length>1) W.push("Mono split coché mais plusieurs pièces sur l'unité 1 (multi split ?)");
-  CLIM_UNITES.forEach(u=>{ const n=climLignes(d).filter(l=>l.unite===u).length; if(n>5) W.push(`${u} : ${n} unités intérieures (5 maximum en multi split)`); });
+  climUnites(c).forEach(u=>{ const n=climLignes(d).filter(l=>l.unite===u).length; if(n>5) W.push(`${u} : ${n} unités intérieures (5 maximum en multi split)`); });
   c.lignes.forEach((l,i)=>{ const nom=`${l.variante?"Variante – ":""}${l.piece||"pièce "+(i+1)}`;
     if(!l.piece) W.push(`Ligne ${i+1} : pièce non renseignée`);
     if(num(l.volume)==null) W.push(`${nom} : volume (m³) manquant`);
@@ -1776,20 +1780,23 @@ function renderClim(t){
         <label class="f">Volume (m³)<div class="row" style="gap:6px;flex-wrap:nowrap"><input data-k="${k}volume" inputmode="decimal" value="${esc(l.volume)}"><button class="btn small" data-clcalc="${i}" title="Calculer avec longueur × largeur × hauteur">L×l×h</button></div></label>
         ${F.numb(k+"surface","Surface vitrée de la pièce (m²)",l.surface)}${F.sel(k+"vitrage","Vitrage",["Simple","Double"],l.vitrage)}
         ${F.numb(k+"isol_murs","Isolation des murs (cm)",l.isol_murs)}${F.numb(k+"isol_plafond","Isolation du plafond (cm)",l.isol_plafond)}${F.numb(k+"isol_combles","Isolation des combles (cm)",l.isol_combles)}${F.sel(k+"type","Type",CLIM_TYPES,l.type)}
-        ${F.sel(k+"unite","Groupement sur l'unité",CLIM_UNITES,l.unite)}${F.numb(k+"distance","Distance unité int. → unité ext. (m)",l.distance)}
+        ${F.sel(k+"unite","Groupement sur l'unité",climUnites(c),l.unite)}${F.numb(k+"distance","Distance unité int. → unité ext. (m)",l.distance)}
         <div class="checks" style="align-self:end">${F.chk(k+"pompe","Pompe de relevage",l.pompe)}</div>
       </div>
       <div class="grid g4 clim-calc ${S.climCalc===i?"":"hide"}" id="climCalc${i}" style="margin-top:8px">${F.numb(k+"L","Longueur (m)",l.L)}${F.numb(k+"l","Largeur (m)",l.l)}${F.numb(k+"h","Hauteur sous plafond (m)",l.h)}<div class="hint" style="align-self:end">Le volume se calcule tout seul.</div></div></div>`; };
-  const P=climLignes(d), V=climVariantes(d), tot=CLIM_UNITES.map(u=>{ const L=P.filter(l=>l.unite===u); return L.length?`${u} : ${L.length} unité(s) int.${L.some(l=>puissanceClim(l)!=null)?` · ≈ ${String(Math.round(L.reduce((a,l)=>a+(puissanceClim(l)||0),0)*10)/10).replace(".",",")} kW`:""}`:""; }).filter(Boolean).join(" — ");
+  const P=climLignes(d), V=climVariantes(d), tot=climUnites(c).map(u=>{ const L=P.filter(l=>l.unite===u); return L.length?`${u} : ${L.length} unité(s) int.${L.some(l=>puissanceClim(l)!=null)?` · ≈ ${String(Math.round(L.reduce((a,l)=>a+(puissanceClim(l)||0),0)*10)/10).replace(".",",")} kW`:""}`:""; }).filter(Boolean).join(" — ");
   t.innerHTML=`${dl("dlClimMod",CLIM_MODELES)}${dl("dlClimOpt",CLIM_OPTIONS)}${dl("dlClimTps",CLIM_TEMPS)}${dl("dlClimH",CLIM_HAUTEUR)}${dl("dlClimRal",CLIM_RAL)}<datalist id="dlPiecesClim">${listePiecesDL()}</datalist>
+  <div class="row" style="gap:8px;margin-bottom:12px;flex-wrap:wrap"><span class="hint">Autre devis clim pour ${esc(d.client.nom||"ce client")} (nouvelle version V2, V3… envoyée à part dans le Drive) :</span><span class="spacer"></span>
+    <button class="btn small" data-clneuf="copie">⧉ Copier ce métré clim</button><button class="btn small" data-clneuf="vierge">+ Nouveau métré clim vierge</button></div>
   <div class="grid g2">
     <div class="card"><h2><span class="num">1</span>Installation</h2>
       <div class="checks">${F.chk("clim.mono","Mono split",c.mono)}${F.chk("clim.multi","Multi split",c.multi)}</div>
       <div class="grid g2" style="margin-top:10px">${txt("clim.modele","Modèle",c.modele,"dlClimMod")}${txt("clim.option","Option",c.option,"dlClimOpt")}
         ${txt("clim.annee","Année de la maison",c.annee,"",'inputmode="numeric"')}${txt("clim.temps_pose","Temps de pose (estimation)",c.temps_pose,"dlClimTps")}</div></div>
-    <div class="card"><h2><span class="num">2</span>Unités extérieures</h2><div class="grid g2">
-      ${txt("clim.ue1.h_sol","Hauteur du sol – unité extérieure 1",c.ue1.h_sol,"dlClimH")}${F.numb("clim.ue1.cable","Câble 3G jusqu'au tableau – unité 1 (m)",c.ue1.cable)}
-      ${txt("clim.ue2.h_sol","Hauteur du sol – unité extérieure 2",c.ue2.h_sol,"dlClimH")}${F.numb("clim.ue2.cable","Câble 3G jusqu'au tableau – unité 2 (m)",c.ue2.cable)}
+    <div class="card"><h2><span class="num">2</span>Unités extérieures <small style="font-weight:400;text-transform:none">– ${climNbUE(c)} groupe(s)</small></h2><div class="grid g2">
+      ${climUnites(c).map((u,i)=>{ const n=i+1, ue=climUE(c,n); return txt(`clim.ue${n}.h_sol`,`Hauteur du sol – unité extérieure ${n}`,ue.h_sol,"dlClimH")+F.numb(`clim.ue${n}.cable`,`Câble 3G jusqu'au tableau – unité ${n} (m)`,ue.cable); }).join("")}
+      <div class="row" style="grid-column:1/-1;gap:8px">${climNbUE(c)<CLIM_MAX_UE?`<button class="btn small" id="clUEAdd">+ Ajouter un groupe extérieur</button>`:`<span class="hint">${CLIM_MAX_UE} groupes maximum</span>`}
+        ${climNbUE(c)>2&&!c.lignes.some(l=>l.unite===`Unité ${climNbUE(c)}`)?`<button class="btn small danger" id="clUEDel">Retirer l'unité ${climNbUE(c)}</button>`:""}</div>
       ${txt("clim.ral_ext","RAL goulottes extérieures",c.ral_ext,"dlClimRal")}${txt("clim.ral_int","RAL goulottes intérieures",c.ral_int,"dlClimRal")}</div>
       <div class="checks" style="margin-top:10px">${F.chk("clim.dalle","Faire une dalle béton",c.dalle)}${F.chk("clim.supports","Supports muraux",c.supports)}</div></div>
   </div>
@@ -1803,7 +1810,7 @@ function renderClim(t){
     <div class="hint" style="margin-bottom:4px">Stylos (légende imprimée avec le schéma) :</div>
     <div class="toolbar">${CLIM_LEGENDE.map((x,i)=>`<button class="btn small${i===0?" on":""}" data-pen="${x.c}"><span class="dot" style="background:${x.c}"></span>${esc(x.l)}</button>`).join("")}</div>
     <div class="hint" style="margin:6px 0 4px">Étiquettes : touche un mot puis l'endroit du schéma :</div>
-    <div class="toolbar">${CLIM_ETIQUETTES.map(([t,c])=>`<button class="btn small" data-sktxt="${esc(t)}" data-c="${c}" style="color:${c}">${esc(t)}</button>`).join("")}</div>
+    <div class="toolbar">${[...CLIM_ETIQUETTES.slice(0,3),...climUnites(c).map(u=>[u,"#d3232f"]),...CLIM_ETIQUETTES.slice(3)].map(([t,co])=>`<button class="btn small" data-sktxt="${esc(t)}" data-c="${co}" style="color:${co}">${esc(t)}</button>`).join("")}</div>
     <div class="toolbar"><button class="btn small" data-pen="erase">Gomme</button><button class="btn small" id="skUndo">Annuler</button><button class="btn small danger" id="skClear">Effacer tout</button>
       <label class="chip" id="skPenOnly"><input type="checkbox">Stylet seulement</label></div>
     <canvas id="sketch" class="sketch clim-sketch"></canvas>
@@ -1820,6 +1827,9 @@ function renderClim(t){
     <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple id="phAdd" class="hide"></label></div></div>`;
   const re=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); };
   $("#clAdd").onclick=()=>{ c.lignes.push(nouvelleLigneClim(false)); save(); re(); };
+  const ua=$("#clUEAdd"); if(ua) ua.onclick=()=>{ const y=scrollY; c.nb_ue=climNbUE(c)+1; climUE(c,c.nb_ue); save(); re(); scrollTo(0,y); };
+  const ud=$("#clUEDel"); if(ud) ud.onclick=()=>{ const y=scrollY, n=climNbUE(c); if(c.lignes.some(l=>l.unite===`Unité ${n}`)){ toast(`Une pièce est encore sur l'unité ${n}`); re(); return; } delete c["ue"+n]; c.nb_ue=n-1; save(); re(); scrollTo(0,y); };
+  $$("[data-clneuf]").forEach(b=>b.onclick=()=>nouveauMetreClimClient(b.dataset.clneuf==="copie"));
   $("#clAddVar").onclick=()=>{ c.lignes.push(nouvelleLigneClim(true)); save(); re(); };
   $$("[data-cldel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer cette pièce ?","Supprimer")) return; c.lignes.splice(+b.dataset.cldel,1); save(); re(); });
   $$("[data-cldup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.cldup, n=JSON.parse(JSON.stringify(c.lignes[i])); n.id=uid(); c.lignes.splice(i+1,0,n); save(); re(); });
@@ -1856,8 +1866,9 @@ function pagesClim(d){
         <table class="ct"><tr><td class="lb">MONO</td><td class="c">${ck(c.mono)}</td><td class="lb">MULTI SPLIT</td><td class="c">${ck(c.multi)}</td></tr></table>
         <table class="ct"><tr><td class="lb">MODÈLE</td><td class="cv c">${esc(c.modele)}</td><td class="lb">OPTION</td><td class="cv c">${esc(c.option)}</td></tr></table></div>
       <div><table class="ct"><tr><td class="lb">Année de la maison</td><td class="cv c">${esc(c.annee)}</td></tr></table>
-        <table class="ct"><tr><td class="lb">Hauteur du sol UNITÉ EXTERIEUR 1</td><td class="cv">${esc(c.ue1.h_sol)}</td><td class="lb">Hauteur du sol UNITÉ EXTERIEUR 2</td><td class="cv">${esc(c.ue2.h_sol)}</td></tr>
-          <tr><td class="lb">Longueur de câbles au tableau 3G</td><td class="vert">${c.ue1.cable!==""?esc(c.ue1.cable)+" Metre":""}</td><td class="lb">Longueur de câbles au tableau 3G</td><td class="vert">${c.ue2.cable!==""?esc(c.ue2.cable)+" Metre":""}</td></tr>
+        <table class="ct">${(()=>{ let r=""; const N=climNbUE(c)+(climNbUE(c)%2); for(let n=1;n<=N;n+=2){ const A=climUE(c,n), B=n+1<=climNbUE(c)?climUE(c,n+1):null;
+            const hs=(x,k)=>x?`<td class="lb">Hauteur du sol UNITÉ EXTERIEUR ${k}</td><td class="cv">${esc(x.h_sol)}</td>`:`<td></td><td></td>`, cb=x=>x?`<td class="lb">Longueur de câbles au tableau 3G</td><td class="vert">${x.cable!==""?esc(x.cable)+" Metre":""}</td>`:`<td></td><td></td>`;
+            r+=`<tr>${hs(A,n)}${hs(B,n+1)}</tr><tr>${cb(A)}${cb(B)}</tr>`; } return r; })()}
           <tr><td class="lb">Faire une dalle béton</td><td class="c">${ck(c.dalle)}</td><td class="lb">RAL goulottes extérieure</td><td class="cv">${esc(c.ral_ext)}</td></tr>
           <tr><td class="lb">Supports muraux</td><td class="c">${ck(c.supports)}</td><td class="lb">RAL goulottes intérieur</td><td class="cv">${esc(c.ral_int)}</td></tr></table></div>
       <div><table class="ct"><tr><td class="lb">Temps de pose</td><td class="cv">${esc(c.temps_pose)}</td></tr><tr><td colspan="2" class="lb b c" style="border:0">ESTIMATION</td></tr></table></div>
@@ -2158,6 +2169,18 @@ $("#varGo").onclick=async()=>{
     ["couleur_int","couleur_ext"].forEach(k=>{ if(o[k] && !plat(groupesCouleur(g,k.slice(8))).includes(o[k])) o[k]=""; }); });
   await DB.put(c); S.dossier=c; $("#mVar").classList.remove("open"); S.tab="ouvertures"; renderDossier(); toast(`Variante ${c.variante} créée`);
 };
+
+/* ---------- Autre métré clim pour le même client (V2, V3…) ---------- */
+async function nouveauMetreClimClient(copie){
+  const src=S.dossier, c=nouveauDossier();
+  ["client","logement","budget","concurrents","notes_client","adresse_chantier","metreur","type_document","tva"].forEach(k=>{ if(src[k]!==undefined) c[k]=JSON.parse(JSON.stringify(src[k])); });
+  c.client.date_rdv=src.client.date_rdv||today();
+  const n=1+Math.max(1,...(await DB.all()).filter(x=>x.client.nom===src.client.nom).map(x=>parseInt(String(x.variante).replace(/\D/g,""))||1));
+  c.variante=`V${n} – Clim`;
+  c.clim=copie&&src.clim?JSON.parse(JSON.stringify(src.clim)):nouvelleClim();
+  if(copie) c.clim.lignes.forEach(l=>l.id=uid()); else c.clim.lignes.push(nouvelleLigneClim());
+  await DB.put(c); S.dossier=c; S.tab="clim"; renderDossier(); scrollTo(0,0); toast(`Métré clim ${c.variante} créé pour ${c.client.nom||"ce client"}`);
+}
 
 /* ---------- Nouvelle ouverture ---------- */
 $("#posePick").innerHTML=Object.entries(CAT.poses).map(([k,p])=>`<button data-pose="${k}">${esc(p.nom)}</button>`).join("");

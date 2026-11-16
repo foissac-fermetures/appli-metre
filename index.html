@@ -1633,6 +1633,11 @@ function initSketch(o=S.ouv, cle="croquis"){
   function drawStroke(s){
     if(s.t){ const fs=Math.round(30*ratio/1.2); ctx.font=`700 ${fs}px Arial,sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.lineJoin="round";
       ctx.lineWidth=fs/4; ctx.strokeStyle="#fff"; ctx.strokeText(s.t,s.x,s.y); ctx.fillStyle=s.c; ctx.fillText(s.t,s.x,s.y); return; }
+    if(s.f){ const [x1,y1]=s.a, [x2,y2]=s.b; ctx.strokeStyle=s.c; ctx.lineWidth=4*ratio/1.2; ctx.lineCap=ctx.lineJoin="round"; ctx.beginPath();
+      if(s.f==="rect") ctx.rect(Math.min(x1,x2),Math.min(y1,y2),Math.abs(x2-x1),Math.abs(y2-y1));
+      else if(s.f==="rond") ctx.ellipse((x1+x2)/2,(y1+y2)/2,Math.abs(x2-x1)/2,Math.abs(y2-y1)/2,0,0,Math.PI*2);
+      else { ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); if(s.f==="fleche"){ const an=Math.atan2(y2-y1,x2-x1), L=22*ratio/1.2; ctx.moveTo(x2,y2); ctx.lineTo(x2-L*Math.cos(an-0.45),y2-L*Math.sin(an-0.45)); ctx.moveTo(x2,y2); ctx.lineTo(x2-L*Math.cos(an+0.45),y2-L*Math.sin(an+0.45)); } }
+      ctx.stroke(); return; }
     if(s.pts.length<1) return; ctx.globalCompositeOperation=s.c==="erase"?"destination-out":"source-over"; ctx.strokeStyle=s.c==="erase"?"#000":s.c; ctx.lineCap=ctx.lineJoin="round";
     for(let i=1;i<s.pts.length;i++){ const a=s.pts[i-1], b=s.pts[i]; ctx.lineWidth=(s.c==="erase"?30:(1.5+b[2]*4))*ratio/1.2; ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); }
     ctx.globalCompositeOperation="source-over"; }
@@ -1642,11 +1647,21 @@ function initSketch(o=S.ouv, cle="croquis"){
   const pt=e=>{ const r=cv.getBoundingClientRect(); return [(e.clientX-r.left)*ratio,(e.clientY-r.top)*ratio, e.pressure||0.5]; };
   cv.onpointerdown=e=>{ if(penOnly && e.pointerType==="touch") return;
     if(texte){ const [x,y]=pt(e); strokes.push({t:texte.t, c:texte.c, x, y}); texte=null; $$("[data-sktxt]").forEach(b=>b.classList.remove("on")); redraw(); o[cle]=cv.toDataURL("image/png"); save(); e.preventDefault(); return; }
-    cv.setPointerCapture(e.pointerId); cur={c:pen,pts:[pt(e)]}; strokes.push(cur); e.preventDefault(); };
-  cv.onpointermove=e=>{ if(!cur) return; const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e]; for(const ev of evs) cur.pts.push(pt(ev)); redraw(); e.preventDefault(); };
-  const end=()=>{ if(!cur) return; if(cur.pts.length<2) strokes.pop(); cur=null; o[cle]=cv.toDataURL("image/png"); save(); };
+    cv.setPointerCapture(e.pointerId);
+    const fo=S.skForme||""; if(fo && pen!=="erase" && $("[data-forme]")){ const p0=pt(e); cur={f:fo,c:pen,a:[p0[0],p0[1]],b:[p0[0],p0[1]]}; strokes.push(cur); e.preventDefault(); return; }
+    cur={c:pen,pts:[pt(e)]}; strokes.push(cur); e.preventDefault(); };
+  cv.onpointermove=e=>{ if(!cur) return;
+    if(cur.f){ let [x,y]=pt(e); const [x0,y0]=cur.a, dx=x-x0, dy=y-y0;
+      if(cur.f==="ligne"||cur.f==="fleche"){ if(Math.abs(dy)<Math.abs(dx)*0.15) y=y0; else if(Math.abs(dx)<Math.abs(dy)*0.15) x=x0; }   // trait bien droit (horizontal / vertical) s'il en est proche
+      else if(e.shiftKey || S.skCarre){ const m=Math.max(Math.abs(dx),Math.abs(dy)); x=x0+Math.sign(dx||1)*m; y=y0+Math.sign(dy||1)*m; }
+      cur.b=[x,y]; redraw(); e.preventDefault(); return; }
+    const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e]; for(const ev of evs) cur.pts.push(pt(ev)); redraw(); e.preventDefault(); };
+  const end=()=>{ if(!cur) return; if(cur.f ? Math.hypot(cur.b[0]-cur.a[0],cur.b[1]-cur.a[1])<8 : cur.pts.length<2) strokes.pop(); cur=null; o[cle]=cv.toDataURL("image/png"); save(); };
   cv.onpointerup=end; cv.onpointercancel=end; cv.onpointerleave=end;
   $$("[data-pen]").forEach(b=>b.onclick=()=>{ pen=b.dataset.pen; texte=null; $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); $$("[data-pen]").forEach(x=>x.classList.toggle("on",x===b)); });
+  $$("[data-forme]").forEach(b=>b.onclick=()=>{ S.skForme=b.dataset.forme; texte=null; $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); $$("[data-forme]").forEach(x=>x.classList.toggle("on",x===b));
+    if(pen==="erase"){ const p1=$("[data-pen]:not([data-pen='erase'])"); if(p1) p1.click(); } });
+  const sq=$("#skCarre input"); if(sq){ sq.checked=!!S.skCarre; $("#skCarre").classList.toggle("on",!!S.skCarre); sq.onchange=()=>{ S.skCarre=sq.checked; $("#skCarre").classList.toggle("on",sq.checked); }; }
   $$("[data-sktxt]").forEach(b=>b.onclick=()=>{ const on=!b.classList.contains("on"); $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); texte=on?{t:b.dataset.sktxt, c:b.dataset.c||pen}:null; b.classList.toggle("on",on); if(on) toast("Touche le schéma à l'endroit voulu"); });
   $("#skUndo").onclick=()=>{ strokes.pop(); redraw(); o[cle]=strokes.length||base?cv.toDataURL("image/png"):""; save(); };
   $("#skClear").onclick=async()=>{ if(!await demander("Effacer tout le croquis ?","Effacer")) return; strokes=[]; base=null; redraw(); o[cle]=""; save(); };
@@ -1809,6 +1824,9 @@ function renderClim(t){
     <div class="seg" style="margin-bottom:10px">${[["schema_etage","Schéma étage"],["schema_bas","Schéma bas"]].map(([k,l])=>`<button class="${(S.climSch||"schema_etage")===k?"on":""}" data-clsch="${k}">${l}${c[k]?" ✓":""}</button>`).join("")}</div>
     <div class="hint" style="margin-bottom:4px">Stylos (légende imprimée avec le schéma) :</div>
     <div class="toolbar">${CLIM_LEGENDE.map((x,i)=>`<button class="btn small${i===0?" on":""}" data-pen="${x.c}"><span class="dot" style="background:${x.c}"></span>${esc(x.l)}</button>`).join("")}</div>
+    <div class="hint" style="margin:6px 0 4px">Outil : main levée ou formes (glisse le doigt / stylet d'un coin à l'autre) :</div>
+    <div class="toolbar">${[["","✎ Main levée"],["ligne","╱ Trait droit"],["rect","▭ Rectangle"],["rond","◯ Rond"],["fleche","→ Flèche"]].map(([f,l])=>`<button class="btn small${(S.skForme||"")===f?" on":""}" data-forme="${f}">${l}</button>`).join("")}
+      <label class="chip" id="skCarre"><input type="checkbox">Carré / rond parfait</label></div>
     <div class="hint" style="margin:6px 0 4px">Étiquettes : touche un mot puis l'endroit du schéma :</div>
     <div class="toolbar">${[...CLIM_ETIQUETTES.slice(0,3),...climUnites(c).map(u=>[u,"#d3232f"]),...CLIM_ETIQUETTES.slice(3)].map(([t,co])=>`<button class="btn small" data-sktxt="${esc(t)}" data-c="${co}" style="color:${co}">${esc(t)}</button>`).join("")}</div>
     <div class="toolbar"><button class="btn small" data-pen="erase">Gomme</button><button class="btn small" id="skUndo">Annuler</button><button class="btn small danger" id="skClear">Effacer tout</button>

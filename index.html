@@ -99,6 +99,7 @@ input:focus,select:focus,textarea:focus{outline:3px solid #c9d6f3;border-color:v
 .ctl ul{margin:6px 0 0;padding-left:20px}
 .ctl li{margin:2px 0}
 .ctl li.err{color:var(--err)}.ctl li.warn{color:var(--warn)}
+#skDelSel:disabled{opacity:.35;pointer-events:none}
 .sketch-wrap{position:relative;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;touch-action:none}
 canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background:
   linear-gradient(#eef1f7 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,#eef1f7 1px,transparent 1px) 0 0/24px 24px}
@@ -1628,7 +1629,10 @@ function dessinMenuiserie(o, opt={}){
 function initSketch(o=S.ouv, cle="croquis"){
   const cv=$("#sketch"); if(!cv||!o) return;
   const ctx=cv.getContext("2d"); let strokes=[], cur=null, pen=$("[data-pen].on")?.dataset.pen||"#1b2f5e", penOnly=false, ratio=1, texte=null;
-  const W=1600, H=Math.round(1600*420/1000);
+  const W=1600;
+  /* Mode vectoriel (schémas clim) : les traits, formes et étiquettes sont gardés tels quels → on peut les reprendre (déplacer, agrandir, supprimer) plus tard */
+  const V=!!$("[data-forme]"), vk=cle+"_vec", bk=cle+"_fond";
+  let sel=null, act=null;   // forme sélectionnée, action en cours (déplacer / poignée)
   function size(){ const r=cv.getBoundingClientRect(); cv.width=W; cv.height=Math.round(W*r.height/r.width); ratio=cv.width/r.width; redraw(); }
   function drawStroke(s){
     if(s.t){ const fs=Math.round(30*ratio/1.2); ctx.font=`700 ${fs}px Arial,sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.lineJoin="round";
@@ -1641,32 +1645,71 @@ function initSketch(o=S.ouv, cle="croquis"){
     if(s.pts.length<1) return; ctx.globalCompositeOperation=s.c==="erase"?"destination-out":"source-over"; ctx.strokeStyle=s.c==="erase"?"#000":s.c; ctx.lineCap=ctx.lineJoin="round";
     for(let i=1;i<s.pts.length;i++){ const a=s.pts[i-1], b=s.pts[i]; ctx.lineWidth=(s.c==="erase"?30:(1.5+b[2]*4))*ratio/1.2; ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); }
     ctx.globalCompositeOperation="source-over"; }
+  /* poignées de la forme sélectionnée */
+  function poignees(s){ if(s.t) return []; const [x1,y1]=s.a,[x2,y2]=s.b; return (s.f==="ligne"||s.f==="fleche") ? [[x1,y1],[x2,y2]] : [[x1,y1],[x2,y1],[x1,y2],[x2,y2]]; }
+  function drawSel(){ if(!sel||!strokes.includes(sel)) return; ctx.save(); ctx.setLineDash([10,8]); ctx.strokeStyle="#e07b00"; ctx.lineWidth=2*ratio/1.2;
+    if(sel.t){ const fs=Math.round(30*ratio/1.2), w=ctx.measureText?Math.max(60,sel.t.length*fs*0.6):100; ctx.strokeRect(sel.x-w/2-8,sel.y-fs/2-8,w+16,fs+16); }
+    else { const xs=[sel.a[0],sel.b[0]], ys=[sel.a[1],sel.b[1]]; ctx.strokeRect(Math.min(...xs)-6,Math.min(...ys)-6,Math.abs(xs[1]-xs[0])+12,Math.abs(ys[1]-ys[0])+12); }
+    ctx.setLineDash([]); poignees(sel).forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(x,y,13*ratio/1.2,0,Math.PI*2); ctx.fillStyle="#fff"; ctx.fill(); ctx.lineWidth=3*ratio/1.2; ctx.stroke(); }); ctx.restore(); }
   let base=null;
-  function redraw(){ ctx.clearRect(0,0,cv.width,cv.height); if(base) ctx.drawImage(base,0,0,cv.width,cv.height); strokes.forEach(drawStroke); }
-  if(o[cle]){ base=new Image(); base.onload=redraw; base.src=o[cle]; }
+  function redraw(avecSel=true){ ctx.clearRect(0,0,cv.width,cv.height); if(base) ctx.drawImage(base,0,0,cv.width,cv.height); strokes.forEach(drawStroke); if(avecSel) drawSel(); }
+  const arr=v=>Math.round(v*10)/10;
+  function commit(){ redraw(false); o[cle]=strokes.length||base?cv.toDataURL("image/png"):"";
+    if(V){ o[vk]=strokes.map(s=>s.pts?{c:s.c,pts:s.pts.map(p=>[arr(p[0]),arr(p[1]),Math.round((p[2]||0.5)*100)/100])}:JSON.parse(JSON.stringify(s))); o[bk]=base?base.src:""; }
+    save(); redraw(); const d=$("#skDelSel"); if(d) d.disabled=!sel; }
+  if(V && Array.isArray(o[vk])){ strokes=JSON.parse(JSON.stringify(o[vk])); if(o[bk]){ base=new Image(); base.onload=()=>redraw(); base.src=o[bk]; } }
+  else if(o[cle]){ base=new Image(); base.onload=()=>redraw(); base.src=o[cle]; }
   const pt=e=>{ const r=cv.getBoundingClientRect(); return [(e.clientX-r.left)*ratio,(e.clientY-r.top)*ratio, e.pressure||0.5]; };
+  /* trouver la forme / l'étiquette touchée (la plus récente d'abord ; le contour avant l'intérieur) */
+  function toucher(x,y){ const tol=22*ratio/1.2, L=strokes.filter(s=>s.f||s.t).reverse();
+    const dSeg=(s)=>{ const [x1,y1]=s.a,[x2,y2]=s.b, dx=x2-x1, dy=y2-y1, l2=dx*dx+dy*dy||1, t=Math.max(0,Math.min(1,((x-x1)*dx+(y-y1)*dy)/l2)); return Math.hypot(x-(x1+t*dx),y-(y1+t*dy)); };
+    const bord=s=>{ if(s.t) return Math.abs(x-s.x)<Math.max(50,s.t.length*14)*ratio/1.2 && Math.abs(y-s.y)<26*ratio/1.2;
+      if(s.f==="ligne"||s.f==="fleche") return dSeg(s)<tol;
+      const x1=Math.min(s.a[0],s.b[0]), x2=Math.max(s.a[0],s.b[0]), y1=Math.min(s.a[1],s.b[1]), y2=Math.max(s.a[1],s.b[1]);
+      if(s.f==="rect") return x>x1-tol&&x<x2+tol&&y>y1-tol&&y<y2+tol && (Math.abs(x-x1)<tol||Math.abs(x-x2)<tol||Math.abs(y-y1)<tol||Math.abs(y-y2)<tol);
+      const rx=(x2-x1)/2||1, ry=(y2-y1)/2||1, k=Math.hypot((x-x1-rx)/rx,(y-y1-ry)/ry); return Math.abs(k-1)*Math.min(rx,ry)<tol; };
+    const dedans=s=>{ if(!s.f||s.f==="ligne"||s.f==="fleche") return false; const x1=Math.min(s.a[0],s.b[0]), x2=Math.max(s.a[0],s.b[0]), y1=Math.min(s.a[1],s.b[1]), y2=Math.max(s.a[1],s.b[1]);
+      if(s.f==="rect") return x>x1&&x<x2&&y>y1&&y<y2; const rx=(x2-x1)/2||1, ry=(y2-y1)/2||1; return Math.hypot((x-x1-rx)/rx,(y-y1-ry)/ry)<1; };
+    return L.find(bord) || L.find(dedans) || null; }
   cv.onpointerdown=e=>{ if(penOnly && e.pointerType==="touch") return;
-    if(texte){ const [x,y]=pt(e); strokes.push({t:texte.t, c:texte.c, x, y}); texte=null; $$("[data-sktxt]").forEach(b=>b.classList.remove("on")); redraw(); o[cle]=cv.toDataURL("image/png"); save(); e.preventDefault(); return; }
+    if(texte){ const [x,y]=pt(e); strokes.push({t:texte.t, c:texte.c, x, y}); texte=null; $$("[data-sktxt]").forEach(b=>b.classList.remove("on")); commit(); e.preventDefault(); return; }
     cv.setPointerCapture(e.pointerId);
-    const fo=S.skForme||""; if(fo && pen!=="erase" && $("[data-forme]")){ const p0=pt(e); cur={f:fo,c:pen,a:[p0[0],p0[1]],b:[p0[0],p0[1]]}; strokes.push(cur); e.preventDefault(); return; }
+    const fo=S.skForme||"", [px,py]=pt(e);
+    if(V && fo==="edit"){ e.preventDefault();
+      if(sel){ const h=poignees(sel).findIndex(([x,y])=>Math.hypot(x-px,y-py)<26*ratio/1.2); if(h>=0){ act={h}; return; } }
+      sel=toucher(px,py); act=sel?{m:[px,py]}:null; redraw(); const d=$("#skDelSel"); if(d) d.disabled=!sel; return; }
+    if(fo && fo!=="edit" && pen!=="erase" && V){ cur={f:fo,c:pen,a:[px,py],b:[px,py]}; strokes.push(cur); e.preventDefault(); return; }
     cur={c:pen,pts:[pt(e)]}; strokes.push(cur); e.preventDefault(); };
-  cv.onpointermove=e=>{ if(!cur) return;
+  cv.onpointermove=e=>{
+    if(act&&sel){ const [x,y]=pt(e);
+      if(act.m){ const dx=x-act.m[0], dy=y-act.m[1]; act.m=[x,y]; if(sel.t){ sel.x+=dx; sel.y+=dy; } else { sel.a=[sel.a[0]+dx,sel.a[1]+dy]; sel.b=[sel.b[0]+dx,sel.b[1]+dy]; } }
+      else if(sel.f==="ligne"||sel.f==="fleche"){ let [nx,ny]=[x,y]; const o2=act.h===0?sel.b:sel.a; if(Math.abs(ny-o2[1])<Math.abs(nx-o2[0])*0.15) ny=o2[1]; else if(Math.abs(nx-o2[0])<Math.abs(ny-o2[1])*0.15) nx=o2[0]; if(act.h===0) sel.a=[nx,ny]; else sel.b=[nx,ny]; }
+      else { const h=act.h; if(h===0) sel.a=[x,y]; else if(h===1){ sel.b=[x,sel.b[1]]; sel.a=[sel.a[0],y]; } else if(h===2){ sel.a=[x,sel.a[1]]; sel.b=[sel.b[0],y]; } else sel.b=[x,y]; }
+      redraw(); e.preventDefault(); return; }
+    if(!cur) return;
     if(cur.f){ let [x,y]=pt(e); const [x0,y0]=cur.a, dx=x-x0, dy=y-y0;
       if(cur.f==="ligne"||cur.f==="fleche"){ if(Math.abs(dy)<Math.abs(dx)*0.15) y=y0; else if(Math.abs(dx)<Math.abs(dy)*0.15) x=x0; }   // trait bien droit (horizontal / vertical) s'il en est proche
       else if(e.shiftKey || S.skCarre){ const m=Math.max(Math.abs(dx),Math.abs(dy)); x=x0+Math.sign(dx||1)*m; y=y0+Math.sign(dy||1)*m; }
       cur.b=[x,y]; redraw(); e.preventDefault(); return; }
     const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e]; for(const ev of evs) cur.pts.push(pt(ev)); redraw(); e.preventDefault(); };
-  const end=()=>{ if(!cur) return; if(cur.f ? Math.hypot(cur.b[0]-cur.a[0],cur.b[1]-cur.a[1])<8 : cur.pts.length<2) strokes.pop(); cur=null; o[cle]=cv.toDataURL("image/png"); save(); };
+  const end=()=>{ if(act){ act=null; commit(); return; }
+    if(!cur) return; if(cur.f ? Math.hypot(cur.b[0]-cur.a[0],cur.b[1]-cur.a[1])<8 : cur.pts.length<2) strokes.pop(); cur=null; commit(); };
   cv.onpointerup=end; cv.onpointercancel=end; cv.onpointerleave=end;
-  $$("[data-pen]").forEach(b=>b.onclick=()=>{ pen=b.dataset.pen; texte=null; $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); $$("[data-pen]").forEach(x=>x.classList.toggle("on",x===b)); });
+  const quitterEdit=()=>{ if(sel){ sel=null; redraw(); const d=$("#skDelSel"); if(d) d.disabled=true; } };
+  $$("[data-pen]").forEach(b=>b.onclick=()=>{ pen=b.dataset.pen; texte=null; $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); $$("[data-pen]").forEach(x=>x.classList.toggle("on",x===b));
+    if(sel && pen!=="erase" && !sel.pts){ sel.c=pen; commit(); return; }   // en mode Modifier : changer la couleur de la forme choisie
+    if(S.skForme==="edit"){ S.skForme=""; $$("[data-forme]").forEach(x=>x.classList.toggle("on",x.dataset.forme==="")); quitterEdit(); } });
   $$("[data-forme]").forEach(b=>b.onclick=()=>{ S.skForme=b.dataset.forme; texte=null; $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); $$("[data-forme]").forEach(x=>x.classList.toggle("on",x===b));
-    if(pen==="erase"){ const p1=$("[data-pen]:not([data-pen='erase'])"); if(p1) p1.click(); } });
+    if(S.skForme!=="edit") quitterEdit(); else toast("Touche une forme ou une étiquette : glisse-la pour la déplacer, tire un rond blanc pour l'agrandir");
+    if(pen==="erase" && S.skForme!=="edit"){ const p1=$("[data-pen]:not([data-pen='erase'])"); if(p1) p1.click(); } });
   const sq=$("#skCarre input"); if(sq){ sq.checked=!!S.skCarre; $("#skCarre").classList.toggle("on",!!S.skCarre); sq.onchange=()=>{ S.skCarre=sq.checked; $("#skCarre").classList.toggle("on",sq.checked); }; }
+  const ds=$("#skDelSel"); if(ds){ ds.disabled=true; ds.onclick=()=>{ if(!sel) return; strokes.splice(strokes.indexOf(sel),1); sel=null; commit(); }; }
   $$("[data-sktxt]").forEach(b=>b.onclick=()=>{ const on=!b.classList.contains("on"); $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); texte=on?{t:b.dataset.sktxt, c:b.dataset.c||pen}:null; b.classList.toggle("on",on); if(on) toast("Touche le schéma à l'endroit voulu"); });
-  $("#skUndo").onclick=()=>{ strokes.pop(); redraw(); o[cle]=strokes.length||base?cv.toDataURL("image/png"):""; save(); };
-  $("#skClear").onclick=async()=>{ if(!await demander("Effacer tout le croquis ?","Effacer")) return; strokes=[]; base=null; redraw(); o[cle]=""; save(); };
+  $("#skUndo").onclick=()=>{ const s=strokes.pop(); if(s===sel) sel=null; commit(); };
+  $("#skClear").onclick=async()=>{ if(!await demander("Effacer tout le croquis ?","Effacer")) return; strokes=[]; base=null; sel=null; commit(); o[cle]=""; save(); };
   const po=$("#skPenOnly input"); po.onchange=()=>{ penOnly=po.checked; $("#skPenOnly").classList.toggle("on",penOnly); };
-  size(); window.onresize=()=>{ if($("#sketch") && (strokes.length||base)) { o[cle]=cv.toDataURL("image/png"); base=new Image(); base.onload=()=>{ strokes=[]; size(); }; base.src=o[cle]; } };
+  size(); window.onresize=()=>{ if(!$("#sketch")) return; if(V){ size(); return; }
+    if(strokes.length||base) { o[cle]=cv.toDataURL("image/png"); base=new Image(); base.onload=()=>{ strokes=[]; size(); }; base.src=o[cle]; } };
 }
 
 /* ERP : cocher anti-panique / groom coche aussi l'accessoire du fournisseur quand il existe (et l'inverse) */
@@ -1747,6 +1790,11 @@ const CLIM_LEGENDE = [
   {c:"#00a3c4", l:"Évacuation des condensats"}, {c:"#8a8f99", l:"Menuiserie"} ];
 const CLIM_ETIQUETTES = [["Split","#1f4fd8"],["Console","#7b2cbf"],["Groupe extérieur","#d3232f"],["Goulotte","#1f9d3a"],["Tableau","#e07b00"],["Pompe de relevage","#00a3c4"],["Menuiserie","#8a8f99"],["Chauffe-eau","#111111"]];
 const CLIM_TABLEAU_PLACE = ["Oui, assez de place pour se rebrancher","Non, prévoir un petit tableau indépendant à côté","À vérifier par l'électricien"];
+/* Schémas : 2 au départ (renommables : RDC, étage…), « + Schéma » jusqu'à 6 */
+const CLIM_NOMS_SCH = ["Schéma rez-de-chaussée","Schéma étage","Schéma étage 1","Schéma étage 2","Schéma sous-sol","Schéma combles","Schéma garage","Schéma extérieur","Schéma bas"];
+const CLIM_SCH_DEF = {schema_etage:"Schéma étage", schema_bas:"Schéma bas"};
+const climSchemas = c => ["schema_etage","schema_bas",...(c.sch_extra||[])];
+const nomSchema = (c,k) => (c.sch_noms&&c.sch_noms[k]) || CLIM_SCH_DEF[k] || `Schéma ${climSchemas(c).indexOf(k)+1}`;
 const legendeClimHTML = () => `<div class="clim-leg">${CLIM_LEGENDE.map(x=>`<span><i style="background:${x.c}"></i>${esc(x.l)}</span>`).join("")}</div>`;
 const nouvelleClim = () => ({ mono:false, multi:false, modele:"", option:"", annee:"", temps_pose:"",
   ue1:{h_sol:"", cable:""}, ue2:{h_sol:"", cable:""}, dalle:false, supports:false, ral_ext:"", ral_int:"",
@@ -1784,7 +1832,7 @@ function controleClim(d){
 
 /* ---------- Écran ---------- */
 function renderClim(t){
-  const d=S.dossier; if(!d.clim) d.clim=nouvelleClim(); const c=d.clim;
+  const d=S.dossier; if(!d.clim) d.clim=nouvelleClim(); const c=d.clim; if(!climSchemas(c).includes(S.climSch)) S.climSch="schema_etage"; const schK=S.climSch;
   const dl=(id,L)=>`<datalist id="${id}">${L.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>`;
   const txt=(k,lab,v,list,extra="")=>`<label class="f">${lab}<input data-k="${k}" value="${esc(v)}" ${list?`list="${list}"`:""} ${extra}></label>`;
   const ligne=(l)=>{ const i=c.lignes.indexOf(l), p=puissanceClim(l), k=`clim.lignes.${i}.`;
@@ -1821,12 +1869,16 @@ function renderClim(t){
   ${V.map(ligne).join("")}
   <div class="card"><h2><span class="num">4</span>Observation</h2>${F.area("clim.observation","Ce que la secrétaire doit savoir (imprimé en bas du bon)",c.observation)}</div>
   <div class="card"><h2><span class="num">5</span>Schémas</h2>
-    <div class="seg" style="margin-bottom:10px">${[["schema_etage","Schéma étage"],["schema_bas","Schéma bas"]].map(([k,l])=>`<button class="${(S.climSch||"schema_etage")===k?"on":""}" data-clsch="${k}">${l}${c[k]?" ✓":""}</button>`).join("")}</div>
+    <div class="row" style="gap:8px;margin-bottom:8px;flex-wrap:wrap"><div class="seg">${climSchemas(c).map(k=>`<button class="${schK===k?"on":""}" data-clsch="${k}">${esc(nomSchema(c,k))}${c[k]?" ✓":""}</button>`).join("")}</div>
+      ${climSchemas(c).length<6?`<button class="btn small" id="clSchAdd">+ Schéma</button>`:""}</div>
+    <div class="row" style="gap:8px;margin-bottom:10px;align-items:end;flex-wrap:wrap"><label class="f" style="flex:1;min-width:220px">Nom de ce schéma (imprimé sur le PDF)<input id="clSchNom" list="dlSchNom" value="${esc(nomSchema(c,schK))}"></label>
+      <datalist id="dlSchNom">${CLIM_NOMS_SCH.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
+      ${(c.sch_extra||[]).includes(schK)?`<button class="btn small danger" id="clSchDel">Supprimer ce schéma</button>`:""}</div>
     <div class="hint" style="margin-bottom:4px">Stylos (légende imprimée avec le schéma) :</div>
     <div class="toolbar">${CLIM_LEGENDE.map((x,i)=>`<button class="btn small${i===0?" on":""}" data-pen="${x.c}"><span class="dot" style="background:${x.c}"></span>${esc(x.l)}</button>`).join("")}</div>
     <div class="hint" style="margin:6px 0 4px">Outil : main levée ou formes (glisse le doigt / stylet d'un coin à l'autre) :</div>
-    <div class="toolbar">${[["","✎ Main levée"],["ligne","╱ Trait droit"],["rect","▭ Rectangle"],["rond","◯ Rond"],["fleche","→ Flèche"]].map(([f,l])=>`<button class="btn small${(S.skForme||"")===f?" on":""}" data-forme="${f}">${l}</button>`).join("")}
-      <label class="chip" id="skCarre"><input type="checkbox">Carré / rond parfait</label></div>
+    <div class="toolbar">${[["","✎ Main levée"],["ligne","╱ Trait droit"],["rect","▭ Rectangle"],["rond","◯ Rond"],["fleche","→ Flèche"],["edit","✥ Modifier"]].map(([f,l])=>`<button class="btn small${(S.skForme||"")===f?" on":""}" data-forme="${f}">${l}</button>`).join("")}
+      <label class="chip" id="skCarre"><input type="checkbox">Carré / rond parfait</label><button class="btn small danger" id="skDelSel" disabled>🗑 Supprimer la forme</button></div>
     <div class="hint" style="margin:6px 0 4px">Étiquettes : touche un mot puis l'endroit du schéma :</div>
     <div class="toolbar">${[...CLIM_ETIQUETTES.slice(0,3),...climUnites(c).map(u=>[u,"#d3232f"]),...CLIM_ETIQUETTES.slice(3)].map(([t,co])=>`<button class="btn small" data-sktxt="${esc(t)}" data-c="${co}" style="color:${co}">${esc(t)}</button>`).join("")}</div>
     <div class="toolbar"><button class="btn small" data-pen="erase">Gomme</button><button class="btn small" id="skUndo">Annuler</button><button class="btn small danger" id="skClear">Effacer tout</button>
@@ -1854,7 +1906,11 @@ function renderClim(t){
   $$("[data-clvar]").forEach(b=>b.onclick=()=>{ const l=c.lignes[+b.dataset.clvar]; l.variante=!l.variante; save(); re(); });
   $$("[data-clcalc]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.clcalc; S.climCalc = S.climCalc===i ? null : i; $("#climCalc"+i).classList.toggle("hide"); });
   $$("[data-clsch]").forEach(b=>b.onclick=()=>{ S.climSch=b.dataset.clsch; re(); });
-  initSketch(c, S.climSch||"schema_etage");
+  const sn=$("#clSchNom"); if(sn) sn.oninput=()=>{ c.sch_noms=c.sch_noms||{}; c.sch_noms[schK]=sn.value.trim(); save(); const b=$(`[data-clsch="${schK}"]`); if(b) b.textContent=nomSchema(c,schK)+(c[schK]?" ✓":""); };
+  const sa=$("#clSchAdd"); if(sa) sa.onclick=()=>{ c.sch_extra=c.sch_extra||[]; let i=3; while(climSchemas(c).includes("schema_"+i)) i++; const k="schema_"+i; c.sch_extra.push(k); c[k]=""; S.climSch=k; save(); re(); };
+  const sd=$("#clSchDel"); if(sd) sd.onclick=async()=>{ if(c[schK] && !await demander(`Supprimer « ${nomSchema(c,schK)} » et son dessin ?`,"Supprimer")) return;
+    c.sch_extra=c.sch_extra.filter(x=>x!==schK); delete c[schK]; delete c[schK+"_vec"]; delete c[schK+"_fond"]; if(c.sch_noms) delete c.sch_noms[schK]; S.climSch="schema_etage"; save(); re(); };
+  initSketch(c, schK);
   initPhotos(c, re);
   if(!c.tableau) c.tableau={img:"",txt:"",place:""};
   const ta=$("#tabAdd"); if(ta) ta.onchange=async()=>{ const f=ta.files[0]; if(!f) return; try{ c.tableau.img=await reduirePhoto(f); c.tableau.drive=false; save(); re(); }catch(e){ toast("Photo illisible"); } };
@@ -1898,7 +1954,7 @@ function pagesClim(d){
       ${pad(climVariantes(d),5).map(rowL).join("")}
       <tr><td colspan="12" class="cv c obs">${esc(c.observation).replace(/\n/g,"<br>")}</td></tr></table></div>`;
   const head=t=>`<div class="ph"><img src="${LOGO}"><div class="tt">${esc(t)}</div><div>${esc(d.client.nom)}<br>${fmtDate(d.client.date_rdv)}</div></div>`;
-  [["schema_etage","Schéma Etage"],["schema_bas","Schéma Bas"]].forEach(([k,t])=>{ if(c[k]) h+=`<div class="pg">${head(t)}<img src="${c[k]}" class="clim-schema">${legendeClimHTML()}</div>`; });
+  climSchemas(c).forEach(k=>{ const t=nomSchema(c,k); if(c[k]) h+=`<div class="pg">${head(t)}<img src="${c[k]}" class="clim-schema">${legendeClimHTML()}</div>`; });
   if(c.tableau?.img) h+=`<div class="pg">${head("PH Tableau électrique")}<div class="clim-tabpdf"><img src="${c.tableau.img}"><div><div class="clim-place${/^Non/.test(c.tableau.place)?" non":""}">${esc(c.tableau.place||"Place pour se rebrancher : non précisé")}</div>${c.tableau.txt?`<p>${esc(c.tableau.txt).replace(/\n/g,"<br>")}</p>`:""}</div></div></div>`;
   const ph=c.photos.filter(p=>p.img);
   for(let i=0;i<ph.length;i+=4) h+=`<div class="pg">${head("Photos climatisation")}<div class="pphotos">${ph.slice(i,i+4).map((p,j)=>`<figure><img src="${p.img}"><figcaption><b>PH ${esc(p.txt||"Photo "+(i+j+1))}</b></figcaption></figure>`).join("")}</div></div>`;

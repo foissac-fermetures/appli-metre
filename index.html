@@ -100,6 +100,7 @@ input:focus,select:focus,textarea:focus{outline:3px solid #c9d6f3;border-color:v
 .ctl li{margin:2px 0}
 .ctl li.err{color:var(--err)}.ctl li.warn{color:var(--warn)}
 #skDelSel:disabled{opacity:.35;pointer-events:none}
+.sym-bar canvas{width:32px;height:20px;vertical-align:middle;margin-right:5px}
 .sketch-wrap{position:relative;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;touch-action:none}
 canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background:
   linear-gradient(#eef1f7 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,#eef1f7 1px,transparent 1px) 0 0/24px 24px}
@@ -1638,6 +1639,7 @@ function initSketch(o=S.ouv, cle="croquis"){
   function drawStroke(s){
     if(s.t){ const fs=Math.round(30*ratio/1.2); ctx.font=`700 ${fs}px Arial,sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.lineJoin="round";
       ctx.lineWidth=fs/4; ctx.strokeStyle="#fff"; ctx.strokeText(s.t,s.x,s.y); ctx.fillStyle=s.c; ctx.fillText(s.t,s.x,s.y); return; }
+    if(s.f==="sym"){ dessinerSymbole(ctx,s,ratio); return; }
     if(s.f){ const [x1,y1]=s.a, [x2,y2]=s.b; ctx.strokeStyle=s.c; ctx.lineWidth=4*ratio/1.2; ctx.lineCap=ctx.lineJoin="round"; ctx.beginPath();
       if(s.f==="rect") ctx.rect(Math.min(x1,x2),Math.min(y1,y2),Math.abs(x2-x1),Math.abs(y2-y1));
       else if(s.f==="rond") ctx.ellipse((x1+x2)/2,(y1+y2)/2,Math.abs(x2-x1)/2,Math.abs(y2-y1)/2,0,0,Math.PI*2);
@@ -1671,6 +1673,7 @@ function initSketch(o=S.ouv, cle="croquis"){
     const bord=s=>{ if(s.t) return Math.abs(x-s.x)<Math.max(50,s.t.length*14)*ratio/1.2 && Math.abs(y-s.y)<26*ratio/1.2;
       if(s.f==="ligne"||s.f==="fleche") return dSeg(s)<tol;
       const x1=Math.min(s.a[0],s.b[0]), x2=Math.max(s.a[0],s.b[0]), y1=Math.min(s.a[1],s.b[1]), y2=Math.max(s.a[1],s.b[1]);
+      if(s.f==="sym") return x>x1-tol&&x<x2+tol&&y>y1-tol&&y<y2+tol;
       if(s.f==="rect") return x>x1-tol&&x<x2+tol&&y>y1-tol&&y<y2+tol && (Math.abs(x-x1)<tol||Math.abs(x-x2)<tol||Math.abs(y-y1)<tol||Math.abs(y-y2)<tol);
       const rx=(x2-x1)/2||1, ry=(y2-y1)/2||1, k=Math.hypot((x-x1-rx)/rx,(y-y1-ry)/ry); return Math.abs(k-1)*Math.min(rx,ry)<tol; };
     const dedans=s=>{ if(!s.f||s.f==="ligne"||s.f==="fleche") return false; const x1=Math.min(s.a[0],s.b[0]), x2=Math.max(s.a[0],s.b[0]), y1=Math.min(s.a[1],s.b[1]), y2=Math.max(s.a[1],s.b[1]);
@@ -1678,6 +1681,9 @@ function initSketch(o=S.ouv, cle="croquis"){
     const main=s=>s.pts&&s.c!=="erase"&&s.pts.some((p,i)=>i&&dSeg({a:s.pts[i-1],b:p})<tol);
     return L.find(bord) || strokes.slice().reverse().find(main) || L.find(dedans) || null; }
   cv.onpointerdown=e=>{ if(penOnly && e.pointerType==="touch") return;
+    if(S.skSym){ const d=CLIM_SYMBOLES.find(z=>z.k===S.skSym), [x,y]=pt(e), w=d.w*ratio/1.2, h=d.h*ratio/1.2;
+      const s={f:"sym", sym:d.k, c:d.c, a:[x-w/2,y-h/2], b:[x+w/2,y+h/2]}; strokes.push(s); S.skSym=null; $$("[data-sksym]").forEach(b=>b.classList.remove("on"));
+      if(S.skForme==="edit") sels=[s]; commit(); e.preventDefault(); return; }
     if(texte){ const [x,y]=pt(e); strokes.push({t:texte.t, c:texte.c, x, y}); if($("#skTxtLibre")&&$("#skTxtLibre").value.trim()===texte.t) $("#skTxtLibre").value=""; texte=null; $$("[data-sktxt]").forEach(b=>b.classList.remove("on")); commit(); e.preventDefault(); return; }
     try{ cv.setPointerCapture(e.pointerId); }catch(_){}
     S.skDoigt=e.pointerType==="touch"; const fo=S.skForme||"", [px,py]=pt(e);
@@ -1730,7 +1736,8 @@ function initSketch(o=S.ouv, cle="croquis"){
   const fd=$("#skFond"); if(fd){ fd.classList.toggle("hide",!base); fd.onclick=async()=>{ if(!await demander("Effacer l'ancien dessin (image figée) ? Les formes et textes ajoutés depuis restent.","Effacer")) return; base=null; fd.classList.add("hide"); commit(); }; }
   const ds=$("#skDelSel"); if(ds){ ds.disabled=true; ds.onclick=()=>{ if(!sels.length) return; strokes=strokes.filter(s=>!sels.includes(s)); sels=[]; commit(); }; }
   const mu=$("#skMulti input"); if(mu){ mu.checked=!!S.skMulti; $("#skMulti").classList.toggle("on",!!S.skMulti); mu.onchange=()=>{ S.skMulti=mu.checked; $("#skMulti").classList.toggle("on",mu.checked); }; }
-  $$("[data-sktxt]").forEach(b=>b.onclick=()=>{ const on=!b.classList.contains("on"); $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); texte=on?{t:b.dataset.sktxt, c:b.dataset.c||pen}:null; b.classList.toggle("on",on); if(on) toast("Touche le schéma à l'endroit voulu"); });
+  $$("[data-sksym]").forEach(b=>b.onclick=()=>{ const on=!b.classList.contains("on"); $$("[data-sksym]").forEach(x=>x.classList.remove("on")); S.skSym=on?b.dataset.sksym:null; texte=null; $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); b.classList.toggle("on",on); if(on) toast("Touche le schéma à l'endroit voulu (ensuite ✥ Modifier pour le déplacer / l'agrandir)"); });
+  $$("[data-sktxt]").forEach(b=>b.onclick=()=>{ S.skSym=null; $$("[data-sksym]").forEach(x=>x.classList.remove("on")); const on=!b.classList.contains("on"); $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); texte=on?{t:b.dataset.sktxt, c:b.dataset.c||pen}:null; b.classList.toggle("on",on); if(on) toast("Touche le schéma à l'endroit voulu"); });
   $("#skUndo").onclick=()=>{ strokes.pop(); commit(); };
   $("#skClear").onclick=async()=>{ if(!await demander("Effacer tout le croquis ?","Effacer")) return; strokes=[]; base=null; sels=[]; commit(); o[cle]=""; save(); };
   const po=$("#skPenOnly input"); po.onchange=()=>{ penOnly=po.checked; $("#skPenOnly").classList.toggle("on",penOnly); };
@@ -1821,6 +1828,36 @@ const CLIM_NOMS_SCH = ["Schéma rez-de-chaussée","Schéma étage","Schéma éta
 const CLIM_SCH_DEF = {schema_etage:"Schéma étage", schema_bas:"Schéma bas"};
 const climSchemas = c => ["schema_etage","schema_bas",...(c.sch_extra||[])];
 const nomSchema = (c,k) => (c.sch_noms&&c.sch_noms[k]) || CLIM_SCH_DEF[k] || `Schéma ${climSchemas(c).indexOf(k)+1}`;
+/* Symboles à poser sur les schémas clim (taille de départ en unités du dessin, couleur = légende) */
+const CLIM_SYMBOLES = [
+  {k:"ue", l:"Groupe extérieur", c:"#d3232f", w:150, h:105},
+  {k:"split", l:"Split", c:"#1f4fd8", w:170, h:52},
+  {k:"console", l:"Console", c:"#7b2cbf", w:115, h:85},
+  {k:"cassette", l:"Cassette", c:"#1f4fd8", w:105, h:105},
+  {k:"gainable", l:"Gainable", c:"#1f4fd8", w:180, h:60},
+  {k:"tableau", l:"Tableau électrique", c:"#e07b00", w:85, h:110},
+  {k:"pompe", l:"Pompe de relevage", c:"#00a3c4", w:60, h:60}];
+function dessinerSymbole(ctx, s, ratio){
+  const x=Math.min(s.a[0],s.b[0]), y=Math.min(s.a[1],s.b[1]), w=Math.abs(s.b[0]-s.a[0]), h=Math.abs(s.b[1]-s.a[1]), lw=3.5*ratio/1.2;
+  ctx.save(); ctx.strokeStyle=s.c; ctx.fillStyle="#fff"; ctx.lineWidth=lw; ctx.lineCap=ctx.lineJoin="round";
+  const rr=(X,Y,W,H,r)=>{ ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(X,Y,W,H,r); else ctx.rect(X,Y,W,H); };
+  const ligne=(x1,y1,x2,y2)=>{ ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); };
+  const txt=(t,X,Y,fs)=>{ ctx.font=`700 ${Math.round(fs)}px Arial,sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.lineWidth=fs/4; ctx.strokeStyle="#fff"; ctx.strokeText(t,X,Y); ctx.fillStyle=s.c; ctx.fillText(t,X,Y); ctx.strokeStyle=s.c; ctx.lineWidth=lw; };
+  switch(s.sym){
+    case "ue": { rr(x,y,w,h,h*0.08); ctx.fill(); ctx.stroke(); const r=Math.min(w*0.3,h*0.38), cx=x+w*0.36, cy=y+h/2;
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
+      for(let i=0;i<3;i++){ const an=i*2*Math.PI/3; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.quadraticCurveTo(cx+r*0.9*Math.cos(an+0.6),cy+r*0.9*Math.sin(an+0.6),cx+r*0.85*Math.cos(an+1.2),cy+r*0.85*Math.sin(an+1.2)); ctx.stroke(); }
+      for(let i=0;i<4;i++) ligne(x+w*0.74+i*w*0.06,y+h*0.18,x+w*0.74+i*w*0.06,y+h*0.82); break; }
+    case "split": { rr(x,y,w,h,h*0.35); ctx.fill(); ctx.stroke(); ligne(x+w*0.1,y+h*0.68,x+w*0.9,y+h*0.68); ctx.beginPath(); ctx.arc(x+w*0.88,y+h*0.32,lw*0.9,0,Math.PI*2); ctx.fillStyle=s.c; ctx.fill(); txt("SPLIT",x+w*0.45,y+h*0.36,Math.min(h*0.42,26*ratio/1.2)); break; }
+    case "console": { rr(x,y,w,h,h*0.08); ctx.fill(); ctx.stroke(); for(let i=0;i<3;i++) ligne(x+w*0.15,y+h*(0.18+i*0.1),x+w*0.85,y+h*(0.18+i*0.1)); for(let i=0;i<3;i++) ligne(x+w*0.15,y+h*(0.72+i*0.08),x+w*0.85,y+h*(0.72+i*0.08)); txt("C",x+w/2,y+h*0.53,Math.min(h*0.3,24*ratio/1.2)); break; }
+    case "cassette": { rr(x,y,w,h,4); ctx.fill(); ctx.stroke(); ctx.strokeRect(x+w*0.3,y+h*0.3,w*0.4,h*0.4); ligne(x+w*0.25,y+h*0.13,x+w*0.75,y+h*0.13); ligne(x+w*0.25,y+h*0.87,x+w*0.75,y+h*0.87); ligne(x+w*0.13,y+h*0.25,x+w*0.13,y+h*0.75); ligne(x+w*0.87,y+h*0.25,x+w*0.87,y+h*0.75); break; }
+    case "gainable": { rr(x,y,w,h,4); ctx.fill(); ctx.stroke(); for(let i=1;i<6;i++) ligne(x+w*i/6-h*0.25,y+h*0.85,x+w*i/6+h*0.25,y+h*0.15); txt("GAINABLE",x+w/2,y+h/2,Math.min(h*0.34,22*ratio/1.2)); break; }
+    case "tableau": { rr(x,y,w,h,4); ctx.fill(); ctx.stroke(); ctx.beginPath(); const cx=x+w/2, cy=y+h/2, k=Math.min(w,h)*0.32;
+      ctx.moveTo(cx+k*0.25,cy-k*1.2); ctx.lineTo(cx-k*0.55,cy+k*0.1); ctx.lineTo(cx-k*0.02,cy+k*0.1); ctx.lineTo(cx-k*0.3,cy+k*1.2); ctx.lineTo(cx+k*0.6,cy-k*0.15); ctx.lineTo(cx+k*0.05,cy-k*0.15); ctx.closePath(); ctx.fillStyle=s.c; ctx.fill(); break; }
+    case "pompe": { ctx.beginPath(); ctx.arc(x+w/2,y+h/2,Math.min(w,h)/2,0,Math.PI*2); ctx.fill(); ctx.stroke(); txt("P",x+w/2,y+h/2,Math.min(w,h)*0.55); break; }
+  }
+  ctx.restore();
+}
 const legendeClimHTML = () => `<div class="clim-leg">${CLIM_LEGENDE.map(x=>`<span><i style="background:${x.c}"></i>${esc(x.l)}</span>`).join("")}</div>`;
 const nouvelleClim = () => ({ mono:false, multi:false, modele:"", option:"", annee:"", temps_pose:"",
   ue1:{h_sol:"", cable:""}, ue2:{h_sol:"", cable:""}, dalle:false, supports:false, ral_ext:"", ral_int:"",
@@ -1908,6 +1945,8 @@ function renderClim(t){
       <label class="chip" id="skCarre"><input type="checkbox">Carré / rond parfait</label><label class="chip" id="skMulti"><input type="checkbox">Sélection multiple</label><button class="btn small danger" id="skDelSel" disabled>🗑 Supprimer la sélection</button><button class="btn small danger hide" id="skFond">Effacer l'ancien dessin</button></div>
     <div class="row" style="gap:8px;margin:8px 0 4px;align-items:center;flex-wrap:wrap"><input id="skTxtLibre" placeholder="Écrire un texte (ex. Chambre 1, 3,20 m, passage combles…)" style="flex:1;min-width:220px">
       <button class="btn small" id="skTxtGo">✍ Placer le texte</button></div>
+    <div class="hint" style="margin:6px 0 4px">Symboles : touche un symbole puis l'endroit du schéma :</div>
+    <div class="toolbar sym-bar">${CLIM_SYMBOLES.map(z=>`<button class="btn small" data-sksym="${z.k}" style="color:${z.c}"><canvas width="64" height="40" data-symico="${z.k}"></canvas>${esc(z.l)}</button>`).join("")}</div>
     <div class="hint" style="margin:6px 0 4px">Étiquettes : touche un mot puis l'endroit du schéma :</div>
     <div class="toolbar">${[...CLIM_ETIQUETTES.slice(0,3),...climUnites(c).map(u=>[u,"#d3232f"]),...CLIM_ETIQUETTES.slice(3)].map(([t,co])=>`<button class="btn small" data-sktxt="${esc(t)}" data-c="${co}" style="color:${co}">${esc(t)}</button>`).join("")}</div>
     <div class="toolbar"><button class="btn small" data-pen="erase">Gomme</button><button class="btn small" id="skUndo">Annuler</button><button class="btn small danger" id="skClear">Effacer tout</button>
@@ -1944,6 +1983,8 @@ function renderClim(t){
     S.climSch=k; save(); re(); toast(`Copié dans « ${c.sch_noms[k]} » : renomme-le et modifie-le`); };
   const sd=$("#clSchDel"); if(sd) sd.onclick=async()=>{ if(c[schK] && !await demander(`Supprimer « ${nomSchema(c,schK)} » et son dessin ?`,"Supprimer")) return;
     c.sch_extra=c.sch_extra.filter(x=>x!==schK); delete c[schK]; delete c[schK+"_vec"]; delete c[schK+"_fond"]; if(c.sch_noms) delete c.sch_noms[schK]; S.climSch="schema_etage"; save(); re(); };
+  $$("[data-symico]").forEach(cv=>{ const z=CLIM_SYMBOLES.find(q=>q.k===cv.dataset.symico), k=Math.min(56/z.w,34/z.h), w=z.w*k, h=z.h*k;
+    dessinerSymbole(cv.getContext("2d"),{sym:z.k,c:z.c,a:[32-w/2,20-h/2],b:[32+w/2,20+h/2]},0.55); });
   initSketch(c, schK);
   initPhotos(c, re);
   if(!c.tableau) c.tableau={img:"",txt:"",place:""};

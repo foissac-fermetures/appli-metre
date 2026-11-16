@@ -520,6 +520,21 @@ function texteCle(d,o){ const c=o.cle; if(!c||(!c.entrouvrant&&!c.molette)) retu
   const L=[]; if(c.entrouvrant){ const m=memeCle(d,o); L.push(`S'ENTROUVRANT – même clé (groupe ${c.groupe||"A"})${m.length?" que : "+m.map(x=>x.repere||("n° "+x.num_poseur)).join(", "):""}`); }
   if(c.molette) L.push("BOUTON MOLETTE côté intérieur"); return L.join(" · "); }
 
+/* ---------- Cotes au télémètre (Bosch GLM 120 C via un clavier Bluetooth type SerialMagic Keys) ----------
+   - une mesure en mètres (« 1,234 », « 1.234 m ») devient 1234 mm ;
+   - Entrée (ou le suffixe « Retour » réglé dans l'appli du télémètre) passe à la cote suivante. */
+function mmDepuisMesure(v){ const s=String(v||"").trim().toLowerCase().replace(/\s+/g,""); if(!s) return v;
+  const m=s.match(/^(\d+(?:[.,]\d+)?)(mm|cm|m)?$/); if(!m) return v; const n=parseFloat(m[1].replace(",",".")), u=m[2]||"";
+  if(u==="mm") return String(Math.round(n)); if(u==="cm") return String(Math.round(n*10)); if(u==="m") return String(Math.round(n*1000));
+  if(/[.,]/.test(m[1]) && n<20) return String(Math.round(n*1000)); return v; }
+const estCoteMM = el => el && el.matches && el.matches('input[data-k^="cotes."]');
+function convertirCote(el){ const nv=mmDepuisMesure(el.value); if(nv!==el.value){ el.value=nv; el.dispatchEvent(new Event("input",{bubbles:true})); } }
+document.addEventListener("change", e=>{ if(estCoteMM(e.target)) convertirCote(e.target); }, true);
+document.addEventListener("keydown", e=>{ const el=e.target; if(e.key!=="Enter" || !el.matches || !el.matches('input[inputmode="decimal"],input[inputmode="numeric"]')) return;
+  e.preventDefault(); if(estCoteMM(el)) convertirCote(el);
+  const L=[...document.querySelectorAll(estCoteMM(el)?'#app input[data-k^="cotes."]':'#app input[inputmode="decimal"],#app input[inputmode="numeric"]')].filter(x=>x.offsetParent && !x.disabled), i=L.indexOf(el);
+  if(i>=0 && L[i+1]){ L[i+1].focus(); try{ L[i+1].select(); }catch(_){} } else el.blur(); });
+
 /* ---------- « Comme la précédente » : mêmes caractéristiques, il ne reste que le repère et les cotes ---------- */
 function commePrecedente(d, src){
   const c=JSON.parse(JSON.stringify(src)); c.id=uid(); c.num_poseur=numSuivant(d);

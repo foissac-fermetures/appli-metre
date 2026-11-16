@@ -406,7 +406,7 @@ const ERP_SENS = ["Extérieure (sens de la sortie)","Intérieure"];
 const ERP_AP = ["Barre anti-panique (NF EN 1125)","Poignée / béquille d'urgence (NF EN 179)"];
 const ERP_GROOM = ["Ferme-porte à bras compas","Ferme-porte à glissière","Ferme-porte avec arrêt (bloqueur)","Ferme-porte intégré (caché)"];
 const GC_VIDE = () => ({type:"", modele:"", L:"", H:"", finition:"", fixation:"", losange:false, etage:false, appui_h:"", zsp:false, zsp_h:"", epais:false});
-function normaliser(d){ if(!d.vr) d.vr=nouveauVR(); if(d.clim && !d.clim.tableau) d.clim.tableau={img:"",txt:"",place:""}; d.ouvertures.forEach(o=>{ o.gc=Object.assign(GC_VIDE(), o.gc||{}); o.erp=Object.assign(ERP_VIDE(), o.erp||{}); }); d.ouvertures.forEach((o,i)=>{ if(o.num_poseur===undefined) o.num_poseur=String(i+1); if(!Array.isArray(o.photos)) o.photos=[]; }); if(!d.equipe_pose && d.vr.equipe) d.equipe_pose={"Seul":"Tout seul"}[d.vr.equipe]||d.vr.equipe; d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
+function normaliser(d){ if(!d.vr) d.vr=nouveauVR(); d.ouvertures.forEach(o=>{ o.comp=Object.assign(COMP_VIDE(), o.comp||{}); }); if(d.clim && !d.clim.tableau) d.clim.tableau={img:"",txt:"",place:""}; d.ouvertures.forEach(o=>{ o.gc=Object.assign(GC_VIDE(), o.gc||{}); o.erp=Object.assign(ERP_VIDE(), o.erp||{}); }); d.ouvertures.forEach((o,i)=>{ if(o.num_poseur===undefined) o.num_poseur=String(i+1); if(!Array.isArray(o.photos)) o.photos=[]; }); if(!d.equipe_pose && d.vr.equipe) d.equipe_pose={"Seul":"Tout seul"}[d.vr.equipe]||d.vr.equipe; d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
 /* Volet roulant lié à une ouverture : repère, quantité et cotes tableau suivent la fiche ouverture */
 /* Volets roulants vendus avec la menuiserie (fabriqués avec elle) */
 const GAMME_MODELES = { "ALU - LALOI":"modeles_laloi", "PVC - REHAU PORTEO":"modeles_porteo" };
@@ -449,7 +449,7 @@ function listePiecesDL(){ return (CAT.pieces_groupes||[{groupe:"",items:CAT.piec
 const numSuivant = d => String(1+Math.max(0,...d.ouvertures.map(o=>parseInt(o.num_poseur)||0)));
 const numP = o => o.num_poseur ? "N°"+o.num_poseur : "";
 function nouvelleOuverture(pose, d){
-  return { id:uid(), pose, repere:"", num_poseur:numSuivant(d), photos:[], gc:GC_VIDE(), erp:Object.assign(ERP_VIDE(),{actif:!!d.erp}), quantite:1, gamme:d.gamme_defaut||"",
+  return { id:uid(), pose, repere:"", num_poseur:numSuivant(d), photos:[], gc:GC_VIDE(), comp:COMP_VIDE(), erp:Object.assign(ERP_VIDE(),{actif:!!d.erp}), quantite:1, gamme:d.gamme_defaut||"",
     modele:"", couleur_int:"", couleur_ext:"", couleur_dormant:"",
     renovation:false, deligner:false, depose_totale:false, depose_seuil:false, applique_neuf:false,
     cotes:{ L:["","","",""], H:["","","",""] }, fab_force:{ L:"", H:"" },
@@ -619,6 +619,15 @@ function conseilERP(o){
 function texteERP(o){ const e=o.erp; if(!porteERP(o)) return "";
   return ["ERP"+(e.effectif?" – "+e.effectif.toLowerCase():""), e.issue&&"issue de secours", e.sens&&"ouverture "+e.sens.toLowerCase(), e.ap&&(e.ap_type||"anti-panique"), e.groom&&(e.groom_type||"ferme-porte"), e.coupe_feu&&"coupe-feu", e.pmr&&"accessible PMR"].filter(Boolean).join(" · "); }
 const SEUIL_ENC = 40;
+/* Compensateur sous la menuiserie (regingot, ou sous une porte pour laisser passer le carrelage) – 16/11/2026
+   Sections courantes 15 × 20 et 15 × 60. On note sa hauteur et s'il est compris ou non dans la hauteur de fabrication. */
+const COMP_TYPES = ["15 × 20","15 × 60","Autre (à préciser)"];
+const COMP_COMPRIS = ["Compris dans la hauteur de fabrication","Non compris dans la hauteur de fabrication"];
+const COMP_VIDE = () => ({type:"", h:"", compris:""});
+function compH(o){ return o.comp && o.comp.type ? num(o.comp.h) : null; }
+function compCompris(o){ return o.comp && o.comp.compris===COMP_COMPRIS[0]; }
+function texteComp(o){ const c=o.comp; if(!c||!c.type) return ""; const f=calcFab(o), H=num(f.H), h=compH(o);
+  return `${c.type}${h!=null?` – hauteur ${h} mm`:""} – ${c.compris?(compCompris(o)?`compris dans la hauteur de fabrication${H!=null&&h!=null?` (menuiserie seule ${H-h})`:""}`:`NON compris dans la hauteur de fabrication${H!=null&&h!=null?` (hauteur totale ${H+h})`:""}`):"compris / non compris à préciser"}`; }
 function seuilEncastre(o){ return !!o.seuil_encastre && ["coulissant","galandage"].includes(modeleDe(o)?.famille); }
 function calcVolet(o){
   const v=o.volet, posesVR=["Rénovation","Monobloc","Tradi coffre","Tradi rapide","Tradi drapeau"];
@@ -652,6 +661,7 @@ function controleOuverture(o, d=S.dossier){
   if(o.appui_bas && (o.seuil_std||o.seuil_plat)) E.push("Appui bas ET seuil cochés ?");
   controleGC(o, E, W);
   controleERP(o, E, W);
+  if(o.comp&&o.comp.type){ if(compH(o)==null) E.push("Compensateur : hauteur (mm) manquante"); if(!o.comp.compris) W.push("Compensateur : préciser s'il est compris ou non dans la hauteur de fabrication"); if(o.comp.type.startsWith("Autre") && !/compensateur/i.test(o.obs_libre||"")) W.push("Compensateur « autre » : préciser la section dans les observations"); if(seuilEncastre(o)) W.push("Compensateur ET seuil encastré : vérifier"); }
   if(o.seuil_encastre && !seuilEncastre(o)) W.push("Seuil encastré coché mais le modèle n'est pas un coulissant");
   if(seuilEncastre(o) && num(o.fab_force.H)!=null) W.push("Seuil encastré : hauteur saisie à la main, vérifier que les 40 mm sont compris");
   if(!porte && tH!=null && tH>=1950 && !o.appui_bas && !o.seuil_std && !o.seuil_plat) W.push("Hauteur ≥ 1950 sans seuil (porte-fenêtre ?)");
@@ -845,6 +855,7 @@ function refreshLive(k){
   if(S.view==="ouverture"){
     if(k==="gamme"||k==="renovation"||k==="applique_neuf"||k==="depose_totale"||(k.startsWith("vantaux.")&&!modeleDe(S.ouv))){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(String(k).startsWith("erp.")){ if(["erp.actif","erp.ap","erp.ap_type","erp.groom"].includes(k)) syncAccessoiresERP(S.ouv); const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
+    if(k==="comp.type"){ const c=S.ouv.comp; if(c.type && !c.h) c.h=String((c.type.match(/^(\d+)/)||[])[1]||""); if(c.type && !c.compris) c.compris=COMP_COMPRIS[1]; if(!c.type){ c.h=""; c.compris=""; } save(); const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(k==="volet.type"||k==="gc.zsp"){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(String(k).startsWith("gc.")) majGC();
     if(String(k).endsWith(".avec_menuiserie")){ syncVR(S.dossier); renderVRInline(); }
@@ -1163,6 +1174,8 @@ function renderOuverture(){
     ${FRN(o.gamme).poignees?F.sel("poignee_modele",`Poignée ${esc(FRN(o.gamme).fournisseur||"")}`,FRN(o.gamme).poignees,o.poignee_modele):F.sel("poignee","Poignée (position / type)",CAT.poignee,o.poignee)}${FRN(o.gamme).fermeture?F.sel("fermeture","Fermeture / serrure",FRN(o.gamme).fermeture,o.fermeture):""}
     ${FRN(o.gamme).seuils?F.sel("seuil_type","Seuil (fournisseur)",FRN(o.gamme).seuils,o.seuil_type):""}${(FRN(o.gamme).modeles_porte||FRN(o.gamme).panneaux)&&(modeleDe(o)?.famille==="porte")?F.sel("modele_porte","Modèle / panneau de porte",FRN(o.gamme).modeles_porte||FRN(o.gamme).panneaux,o.modele_porte):""}${FRN(o.gamme).sens_porte&&(modeleDe(o)?.famille==="porte")?F.sel("sens_porte","Sens d'ouverture (vue extérieure)",FRN(o.gamme).sens_porte,o.sens_porte):""}
   </div><div class="checks" style="margin-top:12px">${F.chk("seuil_std","Seuil alu standard",o.seuil_std)}${F.chk("seuil_plat","Seuil alu PLAT",o.seuil_plat)}${["coulissant","galandage"].includes(modeleDe(o)?.famille)?F.chk("seuil_encastre","Seuil encastré 4 cm (hauteur de fabrication + 40 mm)",o.seuil_encastre):""}</div>
+  <div class="grid g4" style="margin-top:12px">${F.sel("comp.type","Compensateur sous la menuiserie",COMP_TYPES,o.comp.type)}
+    ${o.comp.type?F.numb("comp.h","Hauteur du compensateur (mm)",o.comp.h)+`<div style="grid-column:span 2">${F.sel("comp.compris","Dans la hauteur de fabrication ?",COMP_COMPRIS,o.comp.compris)}</div>`:`<div class="hint" style="grid-column:span 3;align-self:end">Regingot, ou sous une porte pour laisser la place au carrelage.</div>`}</div>
   <div style="margin-top:12px">${listeCylindres(o.gamme)||aSemiFixe(o)?`<div class="grid g2" style="margin-bottom:12px">${listeCylindres(o.gamme)?F.sel("cylindre","Cylindre (barillet)",listeCylindres(o.gamme),o.cylindre):""}${aSemiFixe(o)?F.sel("semi_fixe","Fermeture de l'ouvrant secondaire (semi-fixe)",listeSemiFixe(o.gamme),o.semi_fixe):""}</div>`:""}
     <div class="hint" style="margin-bottom:6px">Accessoires porte</div>${F.multi("accessoires",listeAccessoires(o.gamme),o.accessoires)}</div></div>
 
@@ -1456,7 +1469,7 @@ function dessinMenuiserie(o, opt={}){
   const hC = coffre ? (num(String(vr.coffre_hauteur||"").match(/(\d{2,4})\s*mm/)?.[1]) ?? 195) : null;
   const sbCote = sbY!=null && num(o.sb)!=null;
   const enc = typeof seuilEncastre==="function" && seuilEncastre(o) && vH!=null;
-  const ML = (coffre||sbCote ? 50 : 8)+(enc ? (coffre||sbCote ? 44 : 50) : 0), MR = (coffre ? 96 : 50)+(enc ? 46 : 0), erpTxt = typeof porteERP==="function" && porteERP(o) ? [o.erp.sens===ERP_SENS[0]&&"OUVERTURE EXT.", o.erp.ap&&"anti-panique", o.erp.groom&&"groom"].filter(Boolean).join(" · ") : "", MB = 58 + (erpTxt?18:0);
+  const ML = (coffre||sbCote ? 50 : 8)+(enc ? (coffre||sbCote ? 44 : 50) : 0), MR = (coffre ? 96 : 50)+(enc ? 46 : 0)+(o.comp&&o.comp.type&&num(o.comp.h)!=null ? 48 : 0), erpTxt0 = typeof porteERP==="function" && porteERP(o) ? [o.erp.sens===ERP_SENS[0]&&"OUVERTURE EXT.", o.erp.ap&&"anti-panique", o.erp.groom&&"groom"].filter(Boolean).join(" · ") : "", erpTxt = erpTxt0, ch = typeof compH==="function" ? compH(o) : null, cCompris = ch!=null && compCompris(o), hCp = ch!=null && vH ? Math.max(14, Math.round((Y1-Y0)*ch/vH)) : 0, exB = ch!=null && !cCompris ? hCp : 0, MB = 58 + (erpTxt?18:0) + exB;
   const tete=(x,y,dx,dy)=>{ const L=7,l=3.5, ux=dx, uy=dy, px=-uy, py=ux; return `<path d="M${x} ${y} L${x-ux*L+px*l} ${y-uy*L+py*l} L${x-ux*L-px*l} ${y-uy*L-py*l}Z" fill="${COT}"/>`; };
   const etiq=(x,y,t,vert)=>{ const w=t.length*9+12; return vert
       ? `<g transform="translate(${x} ${y}) rotate(-90)"><rect x="${-w/2}" y="-10" width="${w}" height="20" rx="10" fill="#fff" stroke="${COT}" stroke-width="1.2"/><text x="0" y="1" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="${COT}">${t}</text></g>`
@@ -1464,8 +1477,8 @@ function dessinMenuiserie(o, opt={}){
   const cote=(x1,y1,x2,y2,t)=>{ const vert=x1===x2, dx=vert?0:1, dy=vert?1:0;
     return line(x1,y1,x2,y2,1.2,COT)+tete(x1,y1,-dx,-dy)+tete(x2,y2,dx,dy)+etiq((x1+x2)/2,(y1+y2)/2,t,vert); };
   let c="";
-  if(vL!=null){ const y=H+20; c+=line(X0,Y1+3,X0,y+6,0.7,COT)+line(X1,Y1+3,X1,y+6,0.7,COT)+cote(X0,y,X1,y,String(vL)); }
-  if(vH!=null){ const x=X1+26; c+=line(X1+3,Y0,x+6,Y0,0.7,COT)+line(X1+3,Y1,x+6,Y1,0.7,COT)+cote(x,Y0,x,Y1,enc?`${vH} seuil compris`:String(vH));
+  if(vL!=null){ const y=H+20+exB; c+=line(X0,Y1+3,X0,y+6,0.7,COT)+line(X1,Y1+3,X1,y+6,0.7,COT)+cote(X0,y,X1,y,String(vL)); }
+  if(vH!=null){ const x=X1+26; c+=line(X1+3,Y0,x+6,Y0,0.7,COT)+line(X1+3,Y1,x+6,Y1,0.7,COT)+cote(x,Y0,x,Y1,enc?`${vH} seuil compris`:ch!=null&&cCompris?`${vH} comp. compris`:String(vH));
     /* hauteur totale = hauteur de la menuiserie + épaisseur du coffre (règle de Nicolas) */
     if(coffre && hC!=null){ const x2=X1+70; c+=line(X1+3,P,x2+6,P,0.7,COT)+line(x+8,Y1,x2+6,Y1,0.7,COT)+cote(x2,P,x2,Y1,String(vH+hC)); } }
   /* seuil encastré : la menuiserie descend de 40 mm sous le sol fini ; deux hauteurs fléchées (compris / non compris) */
@@ -1476,9 +1489,16 @@ function dessinMenuiserie(o, opt={}){
       + line(X1+3,yS,xR+6,yS,0.7,COT) + line(X1+3,Y0,xR+6,Y0,0.7,COT) + cote(xR,Y0,xR,yS,`${vH-SEUIL_ENC} seuil non compris`)
       + line(X0-3,yS,xL-6,yS,0.7,COT) + line(X0-3,Y1,xL-6,Y1,0.7,COT) + cote(xL,yS,xL,Y1,String(SEUIL_ENC));
     s=`<defs><pattern id="hachSol" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#8b93a6" stroke-width="2"/></pattern></defs>`+s; }
+  /* compensateur : bande sous le dormant, dans la hauteur (compris) ou en dessous (non compris), avec la hauteur fléchée */
+  if(ch!=null && hCp){ const yC = cCompris ? Y1-hCp : Y1, xC = X1+26+44*(1+(coffre?1:0)+(enc?1:0));
+    c+=`<rect x="${X0}" y="${yC}" width="${X1-X0}" height="${hCp}" fill="#f2b84b" stroke="${NAVY}" stroke-width="1.5"/>`
+      + `<text x="${(X0+X1)/2}" y="${yC+hCp/2+1}" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="${Math.min(11,hCp-1)}" font-weight="700" fill="${NAVY}">compensateur ${esc(o.comp.type.replace(/ \(.*$/,""))}</text>`;
+    if(vH!=null){ const tot = cCompris ? vH : vH+ch;
+      c+= line(X1+3,yC+hCp,xC+6,yC+hCp,0.7,COT) + line(X1+3,Y0,xC+6,Y0,0.7,COT)
+        + (cCompris ? cote(xC,Y0,xC,yC,`${vH-ch} sans compensateur`) : cote(xC,Y0,xC,yC+hCp,`${tot} avec compensateur`)); } }
   if(sbCote){ const x=X0-26; c+=line(X0-3,sbY,x-6,sbY,0.7,COT)+line(X0-3,Y1,x-6,Y1,0.7,COT)+cote(x,sbY,x,Y1,String(num(o.sb))); }
   if(coffre){ const x=X0-26; c+=line(X0-3,P,x-6,P,0.7,COT)+line(X0-3,P+CH,x-6,P+CH,0.7,COT)+cote(x,P,x,P+CH,hC!=null?String(hC):"?"); }
-  const leg = vL!=null||vH!=null ? (estFab?"Cotes de fabrication":"Cotes tableau (fabrication non calculée)")+(coffre&&vH!=null&&hC!=null?` · hauteur totale = ${vH} + coffre ${hC}`:"")+(enc?` · seuil encastré ${SEUIL_ENC} mm compris`:"") : "";
+  const leg = vL!=null||vH!=null ? (estFab?"Cotes de fabrication":"Cotes tableau (fabrication non calculée)")+(coffre&&vH!=null&&hC!=null?` · hauteur totale = ${vH} + coffre ${hC}`:"")+(enc?` · seuil encastré ${SEUIL_ENC} mm compris`:"")+(ch!=null?` · compensateur ${ch} mm ${cCompris?"compris":"NON compris"}`:"") : "";
   if(erpTxt) c+=`<text x="${W/2}" y="${H+MB-4}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#b3202a">${erpTxt}</text>`;
   if(leg) c+=`<text x="${W/2}" y="${H+MB-(erpTxt?22:5)}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#5b6478">${leg}</text>`;
   return `<svg class="dessin${opt.cls?" "+opt.cls:""}" viewBox="${-ML} 0 ${W+ML+MR} ${H+MB}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dessin de la menuiserie">${s}${c}</svg>`;
@@ -2053,7 +2073,7 @@ function construireImpression(d){
       <table class="pt">${row([["Type de pose",libellePose(o)],["Quantité",o.quantite],["Produit et gamme",o.gamme],["Profil / essence",[o.profil,o.essence].filter(Boolean).join(" – ")],["Couleur int.",o.couleur_int],["Couleur ext.",o.couleur_ext],["Dormant / aile",o.dormant_aile],
         ["Dépose",[o.deligner&&"Déligner les cochonnets",o.depose_totale&&"Dépose totale",o.depose_seuil&&"Dépose seuil/appui"].filter(Boolean)],
         ["Vantaux G·M·D",[o.vantaux.G,o.vantaux.M,o.vantaux.D].some(Boolean)?[o.vantaux.G,o.vantaux.M,o.vantaux.D].map(x=>x||"–").join(" · "):""],["Vitrage",[o.vitrage,o.teinte,o.intercalaire&&"intercalaire "+o.intercalaire].filter(Boolean).join(" – ")],["Petits bois",[...(o.petits_bois||[]),o.pb_motif?(o.pb_motif==="perso"?`${o.pb_c||"?"} × ${o.pb_r||"?"} carreaux`:PB_MOTIFS.find(m=>m.id===o.pb_motif)?.nom):""].filter(Boolean).join(" – ")],
-        ["Appui bas",o.appui_bas],["Seuil",[o.seuil_std&&"Alu standard",o.seuil_plat&&"Alu PLAT",seuilEncastre(o)&&"ENCASTRÉ 4 cm (+40 mm compris dans la hauteur de fabrication)"].filter(Boolean)],["Serrure à pêne",o.serrure],["Cylindre",o.cylindre],["Fermeture semi-fixe",o.semi_fixe],["Soubassement",[o.sb&&o.sb+" mm",o.sb_type].filter(Boolean).join(" – ")],["Poignée",[o.poignee,o.poignee_modele].filter(Boolean).join(" – ")],["Fermeture",o.fermeture],["Oscillo-battant",o.ob_type],["Ferrage",o.ferrage],["Seuil fournisseur",o.seuil_type],["Modèle de porte",[o.modele_porte,o.sens_porte].filter(Boolean).join(" – ")],["GV",o.gv],["Allège",o.allege],["Imposte",[o.imposte,o.imposte_type].filter(Boolean).join(" – ")],["Accessoires",o.accessoires],["Garde-corps",texteGC(o)],["Accès public (ERP)",texteERP(o)],["Appui",o.gc&&num(o.gc.appui_h)!=null?`${o.gc.appui_h} mm du sol${o.gc.etage?" · étage":""}${o.gc.zsp&&o.gc.zsp_h?` · radiateur/marche ${o.gc.zsp_h} mm`:""}`:""]])}</table></div><div>
+        ["Appui bas",o.appui_bas],["Seuil",[o.seuil_std&&"Alu standard",o.seuil_plat&&"Alu PLAT",seuilEncastre(o)&&"ENCASTRÉ 4 cm (+40 mm compris dans la hauteur de fabrication)"].filter(Boolean)],["Serrure à pêne",o.serrure],["Cylindre",o.cylindre],["Fermeture semi-fixe",o.semi_fixe],["Soubassement",[o.sb&&o.sb+" mm",o.sb_type].filter(Boolean).join(" – ")],["Poignée",[o.poignee,o.poignee_modele].filter(Boolean).join(" – ")],["Fermeture",o.fermeture],["Oscillo-battant",o.ob_type],["Ferrage",o.ferrage],["Seuil fournisseur",o.seuil_type],["Modèle de porte",[o.modele_porte,o.sens_porte].filter(Boolean).join(" – ")],["GV",o.gv],["Allège",o.allege],["Imposte",[o.imposte,o.imposte_type].filter(Boolean).join(" – ")],["Accessoires",o.accessoires],["Garde-corps",texteGC(o)],["Accès public (ERP)",texteERP(o)],["Compensateur",texteComp(o)],["Appui",o.gc&&num(o.gc.appui_h)!=null?`${o.gc.appui_h} mm du sol${o.gc.etage?" · étage":""}${o.gc.zsp&&o.gc.zsp_h?` · radiateur/marche ${o.gc.zsp_h} mm`:""}`:""]])}</table></div><div>
       <table class="pt">${row([
         ["Volet roulant",(()=>{const l=vrLie(d,o); return l?`Oui${l.avec_menuiserie?` – ${l.avec_menuiserie}, vendu avec la menuiserie${l.manoeuvre_menuis?" ("+l.manoeuvre_menuis+")":""}`:""} – n° ${d.vr.lignes.indexOf(l)+1} sur la feuille volets roulants (fab. ${fabVR(l,d.vr).L??"?"} × ${fabVR(l,d.vr).H??"?"})`:"";})()],
         ["Finitions int.",texteFinitions(o,"int").join(" + ")],["Finitions ext.",texteFinitions(o,"ext").join(" + ")],["Observations",o.observations],["Notes",o.obs_libre]])}</table>
@@ -2605,6 +2625,10 @@ function ouvertureDepuisDevis(d, dv, li, i){
   else if(n===1 && r.sens) o.vantaux[r.sens==="Droite"?"D":"G"]=ob;
   else if(n===2 && r.sens){ o.vantaux.G = r.sens==="Gauche"?ob:"X"; o.vantaux.D = r.sens==="Droite"?ob:"X"; }
   const pb=li.opts.find(x=>/^Petits-bois\s*:/i.test(x)); if(pb) o.obs_libre=pb;
+  { const m=sansAcc(li.texte).toUpperCase().match(/COMPENSATEUR\s+(?:DE\s+)?(\d+)\s*[X×]\s*(\d+)/);   // ex. « COMPENSATEUR DE 65X15 … (NON INCLUS DANS LA HAUTEUR) »
+    if(m && typeof COMP_VIDE==="function"){ const a=+m[1], b=+m[2], sec=[Math.min(a,b),Math.max(a,b)].join(" × ");
+      o.comp={ type: COMP_TYPES.includes(sec)?sec:COMP_TYPES[2], h:String(Math.min(a,b)), compris: /NON (INCLUS|COMPRIS)/.test(sansAcc(li.texte).toUpperCase())?COMP_COMPRIS[1]:COMP_COMPRIS[0] };
+      if(o.comp.type===COMP_TYPES[2]) o.obs_libre=[o.obs_libre,`Compensateur ${a} × ${b}`].filter(Boolean).join(" · "); } }
   /* quincaillerie, seuil, appui, dormant, ventilation : seulement si la valeur du devis existe dans les listes de la gamme */
   const opt=re=>li.opts.find(x=>re.test(x))||"", g=o.gamme, fr=FRN(g), essai=f=>{ try{ return f()||""; }catch(e){ return ""; } };
   o.ferrage   = essai(()=>trouverDans(fr.ferrage, valeurOpt(li,/^Type de ferrage/i), true));

@@ -1830,31 +1830,64 @@ const climSchemas = c => ["schema_etage","schema_bas",...(c.sch_extra||[])];
 const nomSchema = (c,k) => (c.sch_noms&&c.sch_noms[k]) || CLIM_SCH_DEF[k] || `Schéma ${climSchemas(c).indexOf(k)+1}`;
 /* Symboles à poser sur les schémas clim (taille de départ en unités du dessin, couleur = légende) */
 const CLIM_SYMBOLES = [
-  {k:"ue", l:"Groupe extérieur", c:"#d3232f", w:150, h:105},
-  {k:"split", l:"Split", c:"#1f4fd8", w:170, h:52},
-  {k:"console", l:"Console", c:"#7b2cbf", w:115, h:85},
-  {k:"cassette", l:"Cassette", c:"#1f4fd8", w:105, h:105},
-  {k:"gainable", l:"Gainable", c:"#1f4fd8", w:180, h:60},
-  {k:"tableau", l:"Tableau électrique", c:"#e07b00", w:85, h:110},
-  {k:"pompe", l:"Pompe de relevage", c:"#00a3c4", w:60, h:60}];
+  {k:"ue", l:"Groupe extérieur", c:"#d3232f", w:160, h:118},
+  {k:"split", l:"Split", c:"#1f4fd8", w:190, h:64},
+  {k:"console", l:"Console", c:"#7b2cbf", w:120, h:100},
+  {k:"tableau", l:"Tableau électrique", c:"#e07b00", w:96, h:120},
+  {k:"pompe", l:"Pompe de relevage", c:"#00a3c4", w:70, h:70}];
 function dessinerSymbole(ctx, s, ratio){
-  const x=Math.min(s.a[0],s.b[0]), y=Math.min(s.a[1],s.b[1]), w=Math.abs(s.b[0]-s.a[0]), h=Math.abs(s.b[1]-s.a[1]), lw=3.5*ratio/1.2;
-  ctx.save(); ctx.strokeStyle=s.c; ctx.fillStyle="#fff"; ctx.lineWidth=lw; ctx.lineCap=ctx.lineJoin="round";
+  const x=Math.min(s.a[0],s.b[0]), y=Math.min(s.a[1],s.b[1]), w=Math.abs(s.b[0]-s.a[0]), h=Math.abs(s.b[1]-s.a[1]);
+  const m=Math.min(w,h), lw=Math.max(1, Math.min(3.2*ratio/1.2, m*0.045)), fin=lw*0.6;
+  const teinte=s.c+"1f";
+  ctx.save(); ctx.strokeStyle=s.c; ctx.lineWidth=lw; ctx.lineCap=ctx.lineJoin="round";
   const rr=(X,Y,W,H,r)=>{ ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(X,Y,W,H,r); else ctx.rect(X,Y,W,H); };
-  const ligne=(x1,y1,x2,y2)=>{ ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); };
-  const txt=(t,X,Y,fs)=>{ ctx.font=`700 ${Math.round(fs)}px Arial,sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.lineWidth=fs/4; ctx.strokeStyle="#fff"; ctx.strokeText(t,X,Y); ctx.fillStyle=s.c; ctx.fillText(t,X,Y); ctx.strokeStyle=s.c; ctx.lineWidth=lw; };
+  const corps=(X,Y,W,H,r)=>{ rr(X,Y,W,H,r); ctx.fillStyle="#fff"; ctx.fill(); ctx.fillStyle=teinte; ctx.fill(); ctx.stroke(); };
+  const ligne=(x1,y1,x2,y2,l=fin)=>{ ctx.lineWidth=l; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.lineWidth=lw; };
+  const plein=()=>{ ctx.fillStyle=s.c; ctx.fill(); };
   switch(s.sym){
-    case "ue": { rr(x,y,w,h,h*0.08); ctx.fill(); ctx.stroke(); const r=Math.min(w*0.3,h*0.38), cx=x+w*0.36, cy=y+h/2;
-      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
-      for(let i=0;i<3;i++){ const an=i*2*Math.PI/3; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.quadraticCurveTo(cx+r*0.9*Math.cos(an+0.6),cy+r*0.9*Math.sin(an+0.6),cx+r*0.85*Math.cos(an+1.2),cy+r*0.85*Math.sin(an+1.2)); ctx.stroke(); }
-      for(let i=0;i<4;i++) ligne(x+w*0.74+i*w*0.06,y+h*0.18,x+w*0.74+i*w*0.06,y+h*0.82); break; }
-    case "split": { rr(x,y,w,h,h*0.35); ctx.fill(); ctx.stroke(); ligne(x+w*0.1,y+h*0.68,x+w*0.9,y+h*0.68); ctx.beginPath(); ctx.arc(x+w*0.88,y+h*0.32,lw*0.9,0,Math.PI*2); ctx.fillStyle=s.c; ctx.fill(); txt("SPLIT",x+w*0.45,y+h*0.36,Math.min(h*0.42,26*ratio/1.2)); break; }
-    case "console": { rr(x,y,w,h,h*0.08); ctx.fill(); ctx.stroke(); for(let i=0;i<3;i++) ligne(x+w*0.15,y+h*(0.18+i*0.1),x+w*0.85,y+h*(0.18+i*0.1)); for(let i=0;i<3;i++) ligne(x+w*0.15,y+h*(0.72+i*0.08),x+w*0.85,y+h*(0.72+i*0.08)); txt("C",x+w/2,y+h*0.53,Math.min(h*0.3,24*ratio/1.2)); break; }
-    case "cassette": { rr(x,y,w,h,4); ctx.fill(); ctx.stroke(); ctx.strokeRect(x+w*0.3,y+h*0.3,w*0.4,h*0.4); ligne(x+w*0.25,y+h*0.13,x+w*0.75,y+h*0.13); ligne(x+w*0.25,y+h*0.87,x+w*0.75,y+h*0.87); ligne(x+w*0.13,y+h*0.25,x+w*0.13,y+h*0.75); ligne(x+w*0.87,y+h*0.25,x+w*0.87,y+h*0.75); break; }
-    case "gainable": { rr(x,y,w,h,4); ctx.fill(); ctx.stroke(); for(let i=1;i<6;i++) ligne(x+w*i/6-h*0.25,y+h*0.85,x+w*i/6+h*0.25,y+h*0.15); txt("GAINABLE",x+w/2,y+h/2,Math.min(h*0.34,22*ratio/1.2)); break; }
-    case "tableau": { rr(x,y,w,h,4); ctx.fill(); ctx.stroke(); ctx.beginPath(); const cx=x+w/2, cy=y+h/2, k=Math.min(w,h)*0.32;
-      ctx.moveTo(cx+k*0.25,cy-k*1.2); ctx.lineTo(cx-k*0.55,cy+k*0.1); ctx.lineTo(cx-k*0.02,cy+k*0.1); ctx.lineTo(cx-k*0.3,cy+k*1.2); ctx.lineTo(cx+k*0.6,cy-k*0.15); ctx.lineTo(cx+k*0.05,cy-k*0.15); ctx.closePath(); ctx.fillStyle=s.c; ctx.fill(); break; }
-    case "pompe": { ctx.beginPath(); ctx.arc(x+w/2,y+h/2,Math.min(w,h)/2,0,Math.PI*2); ctx.fill(); ctx.stroke(); txt("P",x+w/2,y+h/2,Math.min(w,h)*0.55); break; }
+    case "ue": { // groupe extérieur vu de face : caisson, grande grille ronde du ventilateur, panneau latéral, pieds
+      const ph=h*0.1; corps(x,y,w,h-ph,h*0.06);
+      ligne(x+w*0.08,y+h-ph,x+w*0.08,y+h,lw); ligne(x+w*0.92,y+h-ph,x+w*0.92,y+h,lw); ligne(x+w*0.02,y+h-lw/2,x+w*0.16,y+h-lw/2,lw); ligne(x+w*0.84,y+h-lw/2,x+w*0.98,y+h-lw/2,lw);
+      const H=h-ph, cx=x+w*0.38, cy=y+H/2, r=Math.min(w*0.31,H*0.42);
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fillStyle="#fff"; ctx.fill(); ctx.stroke();
+      [0.72,0.45].forEach(k=>{ ctx.lineWidth=fin; ctx.beginPath(); ctx.arc(cx,cy,r*k,0,Math.PI*2); ctx.stroke(); });
+      ligne(cx-r,cy,cx+r,cy); ligne(cx,cy-r,cx,cy+r);
+      for(let i=0;i<3;i++){ const an=i*2*Math.PI/3-0.3; ctx.lineWidth=lw; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.quadraticCurveTo(cx+r*0.75*Math.cos(an+0.5),cy+r*0.75*Math.sin(an+0.5),cx+r*0.62*Math.cos(an+1.15),cy+r*0.62*Math.sin(an+1.15)); ctx.stroke(); }
+      ctx.beginPath(); ctx.arc(cx,cy,r*0.12,0,Math.PI*2); plein();
+      ligne(x+w*0.74,y+H*0.1,x+w*0.74,y+H*0.9,fin);
+      for(let i=0;i<6;i++) ligne(x+w*0.79,y+H*(0.2+i*0.12),x+w*0.93,y+H*(0.2+i*0.12));
+      break; }
+    case "split": { // unité murale : corps arrondi, grille du dessus, volet de soufflage, voyant
+      corps(x,y,w,h*0.82,h*0.28);
+      for(let i=0;i<7;i++) ligne(x+w*(0.12+i*0.11),y+h*0.12,x+w*(0.12+i*0.11)+w*0.06,y+h*0.12);
+      ligne(x+w*0.06,y+h*0.58,x+w*0.94,y+h*0.58,fin);
+      ctx.lineWidth=lw; ctx.beginPath(); ctx.moveTo(x+w*0.12,y+h*0.72); ctx.quadraticCurveTo(x+w*0.5,y+h*1.02,x+w*0.88,y+h*0.72); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x+w*0.86,y+h*0.36,Math.max(lw,m*0.05),0,Math.PI*2); plein();
+      rr(x+w*0.62,y+h*0.29,w*0.14,h*0.14,2); ctx.lineWidth=fin; ctx.stroke(); ctx.lineWidth=lw;
+      break; }
+    case "console": { // console au sol : soufflage en haut, reprise en bas, afficheur, pieds
+      const ph=h*0.08; corps(x,y,w,h-ph,h*0.07); const H=h-ph;
+      rr(x+w*0.12,y+H*0.1,w*0.76,H*0.2,3); ctx.lineWidth=fin; ctx.stroke(); for(let i=1;i<6;i++) ligne(x+w*(0.12+i*0.127),y+H*0.12,x+w*(0.12+i*0.127),y+H*0.28);
+      ctx.beginPath(); ctx.arc(x+w*0.5,y+H*0.42,Math.max(lw,m*0.04),0,Math.PI*2); plein();
+      for(let i=0;i<5;i++) ligne(x+w*0.14,y+H*(0.56+i*0.085),x+w*0.86,y+H*(0.56+i*0.085));
+      ligne(x+w*0.1,y+H,x+w*0.1,y+h,lw); ligne(x+w*0.9,y+H,x+w*0.9,y+h,lw);
+      break; }
+    case "tableau": { // tableau électrique : coffret, 2 rangées de disjoncteurs, éclair
+      corps(x,y,w,h,m*0.06);
+      const bx=x+w*0.13, bw=w*0.74, rangs=[0.42,0.68];
+      rangs.forEach(ry=>{ ligne(bx,y+h*ry,bx+bw,y+h*ry,fin); const n=5, cw=bw/n; for(let i=0;i<n;i++){ rr(bx+i*cw+cw*0.18,y+h*(ry+0.02),cw*0.64,h*0.17,1.5); ctx.lineWidth=fin; ctx.fillStyle="#fff"; ctx.fill(); ctx.stroke();
+        rr(bx+i*cw+cw*0.36,y+h*(ry+0.05),cw*0.28,h*0.06,1); plein(); } });
+      const cx=x+w/2, cy=y+h*0.2, k=m*0.13; ctx.beginPath();
+      ctx.moveTo(cx+k*0.35,cy-k*1.1); ctx.lineTo(cx-k*0.6,cy+k*0.15); ctx.lineTo(cx-k*0.02,cy+k*0.15); ctx.lineTo(cx-k*0.35,cy+k*1.1); ctx.lineTo(cx+k*0.6,cy-k*0.15); ctx.lineTo(cx+k*0.05,cy-k*0.15); ctx.closePath(); plein();
+      ligne(x+w*0.1,y+h*0.92,x+w*0.9,y+h*0.92,fin);
+      break; }
+    case "pompe": { // pompe de relevage : petit boîtier, goutte, flèche de refoulement
+      corps(x,y+h*0.25,w*0.78,h*0.72,m*0.08);
+      const gx=x+w*0.39, gy=y+h*0.63, gr=m*0.16; ctx.beginPath(); ctx.moveTo(gx,gy-gr*1.7); ctx.bezierCurveTo(gx+gr*1.2,gy-gr*0.3,gx+gr,gy+gr,gx,gy+gr); ctx.bezierCurveTo(gx-gr,gy+gr,gx-gr*1.2,gy-gr*0.3,gx,gy-gr*1.7); plein();
+      ctx.lineWidth=lw; ctx.beginPath(); ctx.moveTo(x+w*0.62,y+h*0.25); ctx.lineTo(x+w*0.62,y+h*0.08); ctx.lineTo(x+w*0.95,y+h*0.08); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x+w*0.99,y+h*0.08); ctx.lineTo(x+w*0.88,y+h*0.0); ctx.lineTo(x+w*0.88,y+h*0.16); ctx.closePath(); plein();
+      break; }
+    default: corps(x,y,w,h,4);   // ancien symbole retiré (cassette, gainable) : simple cadre
   }
   ctx.restore();
 }

@@ -510,6 +510,16 @@ function ajouterMicros(racine=document){
 }
 new MutationObserver(()=>{ ajouterMicros(); if(dicteeEnCours && !document.contains(dicteeEnCours.ta)) arreterDictee(); }).observe(document.getElementById("app")||document.body,{childList:true,subtree:true});
 
+/* ---------- Clé et cylindre : s'entrouvrant (même clé sur plusieurs portes) et bouton molette ---------- */
+const CLE_GROUPES = ["A","B","C","D"];
+const CLE_VIDE = () => ({ entrouvrant:false, groupe:"A", molette:false });
+function cleOuv(o){ if(!o.cle) o.cle=CLE_VIDE(); return o.cle; }
+function aCylindre(o){ const fam=modeleDe(o)?.famille; return fam==="porte" || !!o.serrure || !!o.cylindre || !!listeCylindres(o.gamme) || !!(o.cle&&(o.cle.entrouvrant||o.cle.molette)); }
+const memeCle = (d,o) => d.ouvertures.filter(x=>x!==o && x.cle && x.cle.entrouvrant && (x.cle.groupe||"A")===(o.cle.groupe||"A"));
+function texteCle(d,o){ const c=o.cle; if(!c||(!c.entrouvrant&&!c.molette)) return "";
+  const L=[]; if(c.entrouvrant){ const m=memeCle(d,o); L.push(`S'ENTROUVRANT – même clé (groupe ${c.groupe||"A"})${m.length?" que : "+m.map(x=>x.repere||("n° "+x.num_poseur)).join(", "):""}`); }
+  if(c.molette) L.push("BOUTON MOLETTE côté intérieur"); return L.join(" · "); }
+
 /* ---------- « Comme la précédente » : mêmes caractéristiques, il ne reste que le repère et les cotes ---------- */
 function commePrecedente(d, src){
   const c=JSON.parse(JSON.stringify(src)); c.id=uid(); c.num_poseur=numSuivant(d);
@@ -806,6 +816,7 @@ function controleOuverture(o, d=S.dossier){
   if(aSemiFixe(o) && !o.semi_fixe) W.push("Fermeture de l'ouvrant secondaire (semi-fixe) non choisie");
   if(o.semi_fixe && !aSemiFixe(o)) W.push("Fermeture semi-fixe renseignée alors qu'il n'y a pas d'ouvrant secondaire");
   if(porte && listeCylindres(o.gamme) && !o.cylindre) W.push("Porte : cylindre (barillet) non choisi");
+  if(o.cle && o.cle.entrouvrant && d && !memeCle(d,o).length) W.push(`Cylindre s'entrouvrant : aucune autre porte avec la même clé (groupe ${o.cle.groupe||"A"})`);
   if(o.cylindre && !(listeCylindres(o.gamme)||[]).includes(o.cylindre)) W.push("Cylindre non disponible dans la gamme choisie");
   if(o.gamme && !dansListe(listeGV(o.gamme),o.gv)) W.push("Grille de ventilation d'un autre fournisseur que la gamme choisie");
   if(o.gamme && !dansListe(listeVitrages(o.gamme),o.vitrage)) W.push("Vitrage d'un autre fournisseur que la gamme choisie");
@@ -1329,6 +1340,10 @@ function renderOuverture(){
   <div class="grid g4" style="margin-top:12px">${F.sel("comp.type","Compensateur sous la menuiserie",COMP_TYPES,o.comp.type)}
     ${o.comp.type?F.numb("comp.h","Hauteur du compensateur (mm)",o.comp.h)+`<div style="grid-column:span 2">${F.sel("comp.compris","Dans la hauteur de fabrication ?",COMP_COMPRIS,o.comp.compris)}</div>`:`<div class="hint" style="grid-column:span 3;align-self:end">Regingot, ou sous une porte pour laisser la place au carrelage.</div>`}</div>
   <div style="margin-top:12px">${listeCylindres(o.gamme)||aSemiFixe(o)?`<div class="grid g2" style="margin-bottom:12px">${listeCylindres(o.gamme)?F.sel("cylindre","Cylindre (barillet)",listeCylindres(o.gamme),o.cylindre):""}${aSemiFixe(o)?F.sel("semi_fixe","Fermeture de l'ouvrant secondaire (semi-fixe)",listeSemiFixe(o.gamme),o.semi_fixe):""}</div>`:""}
+    ${aCylindre(o)?(()=>{ const c=cleOuv(o), m=c.entrouvrant?memeCle(d,o):[]; return `<div class="cle-bloc"><div class="hint" style="margin-bottom:6px">Clé et cylindre</div>
+      <div class="checks">${F.chk("cle.entrouvrant","Cylindre s'entrouvrant (même clé que d'autres portes)",c.entrouvrant)}${F.chk("cle.molette","Bouton molette (côté intérieur)",c.molette)}</div>
+      ${c.entrouvrant?`<div class="row" style="gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap"><span class="hint">Groupe de clé :</span><div class="seg">${CLE_GROUPES.map(g=>`<button type="button" class="${(c.groupe||"A")===g?"on":""}" data-clegr="${g}">${g}</button>`).join("")}</div>
+        <span class="hint">${m.length?`Même clé que : <b>${m.map(x=>esc(x.repere||"n° "+x.num_poseur)).join(", ")}</b>`:`<span style="color:var(--red,#c00)">Aucune autre porte dans le groupe ${c.groupe||"A"} pour l'instant</span>`}</span></div>`:""}</div>`; })():""}
     <div class="hint" style="margin-bottom:6px">Accessoires porte</div>${F.multi("accessoires",listeAccessoires(o.gamme),o.accessoires)}</div></div>
 
   ${d.erp||porteERP(o)||["porte","pf"].includes(modeleDe(o)?.famille)?`<div class="card erp-card" id="erpBloc"><h2><span class="num">ERP</span>Accès du public <small style="font-weight:400;text-transform:none">– mairie, restaurant, commerce, salle… (sécurité incendie et accessibilité)</small></h2>
@@ -1415,6 +1430,8 @@ function renderOuverture(){
   $("#oPrev").onclick=()=>{ S.ouv=d.ouvertures[idx-1]; renderOuverture(); scrollTo(0,0); };
   $("#oNext").onclick=()=>{ S.ouv=d.ouvertures[idx+1]; renderOuverture(); scrollTo(0,0); };
   $("#oDone").onclick=()=>{ S.tab="ouvertures"; renderDossier(); scrollTo(0,0); };
+  const ce=$('[data-k="cle.entrouvrant"]'); if(ce) ce.addEventListener("change",()=>{ const y=scrollY; setTimeout(()=>{ renderOuverture(); scrollTo(0,y); },0); });
+  $$("[data-clegr]").forEach(b=>b.onclick=()=>{ const y=scrollY; cleOuv(o).groupe=b.dataset.clegr; save(); renderOuverture(); scrollTo(0,y); });
   S.dernOuv=o.id; $("#oComme2").onclick=()=>commePrecedente(d,o);
   $("#app").insertAdjacentHTML("beforeend",`<div class="row" style="justify-content:center;margin:18px 0 30px"><button class="btn primary" id="oComme3">⧉ Ouverture suivante, comme celle-ci</button></div>`); $("#oComme3").onclick=()=>commePrecedente(d,o);
   majFab(); majControle(); renderVRInline();
@@ -2399,7 +2416,7 @@ function construireImpression(d){
       <table class="pt">${row([["Type de pose",libellePose(o)],["Quantité",o.quantite],["Produit et gamme",o.gamme],["Profil / essence",[o.profil,o.essence].filter(Boolean).join(" – ")],["Couleur int.",o.couleur_int],["Couleur ext.",o.couleur_ext],["Dormant / aile",[o.dormant_aile, aileRecouvrement(o)&&o.delignage?"délignage : "+o.delignage.toLowerCase():""].filter(Boolean).join(" – ")],
         ["Dépose",[o.deligner&&"Déligner les cochonnets",o.depose_totale&&"Dépose totale",o.depose_seuil&&"Dépose seuil/appui"].filter(Boolean)],
         ["Vantaux G·M·D",[o.vantaux.G,o.vantaux.M,o.vantaux.D].some(Boolean)?[o.vantaux.G,o.vantaux.M,o.vantaux.D].map(x=>x||"–").join(" · "):""],["Vitrage",[o.vitrage,o.teinte,o.intercalaire&&"intercalaire "+o.intercalaire].filter(Boolean).join(" – ")],["Petits bois",[...(o.petits_bois||[]),o.pb_motif?(o.pb_motif==="perso"?`${o.pb_c||"?"} × ${o.pb_r||"?"} carreaux`:PB_MOTIFS.find(m=>m.id===o.pb_motif)?.nom):""].filter(Boolean).join(" – ")],
-        ["Appui bas",o.appui_bas],["Seuil",[o.seuil_std&&"Alu standard",o.seuil_plat&&"Alu PLAT",seuilEncastre(o)&&"ENCASTRÉ 4 cm (+40 mm compris dans la hauteur de fabrication)"].filter(Boolean)],["Serrure à pêne",o.serrure],["Cylindre",o.cylindre],["Fermeture semi-fixe",o.semi_fixe],["Soubassement",[o.sb&&o.sb+" mm",o.sb_type].filter(Boolean).join(" – ")],["Poignée",[o.poignee,o.poignee_modele].filter(Boolean).join(" – ")],["Fermeture",o.fermeture],["Oscillo-battant",o.ob_type],["Ferrage",o.ferrage],["Seuil fournisseur",o.seuil_type],["Modèle de porte",[o.modele_porte,o.sens_porte].filter(Boolean).join(" – ")],["GV",o.gv],["Allège",o.allege],["Imposte",[o.imposte,o.imposte_type].filter(Boolean).join(" – ")],["Accessoires",o.accessoires],["Garde-corps",texteGC(o)],["Accès public (ERP)",texteERP(o)],["Compensateur",texteComp(o)],["Appui",o.gc&&num(o.gc.appui_h)!=null?`${o.gc.appui_h} mm du sol${o.gc.etage?" · étage":""}${o.gc.zsp&&o.gc.zsp_h?` · radiateur/marche ${o.gc.zsp_h} mm`:""}`:""]])}</table></div><div>
+        ["Appui bas",o.appui_bas],["Seuil",[o.seuil_std&&"Alu standard",o.seuil_plat&&"Alu PLAT",seuilEncastre(o)&&"ENCASTRÉ 4 cm (+40 mm compris dans la hauteur de fabrication)"].filter(Boolean)],["Serrure à pêne",o.serrure],["Cylindre",o.cylindre],["Clé",texteCle(d,o)],["Fermeture semi-fixe",o.semi_fixe],["Soubassement",[o.sb&&o.sb+" mm",o.sb_type].filter(Boolean).join(" – ")],["Poignée",[o.poignee,o.poignee_modele].filter(Boolean).join(" – ")],["Fermeture",o.fermeture],["Oscillo-battant",o.ob_type],["Ferrage",o.ferrage],["Seuil fournisseur",o.seuil_type],["Modèle de porte",[o.modele_porte,o.sens_porte].filter(Boolean).join(" – ")],["GV",o.gv],["Allège",o.allege],["Imposte",[o.imposte,o.imposte_type].filter(Boolean).join(" – ")],["Accessoires",o.accessoires],["Garde-corps",texteGC(o)],["Accès public (ERP)",texteERP(o)],["Compensateur",texteComp(o)],["Appui",o.gc&&num(o.gc.appui_h)!=null?`${o.gc.appui_h} mm du sol${o.gc.etage?" · étage":""}${o.gc.zsp&&o.gc.zsp_h?` · radiateur/marche ${o.gc.zsp_h} mm`:""}`:""]])}</table></div><div>
       <table class="pt">${row([
         ["Volet roulant",(()=>{const l=vrLie(d,o); return l?`Oui${l.avec_menuiserie?` – ${l.avec_menuiserie}, vendu avec la menuiserie${l.manoeuvre_menuis?" ("+l.manoeuvre_menuis+")":""}`:""} – n° ${d.vr.lignes.indexOf(l)+1} sur la feuille volets roulants (fab. ${fabVR(l,d.vr).L??"?"} × ${fabVR(l,d.vr).H??"?"})`:"";})()],
         ["Finitions int.",texteFinitions(o,"int").join(" + ")],["Finitions ext.",texteFinitions(o,"ext").join(" + ")],["Chantier",o.observations],["Support",o.support],["Note devis",o.obs_libre],["Note poseurs",o.obs_pose]])}</table>
@@ -2965,6 +2982,10 @@ function ouvertureDepuisDevis(d, dv, li, i){
   o.gv        = essai(()=>trouverDans(listeGV(g), opt(/grille|mortaise/i), true));
   o.appui_bas = essai(()=>trouverDans(listeAppuis(g), opt(/pièce d.appui/i), true));
   o.dormant_aile = essai(()=>trouverDans(listeDormants(o), opt(/^Dormant(?! périph)/i), true));
+  /* clé : s'entrouvrant (même clé) et bouton molette */
+  const tout=sansAcc([li.texte,...(li.opts||[])].join(" ")).toLowerCase();
+  if(/s.?entr.?ouvrant/.test(tout) || /meme cle/.test(tout)) o.cle=Object.assign(typeof CLE_VIDE==="function"?CLE_VIDE():{groupe:"A"},o.cle||{},{entrouvrant:true});
+  if(/molette|a bouton|bouton molette/.test(tout)) o.cle=Object.assign(typeof CLE_VIDE==="function"?CLE_VIDE():{groupe:"A"},o.cle||{},{molette:true});
   return o;
 }
 /* Volet roulant prévu au devis : ligne VR liée à l'ouverture */

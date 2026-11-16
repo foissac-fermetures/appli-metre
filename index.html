@@ -124,6 +124,9 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .vb-gonds{margin-top:10px;border-top:1px solid #e3e7ef;padding-top:8px} .vb-gonds summary{cursor:pointer;min-height:34px}
 .vb-gt{border-collapse:collapse;width:100%;margin-top:6px} .vb-gt th,.vb-gt td{border:1px solid #d6dbe6;padding:3px;text-align:center;font-size:13px} .vb-gt input{width:100%;min-height:38px;text-align:center}
 .vb-img{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:10px} .vb-img img{width:100%;border:1px solid #d6dbe6;border-radius:8px;background:#fff}
+.pt-des{position:relative;max-width:760px;margin:0 auto} .pt-des img{width:100%;display:block;border:1px solid #d6dbe6;border-radius:8px;background:#fff}
+.pt-c{position:absolute;transform:translate(-50%,-50%);background:#fff;border:1.5px solid #1f4fd8;color:#1f4fd8;font-weight:700;font-size:13px;padding:1px 6px;border-radius:4px;white-space:nowrap;min-width:34px;text-align:center}
+.pt-c small{font-weight:400;color:#555}
 .clim-l{padding:12px} .clim-var{border-left:4px solid #e0a100} .clim-sketch{width:100%;aspect-ratio:1000/620;height:auto}
 .erp-card{border-left:4px solid var(--navy,#1b2f5e)} .erp-conseil{margin:10px 0 0;padding-left:20px;font-size:13px} .erp-conseil li{margin:3px 0}
 .dv-cote{font-size:13px;color:var(--navy,#1f3a5f);background:#eef3fa;border-radius:6px;padding:2px 8px;display:inline-block;margin-top:6px}
@@ -210,6 +213,17 @@ input:disabled{background:#eef1f7;color:#4a5368}
   .vb-t td.sm{font-size:6.5pt;text-align:left}
   .vb-pied{font-size:7pt;color:#555;margin-top:4px}
   .vb-imgs{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:8px} .vb-imgs img{width:100%;max-height:95mm;object-fit:contain}
+  .pt-pg{font-family:Helvetica,Arial,sans-serif;font-size:7.5pt}
+  .pt-top{display:grid;grid-template-columns:160px 1fr;align-items:center;gap:30px;margin-bottom:6px} .pt-logo{height:30px}
+  .pt-devis{border:1px solid #000;color:#e02a1b;font-weight:800;font-size:18pt;text-align:center;padding:4px 0;margin-right:110px}
+  .pt-haut{display:grid;grid-template-columns:1.3fr 1fr 2fr;gap:20px;margin-bottom:8px} .pt-id td{height:15px} .pt-id .lb{width:35%;text-align:left}
+  .pt-t th{font-weight:400;text-align:center;font-size:7pt} .pt-t td{height:15px} .pt-l{display:inline-block;min-width:70%;text-align:center}
+  .pt-mil{display:grid;grid-template-columns:1fr 1.5fr 1.3fr 2.4fr;gap:10px;margin:8px 0;align-items:start}
+  .ct .jaune{background:#fff200}
+  .pt-obst{height:110px;vertical-align:top}
+  .pt-desrow{display:grid;grid-template-columns:1fr;position:relative;margin-top:4px} .pt-desrow .pt-des{max-width:62%;margin:0} .pt-1 .pt-des{max-width:34%}
+  .pt-note{position:absolute;left:12%;top:-2px;font-weight:700;font-size:8pt;z-index:2}
+  .pt-des.pdf .pt-c{font-size:8pt;border-color:#000;color:#1f4fd8}
   .clim-schema{display:block;max-width:100%;max-height:170mm;margin:0 auto;border:1px solid #9aa3b5}
   .pg:last-child{page-break-after:auto;break-after:auto}
   .ph{display:flex;align-items:center;gap:12px;border-bottom:3px solid #1b2f5e;padding-bottom:6px;margin-bottom:8px}
@@ -673,7 +687,7 @@ function controleDossier(d){
   if(!d.client.date_rdv) W.push("Date du RDV manquante");
   if(!d.adresse_chantier) W.push("Adresse du chantier manquante");
   if(d.ouvertures.length && !d.jours_pose) W.push("Jours de pose estimés non renseignés");
-  if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aClim(d) && !aVB(d)) E.push("Aucune ouverture, volet ni climatisation saisi");
+  if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aClim(d) && !aVB(d) && !aPT(d)) E.push("Aucune ouverture, volet, portail ni climatisation saisi");
   comparerDevisDossier(d, E, W);
   return {E,W};
 }
@@ -716,7 +730,7 @@ function controleLigneVR(l, v){
   return {E,W};
 }
 function nbErreurs(d){ normaliser(d); return controleDossier(d).E.length + d.ouvertures.reduce((a,o)=>a+controleOuverture(o,d).E.length,0)
-  + controleVREntete(d.vr).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0) + (aClim(d)?controleClim(d).E.length:0) + (aVB(d)?controleVB(d).E.length:0); }
+  + controleVREntete(d.vr).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0) + (aClim(d)?controleClim(d).E.length:0) + (aVB(d)?controleVB(d).E.length:0) + (aPT(d)?controlePT(d).E.length:0); }
 
 /* ---------- Catalogue : aides ---------- */
 const GAMME_COULEUR = { "PVC - REHAU PORTEO":"REHAU", "PVC - FENSTAR FLAT (droit)":"FENSTAR", "PVC - FENSTAR NEW (arrondie)":"FENSTAR",
@@ -835,6 +849,7 @@ function refreshLive(k){
     if(String(k).endsWith(".avec_menuiserie")){ syncVR(S.dossier); renderVRInline(); }
     majFab(); majControle(); majVRInline(); const ds=$("#dessin"); if(ds) ds.innerHTML=dessinMenuiserie(S.ouv);
   } else if(S.view==="dossier"){ majTitre(); if(String(k).startsWith("vr.")) majVR(); if(String(k).startsWith("clim.")) majClim(k);
+    if(String(k).startsWith("pt.")) majPT(k);
     if(["vb.matiere","vb.arrets","vb.type","vb.gonds","vb.pose"].includes(k)){ if(k==="vb.matiere"){ S.dossier.vb.type=""; S.dossier.vb.couleur=""; } const y=scrollY; renderDossier(); scrollTo(0,y); }
     if(k==="erp" && S.dossier.erp){ let n=0; S.dossier.ouvertures.forEach(o=>{ if(["porte","pf"].includes(modeleDe(o)?.famille) && !o.erp.actif){ o.erp.actif=true; syncAccessoiresERP(o); n++; } }); if(n) toast(`${n} porte(s) passée(s) en « porte d'ERP » : complète l'effectif et le sens dans chaque fiche`); } }
 }
@@ -851,6 +866,7 @@ async function renderHome(){
   <div class="row"><h1>Accueil</h1><span class="spacer"></span>
     <button class="btn" id="hOpen">Ouvrir un fichier…</button>
     <button class="btn" id="hCRM">+ Depuis le CRM</button>
+    <button class="btn" id="hPT">+ Portail</button>
     <button class="btn" id="hVB">+ Volets battants</button>
     <button class="btn" id="hClim">+ Métré clim</button>
     <button class="btn primary" id="hNew">+ Nouveau métré</button></div>
@@ -861,12 +877,13 @@ async function renderHome(){
   <div class="list">${ds.map(d=>{ normaliser(d); const n=nbErreurs(d);
     return `<div class="item${S.selMode&&S.sel.has(d.id)?" sel":""}" data-id="${d.id}">
       <div class="row">${S.selMode?`<input type="checkbox" class="hchk" ${S.sel.has(d.id)?"checked":""} aria-label="Sélectionner">`:""}<span class="t">${esc(d.client.nom||"Sans nom")}</span><span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span>${S.selMode?"":`<button class="btn small danger" data-hdel="${d.id}" title="Supprimer ce métré" aria-label="Supprimer ce métré">🗑</button>`}</div>
-      <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.length} ouverture(s)${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}${aVB(d)?` · ${d.vb.lignes.length} volet(s) battant(s)`:""}${aClim(d)?` · clim ${d.clim.lignes.length} pièce(s)`:""}</div>
+      <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.length} ouverture(s)${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}${aPT(d)?` · ${d.pt.elements.length} portail / portillon`:""}${aVB(d)?` · ${d.vb.lignes.length} volet(s) battant(s)`:""}${aClim(d)?` · clim ${d.clim.lignes.length} pièce(s)`:""}</div>
       <div class="s">${esc(d.gamme_defaut||"")}</div>
       <div>${n?`<span class="badge b-err">${n} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} <span class="badge ${estDefinitif(d)?"b-err":"b-n"}">${estDefinitif(d)?"Métré définitif":"Devis"}</span> ${d.drive_attente?`<span class="badge b-n">☁ envoi en attente</span>`:d.drive?`<span class="badge b-ok">☁ dans le Drive</span>`:""}</div>
     </div>`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau métré ».</div>`}</div>`;
   $("#hNew").onclick=()=>{ S.dossier=nouveauDossier(); DB.put(S.dossier); S.tab="client"; renderDossier(); };
   $("#hOpen").onclick=()=>$("#fileOpen").click();
+  $("#hPT").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.pt=nouveauPT(); S.dossier.pt.elements.push(nouvelElementPT("BATTANT")); DB.put(S.dossier); S.tab="pt"; renderDossier(); };
   $("#hVB").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.vb=nouveauVB(); S.dossier.vb.lignes.push(nouvelleLigneVB()); DB.put(S.dossier); S.tab="vb"; renderDossier(); };
   $("#hClim").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.clim=nouvelleClim(); S.dossier.clim.lignes.push(nouvelleLigneClim()); DB.put(S.dossier); S.tab="clim"; renderDossier(); };
   $("#hCRM").onclick=()=>ouvrirCRM("nouveau");
@@ -906,7 +923,7 @@ async function supprimerMetres(L){
 function renderDossier(){
   S.view="dossier"; S.ouv=null; const d=normaliser(S.dossier); syncVR(d); majTitre();
   if(S.tab==="chantier") S.tab="client";
-  const T=[["client","Client & chantier"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["vb",`Volets battants${d.vb&&d.vb.lignes.length?` (${d.vb.lignes.length})`:""}`],["clim",`Climatisation${d.clim&&d.clim.lignes.length?` (${d.clim.lignes.length})`:""}`],["controle","Contrôle"]];
+  const T=[["client","Client & chantier"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["pt",`Portail${d.pt&&d.pt.elements.length?` (${d.pt.elements.length})`:""}`],["vb",`Volets battants${d.vb&&d.vb.lignes.length?` (${d.vb.lignes.length})`:""}`],["clim",`Climatisation${d.clim&&d.clim.lignes.length?` (${d.clim.lignes.length})`:""}`],["controle","Contrôle"]];
   const def=estDefinitif(d);
   $("#app").innerHTML=`
   <div class="circuit" role="group" aria-label="Type de métré">
@@ -1007,11 +1024,13 @@ function renderDossier(){
   if(S.tab==="vr") renderVR(t);
   if(S.tab==="clim") renderClim(t);
   if(S.tab==="vb") renderVB(t);
+  if(S.tab==="pt") renderPT(t);
   if(S.tab==="controle"){
     const cd=controleDossier(d);
     const bloc=(titre,c)=>`<div class="card"><h2>${esc(titre)}</h2>${!c.E.length&&!c.W.length?`<span class="badge b-ok">Rien à signaler</span>`:
       `<ul>${c.E.map(x=>`<li style="color:var(--err)">${esc(x)}</li>`).join("")}${c.W.map(x=>`<li style="color:var(--warn)">${esc(x)}</li>`).join("")}</ul>`}</div>`;
     t.innerHTML=`<p class="hint"><span class="badge b-err">À corriger</span> bloque le métré (cotes, modèle, couleur, vantaux…) · <span class="badge b-warn">Conseillé</span> à compléter si possible (adresse, jours de pose, repère…)</p>`+bloc("Dossier",cd)+d.ouvertures.map((o,i)=>bloc(`${numP(o)||i+1+"."} ${o.repere||"Sans repère"}`,controleOuverture(o))).join("")
+      +(aPT(d)?bloc("Portail",controlePT(d)):"")
       +(aVB(d)?bloc("Volets battants",controleVB(d)):"")
       +(aClim(d)?bloc("Climatisation",controleClim(d)):"")
       +(d.vr.lignes.length?bloc("Volets roulants – en-tête",controleVREntete(d.vr))+d.vr.lignes.map((l,i)=>bloc(`VR ${i+1}. ${l.repere||"Sans repère"}`,controleLigneVR(l,d.vr))).join(""):"");
@@ -1836,6 +1855,131 @@ function pagesVB(d){
   return h;
 }
 
+/* ======================= MÉTRÉ PORTAILS – GARDENGATE (16/11/2026) =======================
+   Reprend la feuille Numbers « Métrés portail » de Nicolas (bandeau DEVIS, en-tête, tableau type / modèle / couleur / lames / poignée /
+   motorisation / sens, dimensions, options, gond de pente, observation, dessins portail et portillon avec les cotes).
+   GardenGate n'a que ses portes d'entrée dans ProDevis : listes reprises du catalogue GardenGate (gammes Vision et Tubes, coloris, options). */
+const PT_TYPES = ["BATTANT","COULISSANT","PORTILLON"];
+const PT_MODELES = ["VS02 Vision","VS03 Vision","VS04 Vision","TR07 Tubes","TR08 Tubes","TR09 Tubes","TR10 Tubes","TR11 Tubes","TR12 Tubes","TR13 Tubes","TR14 Tubes","TR15 Tubes","TR16 Tubes","TR17 Tubes"];
+const PT_COULEURS = ["RAL 9016 STR","RAL 9016/70","RAL 7016 STR","RAL 7016/70","RAL 9005 STR","RAL 1015 STR","RAL 3004 STR","RAL 5003 STR","RAL 5014 STR","RAL 6005 STR","RAL 6021 STR","RAL 7031 STR","RAL 7035 STR","RAL 7039 STR","RAL 7044 STR","RAL 8014 STR","RAL 8019 STR","RAL 9006 STR","RAL 9007 STR","Gris sablé 2900","Noir sablé 2100","Mars 2525","Effet rouille","Noyer foncé 6","Chêne foncé 1","Chêne clair 4","Chêne clair 7","Bicolore (à préciser)"];
+const PT_FINITIONS = ["Structurée (STR)","Sablée","Satinée","Mate","Effet bois / rouille (sublimation)","HPL","ACM"];
+const PT_LAMES = ["VERTICALES","HORIZONTALES","45°"];
+const PT_POIGNEES = ["Poignée sans serrure","Serrure mécanique","Serrure électrique"];
+const PT_MOTO = ["Manuel","Électrique","Solaire"];
+const PT_SENS = ["POUSSANT DROIT","POUSSANT GAUCHE"];
+const PT_OPTIONS = ["Crapaudine","Digi code","Télécommande supplémentaire","Pilier à sceller 100 par 100","Pilier à sceller 150 par 150","Pilier à visser 100 par 100","Pilier à visser 150 par 150"];
+const PT_DIM = ["ENTRE PILE","Fabrication"];
+const PT_DEDUCTION = 100;   // feuille de Nicolas : « Si portail battant −100 mm / si portail coulissant −100 mm »
+const nouveauPT = () => ({ ref:"", jours:"", elements:[], photos:[] });
+const nouvelElementPT = (type="BATTANT") => ({ id:uid(), type, modele:"", couleur:"", finition:"", lames:"", poignee:"", moto:"", sens:"", dim:"ENTRE PILE", inegaux:false, vantail_p:"",
+  L:"", H:"", h_pilier:"", l_pilier:"", options:[], gond_pente:false, pente_l:"", pente_h:"", traverse:"", plan_resa:false, refoulement:"", obs:"" });
+const aPT = d => !!(d.pt && d.pt.elements.length);
+function fabPT(e){ const L=num(e.L); if(L==null) return null; return e.dim==="ENTRE PILE" ? L-PT_DEDUCTION : L; }
+function controlePT(d){
+  const p=d.pt, E=[], W=[]; if(!p) return {E,W};
+  if(!p.jours) W.push("Jours de pose non estimés");
+  p.elements.forEach((e,i)=>{ const n=`${e.type?e.type.toLowerCase():"élément"} ${i+1}`, L=num(e.L), H=num(e.H), f=fabPT(e);
+    if(!e.type) E.push(`Élément ${i+1} : type (battant / coulissant / portillon) non choisi`);
+    if(L==null) E.push(`${n} : largeur manquante`); if(H==null) E.push(`${n} : hauteur manquante`);
+    if(!e.modele) W.push(`${n} : modèle non renseigné`); if(!e.couleur) W.push(`${n} : couleur non choisie`);
+    if(!e.lames) W.push(`${n} : sens des lames non choisi`); if(!e.poignee) W.push(`${n} : poignée / serrure non choisie`); if(!e.moto) W.push(`${n} : motorisation (manuel / électrique / solaire) non choisie`);
+    if(e.type!=="COULISSANT" && !e.sens) W.push(`${n} : sens d'ouverture (vue extérieure) non choisi`);
+    if(H!=null && (H<1000||H>2000)) W.push(`${n} : hauteur ${H} hors de la plage GardenGate (1000 à 2000 mm)`);
+    if(e.type==="PORTILLON" && f!=null && (f<800||f>1500)) W.push(`${n} : largeur ${f} hors de la plage portillon GardenGate (800 à 1500 mm)`);
+    if(e.type!=="PORTILLON" && f!=null && (f<2500||f>5000)) W.push(`${n} : largeur ${f} hors de la plage portail GardenGate (2500 à 5000 mm selon modèle)`);
+    if(e.inegaux && num(e.vantail_p)==null) W.push(`${n} : portail inégal → largeur du grand vantail à préciser`);
+    if(e.gond_pente && (num(e.pente_l)==null || num(e.pente_h)==null)) W.push(`${n} : gond de pente → longueur et hauteur de pente à relever`);
+    if(e.type==="COULISSANT" && num(e.refoulement)!=null && f!=null && num(e.refoulement)<f) E.push(`${n} : refoulement ${e.refoulement} mm < largeur du portail ${f} mm`);
+    if(e.type==="COULISSANT" && num(e.refoulement)==null) W.push(`${n} : longueur de refoulement disponible à relever`);
+    if(["Électrique","Solaire"].includes(e.moto) && e.type==="BATTANT" && num(e.l_pilier)==null) W.push(`${n} : motorisé → relever la largeur des piliers (fixation des bras / vérins)`);
+    if(e.moto==="Électrique" && !/électrique/i.test(e.obs) && !e.plan_resa) W.push(`${n} : motorisation électrique → prévoir l'alimentation (fourreau) et le plan de réservation`); });
+  return {E,W};
+}
+/* Dessin avec les cotes posées dessus (même idée que les cases de la feuille Numbers) */
+function dessinPT(e, cls=""){
+  const port=e.type==="PORTILLON", f=fabPT(e), v=x=>x!==""&&x!=null?esc(x):"&nbsp;&nbsp;&nbsp;&nbsp;";
+  const tag=(x,y,t,lab)=>`<span class="pt-c" style="left:${x}%;top:${y}%" title="${esc(lab)}">${t}</span>`;
+  const larg = e.L!=="" ? `${esc(e.L)}${e.dim==="ENTRE PILE"&&f!=null?` <small>(fab. ${f})</small>`:""}` : v("");
+  return `<div class="pt-des ${cls}">${port?`<img src="img/pt-portillon.jpg" alt="Portillon">${tag(15,49.5,v(e.h_pilier),"Hauteur pilier")}${tag(79.8,55,v(e.H),"Hauteur portillon")}${tag(50,95.5,larg,"Largeur")}`
+    :`<img src="img/pt-portail.jpg" alt="Portail">${tag(7.5,50,v(e.l_pilier),"Largeur pilier")}${tag(84.9,53.7,v(e.H),"Hauteur portail")}${tag(96.4,47,v(e.h_pilier),"Hauteur pilier")}${tag(46.6,94.5,larg,"Largeur")}`}</div>`;
+}
+function renderPT(t){
+  const d=S.dossier; if(!d.pt) d.pt=nouveauPT(); const p=d.pt;
+  const el=e=>{ const i=p.elements.indexOf(e), k=`pt.elements.${i}.`, f=fabPT(e);
+    return `<div class="card clim-l"><div class="row" style="margin-bottom:8px"><b>${esc(e.type||"Élément")} ${i+1}</b><span class="spacer"></span><button class="btn small" data-ptdup="${i}">Dupliquer</button><button class="btn small danger" data-ptdel="${i}" aria-label="Supprimer">✕</button></div>
+      <div class="seg" style="margin-bottom:10px">${PT_TYPES.map(x=>`<button class="${e.type===x?"on":""}" data-pttype="${i}" data-v="${x}">${x[0]+x.slice(1).toLowerCase()}</button>`).join("")}</div>
+      <div class="grid g4">
+        <label class="f">Modèle<input data-k="${k}modele" value="${esc(e.modele)}" list="dlPtMod"></label>${F.sel(k+"couleur","Couleur",PT_COULEURS,e.couleur)}${F.sel(k+"finition","Finition de la couleur",PT_FINITIONS,e.finition)}${F.sel(k+"lames","Lames",PT_LAMES,e.lames)}
+        ${F.sel(k+"poignee","Poignée",PT_POIGNEES,e.poignee)}${F.sel(k+"moto","Motorisation",PT_MOTO,e.moto)}${e.type!=="COULISSANT"?F.sel(k+"sens","Sens d'ouverture vue extérieure",PT_SENS,e.sens):"<div></div>"}<div></div>
+        ${F.sel(k+"dim","Dimension",PT_DIM,e.dim)}${F.numb(k+"L",e.dim==="ENTRE PILE"?"Largeur entre piliers (mm)":"Largeur fabrication (mm)",e.L)}${F.numb(k+"H","Hauteur (mm)",e.H)}
+        <div class="hint" style="align-self:end" id="ptFab${i}">${e.dim==="ENTRE PILE"&&f!=null?`Fabrication : <b>${f}</b> mm (entre piliers − ${PT_DEDUCTION})`:""}</div>
+        ${F.numb(k+"h_pilier","Hauteur pilier (mm)",e.h_pilier)}${e.type==="PORTILLON"?"<div></div>":F.numb(k+"l_pilier","Largeur pilier (mm)",e.l_pilier)}${F.numb(k+"traverse","Hauteur traverse si besoin (mm)",e.traverse)}${e.type==="COULISSANT"?F.numb(k+"refoulement","Refoulement disponible (mm)",e.refoulement):"<div></div>"}
+      </div>
+      <div class="checks" style="margin-top:10px">${e.type==="BATTANT"?F.chk(k+"inegaux","Portail inégaux",e.inegaux):""}${F.chk(k+"gond_pente","Gond de pente",e.gond_pente)}${F.chk(k+"plan_resa","Faire plan de réservation",e.plan_resa)}</div>
+      ${(e.inegaux&&e.type==="BATTANT")||e.gond_pente?`<div class="grid g4" style="margin-top:8px">${e.inegaux&&e.type==="BATTANT"?F.numb(k+"vantail_p","Largeur du grand vantail (mm)",e.vantail_p):""}${e.gond_pente?F.numb(k+"pente_l","Pente – longueur (mm)",e.pente_l)+F.numb(k+"pente_h","Pente – hauteur (mm)",e.pente_h):""}</div>`:""}
+      <div class="hint" style="margin:10px 0 4px">Options portail</div>${F.multi(k+"options",PT_OPTIONS,e.options)}
+      <div style="margin-top:8px">${F.area(k+"obs","Observation",e.obs)}</div>
+      <div id="ptDes${i}" style="margin-top:10px">${dessinPT(e)}</div></div>`; };
+  t.innerHTML=`<datalist id="dlPtMod">${PT_MODELES.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
+  <div class="card"><h2><span class="num">1</span>Portails et portillons – GardenGate</h2><div class="grid g4">
+    ${F.text("pt.ref","Réf. chantier",p.ref)}${F.text("pt.jours","Jours de pose estimés",p.jours)}</div>
+    <p class="hint">Date et métreur repris du métré. Fabrication = entre piliers − ${PT_DEDUCTION} mm (règle de ta feuille).</p></div>
+  <div class="row" style="margin:14px 0 8px"><h2 style="margin:0"><span class="num">2</span> Éléments</h2><span class="spacer"></span>
+    <button class="btn" id="ptAddP">+ Portillon</button><button class="btn" id="ptAddC">+ Coulissant</button><button class="btn primary" id="ptAddB">+ Portail battant</button></div>
+  ${p.elements.map(el).join("")||`<p class="hint">Ajoute un portail battant, un coulissant ou un portillon.</p>`}
+  <div class="card"><h2><span class="num">3</span>Photos <small style="font-weight:400;text-transform:none">– piliers, seuil, pente, emplacement du moteur…</small></h2>
+    <div class="photos">${p.photos.map((ph,k)=>`<figure class="photo"><img src="${ph.img}" alt="Photo ${k+1}" data-phedit="${k}">
+      <textarea data-k="pt.photos.${k}.txt" rows="2" placeholder="Remarque">${esc(ph.txt||"")}</textarea>
+      <div class="row"><button class="btn small" data-phedit="${k}">✏️ Annoter</button><span class="spacer"></span><button class="btn small danger" data-phdel="${k}" aria-label="Supprimer la photo ${k+1}">✕</button></div></figure>`).join("")}
+    <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple id="phAdd" class="hide"></label></div></div>`;
+  const re=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); };
+  $("#ptAddB").onclick=()=>{ p.elements.push(nouvelElementPT("BATTANT")); save(); re(); };
+  $("#ptAddC").onclick=()=>{ p.elements.push(nouvelElementPT("COULISSANT")); save(); re(); };
+  $("#ptAddP").onclick=()=>{ p.elements.push(nouvelElementPT("PORTILLON")); save(); re(); };
+  $$("[data-pttype]").forEach(b=>b.onclick=()=>{ p.elements[+b.dataset.pttype].type=b.dataset.v; save(); re(); });
+  $$("[data-ptdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer cet élément ?","Supprimer")) return; p.elements.splice(+b.dataset.ptdel,1); save(); re(); });
+  $$("[data-ptdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.ptdup, n=JSON.parse(JSON.stringify(p.elements[i])); n.id=uid(); p.elements.splice(i+1,0,n); save(); re(); });
+  initPhotos(p, re);
+}
+function majPT(k){
+  const m=String(k).match(/^pt\.elements\.(\d+)\.(\w+)/); if(!m) return; const i=+m[1], e=S.dossier.pt.elements[i];
+  if(["dim","inegaux","gond_pente","moto"].includes(m[2])){ const y=scrollY; renderDossier(); scrollTo(0,y); return; }
+  const z=$("#ptDes"+i); if(z) z.innerHTML=dessinPT(e); const f=fabPT(e), h=$("#ptFab"+i); if(h) h.innerHTML=e.dim==="ENTRE PILE"&&f!=null?`Fabrication : <b>${f}</b> mm (entre piliers − ${PT_DEDUCTION})`:"";
+}
+/* ---------- PDF : une page « Menuiserie » par élément, comme la feuille Numbers ---------- */
+function pagesPT(d){
+  if(!aPT(d)) return ""; const p=d.pt; let h="";
+  const cb=b=>`<span class="cbx">${b?"☑":"☐"}</span>`, f=fabPT;
+  p.elements.forEach((e,i)=>{
+    const col=(list,val)=>list.map(x=>`<tr><td>${esc(x)}</td><td class="c">${cb(val===x)}</td></tr>`).join("");
+    h+=`<div class="pg pt-pg">
+      <div class="pt-top"><img src="${LOGO}" class="pt-logo"><div class="pt-devis">${estDefinitif(d)?"MÉTRÉ DÉFINITIF":"DEVIS"}</div></div>
+      <div class="pt-haut"><table class="ct pt-id"><tr><td class="lb b">REF CHANTIER</td><td class="cv">${esc(p.ref||d.client.nom)}</td></tr><tr><td class="lb b">DATE</td><td class="cv c">${fmtDate(d.client.date_rdv)}</td></tr><tr><td class="lb b">METREUR</td><td class="cv c b">${esc((d.metreur||"").toUpperCase())}</td></tr></table>
+        <table class="ct pt-jours"><tr><td class="b c">Jours de pose estimée</td></tr><tr><td class="cv c">${esc(p.jours)}</td></tr><tr><td class="c">${p.elements.length>1?`Élément ${i+1} / ${p.elements.length}`:"&nbsp;"}</td></tr></table></div>
+      <table class="ct pt-t"><tr><th>TYPE</th><th>MODEL</th><th>COULEUR</th><th>FINITION DE LA COULEUR</th><th colspan="2">LAMES</th><th colspan="2">POIGNEE</th><th colspan="2">MOTORISATION</th><th colspan="2">SENS D'OUVERTURE VUE EXTERIEUR</th></tr>
+        ${[0,1,2].map(r=>`<tr><td><span class="pt-l">${esc(PT_TYPES[r])}</span>${cb(e.type===PT_TYPES[r])}</td>${r===0?`<td rowspan="3" class="cv c">${esc(e.modele)}</td><td rowspan="3" class="cv c">${esc(e.couleur)}</td><td rowspan="3" class="cv c">${esc(e.finition)}</td>`:""}
+          <td class="c">${esc(PT_LAMES[r])}</td><td class="c">${cb(e.lames===PT_LAMES[r])}</td><td>${esc(PT_POIGNEES[r])}</td><td class="c">${cb(e.poignee===PT_POIGNEES[r])}</td><td>${esc(PT_MOTO[r])}</td><td class="c">${cb(e.moto===PT_MOTO[r])}</td>
+          ${r===1?`<td></td><td></td>`:`<td class="c">${esc(PT_SENS[r?1:0])}</td><td class="c">${cb(e.sens===PT_SENS[r?1:0])}</td>`}</tr>`).join("")}</table>
+      <div class="pt-mil">
+        <table class="ct pt-dim"><tr><td colspan="2" class="c">Dimension</td></tr>
+          <tr><td colspan="2" class="c ${e.dim==="ENTRE PILE"?"jaune":""}">ENTRE PILE</td></tr><tr><td colspan="2" class="c ${e.dim==="Fabrication"?"jaune":""}">Fabrication${e.dim==="ENTRE PILE"&&f(e)!=null?` : ${f(e)}`:""}</td></tr>
+          <tr><td colspan="2" class="c ${e.inegaux?"jaune":""}">Portail inégaux${e.inegaux&&e.vantail_p?` (${esc(e.vantail_p)})`:""}</td></tr>
+          <tr><td class="c">LARGEUR</td><td class="c">HAUTEUR</td></tr><tr><td class="c cv b">${esc(e.L)}</td><td class="c cv b">${esc(e.H)}</td></tr></table>
+        <table class="ct pt-opt"><tr><td colspan="2" class="c">OPTION PORTAIL</td></tr>${PT_OPTIONS.map(o=>`<tr><td>${esc(o)}</td><td class="c">${cb(e.options.includes(o))}</td></tr>`).join("")}</table>
+        <table class="ct pt-pente"><tr><td>Gond de pente</td><td class="c">${cb(e.gond_pente)}</td></tr><tr><td colspan="2" class="c">Dimension pente</td></tr>
+          <tr><td class="c">Longueur</td><td class="c">Hauteur pente</td></tr><tr><td class="c cv ${e.gond_pente?"jaune":""}">${esc(e.pente_l)}</td><td class="c cv ${e.gond_pente?"jaune":""}">${esc(e.pente_h)}</td></tr>
+          <tr><td>Hauteur traverse si besoin</td><td class="c cv">${esc(e.traverse)}</td></tr>
+          ${e.type==="COULISSANT"?`<tr><td>Refoulement disponible</td><td class="c cv">${esc(e.refoulement)}</td></tr>`:""}
+          <tr><td>Faire plan de reservation</td><td class="c">${cb(e.plan_resa)}</td></tr></table>
+        <table class="ct pt-obs"><tr><td class="pt-obst">Observation<div class="cv" style="min-height:100px">${esc(e.obs).replace(/\n/g,"<br>")}</div></td></tr></table>
+      </div>
+      ${e.type==="PORTILLON"?`<div class="pt-desrow pt-1">${dessinPT(e,"pdf")}</div>`:`<div class="pt-desrow"><div class="pt-note">Si Portail Battant −100 mm<br>Si Portail Coulissant −100 mm</div>${dessinPT(e,"pdf")}</div>`}
+    </div>`; });
+  const ph=p.photos.filter(x=>x.img), head=t=>`<div class="ph"><img src="${LOGO}"><div class="tt">${esc(t)}</div><div>${esc(d.client.nom)}<br>${fmtDate(d.client.date_rdv)}</div></div>`;
+  for(let i=0;i<ph.length;i+=4) h+=`<div class="pg">${head("Photos portail")}<div class="pphotos">${ph.slice(i,i+4).map((x,j)=>`<figure><img src="${x.img}"><figcaption><b>Photo ${i+j+1}</b>${x.txt?" – "+esc(x.txt):""}</figcaption></figure>`).join("")}</div></div>`;
+  return h;
+}
+
 /* ---------- Variante ---------- */
 function ouvrirVariante(){ $("#varGamme").innerHTML=opts(CAT.gammes,"","Choisir…"); $("#mVar").classList.add("open"); }
 $("#varGo").onclick=async()=>{
@@ -1934,6 +2078,7 @@ function construireImpression(d){
       ${errs.length?`<div class="pwarn">À vérifier : ${esc(errs.join(" · "))}</div>`:""}</div>
       <div>${tp&&SCHEMAS[tp.img]?`<img src="${SCHEMAS[tp.img]}" style="max-width:100%;border:1px solid #9aa3b5"><div style="text-align:center;font-weight:700">${esc(tp.nom)}</div>`:""}</div></div></div>`;
   }
+  h+=pagesPT(d);
   h+=pagesVB(d);
   h+=pagesClim(d);
   return h;
@@ -2053,6 +2198,7 @@ function nomMetre(d){
   const mat=[...new Set([d.gamme_defaut,...d.ouvertures.map(o=>o.gamme)].filter(Boolean).map(g=>g.split(" - ")[0].trim().toUpperCase()))];
   const n=parseInt(String(d.variante||"").replace(/^V(\d+).*/,"$1"))||1;
   const nom=(d.client.nom||"SANS NOM").trim().toUpperCase().replace(/[\\/:*?"<>|]+/g," ");
+  if(typeof aPT==="function" && aPT(d)) mat.push("PORTAIL");
   if(typeof aVB==="function" && aVB(d)) mat.push("VB");
   if(typeof aClim==="function" && aClim(d)) mat.push("CLIM");
   return `${nom} ME ${mat.length?mat.join(" ET "):(d.vr.lignes.length?"VR":"")}${n>1?" V"+n:""}`.replace(/\s+/g," ").trim();
@@ -2092,6 +2238,8 @@ async function envoyerDossierDrive(d){
     try{ const blob=await (await fetch(p.img)).blob();
       await deposerDrive(`${base} – ${o.num_poseur?"N°"+o.num_poseur+" ":""}${(o.repere||"ouverture").replace(/[\\/:*?"<>|]+/g," ")} – photo ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
   if(d.clim && d.clim.tableau && d.clim.tableau.img && !d.clim.tableau.drive){ try{ const blob=await (await fetch(d.clim.tableau.img)).blob(); await deposerDrive(`${base} – CLIM – Tableau électrique.jpg`, blob, sous); d.clim.tableau.drive=true; }catch(e){} }
+  for(const [k,p] of ((d.pt&&d.pt.photos)||[]).entries()){ if(p.drive || !p.img) continue;
+    try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – PORTAIL – ${(p.txt||"photo").replace(/[\\/:*?"<>|\n]+/g," ").slice(0,60)} – ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
   for(const [k,p] of ((d.vb&&d.vb.photos)||[]).entries()){ if(p.drive || !p.img) continue;
     try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – VOLETS BATTANTS – ${(p.txt||"photo").replace(/[\\/:*?"<>|\n]+/g," ").slice(0,60)} – ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
   for(const [k,p] of ((d.clim&&d.clim.photos)||[]).entries()){ if(p.drive || !p.img) continue;

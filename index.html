@@ -123,6 +123,7 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .clim-tab-card.manque{border:2px solid var(--err,#d3232f)} [data-sktxt].on{outline:3px solid currentColor}
 .vb-gonds{margin-top:10px;border-top:1px solid #e3e7ef;padding-top:8px} .vb-gonds summary{cursor:pointer;min-height:34px}
 .vb-gt{border-collapse:collapse;width:100%;margin-top:6px} .vb-gt th,.vb-gt td{border:1px solid #d6dbe6;padding:3px;text-align:center;font-size:13px} .vb-gt input{width:100%;min-height:38px;text-align:center}
+.vb-gt .vb-h{background:#eef3fa} .vb-gt .vb-v{background:#fff4e5} .vb-fl{font-size:22px;line-height:1;font-weight:700} .vb-gt input::placeholder{font-size:20px;opacity:.45}
 .vb-img{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:10px} .vb-img img{width:100%;border:1px solid #d6dbe6;border-radius:8px;background:#fff}
 .pt-des{position:relative;max-width:760px;margin:0 auto} .pt-des img{width:100%;display:block;border:1px solid #d6dbe6;border-radius:8px;background:#fff}
 .pt-c{position:absolute;transform:translate(-50%,-50%);background:#fff;border:1.5px solid #1f4fd8;color:#1f4fd8;font-weight:700;font-size:13px;padding:1px 6px;border-radius:4px;white-space:nowrap;min-width:34px;text-align:center}
@@ -1745,6 +1746,7 @@ const VB_ESSENCES = ["Sapin du nord 27 mm","Sapin du nord 32 mm","Bois exotique 
 const VB_LAMES = ["Lames verticales","Lames larges 150 verticales (alu)","Lames horizontales","Panneau plein","Cadre + lames"];
 const VB_POSES = ["Pose en tableau","Pose en feuillure","Sur gonds existants","Pose en applique / ITE"];
 const VB_OPTIONS = ["Tire volet","Barre de sécurité","Verrou SDO","Pré-cadre aluminium","Gabarit de perçage des gonds","Crochet crémaillère","Poignée de tirage alu","Couvre-joint","Espagnolette supplémentaire","Cintre","Motorisation","Accessoires pose sur ITE"];
+const VB_FEUILLURES = ["Droite","Gauche","Droite et gauche","Droite, gauche et haut","Droite, gauche et bas","Droite, gauche, haut et bas","Haut","Haut et bas"];
 const VB_TYPE_DIM = ["Dimensions tableau sans feuillure","Dimensions fond de feuillure"];
 const VB_MAX = { "Volet battant PVC plein (2400 × 3580)":[2400,3580], "Volet battant PVC à cadre soudé":[2400,3580], "Volet battant bois plein":[2400,3580], "Volet battant ALU plein (2400 × 3000)":[2400,3000] };
 const nouveauVB = () => ({ matiere:"", type:"", couleur:"", essence:"", gonds:"", barre:"", ferrage:"", lame:"", pose:"", arrets:false, arret_type:"", manutention:"", type_dim:VB_TYPE_DIM[0], lignes:[], photos:[] });
@@ -1788,14 +1790,14 @@ function renderVB(t){
         <div style="grid-column:span 2">${F.sel(k+"vantaux","Nombre de vantaux",C.vantaux||[],l.vantaux)}</div>
         ${F.numb(k+"L","Tableau – largeur (mm)",l.L)}${F.numb(k+"H","Tableau – hauteur (mm)",l.H)}${F.numb(k+"allege","Hauteur d'allège (mm)",l.allege)}
         <div class="checks" style="align-self:end"><span class="hint" style="width:100%">Sens vue intérieure</span>${F.chk(k+"sens_g","Gauche",l.sens_g)}${F.chk(k+"sens_d","Droite",l.sens_d)}</div>
-        ${F.numb(k+"f_l","Feuillure – largeur (mm)",l.f_l)}${F.numb(k+"f_p","Feuillure – profondeur (mm)",l.f_p)}<label class="f">Feuillure – côtés<input data-k="${k}f_cotes" value="${esc(l.f_cotes)}" placeholder="ex. 3 côtés, G + D"></label><div></div>
+        ${F.numb(k+"f_l","Feuillure – largeur (mm)",l.f_l)}${F.numb(k+"f_p","Feuillure – profondeur (mm)",l.f_p)}${F.sel(k+"f_cotes","Feuillure – côtés",l.f_cotes&&!VB_FEUILLURES.includes(l.f_cotes)?[l.f_cotes,...VB_FEUILLURES]:VB_FEUILLURES,l.f_cotes)}<div></div>
         ${F.numb(k+"cintre_n","Naissance du cintre (mm)",l.cintre_n)}${F.numb(k+"cintre_f","Valeur de la flèche (mm)",l.cintre_f)}<div style="grid-column:span 2">${F.sel(k+"espagnolette","Espagnolette",C.espagnolette||[],l.espagnolette)}</div>
       </div>
       <div class="hint" style="margin:8px 0 4px">Options</div>${F.multi(k+"options",VB_OPTIONS,l.options)}
       <div style="margin-top:8px">${F.text(k+"obs","Observation",l.obs)}</div>
       <details class="vb-gonds" ${gondsExistants(v)?"open":""}><summary><b>Gonds existants</b> <span class="hint">– cotes vues de l'intérieur (voir les schémas en bas)</span></summary>
-        <table class="vb-gt"><tr><th></th><th>A</th><th>B</th><th>C</th><th>Départ D / Dp</th><th>Départ ou renvoi R / Db</th></tr>
-          ${["g","d"].map(s=>`<tr><th>${s==="g"?"Gauche":"Droite"}</th>${["A","B","C","D","R"].map(x=>`<td><input data-k="${k}g.${x}_${s}" inputmode="decimal" value="${esc(l.g[x+"_"+s])}"></td>`).join("")}</tr>`).join("")}</table>
+        <table class="vb-gt"><tr><th></th><th>A</th><th>B</th><th>C</th><th class="vb-h">Départ D / Dp<br><span class="vb-fl">⟷</span> horizontal</th><th class="vb-v">Départ ou renvoi R / Db<br><span class="vb-fl">↕</span> vertical</th></tr>
+          ${["g","d"].map(s=>`<tr><th>${s==="g"?"Gauche":"Droite"}</th>${["A","B","C","D","R"].map(x=>`<td class="${x==="D"?"vb-h":x==="R"?"vb-v":""}"><input data-k="${k}g.${x}_${s}" inputmode="decimal" value="${esc(l.g[x+"_"+s])}" placeholder="${x==="D"?"⟷":x==="R"?"↕":""}"></td>`).join("")}</tr>`).join("")}</table>
         <div class="grid g2" style="margin-top:6px">${F.text(k+"g.gond","Gond (type, diamètre)",l.g.gond)}${F.text(k+"g.obs","Observation gonds",l.g.obs)}</div></details></div>`; };
   t.innerHTML=`<datalist id="dlPiecesVB">${listePiecesDL()}</datalist>
   <div class="card"><h2><span class="num">1</span>Volets battants – Corrèze Fermetures</h2><div class="grid g4">
@@ -1846,7 +1848,7 @@ function pagesVB(d){
     h+=`<div class="pg vb-pg"><div class="vb-titre">VOLET BATTANT – Schéma</div><div class="vb-band">Gonds existants – ${esc(d.client.nom)}</div>
       <div class="vb-imgs"><img src="img/vb-gonds-formes.jpg"><img src="img/vb-gonds-deport.jpg"></div>
       <table class="vb-t"><tr class="g1"><th class="nb"></th><th colspan="10">Toujours vu de l'intérieur</th><th class="nb" colspan="2"></th></tr>
-        <tr class="g1"><th class="nb"></th><th colspan="2">A</th><th colspan="2">B</th><th colspan="2">C</th><th colspan="2">Départ : D Dp</th><th colspan="2">Départ ou renvoi : R/db</th><th class="nb" colspan="2"></th></tr>
+        <tr class="g1"><th class="nb"></th><th colspan="2">A</th><th colspan="2">B</th><th colspan="2">C</th><th colspan="2">Départ : D Dp &nbsp;⟷</th><th colspan="2">Départ ou renvoi : R/db &nbsp;↕</th><th class="nb" colspan="2"></th></tr>
         <tr><th class="vb-rep">Repère</th>${"<th>Gauche</th><th>Droite</th>".repeat(5)}<th>Gond</th><th>Observations</th></tr>
         ${pad(v.lignes,10).map(gl).join("")}</table></div>`;
   }

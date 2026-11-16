@@ -1529,13 +1529,24 @@ function demanderJeton(){ return new Promise((ok,ko)=>{
   G_CLIENT.requestAccessToken({prompt: localStorage.getItem("g_ok3") ? "" : "consent"});
 }); }
 async function gdrive(url, opt={}){
-  url+=(url.includes("?")?"&":"?")+"supportsAllDrives=true"+(/\/files\?/.test(url)&&!/upload/.test(url)&&!opt.method?"&includeItemsFromAllDrives=true&corpora=allDrives":"");
+  url+=(url.includes("?")?"&":"?")+"supportsAllDrives=true"; // plus de « corpora=allDrives » : résultats parfois incomplets → doublons (16/11)
   const r=await fetch(url,{...opt, headers:{...(opt.headers||{}), Authorization:"Bearer "+G_JETON}});
   if(r.status===401){ G_JETON=null; throw new Error("connexion Google expirée"); }
   if(!r.ok) throw new Error("Drive "+r.status+" : "+(await r.text()).slice(0,200));
   return r.json();
 }
 const q_ = s => s.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+/* Les vrais dossiers de Nicolas, repérés par leur identifiant : l'appli ne doit JAMAIS en recréer d'autres (incident du 16/11 au matin) */
+const DOSSIERS_CONNUS = {
+  "racine":    "1mcShxP44ygdiNc4jbwqN-oeygmAUqfLH",   // Mon Drive › Appli métré – Dossiers
+  "devis":     "1M_1nfxus8_-hy6oUuaMAoRG2ZLNWWtgz",   // › Devis
+  "definitif": "1oGcfVa7-tGesqxDgAG1ASdjCQIYb4tH7"    // › Métrés  définitif
+};
+async function dossierConnu(cle, secours){
+  const id=DOSSIERS_CONNUS[cle];
+  try{ const f=await gdrive(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,trashed`); if(f && !f.trashed) return id; }catch(e){ if(!/Drive 404/.test(e.message)) throw e; }
+  return secours();   // dossier supprimé par Nicolas : on retombe sur la recherche par nom
+}
 async function dossierDrive(nom, parent){
   const q=`name='${q_(nom)}' and mimeType='application/vnd.google-apps.folder' and trashed=false and '${parent||"root"}' in parents`;
   const r=await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id)&q="+encodeURIComponent(q));
@@ -1591,7 +1602,8 @@ function empreinte(d){ const {drive,drive_attente,modifie,...r}=d; const t=JSON.
 /* Dossier du client : créé dans « Devis » ou « Métrés définitif(s) » au premier envoi, puis réutilisé là où il est.
    S'il attend encore son contrôle (directement dans l'un des deux) et que le choix Devis / Métré définitif a changé, il passe dans l'autre. */
 async function dossierClient(d){
-  const racine=await dossierDrive(DRIVE_RACINE), devis=await dossierDrive(DRIVE_A_CONTROLER, racine), defin=await dossierDefinitif(racine);
+  const racine=await dossierConnu("racine",()=>dossierDrive(DRIVE_RACINE));
+  const devis=await dossierConnu("devis",()=>dossierDrive(DRIVE_A_CONTROLER, racine)), defin=await dossierConnu("definitif",()=>dossierDefinitif(racine));
   const cible=estDefinitif(d)?defin:devis, autre=estDefinitif(d)?devis:defin;
   let id=d.drive && d.drive.dossier;
   if(id){ try{ const f=await gdrive(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,trashed,parents`);

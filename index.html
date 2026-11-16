@@ -966,13 +966,14 @@ async function renderHome(){
   memoriserConcurrents(ds.flatMap(d=>d.concurrents||[]));
   $("#app").innerHTML=`
   <div class="row"><h1>Accueil</h1><span class="spacer"></span>
+    <button class="btn" id="hSync" title="Récupérer les métrés faits ou modifiés sur mes autres appareils">☁ Actualiser</button>
     <button class="btn" id="hOpen">Ouvrir un fichier…</button>
     <button class="btn" id="hCRM">+ Depuis le CRM</button>
     <button class="btn" id="hPT">+ Portail</button>
     <button class="btn" id="hVB">+ Volets battants</button>
     <button class="btn" id="hClim">+ Métré clim</button>
     <button class="btn primary" id="hNew">+ Nouveau métré</button></div>
-  <p class="hint">Chaque métré s'enregistre tout seul quand tu reviens à cette liste, dans <b>Mon Drive › Appli métré – Dossiers › Devis</b> (ou <b>› Métrés définitif</b> pour un métré définitif). Une fois recontrôlé, déplace son dossier dans le <b>2026</b> de ce même dossier : la copie part toute seule chez Clémence (DEVIS A FAIRE ou METRES DEFINITIF).</p>
+  <p class="hint">Chaque métré s'enregistre tout seul quand tu reviens à cette liste, dans <b>Mon Drive › Appli métré – Dossiers › Devis</b> (ou <b>› Métrés définitif</b> pour un métré définitif). Une fois recontrôlé, déplace son dossier dans le <b>2026</b> de ce même dossier : la copie part toute seule chez Clémence (DEVIS A FAIRE ou METRES DEFINITIF). Les métrés faits sur tes autres appareils apparaissent ici tout seuls (ou avec « ☁ Actualiser »).</p>
   <div class="card" id="hAgenda" style="margin-bottom:16px"><p class="hint">Chargement des rendez-vous…</p></div>
   <div class="row" style="margin:6px 0 10px"><h2 style="margin:0">Mes métrés</h2><span class="spacer"></span>
     ${ds.length?(S.selMode?`<button class="btn small" id="hSelTout">Tout cocher</button><button class="btn small danger" id="hSelDel">Supprimer la sélection</button><button class="btn small" id="hSelFin">Annuler</button>`:`<button class="btn small" id="hSel">Supprimer plusieurs…</button>`):""}</div>
@@ -985,6 +986,9 @@ async function renderHome(){
     </div>`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau métré ».</div>`}</div>`;
   $("#hNew").onclick=()=>{ S.dossier=nouveauDossier(); DB.put(S.dossier); S.tab="client"; renderDossier(); };
   $("#hOpen").onclick=()=>$("#fileOpen").click();
+  $("#hSync").onclick=async()=>{ const b=$("#hSync"); b.disabled=true; b.textContent="☁ Actualisation…"; await synchroAccueil(true); const b2=$("#hSync"); if(b2){ b2.disabled=false; b2.textContent="☁ Actualiser"; } };
+  { const z=document.createElement("div"); z.id="hSyncLe"; z.className="hint"; z.style.textAlign="right"; z.textContent=texteSyncLe(); $("#app .row").after(z); }
+  if(!S.syncAuto || Date.now()-S.syncAuto>120000){ S.syncAuto=Date.now(); setTimeout(()=>synchroAccueil(false),300); }
   $("#hPT").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.pt=nouveauPT(); S.dossier.pt.elements.push(nouvelElementPT("BATTANT")); DB.put(S.dossier); S.tab="pt"; renderDossier(); };
   $("#hVB").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.vb=nouveauVB(); S.dossier.vb.lignes.push(nouvelleLigneVB()); DB.put(S.dossier); S.tab="vb"; renderDossier(); };
   $("#hClim").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.clim=nouvelleClim(); S.dossier.clim.lignes.push(nouvelleLigneClim()); DB.put(S.dossier); S.tab="clim"; renderDossier(); };
@@ -1006,6 +1010,7 @@ async function supprimerMetres(L){
   const noms=L.map(d=>`${d.client.nom||"Sans nom"} (${d.variante})`).join(", ");
   if(!await demander(L.length>1?`Supprimer ces ${L.length} métrés de l'appli ?\n${noms}`:`Supprimer le métré « ${noms} » de l'appli ?`,"Supprimer")) return;
   for(const d of L) await DB.del(d.id);
+  oublierMetresSupprimes(L.map(d=>d.id));   // ne revient pas à la prochaine actualisation
   const surDrive=L.filter(d=>d.drive&&d.drive.dossier);
   S.selMode=false; renderHome();
   if(!surDrive.length || !driveDispo()){ toast(L.length>1?`${L.length} métrés supprimés`:"Métré supprimé"); return; }
@@ -2876,6 +2881,60 @@ async function apercuDevis(fic){
   }catch(e){ z.innerHTML=`<p class="hint" style="color:var(--err)">${esc(e.message)}</p><button class="btn" id="dvAutre">‹ Autre devis</button>`; $("#dvAutre").onclick=ouvrirDevisSigne; }
 }
 function fermerDevis(msg){ $("#mDevis").classList.remove("open"); syncVR(S.dossier); save(); renderDossier(); toast(msg); }
+
+/* ---------- Mes métrés sur tous mes appareils (16/11/2026) ----------
+   Chaque métré est déjà enregistré dans le Drive (fichier « NOM ME … .json » dans le dossier du client).
+   À l'ouverture de l'accueil (si la connexion Google est valable) et avec le bouton « ☁ Actualiser » :
+   - un métré du Drive absent de l'appareil est ajouté à l'accueil ;
+   - un métré modifié sur un autre appareil (fichier du Drive plus récent que le dernier envoi de cet appareil) est mis à jour ;
+   - si l'appareil a lui-même des modifications pas encore envoyées, on GARDE la version de l'appareil et on prévient (rien n'est écrasé) ;
+   - un métré supprimé avec la poubelle sur cet appareil ne revient pas. */
+const SYNC_VUS="sync_vus", SYNC_SUPPR="metres_supprimes", SYNC_LE="sync_le";
+const lireLS=(k,def)=>{ try{ return JSON.parse(localStorage.getItem(k)||"null")??def; }catch(e){ return def; } };
+const ecrireLS=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
+function oublierMetresSupprimes(ids){ const s=new Set(lireLS(SYNC_SUPPR,[])); ids.forEach(i=>s.add(i)); ecrireLS(SYNC_SUPPR,[...s]); }
+let SYNC_EN_COURS=false;
+async function synchroniserMetres(manuel=false){
+  if(SYNC_EN_COURS || !driveDispo() || !navigator.onLine) return null;
+  if(!manuel && !jetonValide()) return null;            // au démarrage : pas de fenêtre Google, seulement si déjà connecté
+  SYNC_EN_COURS=true; const res={ajoutes:0, maj:0, conflits:[]};
+  try{
+    if(manuel) await demanderJeton();
+    const vus=lireLS(SYNC_VUS,{}), suppr=new Set(lireLS(SYNC_SUPPR,[])), locaux=new Map((await DB.all()).map(x=>[x.id,x]));
+    let files=[], page="";
+    do{ const q="mimeType='application/json' and trashed=false and 'me' in owners";
+      const r=await gdrive("https://www.googleapis.com/drive/v3/files?pageSize=200&orderBy=modifiedTime desc&fields=nextPageToken,files(id,name,modifiedTime,parents)&q="+encodeURIComponent(q)+(page?"&pageToken="+page:""));
+      files.push(...r.files); page=r.nextPageToken||""; } while(page && files.length<1000);
+    for(const f of files){
+      if(vus[f.id]===f.modifiedTime) continue;
+      let R; try{ const rr=await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&supportsAllDrives=true`,{headers:{Authorization:"Bearer "+G_JETON}}); if(!rr.ok) continue; R=await rr.json(); }catch(e){ vus[f.id]=f.modifiedTime; continue; }
+      vus[f.id]=f.modifiedTime;
+      if(!R || R.app!=="appli-metre" || !R.id || suppr.has(R.id)) continue;
+      const L=locaux.get(R.id), tF=new Date(f.modifiedTime).getTime();
+      if(L){
+        if(L.drive && L.drive.le && new Date(L.drive.le).getTime() >= tF-5000) continue;     // c'est notre propre envoi (ou plus ancien)
+        const nonEnvoye = L.drive_attente || !L.drive || L.drive.sig!==empreinte(L);
+        if(nonEnvoye){ res.conflits.push(L.client?.nom||"Sans nom"); continue; }
+      }
+      R.drive={...(R.drive||{}), le:f.modifiedTime, dossier:(f.parents||[])[0]||R.drive?.dossier, base:f.name.replace(/\.json$/i,"")};
+      delete R.drive_attente; if(typeof normaliser==="function") normaliser(R);
+      R.drive.sig=empreinte(R);
+      await DB.put(R); L?res.maj++:res.ajoutes++;
+    }
+    ecrireLS(SYNC_VUS,vus); ecrireLS(SYNC_LE,new Date().toISOString());
+    return res;
+  } finally { SYNC_EN_COURS=false; }
+}
+async function synchroAccueil(manuel){
+  try{ const r=await synchroniserMetres(manuel); if(!r) { if(manuel) toast("Pas de réseau ou Drive indisponible"); return; }
+    const t=[r.ajoutes&&`${r.ajoutes} métré(s) ajouté(s)`, r.maj&&`${r.maj} mis à jour`].filter(Boolean).join(" · ");
+    if(r.conflits.length) toast(`Gardé la version de cet appareil (modifiée, pas encore envoyée) : ${r.conflits.join(", ")}`);
+    else if(t || manuel) toast(t||"Tout est à jour");
+    if((r.ajoutes||r.maj) && S.view==="home") renderHome(); else { const z=document.getElementById("hSyncLe"); if(z) z.textContent=texteSyncLe(); }
+  }catch(e){ if(manuel) toast("Drive : "+e.message); }
+}
+function texteSyncLe(){ const t=lireLS(SYNC_LE,null); if(!t) return "Pas encore actualisé sur cet appareil"; const d=new Date(t);
+  return `Actualisé ${d.toDateString()===new Date().toDateString()?"aujourd'hui":"le "+d.toLocaleDateString("fr-FR")} à ${d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}`; }
 
 /* ---------- Démarrage ---------- */
 $("#logo").src=LOGO;

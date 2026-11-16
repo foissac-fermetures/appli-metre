@@ -2076,19 +2076,23 @@ function comparerDevisDossier(d, E, W){
 /* ---------- Recherche et lecture du devis signé dans le Drive ---------- */
 async function dossiersDevisSignes(){
   const q="mimeType='application/vnd.google-apps.folder' and trashed=false and name contains 'DEVIS NICOLAS'";
-  return (await gdrive("https://www.googleapis.com/drive/v3/files?includeItemsFromAllDrives=true&fields=files(id,name)&q="+encodeURIComponent(q))).files;
+  return (await gdrive("https://www.googleapis.com/drive/v3/files?includeItemsFromAllDrives=true&corpora=allDrives&fields=files(id,name)&q="+encodeURIComponent(q))).files;
 }
 function motsClient(nom){ return sansAcc(nom).toUpperCase().replace(/\b(MONSIEUR|MADAME|MR|MME|M|ET|DE|DU|LA|LE|EARL|SCI|SARL)\b/g," ").split(/[^A-Z0-9]+/).filter(w=>w.length>=3).sort((a,b)=>b.length-a.length); }
 async function chercherDevisSignes(nom){
   const dos=await dossiersDevisSignes(); if(!dos.length) throw new Error("dossier « DEVIS NICOLAS » introuvable dans le Drive");
   const mots=motsClient(nom); if(!mots.length) throw new Error("renseigne d'abord le nom du client");
   const par=`(${dos.map(x=>`'${x.id}' in parents`).join(" or ")})`, base=`${par} and mimeType='application/pdf' and trashed=false`;
-  const url=(q,tri=true)=>"https://www.googleapis.com/drive/v3/files?includeItemsFromAllDrives=true&pageSize=50"+(tri?"&orderBy=modifiedTime%20desc":"")+"&fields=files(id,name,modifiedTime,size,webViewLink)&q="+encodeURIComponent(q);
+  const url=(q,tri=true)=>"https://www.googleapis.com/drive/v3/files?includeItemsFromAllDrives=true&corpora=allDrives&pageSize=50"+(tri?"&orderBy=modifiedTime%20desc":"")+"&fields=files(id,name,modifiedTime,size,webViewLink)&q="+encodeURIComponent(q);
   let f=(await gdrive(url(`${base} and (${mots.slice(0,2).map(w=>`name contains '${q_(w)}'`).join(" or ")})`))).files;
   if(!f.length) f=(await gdrive(url(`${base} and fullText contains '${q_(mots[0])}'`,false))).files;   // fullText : pas de tri possible côté Drive
   const score=x=>{ const n=sansAcc(x.name).toUpperCase(); return (/SIGN/.test(n)?4:0)+(/DEFINITIF/.test(n)?2:0)-(/PERGOLA|PORTAIL|CARPORT|STORE|CLOTURE/.test(n)?5:0); };
   f.forEach(x=>x.score=score(x)); return f.sort((a,b)=>b.score-a.score || b.modifiedTime.localeCompare(a.modifiedTime));
 }
+/* Noms de fichiers abîmés par l'envoi mail (« =?UTF-8?Q?Devis_..._sign=... ») → lisibles */
+function nomPropre(n){ if(!/^=\?UTF-8\?Q\?/i.test(n)) return n;
+  let t=n.replace(/^=\?UTF-8\?Q\?/i,"").replace(/\?=$/,"").replace(/\\?"[^]*?filename\*\d+=\\?"/g,"").replace(/_/g," ");
+  try{ t=decodeURIComponent(t.replace(/%/g,"%25").replace(/=([0-9A-F]{2})/gi,"%$1")); }catch(e){} return t.replace(/\s+/g," ").trim(); }
 async function lireDevisDrive(id){
   const r=await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&supportsAllDrives=true`,{headers:{Authorization:"Bearer "+G_JETON}});
   if(r.status===401){ G_JETON=null; throw new Error("connexion Google expirée"); } if(!r.ok) throw new Error("Drive "+r.status);
@@ -2104,14 +2108,14 @@ async function ouvrirDevisSigne(){
     if(!driveDispo()) throw new Error("disponible seulement dans l'appli en ligne (foissac-fermetures.github.io)");
     await demanderJeton(); const F=await chercherDevisSignes(d.client.nom);
     if(!F.length){ z.innerHTML=`<p class="hint">Aucun PDF trouvé pour « ${esc(d.client.nom)} » dans DEVIS NICOLAS. Vérifie le nom du client.</p>`; return; }
-    z.innerHTML=`<p class="hint">Choisis le devis signé (le plus probable est en haut) :</p><div class="crm-liste">${F.map((x,i)=>`<button class="crm-item" data-dv="${i}"><b>${esc(x.name)}</b>${i===0&&x.score>0?` <span class="badge b-ok">conseillé</span>`:""}<small>modifié le ${new Date(x.modifiedTime).toLocaleDateString("fr-FR")}</small></button>`).join("")}</div>`;
+    z.innerHTML=`<p class="hint">Choisis le devis signé (le plus probable est en haut) :</p><div class="crm-liste">${F.map((x,i)=>`<button class="crm-item" data-dv="${i}"><b>${esc(nomPropre(x.name))}</b>${i===0&&x.score>0?` <span class="badge b-ok">conseillé</span>`:""}<small>modifié le ${new Date(x.modifiedTime).toLocaleDateString("fr-FR")}</small></button>`).join("")}</div>`;
     $$("[data-dv]",z).forEach(b=>b.onclick=()=>apercuDevis(F[+b.dataset.dv]));
   }catch(e){ z.innerHTML=`<p class="hint" style="color:var(--err)">Devis signé : ${esc(e.message)}</p>`; }
 }
 async function apercuDevis(fic){
-  const d=S.dossier, z=$("#dvZone"); z.innerHTML=`<p class="hint">Lecture de « ${esc(fic.name)} »…</p>`;
+  const d=S.dossier, z=$("#dvZone"); z.innerHTML=`<p class="hint">Lecture de « ${esc(nomPropre(fic.name))} »…</p>`;
   try{
-    await demanderJeton(); const dv=await lireDevisDrive(fic.id); dv.fichier=fic.name; dv.fichier_id=fic.id; dv.lien=fic.webViewLink||""; dv.lu=new Date().toISOString();
+    await demanderJeton(); const dv=await lireDevisDrive(fic.id); dv.fichier=nomPropre(fic.name); dv.fichier_id=fic.id; dv.lien=fic.webViewLink||""; dv.lu=new Date().toISOString();
     const men=dv.lignes.filter(li=>li.genre==="menuiserie"), acc=dv.lignes.filter(li=>li.genre!=="menuiserie"), deja=d.ouvertures.length;
     z.innerHTML=`<p><b>Devis n° ${esc(dv.num||"?")}</b> du ${esc(dv.date||"?")} · ${esc(dv.client)} <span class="hint">${esc(dv.ref)}</span></p>
       <p class="hint">${men.length} menuiserie(s)${acc.length?` + ${acc.length} autre(s) ligne(s)`:""} :</p>

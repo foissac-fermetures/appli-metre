@@ -100,6 +100,9 @@ input:focus,select:focus,textarea:focus{outline:3px solid #c9d6f3;border-color:v
 .ctl li{margin:2px 0}
 .ctl li.err{color:var(--err)}.ctl li.warn{color:var(--warn)}
 #skDelSel:disabled{opacity:.35;pointer-events:none}
+.mic-wrap{position:relative;display:block}.mic-wrap textarea{padding-right:46px;width:100%}
+.mic-btn{position:absolute;right:6px;bottom:6px;width:36px;height:36px;border-radius:50%;border:1px solid var(--line,#ccd);background:#fff;font-size:17px;line-height:1;cursor:pointer}
+.mic-btn.rec{background:#d3232f;color:#fff;border-color:#d3232f;animation:micp 1s infinite}@keyframes micp{50%{box-shadow:0 0 0 6px rgba(211,35,47,.25)}}
 .sketch-wrap{position:relative;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;touch-action:none}
 canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background:
   linear-gradient(#eef1f7 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,#eef1f7 1px,transparent 1px) 0 0/24px 24px}
@@ -482,6 +485,40 @@ function nouvelleOuverture(pose, d){
     volet:{ type:"", pose:"", manoeuvre:"", commande:"", couleur:"", options:[], coffre:"", coulisses:"", sens:"", ferrage:"" },
     finitions:{ int_l:[{t:"",c:""}], ext_l:[{t:"",c:""}] },
     observations:[], obs_libre:"", obs_pose:"", support:"", obs_v2:true, croquis:"" };
+}
+
+/* ---------- Dictée vocale : un 🎤 à côté de chaque zone de texte ---------- */
+const RecoVoix = window.SpeechRecognition||window.webkitSpeechRecognition;
+let dicteeEnCours=null;
+function arreterDictee(){ if(dicteeEnCours){ try{ dicteeEnCours.r.stop(); }catch(_){} dicteeEnCours.b.classList.remove("rec"); dicteeEnCours.b.textContent="🎤"; dicteeEnCours=null; } }
+function dicter(ta, b){
+  if(dicteeEnCours && dicteeEnCours.ta===ta){ arreterDictee(); return; } arreterDictee();
+  if(!RecoVoix){ ta.focus(); toast("Touche le micro 🎤 du clavier pour dicter"); return; }
+  const r=new RecoVoix(); r.lang="fr-FR"; r.continuous=true; r.interimResults=true;
+  const avant=ta.value; let final="";
+  r.onresult=e=>{ let prov=""; for(let i=e.resultIndex;i<e.results.length;i++){ const t=e.results[i][0].transcript; if(e.results[i].isFinal) final+=t; else prov+=t; }
+    const txt=(final+prov).trim(); ta.value=(avant&&txt?avant.replace(/\s*$/,"")+" ":avant)+(txt?txt.charAt(0).toUpperCase()+txt.slice(1):"");
+    ta.dispatchEvent(new Event("input",{bubbles:true})); };
+  r.onerror=e=>{ arreterDictee(); if(e.error==="not-allowed"||e.error==="service-not-allowed"){ ta.focus(); toast("Dictée refusée ici : touche le micro 🎤 du clavier"); } else if(e.error!=="aborted"&&e.error!=="no-speech") toast("Dictée interrompue"); };
+  r.onend=()=>{ if(dicteeEnCours&&dicteeEnCours.r===r){ ta.dispatchEvent(new Event("change",{bubbles:true})); arreterDictee(); } };
+  try{ r.start(); }catch(_){ ta.focus(); toast("Touche le micro 🎤 du clavier pour dicter"); return; }
+  dicteeEnCours={r,b,ta}; b.classList.add("rec"); b.textContent="■"; toast("Parle… touche ■ pour arrêter");
+}
+function ajouterMicros(racine=document){
+  racine.querySelectorAll("textarea:not([data-mic])").forEach(ta=>{ ta.dataset.mic="1"; const b=document.createElement("button"); b.type="button"; b.className="mic-btn"; b.textContent="🎤"; b.title="Dicter";
+    b.onclick=e=>{ e.preventDefault(); dicter(ta,b); }; const w=document.createElement("span"); w.className="mic-wrap"; ta.parentNode.insertBefore(w,ta); w.appendChild(ta); w.appendChild(b); });
+}
+new MutationObserver(()=>{ ajouterMicros(); if(dicteeEnCours && !document.contains(dicteeEnCours.ta)) arreterDictee(); }).observe(document.getElementById("app")||document.body,{childList:true,subtree:true});
+
+/* ---------- « Comme la précédente » : mêmes caractéristiques, il ne reste que le repère et les cotes ---------- */
+function commePrecedente(d, src){
+  const c=JSON.parse(JSON.stringify(src)); c.id=uid(); c.num_poseur=numSuivant(d);
+  c.cotes={ L:["","","",""], H:["","","",""] }; c.fab_force={ L:"", H:"" }; c.vantaux={ G:"", M:"", D:"" }; c.elarg={ haut:"", gauche:"", droite:"" };
+  c.photos=[]; c.croquis=""; c.obs_libre=""; c.obs_pose=""; c.quantite=1; delete c.devis_ligne; delete c.devis_ref;
+  const r=repDecoupe(src.repere); if(r.piece && r.num){ r.num=String((parseInt(r.num)||0)+1); c.repere=repCompose(r); } else c.repere="";
+  if(c.repere && reperesDossier(d).includes(c.repere)) c.repere="";
+  d.ouvertures.splice(d.ouvertures.indexOf(src)+1,0,c); save(); S.ouv=c; renderOuverture(); scrollTo(0,0);
+  toast(`Copie de « ${src.repere||"la précédente"} » : ${c.repere?"repère "+c.repere+", ":"choisis le repère, "}il reste les cotes`);
 }
 
 /* ---------- Schémas de pose : position des flèches (en % de l'image) ----------
@@ -1121,7 +1158,7 @@ function renderDossier(){
     $("#cTel").onclick=()=>{ const t=String(d.client.telephone||"").replace(/[^\d+]/g,""); if(t) location.href="tel:"+t; else toast("Pas de téléphone"); };
   }
   if(S.tab==="ouvertures"){
-    t.innerHTML=`<div class="row" style="margin-bottom:12px"><span class="hint">Une fiche par ouverture (repère). Appuie sur une fiche pour la remplir.</span><span class="spacer"></span>${d.ouvertures.length>1?`<button class="btn" id="oTriN">Trier par niveau</button><button class="btn" id="oTri">Trier par N° poseur</button>`:""}<button class="btn primary" id="oAdd">+ Ajouter une ouverture</button></div>
+    t.innerHTML=`<div class="row" style="margin-bottom:12px"><span class="hint">Une fiche par ouverture (repère). Appuie sur une fiche pour la remplir.</span><span class="spacer"></span>${d.ouvertures.length>1?`<button class="btn" id="oTriN">Trier par niveau</button><button class="btn" id="oTri">Trier par N° poseur</button>`:""}${d.ouvertures.length?`<button class="btn" id="oComme" title="Nouvelle ouverture avec les mêmes caractéristiques que la dernière ouverte">⧉ Comme la précédente</button>`:""}<button class="btn primary" id="oAdd">+ Ajouter une ouverture</button></div>
     <div class="list">${d.ouvertures.map((o,i)=>{ const c=controleOuverture(o), f=calcFab(o);
       return `<div class="item" data-o="${o.id}">
         <div class="row"><span class="badge b-err" style="font-size:15px">${esc(numP(o)||"N° ?")}</span><span class="t">${esc(o.repere||"Sans repère")}</span><span class="spacer"></span><span class="s">× ${esc(o.quantite)}</span></div>
@@ -1133,6 +1170,7 @@ function renderDossier(){
         <div class="row"><button class="btn small" data-dup="${o.id}">Dupliquer</button><button class="btn small danger" data-del="${o.id}">Supprimer</button></div>
       </div>`; }).join("")}</div>`;
     $("#oAdd").onclick=()=>$("#mPose").classList.add("open");
+    const oc=$("#oComme"); if(oc) oc.onclick=()=>{ const src=d.ouvertures.find(x=>x.id===S.dernOuv)||d.ouvertures[d.ouvertures.length-1]; commePrecedente(d,src); };
     if($("#oTriN")) $("#oTriN").onclick=async()=>{ d.ouvertures.sort((a,b)=>cmpRepere(a.repere,b.repere)); syncVR(d);
       if(await demander("Ouvertures rangées par niveau (rez-de-chaussée, étage 1, étage 2…). Renuméroter aussi les N° poseur dans cet ordre ?","Renuméroter")) d.ouvertures.forEach((o,i)=>o.num_poseur=String(i+1));
       syncVR(d); save(); renderDossier(); };
@@ -1229,7 +1267,7 @@ function renderOuverture(){
   $("#app").innerHTML=`
   <div class="row" style="margin-bottom:12px"><span class="posebar">${esc(libellePose(o))}</span>
     <select id="chgPose" style="max-width:260px;min-height:38px;font-size:14px">${Object.entries(CAT.poses).map(([k,p])=>`<option value="${k}"${k===o.pose?" selected":""}>${esc(p.nom)}</option>`).join("")}</select>
-    <span class="spacer"></span><button class="btn small" id="oPrev">‹ Précédente</button><button class="btn small" id="oNext">Suivante ›</button><button class="btn small navy" id="oDone">Terminer</button></div>
+    <span class="spacer"></span><button class="btn small" id="oPrev">‹ Précédente</button><button class="btn small" id="oNext">Suivante ›</button><button class="btn small" id="oComme2" title="Nouvelle ouverture avec les mêmes caractéristiques">⧉ Comme celle-ci</button><button class="btn small navy" id="oDone">Terminer</button></div>
 
   ${o.devis?`<details class="card dv-det"><summary><b>Ligne du devis signé n° ${esc(o.devis.num||"")}</b> – ${esc(o.devis.repere?o.devis.repere+" : ":"")}${esc(o.devis.type)} · ${o.devis.L??"?"} × ${o.devis.H??"?"}${o.devis.qte>1?" · ×"+o.devis.qte:""}</summary>
     ${o.devis.sous?.length?`<p class="hint">${esc(o.devis.sous.map(x=>(x.repere?x.repere+" : ":"")+x.type+" "+x.L+" × "+x.H).join(" + "))}</p>`:""}
@@ -1377,6 +1415,8 @@ function renderOuverture(){
   $("#oPrev").onclick=()=>{ S.ouv=d.ouvertures[idx-1]; renderOuverture(); scrollTo(0,0); };
   $("#oNext").onclick=()=>{ S.ouv=d.ouvertures[idx+1]; renderOuverture(); scrollTo(0,0); };
   $("#oDone").onclick=()=>{ S.tab="ouvertures"; renderDossier(); scrollTo(0,0); };
+  S.dernOuv=o.id; $("#oComme2").onclick=()=>commePrecedente(d,o);
+  $("#app").insertAdjacentHTML("beforeend",`<div class="row" style="justify-content:center;margin:18px 0 30px"><button class="btn primary" id="oComme3">⧉ Ouverture suivante, comme celle-ci</button></div>`); $("#oComme3").onclick=()=>commePrecedente(d,o);
   majFab(); majControle(); renderVRInline();
   initPhotos(); initGC();
   const skd=$("#skDet"); if(skd.open) initSketch(); else skd.addEventListener("toggle",()=>{ if(skd.open&&!skd.dataset.ok){ skd.dataset.ok=1; initSketch(); } });

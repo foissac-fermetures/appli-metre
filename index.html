@@ -2176,7 +2176,20 @@ $("#fileOpen").onchange=async e=>{
 };
 
 /* ---------- Impression / PDF ---------- */
-function imprimer(){ $("#print").innerHTML=construireImpression(S.dossier); setTimeout(()=>window.print(),150); }
+/* Imprimer / PDF (16/11/2026) : on fabrique le même PDF A4 paysage que celui envoyé à Clémence (chaque page mise à l'échelle),
+   puis on l'ouvre : on imprime ou on enregistre depuis la visionneuse PDF de l'appareil. L'impression directe du navigateur
+   (surtout sur iPad) recadrait mal les pages. */
+async function imprimer(){
+  const d=S.dossier; let w=null;
+  try{ w=window.open("","_blank"); if(w) w.document.write('<p style="font:16px -apple-system,Arial;padding:24px">Préparation du PDF…</p>'); }catch(e){ w=null; }
+  toast("Préparation du PDF…");
+  try{
+    const blob=await genererPDF(d), nom=nomMetre(d)+".pdf", url=URL.createObjectURL(blob);
+    if(w && !w.closed){ w.location.href=url; }
+    else { const a=document.createElement("a"); a.href=url; a.download=nom; document.body.appendChild(a); a.click(); a.remove(); }
+    setTimeout(()=>URL.revokeObjectURL(url),120000);
+  }catch(e){ if(w && !w.closed) w.close(); toast("PDF impossible : "+e.message+" – impression directe"); $("#print").innerHTML=construireImpression(d); setTimeout(()=>window.print(),150); }
+}
 function construireImpression(d){
   const row=(a)=>a.filter(x=>x[1]!==""&&x[1]!=null&&!(Array.isArray(x[1])&&!x[1].length)).map(([k,v])=>`<tr><th>${esc(k)}</th><td>${esc(Array.isArray(v)?v.join(", "):v)}</td></tr>`).join("");
   const head=t=>`<div class="ph"><img src="${LOGO}"><div class="tt">${esc(t)}</div><div>${esc(d.type_document)} · ${esc(d.variante)}<br>${fmtDate(d.client.date_rdv)} · Métreur : ${esc(d.metreur)}</div></div>`;

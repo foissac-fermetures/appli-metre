@@ -130,6 +130,7 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .pt-c small{font-weight:400;color:#555}
 .obs-gr{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px 18px} .obs-t{font-size:12px;font-weight:700;color:var(--navy,#1b2f5e);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
 .conc-gest summary{cursor:pointer} .conc-gest .chip{gap:4px} .conc-gest .chip .btn{min-height:26px;padding:0 8px}
+.pt-moto{margin-top:10px;padding:10px;border:1px dashed #c9d2e3;border-radius:10px;background:#f8faff}
 .clim-l{padding:12px} .clim-var{border-left:4px solid #e0a100} .clim-sketch{width:100%;aspect-ratio:1000/620;height:auto}
 .erp-card{border-left:4px solid var(--navy,#1b2f5e)} .erp-conseil{margin:10px 0 0;padding-left:20px;font-size:13px} .erp-conseil li{margin:3px 0}
 .dv-cote{font-size:13px;color:var(--navy,#1f3a5f);background:#eef3fa;border-radius:6px;padding:2px 8px;display:inline-block;margin-top:6px}
@@ -1916,12 +1917,24 @@ const PT_LAMES = ["VERTICALES","HORIZONTALES","45°"];
 const PT_POIGNEES = ["Poignée sans serrure","Serrure mécanique","Serrure électrique"];
 const PT_MOTO = ["Manuel","Électrique","Solaire"];
 const PT_SENS = ["POUSSANT DROIT","POUSSANT GAUCHE"];
+/* Motorisation : type de moteur selon le portail, marque (Somfy en priorité, puis Nice), modèle proposé */
+const PT_MOTO_TYPES_B = ["À bras articulés","À vérins","Enterré"], PT_MOTO_TYPES_C = ["À engrenage (crémaillère)"];
+const PT_MARQUES = ["Somfy","Nice","Autre"];
+const PT_MOTO_MODELES = {
+  "Somfy|À bras articulés":["Axovia 3S io","Axovia MultiPro io"], "Somfy|À vérins":["Ixengo L 3S io","Ixengo S 3S io"], "Somfy|Enterré":["Somfy enterré (à préciser)"],
+  "Somfy|À engrenage (crémaillère)":["Elixo Smart io","Elixo 500 3S io","Elixo 800 3S io"],
+  "Nice|À bras articulés":["Nice Wingo","Nice Hyppo"], "Nice|À vérins":["Nice Toona"], "Nice|Enterré":["Nice Metro"],
+  "Nice|À engrenage (crémaillère)":["Nice Robus","Nice Run"] };
+const PT_MOTO_DEFAUT = {"Somfy|À bras articulés":"Axovia 3S io","Somfy|À vérins":"Ixengo L 3S io","Somfy|À engrenage (crémaillère)":"Elixo Smart io"};
+const motoTypesPT = e => e.type==="COULISSANT" ? PT_MOTO_TYPES_C : PT_MOTO_TYPES_B;
+const motorisePT = e => e.moto==="Électrique" || e.moto==="Solaire";
+const texteMotoPT = e => motorisePT(e) ? [e.moto, e.moto_marque, e.moto_type, e.moto_modele].filter(Boolean).join(" · ") : "";
 const PT_OPTIONS = ["Crapaudine","Digi code","Télécommande supplémentaire","Pilier à sceller 100 par 100","Pilier à sceller 150 par 150","Pilier à visser 100 par 100","Pilier à visser 150 par 150"];
 const PT_DIM = ["ENTRE PILE","Fabrication"];
 const PT_DEDUCTION = 100;   // feuille de Nicolas : « Si portail battant −100 mm / si portail coulissant −100 mm »
 const nouveauPT = () => ({ ref:"", jours:"", elements:[], photos:[] });
 const nouvelElementPT = (type="BATTANT") => ({ id:uid(), type, modele:"", couleur:"", finition:"", lames:"", poignee:"", moto:"", sens:"", dim:"ENTRE PILE", inegaux:false, vantail_p:"",
-  L:"", H:"", h_pilier:"", l_pilier:"", options:[], gond_pente:false, pente_l:"", pente_h:"", traverse:"", plan_resa:false, refoulement:"", obs:"" });
+  moto_type:"", moto_marque:"", moto_modele:"", L:"", H:"", h_pilier:"", l_pilier:"", options:[], gond_pente:false, pente_l:"", pente_h:"", traverse:"", plan_resa:false, refoulement:"", obs:"" });
 const aPT = d => !!(d.pt && d.pt.elements.length);
 function fabPT(e){ const L=num(e.L); if(L==null) return null; return e.dim==="ENTRE PILE" ? L-PT_DEDUCTION : L; }
 function controlePT(d){
@@ -1940,6 +1953,8 @@ function controlePT(d){
     if(e.gond_pente && (num(e.pente_l)==null || num(e.pente_h)==null)) W.push(`${n} : gond de pente → longueur et hauteur de pente à relever`);
     if(e.type==="COULISSANT" && num(e.refoulement)!=null && f!=null && num(e.refoulement)<f) E.push(`${n} : refoulement ${e.refoulement} mm < largeur du portail ${f} mm`);
     if(e.type==="COULISSANT" && num(e.refoulement)==null) W.push(`${n} : longueur de refoulement disponible à relever`);
+    if(motorisePT(e)){ if(!e.moto_marque) W.push(`${n} : marque du moteur non choisie (Somfy en priorité)`); if(!e.moto_type) W.push(`${n} : type de moteur (bras, vérins, enterré, engrenage) non choisi`); else if(!motoTypesPT(e).includes(e.moto_type)) E.push(`${n} : moteur « ${e.moto_type} » incompatible avec un ${e.type.toLowerCase()}`); if(!e.moto_modele) W.push(`${n} : modèle de moteur non renseigné`);
+      if(e.moto_type==="À vérins" && num(e.l_pilier)!=null && num(e.l_pilier)<150) W.push(`${n} : vérins sur piliers de ${e.l_pilier} mm – vérifier la place pour les pattes de fixation`); }
     if(["Électrique","Solaire"].includes(e.moto) && e.type==="BATTANT" && num(e.l_pilier)==null) W.push(`${n} : motorisé → relever la largeur des piliers (fixation des bras / vérins)`);
     if(e.moto==="Électrique" && !/électrique/i.test(e.obs) && !e.plan_resa) W.push(`${n} : motorisation électrique → prévoir l'alimentation (fourreau) et le plan de réservation`); });
   return {E,W};
@@ -1964,6 +1979,10 @@ function renderPT(t){
         <div class="hint" style="align-self:end" id="ptFab${i}">${e.dim==="ENTRE PILE"&&f!=null?`Fabrication : <b>${f}</b> mm (entre piliers − ${PT_DEDUCTION})`:""}</div>
         ${F.numb(k+"h_pilier","Hauteur pilier (mm)",e.h_pilier)}${e.type==="PORTILLON"?"<div></div>":F.numb(k+"l_pilier","Largeur pilier (mm)",e.l_pilier)}${F.numb(k+"traverse","Hauteur traverse si besoin (mm)",e.traverse)}${e.type==="COULISSANT"?F.numb(k+"refoulement","Refoulement disponible (mm)",e.refoulement):"<div></div>"}
       </div>
+      ${motorisePT(e)?`<div class="pt-moto"><div class="obs-t">Motorisation ${esc(e.moto.toLowerCase())}</div><div class="grid g4">
+        ${F.sel(k+"moto_marque","Marque",PT_MARQUES,e.moto_marque)}${F.sel(k+"moto_type","Type de moteur",motoTypesPT(e),e.moto_type)}
+        <label class="f">Modèle<input data-k="${k}moto_modele" value="${esc(e.moto_modele)}" list="dlPtMoto${i}" placeholder="Choisir ou taper"></label>
+        <datalist id="dlPtMoto${i}">${(PT_MOTO_MODELES[`${e.moto_marque}|${e.moto_type}`]||[]).map(x=>`<option value="${esc(x)}">`).join("")}</datalist></div></div>`:""}
       <div class="checks" style="margin-top:10px">${e.type==="BATTANT"?F.chk(k+"inegaux","Portail inégaux",e.inegaux):""}${F.chk(k+"gond_pente","Gond de pente",e.gond_pente)}${F.chk(k+"plan_resa","Faire plan de réservation",e.plan_resa)}</div>
       ${(e.inegaux&&e.type==="BATTANT")||e.gond_pente?`<div class="grid g4" style="margin-top:8px">${e.inegaux&&e.type==="BATTANT"?F.numb(k+"vantail_p","Largeur du grand vantail (mm)",e.vantail_p):""}${e.gond_pente?F.numb(k+"pente_l","Pente – longueur (mm)",e.pente_l)+F.numb(k+"pente_h","Pente – hauteur (mm)",e.pente_h):""}</div>`:""}
       <div class="hint" style="margin:10px 0 4px">Options portail</div>${F.multi(k+"options",PT_OPTIONS,e.options)}
@@ -1985,14 +2004,17 @@ function renderPT(t){
   $("#ptAddB").onclick=()=>{ p.elements.push(nouvelElementPT("BATTANT")); save(); re(); };
   $("#ptAddC").onclick=()=>{ p.elements.push(nouvelElementPT("COULISSANT")); save(); re(); };
   $("#ptAddP").onclick=()=>{ p.elements.push(nouvelElementPT("PORTILLON")); save(); re(); };
-  $$("[data-pttype]").forEach(b=>b.onclick=()=>{ p.elements[+b.dataset.pttype].type=b.dataset.v; save(); re(); });
+  $$("[data-pttype]").forEach(b=>b.onclick=()=>{ const e=p.elements[+b.dataset.pttype]; e.type=b.dataset.v; if(e.moto_type && !motoTypesPT(e).includes(e.moto_type)){ e.moto_type=e.type==="COULISSANT"?PT_MOTO_TYPES_C[0]:""; e.moto_modele=PT_MOTO_DEFAUT[`${e.moto_marque}|${e.moto_type}`]||""; } save(); re(); });
   $$("[data-ptdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer cet élément ?","Supprimer")) return; p.elements.splice(+b.dataset.ptdel,1); save(); re(); });
   $$("[data-ptdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.ptdup, n=JSON.parse(JSON.stringify(p.elements[i])); n.id=uid(); p.elements.splice(i+1,0,n); save(); re(); });
   initPhotos(p, re);
 }
 function majPT(k){
   const m=String(k).match(/^pt\.elements\.(\d+)\.(\w+)/); if(!m) return; const i=+m[1], e=S.dossier.pt.elements[i];
-  if(["dim","inegaux","gond_pente","moto"].includes(m[2])){ const y=scrollY; renderDossier(); scrollTo(0,y); return; }
+  if(m[2]==="moto" && motorisePT(e)){ if(!e.moto_marque) e.moto_marque="Somfy"; if(!e.moto_type && e.type==="COULISSANT") e.moto_type=PT_MOTO_TYPES_C[0]; }
+  if(["moto","moto_marque","moto_type"].includes(m[2]) && motorisePT(e)){ const def=PT_MOTO_DEFAUT[`${e.moto_marque}|${e.moto_type}`], L=PT_MOTO_MODELES[`${e.moto_marque}|${e.moto_type}`]||[];
+    if(!e.moto_modele || !L.includes(e.moto_modele) && Object.values(PT_MOTO_MODELES).flat().includes(e.moto_modele)) e.moto_modele=def||L[0]||""; save(); }
+  if(["dim","inegaux","gond_pente","moto","moto_marque","moto_type"].includes(m[2])){ const y=scrollY; renderDossier(); scrollTo(0,y); return; }
   const z=$("#ptDes"+i); if(z) z.innerHTML=dessinPT(e); const f=fabPT(e), h=$("#ptFab"+i); if(h) h.innerHTML=e.dim==="ENTRE PILE"&&f!=null?`Fabrication : <b>${f}</b> mm (entre piliers − ${PT_DEDUCTION})`:"";
 }
 /* ---------- PDF : une page « Menuiserie » par élément, comme la feuille Numbers ---------- */
@@ -2020,7 +2042,7 @@ function pagesPT(d){
           <tr><td>Hauteur traverse si besoin</td><td class="c cv">${esc(e.traverse)}</td></tr>
           ${e.type==="COULISSANT"?`<tr><td>Refoulement disponible</td><td class="c cv">${esc(e.refoulement)}</td></tr>`:""}
           <tr><td>Faire plan de reservation</td><td class="c">${cb(e.plan_resa)}</td></tr></table>
-        <table class="ct pt-obs"><tr><td class="pt-obst">Observation<div class="cv" style="min-height:100px">${esc(e.obs).replace(/\n/g,"<br>")}</div></td></tr></table>
+        <table class="ct pt-obs"><tr><td class="pt-obst">Observation${motorisePT(e)?`<div class="b" style="margin:3px 0">Moteur : <span class="cv">${esc([e.moto_marque,e.moto_type,e.moto_modele].filter(Boolean).join(" · "))}</span></div>`:""}<div class="cv" style="min-height:100px">${esc(e.obs).replace(/\n/g,"<br>")}</div></td></tr></table>
       </div>
       ${e.type==="PORTILLON"?`<div class="pt-desrow pt-1">${dessinPT(e,"pdf")}</div>`:`<div class="pt-desrow"><div class="pt-note">Si Portail Battant −100 mm<br>Si Portail Coulissant −100 mm</div>${dessinPT(e,"pdf")}</div>`}
     </div>`; });

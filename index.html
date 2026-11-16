@@ -129,6 +129,7 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .pt-c{position:absolute;transform:translate(-50%,-50%);background:#fff;border:1.5px solid #1f4fd8;color:#1f4fd8;font-weight:700;font-size:13px;padding:1px 6px;border-radius:4px;white-space:nowrap;min-width:34px;text-align:center}
 .pt-c small{font-weight:400;color:#555}
 .obs-gr{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px 18px} .obs-t{font-size:12px;font-weight:700;color:var(--navy,#1b2f5e);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+.conc-gest summary{cursor:pointer} .conc-gest .chip{gap:4px} .conc-gest .chip .btn{min-height:26px;padding:0 8px}
 .clim-l{padding:12px} .clim-var{border-left:4px solid #e0a100} .clim-sketch{width:100%;aspect-ratio:1000/620;height:auto}
 .erp-card{border-left:4px solid var(--navy,#1b2f5e)} .erp-conseil{margin:10px 0 0;padding-left:20px;font-size:13px} .erp-conseil li{margin:3px 0}
 .dv-cote{font-size:13px;color:var(--navy,#1f3a5f);background:#eef3fa;border-radius:6px;padding:2px 8px;display:inline-block;margin-top:6px}
@@ -628,6 +629,13 @@ function migrerObs(o){ if(o.obs_v2) return; const anc=o.observations||[], neuf=[
     else if(y!=="Type de support") note.push(y); });
   o.observations=[...new Set(neuf)]; if(note.length) o.obs_libre=[o.obs_libre, note.join(" · ")].filter(Boolean).join(" · ");
   if(o.support==null) o.support=""; if(o.obs_pose==null) o.obs_pose=""; o.obs_v2=true; }
+/* Concurrents déjà rencontrés : mémorisés au fur et à mesure (sur l'appareil + repris de tous les métrés), proposés en liste – 16/11/2026 */
+const CONC_KEY="concurrents_connus";
+function concurrentsConnus(){ try{ return JSON.parse(localStorage.getItem(CONC_KEY)||"[]"); }catch(e){ return []; } }
+function memoriserConcurrents(noms){ const L=concurrentsConnus(), cle=x=>x.trim().toLowerCase(); let ch=false;
+  noms.map(x=>String(x||"").trim()).filter(x=>x.length>1).forEach(n=>{ if(!L.some(x=>cle(x)===cle(n))){ L.push(n); ch=true; } });
+  if(ch){ L.sort((a,b)=>a.localeCompare(b,"fr")); try{ localStorage.setItem(CONC_KEY,JSON.stringify(L)); }catch(e){} } return L; }
+function oublierConcurrent(n){ const L=concurrentsConnus().filter(x=>x!==n); try{ localStorage.setItem(CONC_KEY,JSON.stringify(L)); }catch(e){} }
 const SEUIL_ENC = 40;
 /* Compensateur sous la menuiserie (regingot, ou sous une porte pour laisser passer le carrelage) – 16/11/2026
    Sections courantes 15 × 20 et 15 × 60. On note sa hauteur et s'il est compris ou non dans la hauteur de fabrication. */
@@ -884,6 +892,7 @@ function majTitre(){ if(S.dossier) setBar(`${S.dossier.client.nom||"Nouveau clie
 async function renderHome(){
   S.view="home"; S.dossier=null; S.ouv=null; setBar("Mes métrés", false);
   const ds=(await DB.all()).sort((a,b)=>(b.modifie||"").localeCompare(a.modifie||""));
+  memoriserConcurrents(ds.flatMap(d=>d.concurrents||[]));
   $("#app").innerHTML=`
   <div class="row"><h1>Accueil</h1><span class="spacer"></span>
     <button class="btn" id="hOpen">Ouvrir un fichier…</button>
@@ -1011,13 +1020,18 @@ function renderDossier(){
           ${F.sel("budget.aide_laquelle","Laquelle",FIC.aide_laquelle,d.budget.aide_laquelle)}${F.text("budget.precision","Précision",d.budget.precision)}
         </div></div>
         <div class="card"><h2>Concurrence</h2><div class="grid g2">
-          ${d.concurrents.map((c,i)=>F.text(`concurrents.${i}`,`Concurrent ${i+1}`,c)).join("")}
+          ${d.concurrents.map((c,i)=>F.text(`concurrents.${i}`,`Concurrent ${i+1}`,c,'list="dlConc" autocomplete="off" placeholder="Choisir ou taper"')).join("")}
+          <datalist id="dlConc">${concurrentsConnus().map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
+          ${concurrentsConnus().length?`<details class="conc-gest" style="grid-column:1/-1"><summary class="hint">Concurrents enregistrés (${concurrentsConnus().length}) – toucher ✕ pour retirer une faute de frappe</summary>
+            <div class="checks" style="margin-top:6px">${concurrentsConnus().map(x=>`<span class="chip">${esc(x)} <button class="btn small" data-concdel="${esc(x)}" aria-label="Retirer ${esc(x)}">✕</button></span>`).join("")}</div></details>`:""}
         </div></div>
       </div>
     </details>`;
     $("#comDet").addEventListener("toggle",e=>{ S.comOpen=e.target.open; });
     $("#cCRM").onclick=()=>ouvrirCRM("remplir");
     if($("#cDevis")) $("#cDevis").onclick=ouvrirDevisSigne;
+    $$('[data-k^="concurrents."]').forEach(inp=>inp.addEventListener("change",()=>{ const n=concurrentsConnus().length; memoriserConcurrents(d.concurrents); if(concurrentsConnus().length!==n){ const dl=$("#dlConc"); if(dl) dl.innerHTML=concurrentsConnus().map(x=>`<option value="${esc(x)}">`).join(""); } }));
+    $$("[data-concdel]").forEach(b=>b.onclick=e=>{ e.preventDefault(); oublierConcurrent(b.dataset.concdel); S.comOpen=true; renderDossier(); });
     if($("#cDevisOff")) $("#cDevisOff").onclick=async()=>{ if(!await demander("Détacher le devis signé ? La comparaison s'arrête (le métré reste tel quel).","Détacher")) return; delete d.devis_signe; d.ouvertures.forEach(o=>{ delete o.devis; delete o.devis_gc; }); save(); renderDossier(); };
     $("#cNav").onclick=()=>itineraire(d.adresse_chantier); $("#cWaze").onclick=()=>itineraire(d.adresse_chantier,"waze");
     $("#cTel").onclick=()=>{ const t=String(d.client.telephone||"").replace(/[^\d+]/g,""); if(t) location.href="tel:"+t; else toast("Pas de téléphone"); };

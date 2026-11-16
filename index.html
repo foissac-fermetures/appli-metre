@@ -137,6 +137,7 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .rep-c{min-height:40px;padding:6px 12px;border-radius:10px;border:2px solid #d6dbe6;background:#f4f6fa;color:#1b2f5e;font:inherit;font-weight:600;cursor:pointer} .rep-c.on{background:#1b2f5e;border-color:#1b2f5e;color:#fff}
 #mRep .box{max-height:90vh;overflow:auto}
 .enduit-banner{background:#fff4e5;border:2px solid #e07b00;color:#8a4b00;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:15px}
+.gc-photo{display:inline-block;margin-top:6px;font-size:14px;font-weight:600;color:var(--navy,#1b2f5e);text-decoration:underline}
 .clim-l{padding:12px} .clim-var{border-left:4px solid #e0a100} .clim-sketch{width:100%;aspect-ratio:1000/620;height:auto}
 .erp-card{border-left:4px solid var(--navy,#1b2f5e)} .erp-conseil{margin:10px 0 0;padding-left:20px;font-size:13px} .erp-conseil li{margin:3px 0}
 .dv-cote{font-size:13px;color:var(--navy,#1f3a5f);background:#eef3fa;border-radius:6px;padding:2px 8px;display:inline-block;margin-top:6px}
@@ -698,6 +699,10 @@ $("#repOk").onclick=()=>{ const v=repCompose(REP_ETAT); if(!v){ toast("Choisis a
   if(REP_CIBLE){ REP_CIBLE.value=v; REP_CIBLE.dispatchEvent(new Event("input",{bubbles:true})); REP_CIBLE.dispatchEvent(new Event("change",{bubbles:true})); } };
 document.addEventListener("click",e=>{ const b=e.target.closest("[data-rep]"); if(!b) return; e.preventDefault(); const inp=document.querySelector(`[data-k="${b.dataset.rep}"]`); if(inp && !inp.readOnly) ouvrirRepere(inp); });
 const boutonRep = k => `<button type="button" class="btn small rep-btn" data-rep="${k}" title="Choisir niveau et pièce">📍 Choisir</button>`;
+/* Garde-corps : lien vers les photos du modèle LAHFER (recherche d'images), pour choisir avec le client */
+function lienPhotoGC(o){ const t={balconnet:"balconnet fer",barre:"barre d'appui fer",grille:"grille de défense fer"}[o.gc.type]||"garde-corps";
+  const m=(o.gc.modele||"").replace(/^\d{3}\.\d+\s*/,"");
+  return "https://www.google.com/search?tbm=isch&q="+encodeURIComponent(`LAHFER ${m||t}`); }
 const SEUIL_ENC = 40;
 /* Compensateur sous la menuiserie (regingot, ou sous une porte pour laisser passer le carrelage) – 16/11/2026
    Sections courantes 15 × 20 et 15 × 60. On note sa hauteur et s'il est compris ou non dans la hauteur de fabrication. */
@@ -947,6 +952,7 @@ function refreshLive(k){
     if(k==="comp.type"){ const c=S.ouv.comp; if(c.type && !c.h) c.h=String((c.type.match(/^(\d+)/)||[])[1]||""); if(c.type && !c.compris) c.compris=COMP_COMPRIS[1]; if(!c.type){ c.h=""; c.compris=""; } save(); const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(k==="volet.type"||k==="gc.zsp"){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(String(k).startsWith("gc.")) majGC();
+    if(k==="gc.modele"){ const l=$(".gc-photo"); if(l){ l.href=lienPhotoGC(S.ouv); l.textContent="🔎 "+(S.ouv.gc.modele?"Voir ce modèle en photo":"Voir les modèles en photo"); } }
     if(String(k).endsWith(".avec_menuiserie")){ syncVR(S.dossier); renderVRInline(); }
     majFab(); majControle(); majVRInline(); const ds=$("#dessin"); if(ds) ds.innerHTML=dessinMenuiserie(S.ouv);
   } else if(S.view==="dossier"){ majTitre(); if(String(k).startsWith("vr.")) majVR(); if(String(k).startsWith("clim.")) majClim(k);
@@ -1306,7 +1312,8 @@ function renderOuverture(){
     <div class="hint" style="margin:12px 0 6px">Type de protection</div>
     <div class="seg">${[["","Aucun"],["balconnet","Balconnet"],["barre","Barre d'appui"],["grille","Grille de défense"]].map(([k,l])=>`<button class="${(o.gc.type||"")===k?"on":""}" data-gctype="${k}">${l}</button>`).join("")}</div>
     ${o.gc.type?`<div class="grid g4" style="margin-top:12px">
-      ${F.sel("gc.modele","Modèle",CAT.garde_corps.types[o.gc.type].modeles,o.gc.modele)}
+      <div>${F.sel("gc.modele","Modèle",CAT.garde_corps.types[o.gc.type].modeles,o.gc.modele)}
+        <a class="gc-photo" target="_blank" rel="noopener" href="${lienPhotoGC(o)}">🔎 ${o.gc.modele?"Voir ce modèle en photo":"Voir les modèles en photo"}</a></div>
       ${o.gc.type==="grille"?"":F.numb("gc.L",`${o.gc.type==="barre"?"Longueur":"Largeur"} (mm)${CAT.garde_corps.types[o.gc.type].max?.L?` · maxi ${CAT.garde_corps.types[o.gc.type].max.L}`:""}`,o.gc.L)}
       ${o.gc.type==="balconnet"?F.numb("gc.H",`Hauteur (mm) · maxi ${CAT.garde_corps.types.balconnet.max.H}`,o.gc.H):""}
       ${o.gc.type==="grille"?F.numb("gc.L","Largeur (mm)",o.gc.L)+F.numb("gc.H","Hauteur (mm)",o.gc.H):""}

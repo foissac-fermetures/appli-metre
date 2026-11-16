@@ -121,6 +121,9 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .item.sel{outline:3px solid var(--err,#b3202a)} .hchk{width:22px;height:22px;margin-right:6px}
 .clim-leg{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:8px;font-size:13px} .clim-leg i{display:inline-block;width:22px;height:5px;border-radius:3px;margin-right:6px;vertical-align:middle}
 .clim-tab-card.manque{border:2px solid var(--err,#d3232f)} [data-sktxt].on{outline:3px solid currentColor}
+.vb-gonds{margin-top:10px;border-top:1px solid #e3e7ef;padding-top:8px} .vb-gonds summary{cursor:pointer;min-height:34px}
+.vb-gt{border-collapse:collapse;width:100%;margin-top:6px} .vb-gt th,.vb-gt td{border:1px solid #d6dbe6;padding:3px;text-align:center;font-size:13px} .vb-gt input{width:100%;min-height:38px;text-align:center}
+.vb-img{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:10px} .vb-img img{width:100%;border:1px solid #d6dbe6;border-radius:8px;background:#fff}
 .clim-l{padding:12px} .clim-var{border-left:4px solid #e0a100} .clim-sketch{width:100%;aspect-ratio:1000/620;height:auto}
 .erp-card{border-left:4px solid var(--navy,#1b2f5e)} .erp-conseil{margin:10px 0 0;padding-left:20px;font-size:13px} .erp-conseil li{margin:3px 0}
 .dv-cote{font-size:13px;color:var(--navy,#1f3a5f);background:#eef3fa;border-radius:6px;padding:2px 8px;display:inline-block;margin-top:6px}
@@ -197,6 +200,16 @@ input:disabled{background:#eef1f7;color:#4a5368}
   .clim-tab .obs{height:38px;vertical-align:top}
   .clim-tabpdf{display:grid;grid-template-columns:2fr 1fr;gap:14px;align-items:start} .clim-tabpdf img{max-width:100%;max-height:165mm;border:1px solid #9aa3b5}
   .clim-place{border:2px solid #1f9d3a;color:#1f9d3a;font-weight:700;padding:6px 8px;font-size:11pt} .clim-place.non{border-color:#d3232f;color:#d3232f}
+  .vb-pg{font-family:Helvetica,Arial,sans-serif;font-size:8.5pt}
+  .vb-titre{text-align:center;font-weight:700;font-size:13pt;margin:0 0 4px}
+  .vb-band{background:#c9c9c9;color:#e02a1b;text-align:center;font-weight:700;font-size:12pt;padding:3px 0;margin-bottom:10px}
+  .vb-haut{display:grid;grid-template-columns:1fr 1.1fr 1fr;gap:9px 40px;margin-bottom:12px}
+  .vb-bx{display:grid;grid-template-columns:42% 1fr;border:1px solid #000;min-height:16px} .vb-lb{background:#d9d9d9;font-weight:700;padding:1px 4px;border-right:1px solid #000} .vb-v{padding:1px 4px}
+  .vb-t{width:100%;border-collapse:collapse;table-layout:fixed} .vb-t th,.vb-t td{border:1px solid #9a9a9a;padding:1px 3px;height:16px;text-align:center;font-weight:400;font-size:7.5pt;vertical-align:middle}
+  .vb-t .g1 th{font-weight:700} .vb-t th.nb{border:0} .vb-t .vb-rep{background:#d9d9d9;text-align:left} .vb-t .vb-tab{border-left:1.5px solid #000;border-right:1.5px solid #000}
+  .vb-t td.sm{font-size:6.5pt;text-align:left}
+  .vb-pied{font-size:7pt;color:#555;margin-top:4px}
+  .vb-imgs{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:8px} .vb-imgs img{width:100%;max-height:95mm;object-fit:contain}
   .clim-schema{display:block;max-width:100%;max-height:170mm;margin:0 auto;border:1px solid #9aa3b5}
   .pg:last-child{page-break-after:auto;break-after:auto}
   .ph{display:flex;align-items:center;gap:12px;border-bottom:3px solid #1b2f5e;padding-bottom:6px;margin-bottom:8px}
@@ -660,7 +673,7 @@ function controleDossier(d){
   if(!d.client.date_rdv) W.push("Date du RDV manquante");
   if(!d.adresse_chantier) W.push("Adresse du chantier manquante");
   if(d.ouvertures.length && !d.jours_pose) W.push("Jours de pose estimés non renseignés");
-  if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aClim(d)) E.push("Aucune ouverture, volet roulant ni climatisation saisi");
+  if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aClim(d) && !aVB(d)) E.push("Aucune ouverture, volet ni climatisation saisi");
   comparerDevisDossier(d, E, W);
   return {E,W};
 }
@@ -703,7 +716,7 @@ function controleLigneVR(l, v){
   return {E,W};
 }
 function nbErreurs(d){ normaliser(d); return controleDossier(d).E.length + d.ouvertures.reduce((a,o)=>a+controleOuverture(o,d).E.length,0)
-  + controleVREntete(d.vr).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0) + (aClim(d)?controleClim(d).E.length:0); }
+  + controleVREntete(d.vr).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0) + (aClim(d)?controleClim(d).E.length:0) + (aVB(d)?controleVB(d).E.length:0); }
 
 /* ---------- Catalogue : aides ---------- */
 const GAMME_COULEUR = { "PVC - REHAU PORTEO":"REHAU", "PVC - FENSTAR FLAT (droit)":"FENSTAR", "PVC - FENSTAR NEW (arrondie)":"FENSTAR",
@@ -822,6 +835,7 @@ function refreshLive(k){
     if(String(k).endsWith(".avec_menuiserie")){ syncVR(S.dossier); renderVRInline(); }
     majFab(); majControle(); majVRInline(); const ds=$("#dessin"); if(ds) ds.innerHTML=dessinMenuiserie(S.ouv);
   } else if(S.view==="dossier"){ majTitre(); if(String(k).startsWith("vr.")) majVR(); if(String(k).startsWith("clim.")) majClim(k);
+    if(["vb.matiere","vb.arrets","vb.type","vb.gonds","vb.pose"].includes(k)){ if(k==="vb.matiere"){ S.dossier.vb.type=""; S.dossier.vb.couleur=""; } const y=scrollY; renderDossier(); scrollTo(0,y); }
     if(k==="erp" && S.dossier.erp){ let n=0; S.dossier.ouvertures.forEach(o=>{ if(["porte","pf"].includes(modeleDe(o)?.famille) && !o.erp.actif){ o.erp.actif=true; syncAccessoiresERP(o); n++; } }); if(n) toast(`${n} porte(s) passée(s) en « porte d'ERP » : complète l'effectif et le sens dans chaque fiche`); } }
 }
 
@@ -837,6 +851,7 @@ async function renderHome(){
   <div class="row"><h1>Accueil</h1><span class="spacer"></span>
     <button class="btn" id="hOpen">Ouvrir un fichier…</button>
     <button class="btn" id="hCRM">+ Depuis le CRM</button>
+    <button class="btn" id="hVB">+ Volets battants</button>
     <button class="btn" id="hClim">+ Métré clim</button>
     <button class="btn primary" id="hNew">+ Nouveau métré</button></div>
   <p class="hint">Chaque métré s'enregistre tout seul quand tu reviens à cette liste, dans <b>Mon Drive › Appli métré – Dossiers › Devis</b> (ou <b>› Métrés définitif</b> pour un métré définitif). Une fois recontrôlé, déplace son dossier dans le <b>2026</b> de ce même dossier : la copie part toute seule chez Clémence (DEVIS A FAIRE ou METRES DEFINITIF).</p>
@@ -846,12 +861,13 @@ async function renderHome(){
   <div class="list">${ds.map(d=>{ normaliser(d); const n=nbErreurs(d);
     return `<div class="item${S.selMode&&S.sel.has(d.id)?" sel":""}" data-id="${d.id}">
       <div class="row">${S.selMode?`<input type="checkbox" class="hchk" ${S.sel.has(d.id)?"checked":""} aria-label="Sélectionner">`:""}<span class="t">${esc(d.client.nom||"Sans nom")}</span><span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span>${S.selMode?"":`<button class="btn small danger" data-hdel="${d.id}" title="Supprimer ce métré" aria-label="Supprimer ce métré">🗑</button>`}</div>
-      <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.length} ouverture(s)${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}${aClim(d)?` · clim ${d.clim.lignes.length} pièce(s)`:""}</div>
+      <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.length} ouverture(s)${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}${aVB(d)?` · ${d.vb.lignes.length} volet(s) battant(s)`:""}${aClim(d)?` · clim ${d.clim.lignes.length} pièce(s)`:""}</div>
       <div class="s">${esc(d.gamme_defaut||"")}</div>
       <div>${n?`<span class="badge b-err">${n} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} <span class="badge ${estDefinitif(d)?"b-err":"b-n"}">${estDefinitif(d)?"Métré définitif":"Devis"}</span> ${d.drive_attente?`<span class="badge b-n">☁ envoi en attente</span>`:d.drive?`<span class="badge b-ok">☁ dans le Drive</span>`:""}</div>
     </div>`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau métré ».</div>`}</div>`;
   $("#hNew").onclick=()=>{ S.dossier=nouveauDossier(); DB.put(S.dossier); S.tab="client"; renderDossier(); };
   $("#hOpen").onclick=()=>$("#fileOpen").click();
+  $("#hVB").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.vb=nouveauVB(); S.dossier.vb.lignes.push(nouvelleLigneVB()); DB.put(S.dossier); S.tab="vb"; renderDossier(); };
   $("#hClim").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.clim=nouvelleClim(); S.dossier.clim.lignes.push(nouvelleLigneClim()); DB.put(S.dossier); S.tab="clim"; renderDossier(); };
   $("#hCRM").onclick=()=>ouvrirCRM("nouveau");
   $$(".item[data-id]").forEach(el=>el.onclick=e=>{ if(e.target.closest("button")) return;
@@ -890,7 +906,7 @@ async function supprimerMetres(L){
 function renderDossier(){
   S.view="dossier"; S.ouv=null; const d=normaliser(S.dossier); syncVR(d); majTitre();
   if(S.tab==="chantier") S.tab="client";
-  const T=[["client","Client & chantier"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["clim",`Climatisation${d.clim&&d.clim.lignes.length?` (${d.clim.lignes.length})`:""}`],["controle","Contrôle"]];
+  const T=[["client","Client & chantier"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["vb",`Volets battants${d.vb&&d.vb.lignes.length?` (${d.vb.lignes.length})`:""}`],["clim",`Climatisation${d.clim&&d.clim.lignes.length?` (${d.clim.lignes.length})`:""}`],["controle","Contrôle"]];
   const def=estDefinitif(d);
   $("#app").innerHTML=`
   <div class="circuit" role="group" aria-label="Type de métré">
@@ -990,11 +1006,13 @@ function renderDossier(){
   }
   if(S.tab==="vr") renderVR(t);
   if(S.tab==="clim") renderClim(t);
+  if(S.tab==="vb") renderVB(t);
   if(S.tab==="controle"){
     const cd=controleDossier(d);
     const bloc=(titre,c)=>`<div class="card"><h2>${esc(titre)}</h2>${!c.E.length&&!c.W.length?`<span class="badge b-ok">Rien à signaler</span>`:
       `<ul>${c.E.map(x=>`<li style="color:var(--err)">${esc(x)}</li>`).join("")}${c.W.map(x=>`<li style="color:var(--warn)">${esc(x)}</li>`).join("")}</ul>`}</div>`;
     t.innerHTML=`<p class="hint"><span class="badge b-err">À corriger</span> bloque le métré (cotes, modèle, couleur, vantaux…) · <span class="badge b-warn">Conseillé</span> à compléter si possible (adresse, jours de pose, repère…)</p>`+bloc("Dossier",cd)+d.ouvertures.map((o,i)=>bloc(`${numP(o)||i+1+"."} ${o.repere||"Sans repère"}`,controleOuverture(o))).join("")
+      +(aVB(d)?bloc("Volets battants",controleVB(d)):"")
       +(aClim(d)?bloc("Climatisation",controleClim(d)):"")
       +(d.vr.lignes.length?bloc("Volets roulants – en-tête",controleVREntete(d.vr))+d.vr.lignes.map((l,i)=>bloc(`VR ${i+1}. ${l.repere||"Sans repère"}`,controleLigneVR(l,d.vr))).join(""):"");
   }
@@ -1697,6 +1715,127 @@ function pagesClim(d){
   return h;
 }
 
+/* ======================= MÉTRÉ VOLETS BATTANTS – CORRÈZE FERMETURES (16/11/2026) =======================
+   Reprend la feuille Numbers « VOLET BATTANT » de Nicolas (onglets Volet + Schéma « gonds existants »).
+   Listes : relevé ProDevis CORREZE FERMETURES 2026-10 V2 (03_Catalogue/ProDevis_sources/CORREZE_Volets_battants.md). */
+const VB_CAT = () => CAT.volets_fournisseurs?.CORREZE || {};
+const VB_MATIERES = ["PVC","Bois","Aluminium"];
+const VB_COULEURS_ALU = ["TOUT RAL « Structuré mat fin » (à préciser)","TOUT RAL « Satiné » (à préciser)","TOUT RAL « Brillant » (à préciser)","Ton bois chêne doré","Bleu canon","Bronze 1247","Noir sablé 2100","Gris sablé 2900","Mars 2525","Cérusé ton bois vert","Cérusé ton bois bleu","Cérusé ton bois rouge","Cérusé ton bois blanc","Cérusé chêne foncé","Cérusé pin clair","Chêne irlandais","Hors gamme RAL (forfait)"];
+const VB_FINITIONS_BOIS = ["Traitement fongicide et hydrofuge","Brut","Impression blanche microporeuse","Lasure miel 03/41","Lasure ambrée 06/41","Peinture nuancier RAL Corrèze (à préciser)","Peinture RAL spécial (à préciser)"];
+const VB_ESSENCES = ["Sapin du nord 27 mm","Sapin du nord 32 mm","Bois exotique 27 mm"];
+const VB_LAMES = ["Lames verticales","Lames larges 150 verticales (alu)","Lames horizontales","Panneau plein","Cadre + lames"];
+const VB_POSES = ["Pose en tableau","Pose en feuillure","Sur gonds existants","Pose en applique / ITE"];
+const VB_OPTIONS = ["Tire volet","Barre de sécurité","Verrou SDO","Pré-cadre aluminium","Gabarit de perçage des gonds","Crochet crémaillère","Poignée de tirage alu","Couvre-joint","Espagnolette supplémentaire","Cintre","Motorisation","Accessoires pose sur ITE"];
+const VB_TYPE_DIM = ["Dimensions tableau sans feuillure","Dimensions fond de feuillure"];
+const VB_MAX = { "Volet battant PVC plein (2400 × 3580)":[2400,3580], "Volet battant PVC à cadre soudé":[2400,3580], "Volet battant bois plein":[2400,3580], "Volet battant ALU plein (2400 × 3000)":[2400,3000] };
+const nouveauVB = () => ({ matiere:"", type:"", couleur:"", essence:"", gonds:"", barre:"", ferrage:"", lame:"", pose:"", arrets:false, arret_type:"", manutention:"", type_dim:VB_TYPE_DIM[0], lignes:[], photos:[] });
+const nouvelleLigneVB = () => ({ id:uid(), repere:"", qte:"1", vantaux:"2 vantaux égaux", L:"", H:"", f_l:"", f_p:"", f_cotes:"", cintre_n:"", cintre_f:"", allege:"", sens_g:false, sens_d:false, espagnolette:"", options:[], obs:"",
+  g:{A_g:"",A_d:"",B_g:"",B_d:"",C_g:"",C_d:"",D_g:"",D_d:"",R_g:"",R_d:"",gond:"",obs:""} });
+const aVB = d => !!(d.vb && (d.vb.lignes.length || d.vb.type));
+const gondsExistants = v => /existant/i.test(v.gonds||"") || v.pose==="Sur gonds existants";
+function vbTypes(m){ const P=VB_CAT().produits||[]; const g=P.find(x=>x.groupe.toLowerCase()===(m==="Aluminium"?"aluminium":String(m).toLowerCase())); return g?g.items:P.flatMap(x=>x.items); }
+function vbCouleurs(m){ return m==="Aluminium"?VB_COULEURS_ALU : m==="Bois"?VB_FINITIONS_BOIS : (VB_CAT().couleurs_pvc||[]); }
+function controleVB(d){
+  const v=d.vb, E=[], W=[]; if(!v) return {E,W};
+  if(!v.matiere) W.push("Matière non choisie"); if(!v.type) W.push("Type de volet non choisi"); if(!v.couleur) W.push("Couleur non choisie");
+  if(v.matiere==="Bois" && !v.essence) W.push("Bois : essence non choisie");
+  if(!v.gonds) W.push("Gonds non choisis"); if(!v.barre) W.push("Barres et écharpes (panneau / ferrage) non choisies"); if(!v.ferrage) W.push("Ferrage (pentures) non choisi");
+  if(v.arrets && !v.arret_type) W.push("Arrêts de vent cochés : type d'arrêt non choisi");
+  if(!v.lignes.length) E.push("Aucun volet saisi");
+  const mx=VB_MAX[v.type];
+  v.lignes.forEach((l,i)=>{ const n=l.repere||`volet ${i+1}`, L=num(l.L), H=num(l.H);
+    if(L==null) E.push(`${n} : largeur tableau manquante`); if(H==null) E.push(`${n} : hauteur tableau manquante`);
+    if(!l.vantaux) E.push(`${n} : nombre de vantaux non choisi`);
+    if(mx && L!=null && L>mx[0]) E.push(`${n} : largeur ${L} > maximum Corrèze ${mx[0]}`);
+    if(mx && H!=null && H>mx[1]) E.push(`${n} : hauteur ${H} > maximum Corrèze ${mx[1]}`);
+    if(num(l.allege)==null) W.push(`${n} : hauteur d'allège manquante (obligatoire chez Corrèze)`);
+    if(!l.sens_g && !l.sens_d) W.push(`${n} : sens (vue intérieure) non coché`);
+    if(/à gauche$|– gauche$/.test(l.vantaux) && l.sens_d && !l.sens_g) W.push(`${n} : « ${l.vantaux} » mais sens droite coché`);
+    if(/à droite$|– droite$/.test(l.vantaux) && l.sens_g && !l.sens_d) W.push(`${n} : « ${l.vantaux} » mais sens gauche coché`);
+    if((l.cintre_n!=="") !== (l.cintre_f!=="")) W.push(`${n} : cintre incomplet (naissance ET valeur de flèche)`);
+    if(l.cintre_f!=="" && !l.options.includes("Cintre")) W.push(`${n} : volet cintré → cocher l'option « Cintre »`);
+    if((l.f_l!==""||l.f_p!=="") && v.type_dim!==VB_TYPE_DIM[1]) W.push(`${n} : feuillures saisies → vérifier le type de dimensions (fond de feuillure ?)`);
+    if(gondsExistants(v) && (num(l.g.A_g)==null && num(l.g.A_d)==null || num(l.g.B_g)==null && num(l.g.B_d)==null)) W.push(`${n} : gonds existants → cotes A et B à relever (schéma)`);
+    if(!l.espagnolette) W.push(`${n} : espagnolette non choisie`); });
+  return {E,W};
+}
+function renderVB(t){
+  const d=S.dossier; if(!d.vb) d.vb=nouveauVB(); const v=d.vb, C=VB_CAT();
+  const ligne=l=>{ const i=v.lignes.indexOf(l), k=`vb.lignes.${i}.`;
+    return `<div class="card clim-l"><div class="row" style="margin-bottom:8px"><b>${esc(l.repere||"Nouveau volet")}</b><span class="spacer"></span>
+      <button class="btn small" data-vbdup="${i}">Dupliquer</button><button class="btn small danger" data-vbdel="${i}" aria-label="Supprimer le volet">✕</button></div>
+      <div class="grid g4">
+        <label class="f">Repère<input data-k="${k}repere" value="${esc(l.repere)}" list="dlPiecesVB"></label>${F.numb(k+"qte","Quantité",l.qte)}
+        <div style="grid-column:span 2">${F.sel(k+"vantaux","Nombre de vantaux",C.vantaux||[],l.vantaux)}</div>
+        ${F.numb(k+"L","Tableau – largeur (mm)",l.L)}${F.numb(k+"H","Tableau – hauteur (mm)",l.H)}${F.numb(k+"allege","Hauteur d'allège (mm)",l.allege)}
+        <div class="checks" style="align-self:end"><span class="hint" style="width:100%">Sens vue intérieure</span>${F.chk(k+"sens_g","Gauche",l.sens_g)}${F.chk(k+"sens_d","Droite",l.sens_d)}</div>
+        ${F.numb(k+"f_l","Feuillure – largeur (mm)",l.f_l)}${F.numb(k+"f_p","Feuillure – profondeur (mm)",l.f_p)}<label class="f">Feuillure – côtés<input data-k="${k}f_cotes" value="${esc(l.f_cotes)}" placeholder="ex. 3 côtés, G + D"></label><div></div>
+        ${F.numb(k+"cintre_n","Naissance du cintre (mm)",l.cintre_n)}${F.numb(k+"cintre_f","Valeur de la flèche (mm)",l.cintre_f)}<div style="grid-column:span 2">${F.sel(k+"espagnolette","Espagnolette",C.espagnolette||[],l.espagnolette)}</div>
+      </div>
+      <div class="hint" style="margin:8px 0 4px">Options</div>${F.multi(k+"options",VB_OPTIONS,l.options)}
+      <div style="margin-top:8px">${F.text(k+"obs","Observation",l.obs)}</div>
+      <details class="vb-gonds" ${gondsExistants(v)?"open":""}><summary><b>Gonds existants</b> <span class="hint">– cotes vues de l'intérieur (voir les schémas en bas)</span></summary>
+        <table class="vb-gt"><tr><th></th><th>A</th><th>B</th><th>C</th><th>Départ D / Dp</th><th>Départ ou renvoi R / Db</th></tr>
+          ${["g","d"].map(s=>`<tr><th>${s==="g"?"Gauche":"Droite"}</th>${["A","B","C","D","R"].map(x=>`<td><input data-k="${k}g.${x}_${s}" inputmode="decimal" value="${esc(l.g[x+"_"+s])}"></td>`).join("")}</tr>`).join("")}</table>
+        <div class="grid g2" style="margin-top:6px">${F.text(k+"g.gond","Gond (type, diamètre)",l.g.gond)}${F.text(k+"g.obs","Observation gonds",l.g.obs)}</div></details></div>`; };
+  t.innerHTML=`<datalist id="dlPiecesVB">${listePiecesDL()}</datalist>
+  <div class="card"><h2><span class="num">1</span>Volets battants – Corrèze Fermetures</h2><div class="grid g4">
+    ${F.sel("vb.matiere","Matière",VB_MATIERES,v.matiere)}<div style="grid-column:span 2">${F.sel("vb.type","Type",vbTypes(v.matiere),v.type)}</div>${F.sel("vb.couleur",v.matiere==="Bois"?"Finition":"Couleur",vbCouleurs(v.matiere),v.couleur)}
+    ${v.matiere==="Bois"?F.sel("vb.essence","Essence",VB_ESSENCES,v.essence):""}
+    ${F.sel("vb.gonds","Gonds",C.gonds||[],v.gonds)}${F.sel("vb.barre","Barres et écharpes (panneau / ferrage)",C.ferrage||[],v.barre)}${F.sel("vb.ferrage","Ferrage (pentures)",C.pentures||[],v.ferrage)}${F.sel("vb.lame","Lame",VB_LAMES,v.lame)}
+    ${F.sel("vb.pose","Pose",VB_POSES,v.pose)}${F.sel("vb.manutention","Manutention",CAT.vr.manutention,v.manutention)}${F.sel("vb.type_dim","Type de dimensions (Corrèze)",VB_TYPE_DIM,v.type_dim)}
+    <div class="checks" style="align-self:end">${F.chk("vb.arrets","Arrêts de vent",v.arrets)}</div>${v.arrets?F.sel("vb.arret_type","Type d'arrêt",C.arrets||[],v.arret_type):""}
+  </div>${VB_MAX[v.type]?`<p class="hint">Maximum Corrèze pour ce type : ${VB_MAX[v.type][0]} × ${VB_MAX[v.type][1]} mm.</p>`:""}</div>
+  <div class="row" style="margin:14px 0 8px"><h2 style="margin:0"><span class="num">2</span> Volets</h2><span class="spacer"></span><button class="btn primary" id="vbAdd">+ Ajouter un volet</button></div>
+  ${v.lignes.map(ligne).join("")||`<p class="hint">Aucun volet. Appuie sur « + Ajouter un volet ».</p>`}
+  <details class="card" ${gondsExistants(v)?"open":""}><summary><h2 style="display:inline"><span class="num">3</span>Schémas gonds existants <small style="font-weight:400;text-transform:none">– toujours vu de l'intérieur</small></h2></summary>
+    <div class="vb-img"><img src="img/vb-gonds-formes.jpg" alt="Cotes A, B, C selon la forme du volet"><img src="img/vb-gonds-deport.jpg" alt="Déport D / Dp et débord R / Db des gonds existants"></div></details>
+  <div class="card"><h2><span class="num">4</span>Photos <small style="font-weight:400;text-transform:none">– façade, gonds existants, feuillures…</small></h2>
+    <div class="photos">${v.photos.map((p,k)=>`<figure class="photo"><img src="${p.img}" alt="Photo ${k+1}" data-phedit="${k}">
+      <textarea data-k="vb.photos.${k}.txt" rows="2" placeholder="Repère et remarque">${esc(p.txt||"")}</textarea>
+      <div class="row"><button class="btn small" data-phedit="${k}">✏️ Annoter</button><span class="spacer"></span><button class="btn small danger" data-phdel="${k}" aria-label="Supprimer la photo ${k+1}">✕</button></div></figure>`).join("")}
+    <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple id="phAdd" class="hide"></label></div></div>`;
+  const re=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); };
+  $("#vbAdd").onclick=()=>{ v.lignes.push(nouvelleLigneVB()); save(); re(); };
+  $$("[data-vbdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer ce volet ?","Supprimer")) return; v.lignes.splice(+b.dataset.vbdel,1); save(); re(); });
+  $$("[data-vbdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.vbdup, n=JSON.parse(JSON.stringify(v.lignes[i])); n.id=uid(); v.lignes.splice(i+1,0,n); save(); re(); });
+  initPhotos(v, re);
+}
+/* ---------- PDF : feuilles « Volet » et « Schéma » de Nicolas ---------- */
+function pagesVB(d){
+  const v=d.vb; if(!aVB(d)) return "";
+  const x=b=>b?"✔":"", pad=(L,n)=>[...L,...Array(Math.max(0,n-L.length)).fill(null)];
+  const bx=(lab,val,w="")=>`<div class="vb-bx"${w?` style="grid-column:${w}"`:""}><span class="vb-lb">${esc(lab)}</span><span class="vb-v">${val}</span></div>`;
+  const ligne=l=>l?`<tr><td class="vb-rep">${esc(l.repere)}</td><td>${esc(l.qte)}</td><td class="sm">${esc(l.vantaux)}</td><td class="vb-tab">${esc(l.L)}</td><td class="vb-tab">${esc(l.H)}</td><td>${esc(l.f_l)}</td><td>${esc(l.f_p)}</td><td>${esc(l.f_cotes)}</td><td>${esc(l.cintre_n)}</td><td>${esc(l.cintre_f)}</td><td>${esc(l.allege)}</td><td>${x(l.sens_g)}</td><td>${x(l.sens_d)}</td><td class="sm">${esc(l.espagnolette)}</td><td class="sm">${esc([...l.options,l.obs].filter(Boolean).join(", "))}</td></tr>`
+    : `<tr><td class="vb-rep"></td>${"<td></td>".repeat(14)}</tr>`;
+  let h=`<div class="pg vb-pg"><div class="vb-titre">VOLET BATTANT</div><div class="vb-band">${estDefinitif(d)?"Métré définitif":"Devis"}</div>
+    <div class="vb-haut">
+      ${bx("Client",esc(d.client.nom),"1")}${bx("Gonds",esc(v.gonds),"2")}${bx("MÉTREUR",esc(d.metreur),"3")}
+      ${bx("Couleur",esc([v.couleur,v.matiere==="Bois"?v.essence:""].filter(Boolean).join(" – ")),"1")}${bx("Barre et écharpe",esc(v.barre),"2")}${bx("Pose",esc(v.pose),"3")}
+      ${bx("Matière",esc(v.matiere),"1")}${bx("Ferrage",esc(v.ferrage),"2")}${bx("Arrêts de vent",`<span class="cbx">${v.arrets?"☑":"☐"}</span>${v.arrets&&v.arret_type?" "+esc(v.arret_type):""}`,"3")}
+      ${bx("Type",esc(v.type),"1")}${bx("Lame",esc(v.lame),"2")}${bx("Manutention",esc(v.manutention),"3")}
+    </div>
+    <table class="vb-t"><colgroup>${[11,5.5,7,6,6,6,6.5,6,7,6,6,5,5,8,9].map(w=>`<col style="width:${w}%">`).join("")}</colgroup>
+      <tr class="g1"><th class="nb" colspan="3"></th><th colspan="2" class="vb-tab">Tableau</th><th colspan="3">Feuillures</th><th colspan="2">Cintre</th><th class="nb"></th><th colspan="2">Sens vue intérieur</th><th rowspan="2">Espagnolettes</th><th rowspan="2">Options</th></tr>
+      <tr><th class="vb-rep">Repère</th><th>Quantité</th><th>Nbre de vantaux</th><th class="vb-tab">Largeur</th><th class="vb-tab">Hauteur</th><th>Largeur</th><th>Profondeur</th><th>Cotés</th><th>Naissance du cintre</th><th>Valeur flèche</th><th>Hauteur Allège</th><th>Gauche</th><th>Droite</th></tr>
+      ${pad(v.lignes,15).map(ligne).join("")}</table>
+    <div class="vb-pied">${esc(v.type_dim||"")} · Fournisseur : Corrèze Fermetures</div></div>`;
+  const avecG=v.lignes.filter(l=>Object.values(l.g).some(z=>z!==""));
+  if(gondsExistants(v) || avecG.length){
+    const gl=l=>l?`<tr><td class="vb-rep">${esc(l.repere)}</td>${["A","B","C","D","R"].map(z=>`<td>${esc(l.g[z+"_g"])}</td><td>${esc(l.g[z+"_d"])}</td>`).join("")}<td>${esc(l.g.gond)}</td><td class="sm">${esc(l.g.obs)}</td></tr>`
+      : `<tr><td class="vb-rep"></td>${"<td></td>".repeat(12)}</tr>`;
+    h+=`<div class="pg vb-pg"><div class="vb-titre">VOLET BATTANT – Schéma</div><div class="vb-band">Gonds existants – ${esc(d.client.nom)}</div>
+      <div class="vb-imgs"><img src="img/vb-gonds-formes.jpg"><img src="img/vb-gonds-deport.jpg"></div>
+      <table class="vb-t"><tr class="g1"><th class="nb"></th><th colspan="10">Toujours vu de l'intérieur</th><th class="nb" colspan="2"></th></tr>
+        <tr class="g1"><th class="nb"></th><th colspan="2">A</th><th colspan="2">B</th><th colspan="2">C</th><th colspan="2">Départ : D Dp</th><th colspan="2">Départ ou renvoi : R/db</th><th class="nb" colspan="2"></th></tr>
+        <tr><th class="vb-rep">Repère</th>${"<th>Gauche</th><th>Droite</th>".repeat(5)}<th>Gond</th><th>Observations</th></tr>
+        ${pad(v.lignes,10).map(gl).join("")}</table></div>`;
+  }
+  const ph=v.photos.filter(p=>p.img), head=t=>`<div class="ph"><img src="${LOGO}"><div class="tt">${esc(t)}</div><div>${esc(d.client.nom)}<br>${fmtDate(d.client.date_rdv)}</div></div>`;
+  for(let i=0;i<ph.length;i+=4) h+=`<div class="pg">${head("Photos volets battants")}<div class="pphotos">${ph.slice(i,i+4).map((p,j)=>`<figure><img src="${p.img}"><figcaption><b>Photo ${i+j+1}</b>${p.txt?" – "+esc(p.txt):""}</figcaption></figure>`).join("")}</div></div>`;
+  return h;
+}
+
 /* ---------- Variante ---------- */
 function ouvrirVariante(){ $("#varGamme").innerHTML=opts(CAT.gammes,"","Choisir…"); $("#mVar").classList.add("open"); }
 $("#varGo").onclick=async()=>{
@@ -1795,6 +1934,7 @@ function construireImpression(d){
       ${errs.length?`<div class="pwarn">À vérifier : ${esc(errs.join(" · "))}</div>`:""}</div>
       <div>${tp&&SCHEMAS[tp.img]?`<img src="${SCHEMAS[tp.img]}" style="max-width:100%;border:1px solid #9aa3b5"><div style="text-align:center;font-weight:700">${esc(tp.nom)}</div>`:""}</div></div></div>`;
   }
+  h+=pagesVB(d);
   h+=pagesClim(d);
   return h;
 }
@@ -1913,6 +2053,7 @@ function nomMetre(d){
   const mat=[...new Set([d.gamme_defaut,...d.ouvertures.map(o=>o.gamme)].filter(Boolean).map(g=>g.split(" - ")[0].trim().toUpperCase()))];
   const n=parseInt(String(d.variante||"").replace(/^V(\d+).*/,"$1"))||1;
   const nom=(d.client.nom||"SANS NOM").trim().toUpperCase().replace(/[\\/:*?"<>|]+/g," ");
+  if(typeof aVB==="function" && aVB(d)) mat.push("VB");
   if(typeof aClim==="function" && aClim(d)) mat.push("CLIM");
   return `${nom} ME ${mat.length?mat.join(" ET "):(d.vr.lignes.length?"VR":"")}${n>1?" V"+n:""}`.replace(/\s+/g," ").trim();
 }
@@ -1951,6 +2092,8 @@ async function envoyerDossierDrive(d){
     try{ const blob=await (await fetch(p.img)).blob();
       await deposerDrive(`${base} – ${o.num_poseur?"N°"+o.num_poseur+" ":""}${(o.repere||"ouverture").replace(/[\\/:*?"<>|]+/g," ")} – photo ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
   if(d.clim && d.clim.tableau && d.clim.tableau.img && !d.clim.tableau.drive){ try{ const blob=await (await fetch(d.clim.tableau.img)).blob(); await deposerDrive(`${base} – CLIM – Tableau électrique.jpg`, blob, sous); d.clim.tableau.drive=true; }catch(e){} }
+  for(const [k,p] of ((d.vb&&d.vb.photos)||[]).entries()){ if(p.drive || !p.img) continue;
+    try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – VOLETS BATTANTS – ${(p.txt||"photo").replace(/[\\/:*?"<>|\n]+/g," ").slice(0,60)} – ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
   for(const [k,p] of ((d.clim&&d.clim.photos)||[]).entries()){ if(p.drive || !p.img) continue;
     try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – CLIM – ${(p.txt||"photo").replace(/[\\/:*?"<>|\n]+/g," ").slice(0,60)} – ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
   d.drive={le:new Date().toISOString(), dossier:sous, lien:f.webViewLink||"", base, sig:empreinte(d)}; delete d.drive_attente;

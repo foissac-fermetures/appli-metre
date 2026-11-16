@@ -119,6 +119,8 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .rdv .t{font-weight:800;color:#1b2f5e}.rdv .s{font-size:13px;color:#55607a}
 .crm-liste{max-height:55vh;overflow:auto;display:flex;flex-direction:column;gap:6px}
 .item.sel{outline:3px solid var(--err,#b3202a)} .hchk{width:22px;height:22px;margin-right:6px}
+.clim-leg{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:8px;font-size:13px} .clim-leg i{display:inline-block;width:22px;height:5px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.clim-tab-card.manque{border:2px solid var(--err,#d3232f)} [data-sktxt].on{outline:3px solid currentColor}
 .clim-l{padding:12px} .clim-var{border-left:4px solid #e0a100} .clim-sketch{width:100%;aspect-ratio:1000/620;height:auto}
 .erp-card{border-left:4px solid var(--navy,#1b2f5e)} .erp-conseil{margin:10px 0 0;padding-left:20px;font-size:13px} .erp-conseil li{margin:3px 0}
 .dv-cote{font-size:13px;color:var(--navy,#1f3a5f);background:#eef3fa;border-radius:6px;padding:2px 8px;display:inline-block;margin-top:6px}
@@ -193,6 +195,8 @@ input:disabled{background:#eef1f7;color:#4a5368}
   .clim-tab td{height:17px}
   .clim-tab .dist{background:#ff2a1a;color:#fff;font-weight:700;text-align:center}
   .clim-tab .obs{height:38px;vertical-align:top}
+  .clim-tabpdf{display:grid;grid-template-columns:2fr 1fr;gap:14px;align-items:start} .clim-tabpdf img{max-width:100%;max-height:165mm;border:1px solid #9aa3b5}
+  .clim-place{border:2px solid #1f9d3a;color:#1f9d3a;font-weight:700;padding:6px 8px;font-size:11pt} .clim-place.non{border-color:#d3232f;color:#d3232f}
   .clim-schema{display:block;max-width:100%;max-height:170mm;margin:0 auto;border:1px solid #9aa3b5}
   .pg:last-child{page-break-after:auto;break-after:auto}
   .ph{display:flex;align-items:center;gap:12px;border-bottom:3px solid #1b2f5e;padding-bottom:6px;margin-bottom:8px}
@@ -374,7 +378,7 @@ const ERP_SENS = ["Extérieure (sens de la sortie)","Intérieure"];
 const ERP_AP = ["Barre anti-panique (NF EN 1125)","Poignée / béquille d'urgence (NF EN 179)"];
 const ERP_GROOM = ["Ferme-porte à bras compas","Ferme-porte à glissière","Ferme-porte avec arrêt (bloqueur)","Ferme-porte intégré (caché)"];
 const GC_VIDE = () => ({type:"", modele:"", L:"", H:"", finition:"", fixation:"", losange:false, etage:false, appui_h:"", zsp:false, zsp_h:"", epais:false});
-function normaliser(d){ if(!d.vr) d.vr=nouveauVR(); d.ouvertures.forEach(o=>{ o.gc=Object.assign(GC_VIDE(), o.gc||{}); o.erp=Object.assign(ERP_VIDE(), o.erp||{}); }); d.ouvertures.forEach((o,i)=>{ if(o.num_poseur===undefined) o.num_poseur=String(i+1); if(!Array.isArray(o.photos)) o.photos=[]; }); if(!d.equipe_pose && d.vr.equipe) d.equipe_pose={"Seul":"Tout seul"}[d.vr.equipe]||d.vr.equipe; d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
+function normaliser(d){ if(!d.vr) d.vr=nouveauVR(); if(d.clim && !d.clim.tableau) d.clim.tableau={img:"",txt:"",place:""}; d.ouvertures.forEach(o=>{ o.gc=Object.assign(GC_VIDE(), o.gc||{}); o.erp=Object.assign(ERP_VIDE(), o.erp||{}); }); d.ouvertures.forEach((o,i)=>{ if(o.num_poseur===undefined) o.num_poseur=String(i+1); if(!Array.isArray(o.photos)) o.photos=[]; }); if(!d.equipe_pose && d.vr.equipe) d.equipe_pose={"Seul":"Tout seul"}[d.vr.equipe]||d.vr.equipe; d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
 /* Volet roulant lié à une ouverture : repère, quantité et cotes tableau suivent la fiche ouverture */
 /* Volets roulants vendus avec la menuiserie (fabriqués avec elle) */
 const GAMME_MODELES = { "ALU - LALOI":"modeles_laloi", "PVC - REHAU PORTEO":"modeles_porteo" };
@@ -1445,21 +1449,27 @@ function dessinMenuiserie(o, opt={}){
 /* ---------- Croquis au stylet ---------- */
 function initSketch(o=S.ouv, cle="croquis"){
   const cv=$("#sketch"); if(!cv||!o) return;
-  const ctx=cv.getContext("2d"); let strokes=[], cur=null, pen="#1b2f5e", penOnly=false, ratio=1;
+  const ctx=cv.getContext("2d"); let strokes=[], cur=null, pen=$("[data-pen].on")?.dataset.pen||"#1b2f5e", penOnly=false, ratio=1, texte=null;
   const W=1600, H=Math.round(1600*420/1000);
   function size(){ const r=cv.getBoundingClientRect(); cv.width=W; cv.height=Math.round(W*r.height/r.width); ratio=cv.width/r.width; redraw(); }
-  function drawStroke(s){ if(s.pts.length<1) return; ctx.globalCompositeOperation=s.c==="erase"?"destination-out":"source-over"; ctx.strokeStyle=s.c==="erase"?"#000":s.c; ctx.lineCap=ctx.lineJoin="round";
+  function drawStroke(s){
+    if(s.t){ const fs=Math.round(30*ratio/1.2); ctx.font=`700 ${fs}px Arial,sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.lineJoin="round";
+      ctx.lineWidth=fs/4; ctx.strokeStyle="#fff"; ctx.strokeText(s.t,s.x,s.y); ctx.fillStyle=s.c; ctx.fillText(s.t,s.x,s.y); return; }
+    if(s.pts.length<1) return; ctx.globalCompositeOperation=s.c==="erase"?"destination-out":"source-over"; ctx.strokeStyle=s.c==="erase"?"#000":s.c; ctx.lineCap=ctx.lineJoin="round";
     for(let i=1;i<s.pts.length;i++){ const a=s.pts[i-1], b=s.pts[i]; ctx.lineWidth=(s.c==="erase"?30:(1.5+b[2]*4))*ratio/1.2; ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); }
     ctx.globalCompositeOperation="source-over"; }
   let base=null;
   function redraw(){ ctx.clearRect(0,0,cv.width,cv.height); if(base) ctx.drawImage(base,0,0,cv.width,cv.height); strokes.forEach(drawStroke); }
   if(o[cle]){ base=new Image(); base.onload=redraw; base.src=o[cle]; }
   const pt=e=>{ const r=cv.getBoundingClientRect(); return [(e.clientX-r.left)*ratio,(e.clientY-r.top)*ratio, e.pressure||0.5]; };
-  cv.onpointerdown=e=>{ if(penOnly && e.pointerType==="touch") return; cv.setPointerCapture(e.pointerId); cur={c:pen,pts:[pt(e)]}; strokes.push(cur); e.preventDefault(); };
+  cv.onpointerdown=e=>{ if(penOnly && e.pointerType==="touch") return;
+    if(texte){ const [x,y]=pt(e); strokes.push({t:texte.t, c:texte.c, x, y}); texte=null; $$("[data-sktxt]").forEach(b=>b.classList.remove("on")); redraw(); o[cle]=cv.toDataURL("image/png"); save(); e.preventDefault(); return; }
+    cv.setPointerCapture(e.pointerId); cur={c:pen,pts:[pt(e)]}; strokes.push(cur); e.preventDefault(); };
   cv.onpointermove=e=>{ if(!cur) return; const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e]; for(const ev of evs) cur.pts.push(pt(ev)); redraw(); e.preventDefault(); };
   const end=()=>{ if(!cur) return; if(cur.pts.length<2) strokes.pop(); cur=null; o[cle]=cv.toDataURL("image/png"); save(); };
   cv.onpointerup=end; cv.onpointercancel=end; cv.onpointerleave=end;
-  $$("[data-pen]").forEach(b=>b.onclick=()=>{ pen=b.dataset.pen; $$("[data-pen]").forEach(x=>x.classList.toggle("on",x===b)); });
+  $$("[data-pen]").forEach(b=>b.onclick=()=>{ pen=b.dataset.pen; texte=null; $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); $$("[data-pen]").forEach(x=>x.classList.toggle("on",x===b)); });
+  $$("[data-sktxt]").forEach(b=>b.onclick=()=>{ const on=!b.classList.contains("on"); $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); texte=on?{t:b.dataset.sktxt, c:b.dataset.c||pen}:null; b.classList.toggle("on",on); if(on) toast("Touche le schéma à l'endroit voulu"); });
   $("#skUndo").onclick=()=>{ strokes.pop(); redraw(); o[cle]=strokes.length||base?cv.toDataURL("image/png"):""; save(); };
   $("#skClear").onclick=async()=>{ if(!await demander("Effacer tout le croquis ?","Effacer")) return; strokes=[]; base=null; redraw(); o[cle]=""; save(); };
   const po=$("#skPenOnly input"); po.onchange=()=>{ penOnly=po.checked; $("#skPenOnly").classList.toggle("on",penOnly); };
@@ -1531,9 +1541,17 @@ const CLIM_HAUTEUR = ["SOL","Support mural","Toit terrasse","Balcon"];
 const CLIM_RAL = ["IVOIRE","BLANC","MARRON","GRIS","NOIR","Sans goulotte"];
 const CLIM_TYPES = ["Split","Console","Gainable","Cassette"];
 const CLIM_UNITES = ["Unité 1","Unité 2"];
+/* Légende des couleurs du schéma clim (stylos) et étiquettes reprises du schéma Numbers de Nicolas */
+const CLIM_LEGENDE = [
+  {c:"#111111", l:"Murs / pièces"}, {c:"#1f4fd8", l:"Unité intérieure (split)"}, {c:"#7b2cbf", l:"Console"},
+  {c:"#d3232f", l:"Groupe extérieur"}, {c:"#1f9d3a", l:"Goulotte / liaisons"}, {c:"#e07b00", l:"Tableau électrique / câble 3G"},
+  {c:"#00a3c4", l:"Évacuation des condensats"}, {c:"#8a8f99", l:"Menuiserie"} ];
+const CLIM_ETIQUETTES = [["Split","#1f4fd8"],["Console","#7b2cbf"],["Groupe extérieur","#d3232f"],["Unité 1","#d3232f"],["Unité 2","#d3232f"],["Goulotte","#1f9d3a"],["Tableau","#e07b00"],["Pompe de relevage","#00a3c4"],["Menuiserie","#8a8f99"],["Chauffe-eau","#111111"]];
+const CLIM_TABLEAU_PLACE = ["Oui, assez de place pour se rebrancher","Non, prévoir un petit tableau indépendant à côté","À vérifier par l'électricien"];
+const legendeClimHTML = () => `<div class="clim-leg">${CLIM_LEGENDE.map(x=>`<span><i style="background:${x.c}"></i>${esc(x.l)}</span>`).join("")}</div>`;
 const nouvelleClim = () => ({ mono:false, multi:false, modele:"", option:"", annee:"", temps_pose:"",
   ue1:{h_sol:"", cable:""}, ue2:{h_sol:"", cable:""}, dalle:false, supports:false, ral_ext:"", ral_int:"",
-  lignes:[], observation:"", schema_etage:"", schema_bas:"", photos:[] });
+  lignes:[], observation:"", schema_etage:"", schema_bas:"", photos:[], tableau:{img:"", txt:"", place:""} });
 const nouvelleLigneClim = (variante=false) => ({ id:uid(), piece:"", volume:"", surface:"", vitrage:"Double", isol_murs:"", isol_plafond:"", isol_combles:"",
   type:"Split", pompe:false, unite:"Unité 1", distance:"", variante, L:"", l:"", h:"" });
 const climLignes = d => (d.clim?.lignes||[]).filter(l=>!l.variante);
@@ -1549,6 +1567,8 @@ function controleClim(d){
   if(!c.modele) W.push("Modèle non renseigné");
   if(!c.temps_pose) W.push("Temps de pose non estimé");
   if(!c.lignes.length) E.push("Aucune pièce saisie");
+  if(!c.tableau?.img) E.push("Photo du tableau électrique obligatoire (place pour se rebrancher ?)");
+  if(!c.tableau?.place) W.push("Tableau électrique : préciser s'il y a assez de place ou s'il faut un petit tableau indépendant");
   const u2=c.lignes.some(l=>l.unite==="Unité 2");
   if(!c.ue1.h_sol) W.push("Hauteur du sol de l'unité extérieure 1 non renseignée");
   if(!num(c.ue1.cable)) W.push("Longueur de câble au tableau (unité 1) non renseignée");
@@ -1601,15 +1621,20 @@ function renderClim(t){
   <div class="card"><h2><span class="num">4</span>Observation</h2>${F.area("clim.observation","Ce que la secrétaire doit savoir (imprimé en bas du bon)",c.observation)}</div>
   <div class="card"><h2><span class="num">5</span>Schémas</h2>
     <div class="seg" style="margin-bottom:10px">${[["schema_etage","Schéma étage"],["schema_bas","Schéma bas"]].map(([k,l])=>`<button class="${(S.climSch||"schema_etage")===k?"on":""}" data-clsch="${k}">${l}${c[k]?" ✓":""}</button>`).join("")}</div>
-    <div class="toolbar">
-      <button class="btn small on" data-pen="#1b2f5e"><span class="dot" style="background:#1b2f5e"></span>Bleu</button>
-      <button class="btn small" data-pen="#d3232f"><span class="dot" style="background:#d3232f"></span>Rouge</button>
-      <button class="btn small" data-pen="#111"><span class="dot" style="background:#111"></span>Noir</button>
-      <button class="btn small" data-pen="erase">Gomme</button><button class="btn small" id="skUndo">Annuler</button><button class="btn small danger" id="skClear">Effacer tout</button>
+    <div class="hint" style="margin-bottom:4px">Stylos (légende imprimée avec le schéma) :</div>
+    <div class="toolbar">${CLIM_LEGENDE.map((x,i)=>`<button class="btn small${i===0?" on":""}" data-pen="${x.c}"><span class="dot" style="background:${x.c}"></span>${esc(x.l)}</button>`).join("")}</div>
+    <div class="hint" style="margin:6px 0 4px">Étiquettes : touche un mot puis l'endroit du schéma :</div>
+    <div class="toolbar">${CLIM_ETIQUETTES.map(([t,c])=>`<button class="btn small" data-sktxt="${esc(t)}" data-c="${c}" style="color:${c}">${esc(t)}</button>`).join("")}</div>
+    <div class="toolbar"><button class="btn small" data-pen="erase">Gomme</button><button class="btn small" id="skUndo">Annuler</button><button class="btn small danger" id="skClear">Effacer tout</button>
       <label class="chip" id="skPenOnly"><input type="checkbox">Stylet seulement</label></div>
     <canvas id="sketch" class="sketch clim-sketch"></canvas>
     <div class="hint">Dessine les pièces, l'emplacement des unités intérieures / extérieures et le passage des liaisons.</div></div>
-  <div class="card"><h2><span class="num">6</span>Photos <small style="font-weight:400;text-transform:none">– une par pièce, le tableau électrique, l'emplacement de l'unité extérieure…</small></h2>
+  <div class="card clim-tab-card${c.tableau.img?"":" manque"}"><h2><span class="num">6</span>Tableau électrique <small style="font-weight:400;text-transform:none">– photo OBLIGATOIRE : y a-t-il la place pour se rebrancher ?</small></h2>
+    <div class="grid g2"><div>${c.tableau.img?`<figure class="photo"><img src="${c.tableau.img}" alt="Tableau électrique" data-tabedit="1">
+        <div class="row"><button class="btn small" data-tabedit="1">✏️ Annoter</button><span class="spacer"></span><button class="btn small danger" id="tabDel">✕</button></div></figure>`
+      :`<label class="btn primary photo-add">📷 Photo du tableau électrique<input type="file" accept="image/*" id="tabAdd" class="hide"></label>`}</div>
+      <div>${F.sel("clim.tableau.place","Place pour se rebrancher",CLIM_TABLEAU_PLACE,c.tableau.place)}<div style="margin-top:10px">${F.area("clim.tableau.txt","Remarque (disjoncteur, différentiel, emplacement…)",c.tableau.txt)}</div></div></div></div>
+  <div class="card"><h2><span class="num">7</span>Photos <small style="font-weight:400;text-transform:none">– une par pièce, le tableau électrique, l'emplacement de l'unité extérieure…</small></h2>
     <div class="photos">${c.photos.map((p,k)=>`<figure class="photo"><img src="${p.img}" alt="Photo ${k+1}" data-phedit="${k}">
       <textarea data-k="clim.photos.${k}.txt" rows="2" placeholder="Pièce (Salon, Tableau…) et remarque">${esc(p.txt||"")}</textarea>
       <div class="row"><button class="btn small" data-phedit="${k}">✏️ Annoter</button><span class="spacer"></span><button class="btn small danger" data-phdel="${k}" aria-label="Supprimer la photo ${k+1}">✕</button></div></figure>`).join("")}
@@ -1624,6 +1649,10 @@ function renderClim(t){
   $$("[data-clsch]").forEach(b=>b.onclick=()=>{ S.climSch=b.dataset.clsch; re(); });
   initSketch(c, S.climSch||"schema_etage");
   initPhotos(c, re);
+  if(!c.tableau) c.tableau={img:"",txt:"",place:""};
+  const ta=$("#tabAdd"); if(ta) ta.onchange=async()=>{ const f=ta.files[0]; if(!f) return; try{ c.tableau.img=await reduirePhoto(f); c.tableau.drive=false; save(); re(); }catch(e){ toast("Photo illisible"); } };
+  const td=$("#tabDel"); if(td) td.onclick=async()=>{ if(!await demander("Supprimer la photo du tableau ?","Supprimer")) return; c.tableau.img=""; save(); re(); };
+  $$("[data-tabedit]").forEach(b=>b.onclick=()=>annoterPhoto(0, {photos:[c.tableau]}, re));
 }
 /* Mise à jour sans tout redessiner (garde le curseur dans la case) */
 function majClim(k){
@@ -1661,7 +1690,8 @@ function pagesClim(d){
       ${pad(climVariantes(d),5).map(rowL).join("")}
       <tr><td colspan="12" class="cv c obs">${esc(c.observation).replace(/\n/g,"<br>")}</td></tr></table></div>`;
   const head=t=>`<div class="ph"><img src="${LOGO}"><div class="tt">${esc(t)}</div><div>${esc(d.client.nom)}<br>${fmtDate(d.client.date_rdv)}</div></div>`;
-  [["schema_etage","Schéma Etage"],["schema_bas","Schéma Bas"]].forEach(([k,t])=>{ if(c[k]) h+=`<div class="pg">${head(t)}<img src="${c[k]}" class="clim-schema"></div>`; });
+  [["schema_etage","Schéma Etage"],["schema_bas","Schéma Bas"]].forEach(([k,t])=>{ if(c[k]) h+=`<div class="pg">${head(t)}<img src="${c[k]}" class="clim-schema">${legendeClimHTML()}</div>`; });
+  if(c.tableau?.img) h+=`<div class="pg">${head("PH Tableau électrique")}<div class="clim-tabpdf"><img src="${c.tableau.img}"><div><div class="clim-place${/^Non/.test(c.tableau.place)?" non":""}">${esc(c.tableau.place||"Place pour se rebrancher : non précisé")}</div>${c.tableau.txt?`<p>${esc(c.tableau.txt).replace(/\n/g,"<br>")}</p>`:""}</div></div></div>`;
   const ph=c.photos.filter(p=>p.img);
   for(let i=0;i<ph.length;i+=4) h+=`<div class="pg">${head("Photos climatisation")}<div class="pphotos">${ph.slice(i,i+4).map((p,j)=>`<figure><img src="${p.img}"><figcaption><b>PH ${esc(p.txt||"Photo "+(i+j+1))}</b></figcaption></figure>`).join("")}</div></div>`;
   return h;
@@ -1920,6 +1950,7 @@ async function envoyerDossierDrive(d){
   for(const o of d.ouvertures) for(const [k,p] of (o.photos||[]).entries()){ if(p.drive || !p.img) continue;
     try{ const blob=await (await fetch(p.img)).blob();
       await deposerDrive(`${base} – ${o.num_poseur?"N°"+o.num_poseur+" ":""}${(o.repere||"ouverture").replace(/[\\/:*?"<>|]+/g," ")} – photo ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
+  if(d.clim && d.clim.tableau && d.clim.tableau.img && !d.clim.tableau.drive){ try{ const blob=await (await fetch(d.clim.tableau.img)).blob(); await deposerDrive(`${base} – CLIM – Tableau électrique.jpg`, blob, sous); d.clim.tableau.drive=true; }catch(e){} }
   for(const [k,p] of ((d.clim&&d.clim.photos)||[]).entries()){ if(p.drive || !p.img) continue;
     try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – CLIM – ${(p.txt||"photo").replace(/[\\/:*?"<>|\n]+/g," ").slice(0,60)} – ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
   d.drive={le:new Date().toISOString(), dossier:sous, lien:f.webViewLink||"", base, sig:empreinte(d)}; delete d.drive_attente;

@@ -118,6 +118,7 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .rdv-h{font-size:12px;font-weight:700;color:#b51d28;text-transform:capitalize}
 .rdv .t{font-weight:800;color:#1b2f5e}.rdv .s{font-size:13px;color:#55607a}
 .crm-liste{max-height:55vh;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.item.sel{outline:3px solid var(--err,#b3202a)} .hchk{width:22px;height:22px;margin-right:6px}
 .erp-card{border-left:4px solid var(--navy,#1b2f5e)} .erp-conseil{margin:10px 0 0;padding-left:20px;font-size:13px} .erp-conseil li{margin:3px 0}
 .dv-cote{font-size:13px;color:var(--navy,#1f3a5f);background:#eef3fa;border-radius:6px;padding:2px 8px;display:inline-block;margin-top:6px}
 .dv-liste{max-height:40vh;overflow:auto;margin:6px 0;padding-left:22px;font-size:14px}
@@ -258,7 +259,7 @@ input:disabled{background:#eef1f7;color:#4a5368}
 
 <!-- Confirmation intégrée (remplace confirm(), souvent bloqué sur iPad / aperçus) -->
 <div class="modal" id="mConf"><div class="box">
-  <h2 id="confTxt" style="text-transform:none;letter-spacing:0;font-size:18px"></h2>
+  <h2 id="confTxt" style="text-transform:none;letter-spacing:0;font-size:18px;white-space:pre-line"></h2>
   <div class="row" style="margin-top:18px"><button class="btn" id="confNon">Annuler</button><span class="spacer"></span><button class="btn primary" id="confOui">Confirmer</button></div>
 </div></div>
 <!-- Choix d'un client du CRM -->
@@ -821,10 +822,11 @@ async function renderHome(){
     <button class="btn primary" id="hNew">+ Nouveau métré</button></div>
   <p class="hint">Chaque métré s'enregistre tout seul quand tu reviens à cette liste, dans <b>Mon Drive › Appli métré – Dossiers › Devis</b> (ou <b>› Métrés définitif</b> pour un métré définitif). Une fois recontrôlé, déplace son dossier dans le <b>2026</b> de ce même dossier : la copie part toute seule chez Clémence (DEVIS A FAIRE ou METRES DEFINITIF).</p>
   <div class="card" id="hAgenda" style="margin-bottom:16px"><p class="hint">Chargement des rendez-vous…</p></div>
-  <h2 style="margin:6px 0 10px">Mes métrés</h2>
+  <div class="row" style="margin:6px 0 10px"><h2 style="margin:0">Mes métrés</h2><span class="spacer"></span>
+    ${ds.length?(S.selMode?`<button class="btn small" id="hSelTout">Tout cocher</button><button class="btn small danger" id="hSelDel">Supprimer la sélection</button><button class="btn small" id="hSelFin">Annuler</button>`:`<button class="btn small" id="hSel">Supprimer plusieurs…</button>`):""}</div>
   <div class="list">${ds.map(d=>{ normaliser(d); const n=nbErreurs(d);
-    return `<div class="item" data-id="${d.id}">
-      <div class="row"><span class="t">${esc(d.client.nom||"Sans nom")}</span><span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span></div>
+    return `<div class="item${S.selMode&&S.sel.has(d.id)?" sel":""}" data-id="${d.id}">
+      <div class="row">${S.selMode?`<input type="checkbox" class="hchk" ${S.sel.has(d.id)?"checked":""} aria-label="Sélectionner">`:""}<span class="t">${esc(d.client.nom||"Sans nom")}</span><span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span>${S.selMode?"":`<button class="btn small danger" data-hdel="${d.id}" title="Supprimer ce métré" aria-label="Supprimer ce métré">🗑</button>`}</div>
       <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.length} ouverture(s)${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}</div>
       <div class="s">${esc(d.gamme_defaut||"")}</div>
       <div>${n?`<span class="badge b-err">${n} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} <span class="badge ${estDefinitif(d)?"b-err":"b-n"}">${estDefinitif(d)?"Métré définitif":"Devis"}</span> ${d.drive_attente?`<span class="badge b-n">☁ envoi en attente</span>`:d.drive?`<span class="badge b-ok">☁ dans le Drive</span>`:""}</div>
@@ -832,10 +834,38 @@ async function renderHome(){
   $("#hNew").onclick=()=>{ S.dossier=nouveauDossier(); DB.put(S.dossier); S.tab="client"; renderDossier(); };
   $("#hOpen").onclick=()=>$("#fileOpen").click();
   $("#hCRM").onclick=()=>ouvrirCRM("nouveau");
-  $$(".item[data-id]").forEach(el=>el.onclick=()=>{ S.dossier=ds.find(d=>d.id===el.dataset.id); S.tab="client"; renderDossier(); });
+  $$(".item[data-id]").forEach(el=>el.onclick=e=>{ if(e.target.closest("button")) return;
+    if(S.selMode){ const id=el.dataset.id; S.sel.has(id)?S.sel.delete(id):S.sel.add(id); renderHome(); return; }
+    S.dossier=ds.find(d=>d.id===el.dataset.id); S.tab="client"; renderDossier(); });
+  $$("[data-hdel]").forEach(b=>b.onclick=()=>supprimerMetres([ds.find(d=>d.id===b.dataset.hdel)]));
+  if($("#hSel")) $("#hSel").onclick=()=>{ S.selMode=true; S.sel=new Set(); renderHome(); };
+  if($("#hSelFin")) $("#hSelFin").onclick=()=>{ S.selMode=false; renderHome(); };
+  if($("#hSelTout")) $("#hSelTout").onclick=()=>{ S.sel = S.sel.size===ds.length ? new Set() : new Set(ds.map(d=>d.id)); renderHome(); };
+  if($("#hSelDel")) $("#hSelDel").onclick=()=>{ const L=ds.filter(d=>S.sel.has(d.id)); if(!L.length) return toast("Coche d'abord les métrés à supprimer"); supprimerMetres(L); };
   afficherAgenda(false);
 }
 
+/* Suppression depuis l'accueil (16/11/2026, pour les essais). Le dossier Drive peut aussi partir à la corbeille (récupérable 30 jours),
+   mais JAMAIS s'il a déjà été rangé dans « 2026 » (donc envoyé chez Clémence). */
+async function supprimerMetres(L){
+  const noms=L.map(d=>`${d.client.nom||"Sans nom"} (${d.variante})`).join(", ");
+  if(!await demander(L.length>1?`Supprimer ces ${L.length} métrés de l'appli ?\n${noms}`:`Supprimer le métré « ${noms} » de l'appli ?`,"Supprimer")) return;
+  for(const d of L) await DB.del(d.id);
+  const surDrive=L.filter(d=>d.drive&&d.drive.dossier);
+  S.selMode=false; renderHome();
+  if(!surDrive.length || !driveDispo()){ toast(L.length>1?`${L.length} métrés supprimés`:"Métré supprimé"); return; }
+  if(!await demander(`${surDrive.length>1?surDrive.length+" de ces métrés ont":"Ce métré a"} aussi un dossier dans ton Drive. Le mettre à la corbeille du Drive ? (récupérable 30 jours ; un dossier déjà rangé dans « 2026 » est toujours gardé)`,"Mettre à la corbeille")){ toast("Supprimé de l'appli · dossier Drive gardé"); return; }
+  let n=0, garde=0;
+  try{ await demanderJeton();
+    for(const d of surDrive){
+      try{ const f=await gdrive(`https://www.googleapis.com/drive/v3/files/${d.drive.dossier}?fields=id,parents,trashed`);
+        if(f.trashed) continue;
+        if(!(f.parents||[]).some(p=>p===DOSSIERS_CONNUS.devis||p===DOSSIERS_CONNUS.definitif)){ garde++; continue; }   // déplacé (2026…) : on n'y touche pas
+        await gdrive(`https://www.googleapis.com/drive/v3/files/${d.drive.dossier}?fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:true})}); n++;
+      }catch(e){ if(!/Drive 404/.test(e.message)) throw e; } }
+    toast(`Supprimé · ${n} dossier(s) Drive à la corbeille${garde?` · ${garde} gardé(s) (déjà dans 2026)`:""}`);
+  }catch(e){ toast("Supprimé de l'appli · Drive : "+e.message); }
+}
 /* ---------- Dossier ---------- */
 function renderDossier(){
   S.view="dossier"; S.ouv=null; const d=normaliser(S.dossier); syncVR(d); majTitre();

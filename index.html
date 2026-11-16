@@ -735,6 +735,7 @@ function controleOuverture(o, d=S.dossier){
   if(o.appui_bas && (o.seuil_std||o.seuil_plat)) E.push("Appui bas ET seuil cochés ?");
   controleGC(o, E, W);
   controleERP(o, E, W);
+  if(aileRecouvrement(o)){ if(o.pose!=="tunnel") W.push("Ailes de recouvrement : prévues pour la pose en tunnel"); if(!o.delignage) W.push("Ailes de recouvrement : préciser le délignage (ou « sans délignage »)"); }
   if(o.comp&&o.comp.type){ if(compH(o)==null) E.push("Compensateur : hauteur (mm) manquante"); if(!o.comp.compris) W.push("Compensateur : préciser s'il est compris ou non dans la hauteur de fabrication"); if(o.comp.type.startsWith("Autre") && !/compensateur/i.test(o.obs_libre||"")) W.push("Compensateur « autre » : préciser la section dans les observations"); if(seuilEncastre(o)) W.push("Compensateur ET seuil encastré : vérifier"); }
   if(o.seuil_encastre && !seuilEncastre(o)) W.push("Seuil encastré coché mais le modèle n'est pas un coulissant");
   if(seuilEncastre(o) && num(o.fab_force.H)!=null) W.push("Seuil encastré : hauteur saisie à la main, vérifier que les 40 mm sont compris");
@@ -878,8 +879,15 @@ function groupeRehau(o){ if(o.renovation) return "REHAU – Rénovation";
 function poseRehauDediee(o){ return o.gamme==="PVC - REHAU PORTEO" && groupeRehau(o)!=="REHAU – Autres poses"; }
 function nomPoseRehau(o){ return o.renovation ? "rénovation" : o.applique_neuf ? "pose en applique" : o.pose==="feuillure" ? "pose en feuillure" : "pose en tunnel"; }
 function listeDormants(o){ if(FRN(o.gamme).dormants) return FRN(o.gamme).dormants; const L=listeFournisseur(CAT.dormant_aile,GAMME_DORMANT,o.gamme);
-  if(o.gamme==="PVC - REHAU PORTEO") return L.filter(x=>x.groupe===groupeRehau(o));
+  if(o.gamme==="PVC - REHAU PORTEO"){ const G=L.filter(x=>x.groupe===groupeRehau(o));
+    // pose en tunnel : profils avec ailes de recouvrement (16/11/2026, demande de Nicolas)
+    if(o.pose==="tunnel" && !o.renovation && !o.applique_neuf) G.push({groupe:"REHAU – Ailes de recouvrement (pose tunnel)", items:AILES_TUNNEL});
+    return G; }
   return L; }
+const AILES_TUNNEL = ["Dormant 60 mm avec aile de recouvrement de 30 mm","Dormant 60 mm avec aile de recouvrement de 40 mm","Dormant 60 mm avec aile de recouvrement de 70 mm"];
+const DELIGNAGES = ["Sans délignage","Sur montant gauche","Sur montant droit","Sur montants gauche et droit","Sur traverse haute","Sur traverse basse","Sur traverses haute et basse","Montants gauche et droit + traverse haute","Montants gauche et droit + traverse basse","Montants gauche et droit + traverses haute et basse"];
+const aileRecouvrement = o => AILES_TUNNEL.includes(o.dormant_aile);
+const largeurAile = o => +((o.dormant_aile||"").match(/de (\d+) mm$/)||[])[1]||null;
 function listeFournisseur(liste, table, g){ const k=table[g]; if(!k) return liste; return liste.filter(x=>!x.groupe || k.includes(x.groupe)); }
 function dansListe(liste, v){ return !v || liste.some(x=>x.groupe!=null ? x.items.includes(v) : x===v); }
 function couleurDansGamme(o){ return (!o.couleur_int||plat(groupesCouleur(o.gamme,"int")).includes(o.couleur_int)) && (!o.couleur_ext||plat(groupesCouleur(o.gamme,"ext")).includes(o.couleur_ext)); }
@@ -929,6 +937,7 @@ function refreshLive(k){
   if(S.view==="ouverture"){
     if(k==="gamme"||k==="renovation"||k==="applique_neuf"||k==="depose_totale"||(k.startsWith("vantaux.")&&!modeleDe(S.ouv))){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(String(k).startsWith("erp.")){ if(["erp.actif","erp.ap","erp.ap_type","erp.groom"].includes(k)) syncAccessoiresERP(S.ouv); const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
+    if(k==="dormant_aile"||k==="delignage"){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(k==="comp.type"){ const c=S.ouv.comp; if(c.type && !c.h) c.h=String((c.type.match(/^(\d+)/)||[])[1]||""); if(c.type && !c.compris) c.compris=COMP_COMPRIS[1]; if(!c.type){ c.h=""; c.compris=""; } save(); const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(k==="volet.type"||k==="gc.zsp"){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(String(k).startsWith("gc.")) majGC();
@@ -1217,6 +1226,8 @@ function renderOuverture(){
     ${FRN(o.gamme).essences?F.sel("essence","Essence de bois",FRN(o.gamme).essences,o.essence):""}
     <div style="grid-column:span 2">${dImp?`<label class="f">Dormant / aile <span class="fabhint">(imposé : ${raisonDormant(o)})</span><select disabled><option>${esc(dImp)}</option></select></label>`
           :F.sel("dormant_aile",`Dormant / aile${poseRehauDediee(o)?` <span class="fabhint">(${nomPoseRehau(o)})</span>`:""}`,listeDormants(o),o.dormant_aile)}</div>
+    ${aileRecouvrement(o)?`<div style="grid-column:span 2">${F.sel("delignage","Délignage de l'aile de recouvrement",DELIGNAGES,o.delignage)}</div>
+      <div class="hint" style="grid-column:span 2;align-self:end">Menuiserie en tunnel (tableau − 10) ; les ailes de ${largeurAile(o)} mm recouvrent le mur${o.delignage&&o.delignage!=="Sans délignage"?" sauf côté délignés":""}.</div>`:""}
   </div>${listeModeles(o.gamme)?`<div style="margin-top:14px"><div class="hint" style="margin-bottom:6px">Modèle de menuiserie ${modeleDe(o)?`: <b style="color:var(--navy)">${esc(modeleDe(o).nom)}</b>`:"(touche l'image)"}</div>
     ${modeleDe(o)&&!S.modOuvert?`<div class="modgrid"><button class="on" data-modchg="1">${imgModele(modeleDe(o),o.gamme)}<small>${esc(modeleDe(o).nom)}</small></button>
       <button data-modchg="1" style="justify-content:center;width:auto;padding:0 16px;font-weight:700">Changer de modèle</button></div>`
@@ -1585,7 +1596,7 @@ function dessinMenuiserie(o, opt={}){
         + (cCompris ? cote(xC,Y0,xC,yC,`${vH-ch} sans compensateur`) : cote(xC,Y0,xC,yC+hCp,`${tot} avec compensateur`)); } }
   if(sbCote){ const x=X0-26; c+=line(X0-3,sbY,x-6,sbY,0.7,COT)+line(X0-3,Y1,x-6,Y1,0.7,COT)+cote(x,sbY,x,Y1,String(num(o.sb))); }
   if(coffre){ const x=X0-26; c+=line(X0-3,P,x-6,P,0.7,COT)+line(X0-3,P+CH,x-6,P+CH,0.7,COT)+cote(x,P,x,P+CH,hC!=null?String(hC):"?"); }
-  const leg = vL!=null||vH!=null ? (estFab?"Cotes de fabrication":"Cotes tableau (fabrication non calculée)")+(o.pose==="neuf"?" · ENDUIT COMPRIS":"")+(coffre&&vH!=null&&hC!=null?` · hauteur totale = ${vH} + coffre ${hC}`:"")+(enc?` · seuil encastré ${SEUIL_ENC} mm compris`:"")+(ch!=null?` · compensateur ${ch} mm ${cCompris?"compris":"NON compris"}`:"") : "";
+  const leg = vL!=null||vH!=null ? (estFab?"Cotes de fabrication":"Cotes tableau (fabrication non calculée)")+(o.pose==="neuf"?" · ENDUIT COMPRIS":"")+(typeof aileRecouvrement==="function"&&aileRecouvrement(o)?` · ailes de recouvrement ${largeurAile(o)} mm`:"")+(coffre&&vH!=null&&hC!=null?` · hauteur totale = ${vH} + coffre ${hC}`:"")+(enc?` · seuil encastré ${SEUIL_ENC} mm compris`:"")+(ch!=null?` · compensateur ${ch} mm ${cCompris?"compris":"NON compris"}`:"") : "";
   if(erpTxt) c+=`<text x="${W/2}" y="${H+MB-4}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#b3202a">${erpTxt}</text>`;
   if(leg) c+=`<text x="${W/2}" y="${H+MB-(erpTxt?22:5)}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#5b6478">${leg}</text>`;
   return `<svg class="dessin${opt.cls?" "+opt.cls:""}" viewBox="${-ML} 0 ${W+ML+MR} ${H+MB}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dessin de la menuiserie">${s}${c}</svg>`;
@@ -2178,7 +2189,7 @@ function construireImpression(d){
       ${(()=>{const l=vrLie(d,o); return l&&l.avec_menuiserie?`<div class="pelarg">${esc(l.avec_menuiserie)} : <b>${esc(l.coffre_hauteur||"coffre compris dans la hauteur ? À PRÉCISER")}</b></div>`:"";})()}
       </div><div>
       ${modeleDe(o)?`<div class="pmod">${imgModele(modeleDe(o),o.gamme)}<b>${esc(modeleDe(o).nom)}</b></div>`:""}
-      <table class="pt">${row([["Type de pose",libellePose(o)],["Quantité",o.quantite],["Produit et gamme",o.gamme],["Profil / essence",[o.profil,o.essence].filter(Boolean).join(" – ")],["Couleur int.",o.couleur_int],["Couleur ext.",o.couleur_ext],["Dormant / aile",o.dormant_aile],
+      <table class="pt">${row([["Type de pose",libellePose(o)],["Quantité",o.quantite],["Produit et gamme",o.gamme],["Profil / essence",[o.profil,o.essence].filter(Boolean).join(" – ")],["Couleur int.",o.couleur_int],["Couleur ext.",o.couleur_ext],["Dormant / aile",[o.dormant_aile, aileRecouvrement(o)&&o.delignage?"délignage : "+o.delignage.toLowerCase():""].filter(Boolean).join(" – ")],
         ["Dépose",[o.deligner&&"Déligner les cochonnets",o.depose_totale&&"Dépose totale",o.depose_seuil&&"Dépose seuil/appui"].filter(Boolean)],
         ["Vantaux G·M·D",[o.vantaux.G,o.vantaux.M,o.vantaux.D].some(Boolean)?[o.vantaux.G,o.vantaux.M,o.vantaux.D].map(x=>x||"–").join(" · "):""],["Vitrage",[o.vitrage,o.teinte,o.intercalaire&&"intercalaire "+o.intercalaire].filter(Boolean).join(" – ")],["Petits bois",[...(o.petits_bois||[]),o.pb_motif?(o.pb_motif==="perso"?`${o.pb_c||"?"} × ${o.pb_r||"?"} carreaux`:PB_MOTIFS.find(m=>m.id===o.pb_motif)?.nom):""].filter(Boolean).join(" – ")],
         ["Appui bas",o.appui_bas],["Seuil",[o.seuil_std&&"Alu standard",o.seuil_plat&&"Alu PLAT",seuilEncastre(o)&&"ENCASTRÉ 4 cm (+40 mm compris dans la hauteur de fabrication)"].filter(Boolean)],["Serrure à pêne",o.serrure],["Cylindre",o.cylindre],["Fermeture semi-fixe",o.semi_fixe],["Soubassement",[o.sb&&o.sb+" mm",o.sb_type].filter(Boolean).join(" – ")],["Poignée",[o.poignee,o.poignee_modele].filter(Boolean).join(" – ")],["Fermeture",o.fermeture],["Oscillo-battant",o.ob_type],["Ferrage",o.ferrage],["Seuil fournisseur",o.seuil_type],["Modèle de porte",[o.modele_porte,o.sens_porte].filter(Boolean).join(" – ")],["GV",o.gv],["Allège",o.allege],["Imposte",[o.imposte,o.imposte_type].filter(Boolean).join(" – ")],["Accessoires",o.accessoires],["Garde-corps",texteGC(o)],["Accès public (ERP)",texteERP(o)],["Compensateur",texteComp(o)],["Appui",o.gc&&num(o.gc.appui_h)!=null?`${o.gc.appui_h} mm du sol${o.gc.etage?" · étage":""}${o.gc.zsp&&o.gc.zsp_h?` · radiateur/marche ${o.gc.zsp_h} mm`:""}`:""]])}</table></div><div>

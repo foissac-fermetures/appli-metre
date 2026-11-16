@@ -118,6 +118,9 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .rdv-h{font-size:12px;font-weight:700;color:#b51d28;text-transform:capitalize}
 .rdv .t{font-weight:800;color:#1b2f5e}.rdv .s{font-size:13px;color:#55607a}
 .crm-liste{max-height:55vh;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.dv-cote{font-size:13px;color:var(--navy,#1f3a5f);background:#eef3fa;border-radius:6px;padding:2px 8px;display:inline-block;margin-top:6px}
+.dv-liste{max-height:40vh;overflow:auto;margin:6px 0;padding-left:22px;font-size:14px}
+.dv-det summary{cursor:pointer;min-height:36px} .dv-det ul{columns:2;font-size:13px;margin:8px 0} @media(max-width:700px){.dv-det ul{columns:1}}
 .crm-item{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;min-height:52px;padding:10px 12px;border:1px solid #d6dbe6;border-radius:10px;background:#fff;font:inherit;color:#1b2f5e;cursor:pointer}
 .crm-item:hover{background:#f4f6fa}.crm-item small{color:#55607a}
 .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;align-items:start}
@@ -258,6 +261,12 @@ input:disabled{background:#eef1f7;color:#4a5368}
   <div class="row" style="margin-top:18px"><button class="btn" id="confNon">Annuler</button><span class="spacer"></span><button class="btn primary" id="confOui">Confirmer</button></div>
 </div></div>
 <!-- Choix d'un client du CRM -->
+<div class="modal" id="mDevis"><div class="box" style="max-width:680px">
+  <h2>Devis signé du client</h2>
+  <p class="hint">Dossiers « DEVIS NICOLAS » (lecture seule). Le métré est repris du devis sauf les cotes, puis le contrôle compare ton métré au devis signé.</p>
+  <div id="dvZone"></div>
+  <div class="row" style="margin-top:12px"><span class="spacer"></span><button class="btn" data-close>Fermer</button></div>
+</div></div>
 <div class="modal" id="mCRM"><div class="box" style="max-width:640px">
   <h2>Clients du CRM</h2>
   <p class="hint">Fichier « ANALYSE FIC ET SUIVI DOSSIER 2026 » (lecture seule). Les cases déjà remplies de la fiche ne sont pas remplacées.</p>
@@ -526,7 +535,7 @@ function calcVolet(o){
 }
 
 /* ---------- Contrôle (repris de la formule CONTRÔLE de la feuille + oublis) ---------- */
-function controleOuverture(o){
+function controleOuverture(o, d=S.dossier){
   const E=[], W=[], tL=num(coteTab(o,"L")), tH=num(coteTab(o,"H")), f=calcFab(o);
   const vt=[o.vantaux.G,o.vantaux.M,o.vantaux.D].filter(Boolean);
   if(!o.repere) W.push("Repère / pièce non renseigné");
@@ -574,6 +583,7 @@ function controleOuverture(o){
   if(o.gamme && o.finitions.int_l.some(x=>!dansListe(listeFinitions("int",o.gamme),x.t))) W.push("Finition intérieure d'un autre fournisseur que la gamme choisie");
   if(o.gamme && o.finitions.ext_l.some(x=>!dansListe(listeFinitions("ext",o.gamme),x.t))) W.push("Finition extérieure d'un autre fournisseur que la gamme choisie");
   if(o.gamme && (o.couleur_int||o.couleur_ext) && !couleurDansGamme(o)) W.push("Couleur hors de la gamme choisie (variante ?)");
+  comparerDevis(o, d, E, W);
   return {E,W};
 }
 function controleDossier(d){
@@ -583,6 +593,7 @@ function controleDossier(d){
   if(!d.adresse_chantier) W.push("Adresse du chantier manquante");
   if(d.ouvertures.length && !d.jours_pose) W.push("Jours de pose estimés non renseignés");
   if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length)) E.push("Aucune ouverture ni volet roulant saisi");
+  comparerDevisDossier(d, E, W);
   return {E,W};
 }
 /* Fabrication VR : pose sous linteau (vers l'extérieur ou l'intérieur) → tableau L −10, H −5.
@@ -623,7 +634,7 @@ function controleLigneVR(l, v){
   if(!l.depose) W.push("Dépose à faire non renseignée");
   return {E,W};
 }
-function nbErreurs(d){ normaliser(d); return controleDossier(d).E.length + d.ouvertures.reduce((a,o)=>a+controleOuverture(o).E.length,0)
+function nbErreurs(d){ normaliser(d); return controleDossier(d).E.length + d.ouvertures.reduce((a,o)=>a+controleOuverture(o,d).E.length,0)
   + controleVREntete(d.vr).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0); }
 
 /* ---------- Catalogue : aides ---------- */
@@ -816,6 +827,12 @@ function renderDossier(){
         <div style="margin-top:12px">${F.area("observations","Observations générales",d.observations)}</div>
         <div style="margin-top:12px">${F.area("notes_client","Notes / suivi client",d.notes_client)}</div>
       </div>
+      ${def?`<div class="card dv-card" style="grid-column:1/-1"><h2>Devis signé du client</h2>
+        ${d.devis_signe?`<p>Relié au devis <b>n° ${esc(d.devis_signe.num||"?")}</b> du ${esc(d.devis_signe.date||"?")} · ${d.devis_signe.lignes.filter(l=>l.genre==="menuiserie").length} menuiserie(s) <span class="hint">(${esc(d.devis_signe.fichier||"")})</span></p>
+          <p class="hint">Les écarts entre ton métré et le devis apparaissent dans l'onglet Contrôle et sur le PDF (« À vérifier »).</p>`
+          :`<p class="hint">Reprend les menuiseries du devis signé (repère, produit, couleurs, vitrage, sens, volet, pose…), sauf les cotes, puis compare automatiquement.</p>`}
+        <div class="row" style="gap:8px"><button class="btn ${d.devis_signe?"":"primary"}" id="cDevis">${d.devis_signe?"Changer de devis / relire":"Partir du devis signé"}</button>
+        ${d.devis_signe?`<button class="btn small" id="cDevisOff">Détacher le devis</button>`:""}</div></div>`:""}
       <div class="card" style="grid-column:1/-1"><h2><span class="num">3</span>Pose</h2><div class="grid g4">
         ${F.sel("jours_pose","Jours de pose (menuiseries)",CAT.jours_pose,d.jours_pose)}${F.sel("equipe_pose","Équipe de pose",CAT.equipe_pose,d.equipe_pose)}
         ${F.sel("vr.duree","Durée de pose des volets roulants",CAT.vr.duree,d.vr.duree)}${F.sel("vr.manutention","Manutention (échelle, nacelle…)",CAT.vr.manutention,d.vr.manutention)}
@@ -843,6 +860,8 @@ function renderDossier(){
     </details>`;
     $("#comDet").addEventListener("toggle",e=>{ S.comOpen=e.target.open; });
     $("#cCRM").onclick=()=>ouvrirCRM("remplir");
+    if($("#cDevis")) $("#cDevis").onclick=ouvrirDevisSigne;
+    if($("#cDevisOff")) $("#cDevisOff").onclick=async()=>{ if(!await demander("Détacher le devis signé ? La comparaison s'arrête (le métré reste tel quel).","Détacher")) return; delete d.devis_signe; d.ouvertures.forEach(o=>{ delete o.devis; delete o.devis_gc; }); save(); renderDossier(); };
     $("#cNav").onclick=()=>itineraire(d.adresse_chantier); $("#cWaze").onclick=()=>itineraire(d.adresse_chantier,"waze");
     $("#cTel").onclick=()=>{ const t=String(d.client.telephone||"").replace(/[^\d+]/g,""); if(t) location.href="tel:"+t; else toast("Pas de téléphone"); };
   }
@@ -854,7 +873,7 @@ function renderDossier(){
         ${o.photos&&o.photos.length?`<div class="s">📷 ${o.photos.length} photo(s)</div>`:""}
         <div class="s">${esc(libellePose(o))}${vrLie(d,o)?` <span class="badge b-n">+ Volet roulant</span>`:""}</div>
         <div class="s">${esc(o.gamme||"Gamme ?")}${modeleDe(o)?` · ${esc(modeleDe(o).nom)}`:""}</div>
-        <div class="s">Tableau ${esc(coteTab(o,"L")||"?")} × ${esc(coteTab(o,"H")||"?")} · Fab <b>${f.L??"?"} × ${f.H??"?"}</b></div>
+        <div class="s">Tableau ${esc(coteTab(o,"L")||"?")} × ${esc(coteTab(o,"H")||"?")} · Fab <b>${f.L??"?"} × ${f.H??"?"}</b>${o.devis?` <span class="dv-cote">devis ${o.devis.L??"?"} × ${o.devis.H??"?"}</span>`:""}</div>
         <div>${c.E.length?`<span class="badge b-err">${c.E.length} à corriger</span> `:""}${c.W.length?`<span class="badge b-warn">${c.W.length} conseillé(s)</span>`:""}${!c.E.length&&!c.W.length?`<span class="badge b-ok">OK</span>`:""}</div>
         <div class="row"><button class="btn small" data-dup="${o.id}">Dupliquer</button><button class="btn small danger" data-del="${o.id}">Supprimer</button></div>
       </div>`; }).join("")}</div>`;
@@ -941,12 +960,16 @@ function renderOuverture(){
     ${schema&&SCHEMAS[schema]?`<div class="schema" id="sch${k}">${schemaHTML(o,k)}</div>`:""}
     <div class="cote-in">${P.cotes.map((_,i)=>!coteUtile(o,i,k)?"":`<span class="n">${numCote(o,k,i)}</span><label class="f">${esc(libCote(o,k,i))}${libCote(o,k,i)==="Cadre existant"?" (si rénovation)":""}<input data-k="cotes.${k}.${i}" inputmode="numeric" value="${esc(o.cotes[k][i])}" placeholder="mm"></label>`).join("")}</div>
     <div class="fab"><span>Fabrication</span><b id="fab${k}">–</b><small id="fabSrc${k}"></small><span class="spacer"></span>
-      <input data-k="fab_force.${k}" inputmode="numeric" placeholder="forcer" value="${esc(o.fab_force[k])}" title="Saisir pour remplacer le calcul"></div></div>`;
+      <input data-k="fab_force.${k}" inputmode="numeric" placeholder="forcer" value="${esc(o.fab_force[k])}" title="Saisir pour remplacer le calcul"></div>
+    ${o.devis&&o.devis[k]!=null?`<div class="dv-cote">Devis signé : ${o.devis[k]} mm${o.devis.dims_fab?" (cote de fabrication)":""}</div>`:""}</div>`;
   $("#app").innerHTML=`
   <div class="row" style="margin-bottom:12px"><span class="posebar">${esc(libellePose(o))}</span>
     <select id="chgPose" style="max-width:260px;min-height:38px;font-size:14px">${Object.entries(CAT.poses).map(([k,p])=>`<option value="${k}"${k===o.pose?" selected":""}>${esc(p.nom)}</option>`).join("")}</select>
     <span class="spacer"></span><button class="btn small" id="oPrev">‹ Précédente</button><button class="btn small" id="oNext">Suivante ›</button><button class="btn small navy" id="oDone">Terminer</button></div>
 
+  ${o.devis?`<details class="card dv-det"><summary><b>Ligne du devis signé n° ${esc(o.devis.num||"")}</b> – ${esc(o.devis.repere?o.devis.repere+" : ":"")}${esc(o.devis.type)} · ${o.devis.L??"?"} × ${o.devis.H??"?"}${o.devis.qte>1?" · ×"+o.devis.qte:""}</summary>
+    ${o.devis.sous?.length?`<p class="hint">${esc(o.devis.sous.map(x=>(x.repere?x.repere+" : ":"")+x.type+" "+x.L+" × "+x.H).join(" + "))}</p>`:""}
+    <ul>${o.devis.opts.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>${o.devis.texte?`<p class="hint">${esc(o.devis.texte)}</p>`:""}</details>`:""}
   <div class="card"><h2><span class="num">1</span>Repère et produit</h2><div class="grid g4">
     <label class="f">Repère / pièce<input data-k="repere" list="dlPieces" value="${esc(o.repere)}" placeholder="Touche pour choisir"></label>
     <label class="f">N° poseur <span class="fabhint">(écrit sur la menuiserie)</span><input data-k="num_poseur" inputmode="numeric" value="${esc(o.num_poseur||"")}" placeholder="1, 2, 3…" style="font-weight:800;font-size:20px;color:var(--red,#d3232f)"></label>
@@ -1436,7 +1459,7 @@ function construireImpression(d){
       <table class="pt">${row([["Jours de pose",d.jours_pose],["Équipe",d.equipe_pose],["Observations",d.observations],["Notes",d.notes_client]])}</table></div></div>
     ${!d.ouvertures.length?"":`<table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Pose</th><th>Gamme</th><th>Tableau L×H</th><th>Fabrication L×H</th><th>Vantaux</th></tr>
     ${d.ouvertures.map((o,i)=>{const f=calcFab(o);return `<tr><td><b>${esc(o.num_poseur||"")}</b></td><td>${esc(o.repere)}</td><td>${esc(o.quantite)}</td><td>${esc(libellePose(o))}</td><td>${esc(o.gamme)}</td><td>${esc(coteTab(o,"L"))} × ${esc(coteTab(o,"H"))}</td><td><b>${f.L??""} × ${f.H??""}</b></td><td>${esc([o.vantaux.G,o.vantaux.M,o.vantaux.D].filter(Boolean).join(" · "))}</td></tr>`;}).join("")}</table>`}</div>`;
-  d.ouvertures.forEach((o,i)=>{ const f=calcFab(o), P=CAT.poses[o.pose], c=controleOuverture(o);
+  d.ouvertures.forEach((o,i)=>{ const f=calcFab(o), P=CAT.poses[o.pose], c=controleOuverture(o,d);
     h+=`<div class="pg">${head(`${numP(o)||(i+1)+"."} ${o.repere||"Ouverture"} – ${d.client.nom||""}`)}<div class="p3"><div class="pdim">
       <div class="pposetitre">${esc(libellePose(o).toUpperCase())}</div>
       <div class="pst">LARGEUR <small>– vue en plan</small></div>${schemaHTML(o,"L","psch",true)||`<div class="hint">Pas de schéma</div>`}
@@ -1852,6 +1875,262 @@ async function afficherAgenda(forcer){
 /* Itinéraire : Google Maps (ou Waze) vers l'adresse */
 function itineraire(adr, appli){ adr=String(adr||"").replace(/\n/g,", ").trim(); if(!adr){ toast("Pas d'adresse"); return; }
   window.open(appli==="waze" ? `https://waze.com/ul?q=${encodeURIComponent(adr)}&navigate=yes` : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(adr)}`,"_blank"); }
+
+/* ---------- Métré définitif : partir du devis signé (16/11/2026) ----------
+   1. On cherche les PDF du client dans les dossiers « DEVIS NICOLAS <année> » (Drive de Clémence, lecture seule).
+   2. Le PDF ProDevis est lu dans l'iPad (pdf.js, lib/) : une ligne par menuiserie (repère, type, cotes, quantité, options, pose, finitions).
+   3. Le métré est pré-rempli SAUF les cotes (la cote du devis est affichée en petit), ou bien relié à un métré déjà saisi.
+   4. Le contrôle compare ensuite le métré au devis signé (cotes, quantité, modèle, sens, couleurs, volet, vitrage, lignes oubliées).
+   Un devis scanné (photo du bon de commande) n'a pas de texte : il faut choisir le PDF ProDevis d'origine. */
+const LIB_PDFJS = "lib/pdf.min.js", LIB_PDFJS_W = "lib/pdf.worker.min.js";
+const DV_PIED = /FOISSAC FERMETURES - Route|S\.A\.R\.L\.|Siège social|Assurance décennale|Certificat RGE|^\s*\d+ sur \d+\s*$|Fabricant industriel|^Page \d+/;
+const DV_DIM = /^Larg\s+(\d+)\s*mm\s*x\s*Haut\s+(\d+)/;
+const sansAcc = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"");
+const nrm = s => sansAcc(s).toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+
+/* PDF → lignes {x, t} (texte reconstitué ligne par ligne, colonnes séparées) */
+async function lignesPDF(buf){
+  await chargerScript(LIB_PDFJS); pdfjsLib.GlobalWorkerOptions.workerSrc = LIB_PDFJS_W;
+  const doc = await pdfjsLib.getDocument({data:buf}).promise, out=[];
+  for(let p=1;p<=doc.numPages;p++){
+    const tc=await (await doc.getPage(p)).getTextContent(), rangs=[];
+    tc.items.forEach(it=>{ if(!it.str || !it.str.trim()) return; const x=it.transform[4], y=it.transform[5];
+      let r=rangs.find(r=>Math.abs(r.y-y)<2.5); if(!r){ r={y,it:[]}; rangs.push(r); } r.it.push({x, w:it.width||0, t:it.str}); });
+    rangs.sort((a,b)=>b.y-a.y).forEach(r=>{ r.it.sort((a,b)=>a.x-b.x); const segs=[];
+      r.it.forEach(i=>{ const s=segs.at(-1); if(s && (i.x-s.fin<22 || s.t.trim()==="•")) { s.t+=(i.x-s.fin>1.5 && !/\s$/.test(s.t)?" ":"")+i.t; s.fin=i.x+i.w; } else segs.push({x:i.x, fin:i.x+i.w, t:i.t}); });
+      const t=segs.map(s=>s.t).join("   ");
+      if(!DV_PIED.test(t)) out.push({x:segs[0].x, segs, t}); });
+  }
+  return out;
+}
+/* Lignes → devis {num, date, client, ref, lignes:[{genre:"menuiserie"|"accessoire"|"autre", repere, type, L, H, qte, opts[], texte, sous[], code}]} */
+function lireDevis(L){
+  const dv={num:"",date:"",client:"",ref:"",lignes:[]}; let cur=null, bul=null, bulX=0, fini=false;
+  const gauche = l => l.segs.filter(s=>s.x<380).map(s=>s.t).join("   ").trim();
+  L.forEach((l,i)=>{
+    const t=l.t, s=gauche(l);
+    let m;
+    if(!dv.num && (m=t.match(/DEVIS N°\s*(\S+)/))) dv.num=m[1];
+    if(!dv.date && (m=t.match(/Date\s*:\s*(\d\d\/\d\d\/\d{4})/))) dv.date=m[1];
+    if(!dv.client && (m=t.match(/\b((Monsieur|Madame|Mme|M\.)\s+[^\n]+?)\s*$/)) && l.x>250) dv.client=m[1].trim();
+    if(!dv.ref && (m=s.match(/^Réf\.\s*:\s*(.*)/))) dv.ref=m[1].trim();
+    if(/^(REMISE|Remise commerciale)|Total HT|Images et photos|^Règlement\s*:/i.test(s)){ cur=null; bul=null; if(/Total HT|Images et photos|^Règlement/i.test(s)) fini=true; return; }
+    if(fini) return;
+    const suiv=L.slice(i+1,i+3).map(gauche).find(Boolean)||"";
+    if(s && !/^[•-]/.test(s) && DV_DIM.test(suiv) && !DV_DIM.test(s)){
+      const [rep,typ]= s.includes(" : ") ? s.split(/ : (.+)/) : ["",s];
+      cur={genre:"menuiserie", repere:rep.trim(), type:typ.trim(), opts:[], texte:[], sous:[]}; dv.lignes.push(cur); bul=null; return; }
+    if((m=s.match(/^(.+?) : (\d{3}[,.]\d{3}) : (.+)$/))){ cur={genre:"accessoire", repere:m[1].trim(), code:m[2].replace(",","."), type:m[3].trim(), opts:[], texte:[], sous:[]}; dv.lignes.push(cur); bul=null; return; }
+    if(l.x<75 && / : /.test(s) && dv.lignes.length && !/^[•-]/.test(s)){ const [rep,typ]=s.split(/ : (.+)/); cur={genre:"autre", repere:rep.trim(), type:typ.trim(), opts:[], texte:[], sous:[]}; dv.lignes.push(cur); bul=null; return; }
+    if(!cur) return;
+    if((m=t.match(/Quantité\s*:\s*(\d+)/))) cur.qte=+m[1];
+    if((m=s.match(DV_DIM)) && cur.L==null){ cur.L=+m[1]; cur.H=+m[2]; return; }
+    if((m=s.match(/^- (?:(.+?) : )?(.+?) : Larg\s+(\d+)\s*mm\s*x\s*Haut\s+(\d+)/))){ cur.sous.push({repere:m[1]||"", type:m[2], L:+m[3], H:+m[4]}); bul=null; return; }
+    const txt=s.replace(/\s{3,}(Quantité|Prix|Taux|Dont main).*$/,"").trim();
+    if(!txt || /^(Quantité|Prix (unitaire|total)|Taux de TVA|Dont main)/.test(txt)) return;
+    if(txt.startsWith("•")){ bul=txt.replace(/^•\s*/,""); bulX=l.x; cur.opts.push(bul); return; }
+    if(/^Dont éco/.test(txt)){ bul=null; return; }
+    if(bul!=null && l.x>bulX+3 && txt!==txt.toUpperCase()){ cur.opts[cur.opts.length-1]+=" "+txt; return; }
+    bul=null; cur.texte.push(txt);
+  });
+  dv.lignes.forEach(li=>{ li.texte=li.texte.join(" ").replace(/\s+/g," "); if(li.qte==null) li.qte=1; });
+  dv.lignes=dv.lignes.filter(li=>li.genre!=="autre" || li.texte || li.opts.length);
+  return dv;
+}
+
+/* ---------- Interprétation d'une ligne du devis ---------- */
+function gammeDevis(dv, li){
+  const t=sansAcc([li.opts.find(x=>/^Gamme/i.test(x))||"", dv.ref].join(" ")).toUpperCase();
+  if(/FENSTAR|ENERGY 76/.test(t)) return /ARRONDI|NEW/.test(t) ? "PVC - FENSTAR NEW (arrondie)" : "PVC - FENSTAR FLAT (droit)";
+  if(/REHAU|ARALYA|PORTEO/.test(t)) return "PVC - REHAU PORTEO";
+  if(/LALOI/.test(t)) return "ALU - LALOI";
+  if(/\bMEO\b/.test(t)) return "MIXTE - MEO";
+  if(/SYBAIE|MILLET/.test(t)) return "BOIS - MILLET-SYBAIE";
+  if(/GARDEN/.test(t)) return "ALU - GARDENGATE (portes d'entrée)";
+  if(/ZILTEN/.test(t)) return "PORTES - ZILTEN";
+  if(/PREMIUM/.test(t)) return "PVC - PREMIUM OUVERTURES";
+  return "";
+}
+function modelesGamme(g){ const L=listeModeles(g)||FRN(g).modeles||[]; return L.flatMap(x=>x.items?x.items:[x]).filter(x=>x&&x.nom); }
+function modeleDevis(g, li){
+  let typ=li.type, txt=nrm(li.texte);
+  if(/ensemble compos/i.test(typ) && li.sous.length){ const ouv=li.sous.find(s=>!/fixe/i.test(s.type))||li.sous[0];
+    typ=ouv.type + (li.sous.some(s=>/fixe/i.test(s.type)) ? (/allege/.test(txt) ? " sur allège fixe" : /imposte/.test(txt) ? " sous imposte fixe" : "") : ""); }
+  const n=nrm(typ); let best=null;
+  modelesGamme(g).forEach(m=>{ const k=nrm(m.nom); if(n.startsWith(k) && (!best || k.length>nrm(best.nom).length)) best=m; });
+  return best;
+}
+function sensDevis(li){ const o=li.opts.find(x=>/(Droite|Gauche) tirant/i.test(x)); return o ? (/Droite/i.test(o)?"Droite":"Gauche") : ""; }
+function sensMetre(o){ const v=o.vantaux||{}; const op=k=>/OP/.test(v[k]||""); if(op("D")&&!op("G")) return "Droite"; if(op("G")&&!op("D")) return "Gauche"; return ""; }
+function valeurOpt(li, re){ const o=li.opts.find(x=>re.test(x)); return o ? o.split(/\s*:\s*/).slice(1).join(" : ").trim() : ""; }
+/* Valeur du devis → élément des listes de l'appli. strict : tous les mots de l'élément doivent être dans le devis. */
+const mots_ = t => new Set(nrm(String(t).replace(/\b([A-Za-z])\.(?=[A-Za-z]\b)/g,"$1").replace(/\.(?=\s|$)/g,"").replace(/(\d)([A-Za-z])/g,"$1 $2")).split(" ").filter(w=>w.length>1||/\d/.test(w)));
+function trouverDans(liste, v, strict=false){
+  if(!v || !liste) return ""; const dv=mots_(v), cn=(nrm(v).match(/\b\d{2,4}\b/)||[])[0];
+  let best="", sc=0;
+  plat(liste).forEach(x=>{ if(!x) return; const k=mots_(x); if(!k.size) return;
+    const com=[...k].filter(w=>dv.has(w)).length, rap=com/k.size, pre=com/dv.size;
+    if(strict && rap<1) return;
+    let s = nrm(x)===nrm(v) ? 200 : 100*(rap*0.6+pre*0.4);
+    if(cn && (nrm(x).match(/\b\d{2,4}\b/)||[])[0]===cn) s+=20;
+    if(s>sc){ sc=s; best=x; } });
+  return sc>=(strict?40:55) ? best : "";
+}
+function couleursDevis(g, li){
+  let ci=valeurOpt(li,/^(Couleur|Décor|Decor)[^:]*intérieur/i), ce=valeurOpt(li,/^(Couleur|Décor|Decor)[^:]*extérieur/i);
+  if(/idem/i.test(ce)) ce=ci;
+  return { ci, ce, mci:trouverDans(groupesCouleur(g,"int"),ci), mce:trouverDans(groupesCouleur(g,"ext"),ce) };
+}
+const VIT_QUAL = ["imprime","depoli","delta","opale","feuillete","sun","zen","triple","g200","satinovo","reflechissant","one","swisspacer","phonique"];
+const vitComp = t => { const m=sansAcc(t).match(/(?:PS|SP)?\d{1,3}(?:[.,]\d)?(?:\s*FE)?(?:\s*(?:Eclaz \w+))?\s*\/\s*\d{1,2}(?:\s*(?:argon|ar))?\s*\/\s*(?:PS|SP)?\d{1,3}(?:[.,]\d)?/i); return m ? m[0].replace(/FE|argon|\bar\b|Eclaz \w+|\s/gi,"").replace(",",".").toLowerCase() : ""; };
+function vitrageDevis(g, li){
+  const v=li.opts.find(x=>/vitrage/i.test(x) && !/petits?-bois|croisillon|face ext/i.test(x))||li.opts.find(x=>/vitrage/i.test(x))||"", c=vitComp(v), n=nrm(v).replace(/feuilletee/g,"feuillete");
+  let best="", sc=-1;
+  if(c) plat(listeVitrages(g)).forEach(x=>{ if(vitComp(x)!==c) return; const k=nrm(x);
+    const manque=VIT_QUAL.filter(q=>k.includes(q)!==n.includes(q)).length; const s=10-manque*3; if(s>sc){ sc=s; best=x; } });
+  return { brut:v, m: sc>=7 ? best : "" };
+}
+function poseDevis(li){ const t=sansAcc(li.texte).toUpperCase();
+  return { pose: /FEUILLURE/.test(t)?"feuillure" : /TUNNEL/.test(t)?"tunnel" : /APPLIQUE|POSE EN NEUF/.test(t)?"neuf" : "embrasure",
+           renovation:/CADRE EXISTANT/.test(t), depose_totale:/DEPOSE TOTALE/.test(t), depose_seuil:/DEPOSE DE L.ANCIEN (APPUI|SEUIL)/.test(t) }; }
+function libLigneDevis(li){ return `${li.repere?li.repere+" – ":""}${li.type}${li.L?` ${li.L} × ${li.H}`:""}${li.qte>1?` (×${li.qte})`:""}`; }
+
+/* Résumé gardé dans l'ouverture (sert à la comparaison et à l'affichage) */
+function resumeDevis(dv, li, i){
+  const g=gammeDevis(dv,li), md=modeleDevis(g,li), c=couleursDevis(g,li), vi=vitrageDevis(g,li);
+  const vr=li.opts.find(x=>/^Volet roulant/i.test(x))||"";
+  return { i, num:dv.num, repere:li.repere||li.sous.map(x=>x.repere).find(Boolean)||"", type:li.type, L:li.L, H:li.H, qte:li.qte, gamme:g, modele:md?.id||"", modele_nom:md?.nom||"",
+    sens:sensDevis(li), ci:c.mci, ce:c.mce, ci_brut:c.ci, ce_brut:c.ce, vitrage:vi.m, vitrage_brut:vi.brut, vr:!!vr, vr_brut:vr,
+    dims_fab:/DIMENSIONS? FABRICATION/i.test(li.texte), opts:li.opts, texte:li.texte, sous:li.sous };
+}
+/* Ouverture pré-remplie depuis une ligne (tout sauf les cotes) */
+function ouvertureDepuisDevis(d, dv, li, i){
+  const r=resumeDevis(dv,li,i), p=poseDevis(li), o=nouvelleOuverture(p.pose, d);
+  Object.assign(o, { repere:li.repere||li.sous.map(x=>x.repere).find(Boolean)||"", quantite:li.qte||1, gamme:r.gamme, modele:r.modele, couleur_int:r.ci, couleur_ext:r.ce, vitrage:r.vitrage,
+    renovation:p.renovation, depose_totale:p.depose_totale, depose_seuil:p.depose_seuil, devis:r });
+  const md=modeleDe(o), n=md?md.vantaux:(li.type.match(/(\d) vantau?x?/)||[])[1]|0, ob=li.opts.some(x=>/oscillo/i.test(x)&&!/sans oscillo/i.test(x)) ? "OP/OB" : "OP";
+  if(md && ["coulissant","galandage","fixe"].includes(md.famille)) {}
+  else if(n===1 && r.sens) o.vantaux[r.sens==="Droite"?"D":"G"]=ob;
+  else if(n===2 && r.sens){ o.vantaux.G = r.sens==="Gauche"?ob:"X"; o.vantaux.D = r.sens==="Droite"?ob:"X"; }
+  const pb=li.opts.find(x=>/^Petits-bois\s*:/i.test(x)); if(pb) o.obs_libre=pb;
+  /* quincaillerie, seuil, appui, dormant, ventilation : seulement si la valeur du devis existe dans les listes de la gamme */
+  const opt=re=>li.opts.find(x=>re.test(x))||"", g=o.gamme, fr=FRN(g), essai=f=>{ try{ return f()||""; }catch(e){ return ""; } };
+  o.ferrage   = essai(()=>trouverDans(fr.ferrage, valeurOpt(li,/^Type de ferrage/i), true));
+  o.fermeture = essai(()=>trouverDans(fr.fermeture, opt(/^Fermeture par|^Crémone/i).replace(/^Fermeture par\s*/i,""), true));
+  o.poignee_modele = essai(()=>trouverDans(fr.poignees, opt(/^(Poignée(?! décentrée)|Béquille)/i), true));
+  o.semi_fixe = essai(()=>trouverDans(listeSemiFixe(g), valeurOpt(li,/^Fermeture semi-fixe/i), true));
+  o.seuil_type= essai(()=>trouverDans(fr.seuils, opt(/^Seuil/i), true));
+  o.gv        = essai(()=>trouverDans(listeGV(g), opt(/grille|mortaise/i), true));
+  o.appui_bas = essai(()=>trouverDans(listeAppuis(g), opt(/pièce d.appui/i), true));
+  o.dormant_aile = essai(()=>trouverDans(listeDormants(o), opt(/^Dormant(?! périph)/i), true));
+  return o;
+}
+/* Volet roulant prévu au devis : ligne VR liée à l'ouverture */
+function voletDepuisDevis(d, o, li){
+  if(!o.devis.vr) return; const l=ajouterVRLie(d,o), g=o.gamme;
+  l.avec_menuiserie = trouverDans(listeVRMenuis(g)||[], o.devis.vr_brut) || "";
+  const man=valeurOpt(li,/^Manoeuvre|^Manœuvre/i); l.manoeuvre_menuis = trouverDans(listeManoeuvreVR(g)||[], man) || "";
+  l.coffre_hauteur = trouverDans(listeCoffreVR(g)||[], li.opts.find(x=>/^Coffre/i.test(x))||"") || "";
+  l.option = [o.devis.vr_brut, man, li.opts.find(x=>/^Tablier/i.test(x))].filter(Boolean).join(" · ");
+}
+/* Barre d'appui du devis (accessoire 815.xxx) → garde-corps de l'ouverture du même repère juste avant */
+function accessoireDepuisDevis(d, li){
+  const o=[...d.ouvertures].reverse().find(x=>nrm(x.repere)===nrm(li.repere)); if(!o || !/^815/.test(li.code||"")) return false;
+  const B=CAT.garde_corps?.types?.barre; o.gc.type="barre"; o.gc.modele=(B?.modeles||[]).find(x=>x.startsWith(li.code))||"";
+  const lg=(li.texte.match(/Long\s+(\d+)/i)||[])[1]; if(lg) o.gc.L=lg; if(/thermolaqu/i.test(li.type)) o.gc.finition=o.gc.finition||"";
+  o.devis_gc={ code:li.code, type:li.type, L:lg?+lg:null }; return true;
+}
+/* Relier un métré déjà saisi aux lignes du devis (repère, modèle, vantaux, taille) */
+function relierDevis(d, dv){
+  const M=dv.lignes.map((li,i)=>[li,i]).filter(([li])=>li.genre==="menuiserie"), libres=new Set(d.ouvertures.map(o=>o.id));
+  d.ouvertures.forEach(o=>{ delete o.devis; });
+  M.forEach(([li,i])=>{ const r=resumeDevis(dv,li,i), rep=li.repere||li.sous.map(x=>x.repere).find(Boolean)||""; let best=null, sc=-1e9;
+    d.ouvertures.filter(o=>libres.has(o.id)).forEach(o=>{ const f=calcFab(o), Lm=f.L??num(coteTab(o,"L")), Hm=f.H??num(coteTab(o,"H"));
+      let s=0; if(nrm(o.repere)&&nrm(o.repere)===nrm(rep)) s+=4; if(r.modele&&o.modele===r.modele) s+=2; else if(r.modele_nom&&modeleDe(o)&&modeleDe(o).vantaux===modelesGamme(r.gamme).find(m=>m.id===r.modele)?.vantaux) s+=1;
+      if(Lm!=null&&Hm!=null&&li.L) s-=(Math.abs(Lm-li.L)+Math.abs(Hm-li.H))/150; s-=d.ouvertures.indexOf(o)*0.01;
+      if(s>sc){ sc=s; best=o; } });
+    if(best && sc>-3){ best.devis=r; libres.delete(best.id); } });
+}
+/* Comparaison métré ↔ devis signé (ajoutée au contrôle de l'ouverture) */
+function comparerDevis(o, d, E, W){
+  const r=o.devis; if(!r) return;
+  const pre="Devis signé : ", f=calcFab(o);
+  for(const [k,nom] of [["L","largeur"],["H","hauteur"]]){ if(r[k]==null || f[k]==null) continue; const dl=f[k]-r[k];
+    if(dl) (Math.abs(dl)>100?E:W).push(`${pre}${nom} ${r[k]}${r.dims_fab?" (fab.)":""} → métré ${f[k]} (${dl>0?"+":""}${dl} mm)`); }
+  if(r.qte && +o.quantite!==r.qte) E.push(`${pre}quantité ${r.qte} → métré ${o.quantite}`);
+  if(r.gamme && o.gamme && o.gamme!==r.gamme) E.push(`${pre}gamme ${r.gamme} → métré ${o.gamme}`);
+  if(r.modele && o.modele && o.modele!==r.modele) E.push(`${pre}${r.modele_nom} → métré ${modeleDe(o)?.nom||o.modele}`);
+  const sm=sensMetre(o); if(r.sens && sm && sm!==r.sens) W.push(`${pre}ouvrant principal tirant ${r.sens.toLowerCase()} → métré ${sm.toLowerCase()}`);
+  if(r.ci && o.couleur_int && o.couleur_int!==r.ci) W.push(`${pre}couleur intérieure « ${r.ci} » → métré « ${o.couleur_int} »`);
+  if(r.ce && o.couleur_ext && o.couleur_ext!==r.ce) W.push(`${pre}couleur extérieure « ${r.ce} » → métré « ${o.couleur_ext} »`);
+  if(r.vitrage && o.vitrage && o.vitrage!==r.vitrage) W.push(`${pre}vitrage « ${r.vitrage} » → métré « ${o.vitrage} »`);
+  const v=d&&vrLie(d,o); if(r.vr && !v) E.push(`${pre}un volet roulant est prévu (${r.vr_brut}), absent du métré`); if(!r.vr && v) W.push(`${pre}pas de volet roulant prévu, mais un volet est saisi au métré`);
+}
+function comparerDevisDossier(d, E, W){
+  const dv=d.devis_signe; if(!dv) return;
+  const pris=new Set(d.ouvertures.filter(o=>o.devis).map(o=>o.devis.i));
+  dv.lignes.forEach((li,i)=>{ if(li.genre==="menuiserie" && !pris.has(i)) E.push(`Devis signé : ligne non reprise au métré – ${libLigneDevis(li)}`); });
+  d.ouvertures.filter(o=>!o.devis).forEach(o=>W.push(`Ouverture absente du devis signé : ${o.repere||"sans repère"}${numP(o)?" ("+numP(o)+")":""}`));
+}
+
+/* ---------- Recherche et lecture du devis signé dans le Drive ---------- */
+async function dossiersDevisSignes(){
+  const q="mimeType='application/vnd.google-apps.folder' and trashed=false and name contains 'DEVIS NICOLAS'";
+  return (await gdrive("https://www.googleapis.com/drive/v3/files?includeItemsFromAllDrives=true&fields=files(id,name)&q="+encodeURIComponent(q))).files;
+}
+function motsClient(nom){ return sansAcc(nom).toUpperCase().replace(/\b(MONSIEUR|MADAME|MR|MME|M|ET|DE|DU|LA|LE|EARL|SCI|SARL)\b/g," ").split(/[^A-Z0-9]+/).filter(w=>w.length>=3).sort((a,b)=>b.length-a.length); }
+async function chercherDevisSignes(nom){
+  const dos=await dossiersDevisSignes(); if(!dos.length) throw new Error("dossier « DEVIS NICOLAS » introuvable dans le Drive");
+  const mots=motsClient(nom); if(!mots.length) throw new Error("renseigne d'abord le nom du client");
+  const par=`(${dos.map(x=>`'${x.id}' in parents`).join(" or ")})`, base=`${par} and mimeType='application/pdf' and trashed=false`;
+  const url=(q,tri=true)=>"https://www.googleapis.com/drive/v3/files?includeItemsFromAllDrives=true&pageSize=50"+(tri?"&orderBy=modifiedTime%20desc":"")+"&fields=files(id,name,modifiedTime,size,webViewLink)&q="+encodeURIComponent(q);
+  let f=(await gdrive(url(`${base} and (${mots.slice(0,2).map(w=>`name contains '${q_(w)}'`).join(" or ")})`))).files;
+  if(!f.length) f=(await gdrive(url(`${base} and fullText contains '${q_(mots[0])}'`,false))).files;   // fullText : pas de tri possible côté Drive
+  const score=x=>{ const n=sansAcc(x.name).toUpperCase(); return (/SIGN/.test(n)?4:0)+(/DEFINITIF/.test(n)?2:0)-(/PERGOLA|PORTAIL|CARPORT|STORE|CLOTURE/.test(n)?5:0); };
+  f.forEach(x=>x.score=score(x)); return f.sort((a,b)=>b.score-a.score || b.modifiedTime.localeCompare(a.modifiedTime));
+}
+async function lireDevisDrive(id){
+  const r=await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&supportsAllDrives=true`,{headers:{Authorization:"Bearer "+G_JETON}});
+  if(r.status===401){ G_JETON=null; throw new Error("connexion Google expirée"); } if(!r.ok) throw new Error("Drive "+r.status);
+  const L=await lignesPDF(await r.arrayBuffer());
+  if(L.map(l=>l.t).join("").length<300) throw new Error("PDF scanné (photo) : pas de texte lisible. Choisis le devis ProDevis d'origine.");
+  const dv=lireDevis(L); if(!dv.lignes.some(li=>li.genre==="menuiserie")) throw new Error("aucune menuiserie trouvée dans ce PDF");
+  return dv;
+}
+async function ouvrirDevisSigne(){
+  const d=S.dossier, m=$("#mDevis"), z=$("#dvZone"); m.classList.add("open");
+  z.innerHTML=`<p class="hint">Recherche des devis de « ${esc(d.client.nom||"?")} » dans DEVIS NICOLAS…</p>`;
+  try{
+    if(!driveDispo()) throw new Error("disponible seulement dans l'appli en ligne (foissac-fermetures.github.io)");
+    await demanderJeton(); const F=await chercherDevisSignes(d.client.nom);
+    if(!F.length){ z.innerHTML=`<p class="hint">Aucun PDF trouvé pour « ${esc(d.client.nom)} » dans DEVIS NICOLAS. Vérifie le nom du client.</p>`; return; }
+    z.innerHTML=`<p class="hint">Choisis le devis signé (le plus probable est en haut) :</p><div class="crm-liste">${F.map((x,i)=>`<button class="crm-item" data-dv="${i}"><b>${esc(x.name)}</b>${i===0&&x.score>0?` <span class="badge b-ok">conseillé</span>`:""}<small>modifié le ${new Date(x.modifiedTime).toLocaleDateString("fr-FR")}</small></button>`).join("")}</div>`;
+    $$("[data-dv]",z).forEach(b=>b.onclick=()=>apercuDevis(F[+b.dataset.dv]));
+  }catch(e){ z.innerHTML=`<p class="hint" style="color:var(--err)">Devis signé : ${esc(e.message)}</p>`; }
+}
+async function apercuDevis(fic){
+  const d=S.dossier, z=$("#dvZone"); z.innerHTML=`<p class="hint">Lecture de « ${esc(fic.name)} »…</p>`;
+  try{
+    await demanderJeton(); const dv=await lireDevisDrive(fic.id); dv.fichier=fic.name; dv.fichier_id=fic.id; dv.lien=fic.webViewLink||""; dv.lu=new Date().toISOString();
+    const men=dv.lignes.filter(li=>li.genre==="menuiserie"), acc=dv.lignes.filter(li=>li.genre!=="menuiserie"), deja=d.ouvertures.length;
+    z.innerHTML=`<p><b>Devis n° ${esc(dv.num||"?")}</b> du ${esc(dv.date||"?")} · ${esc(dv.client)} <span class="hint">${esc(dv.ref)}</span></p>
+      <p class="hint">${men.length} menuiserie(s)${acc.length?` + ${acc.length} autre(s) ligne(s)`:""} :</p>
+      <ol class="dv-liste">${dv.lignes.map(li=>`<li${li.genre!=="menuiserie"?' class="hint"':""}>${esc(libLigneDevis(li))}${li.sous.length?` <small>(${esc(li.sous.map(s=>s.type+" "+s.L+"×"+s.H).join(" + "))})</small>`:""}</li>`).join("")}</ol>
+      <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap">
+        ${deja?`<button class="btn primary" id="dvLier">Comparer avec mon métré (${deja} ouverture(s))</button><button class="btn" id="dvRemplir">Remplacer mon métré par le devis</button>`
+              :`<button class="btn primary" id="dvRemplir">Remplir le métré (tout sauf les cotes)</button>`}
+        <button class="btn" id="dvAutre">‹ Autre devis</button></div>`;
+    $("#dvAutre").onclick=ouvrirDevisSigne;
+    if($("#dvLier")) $("#dvLier").onclick=()=>{ d.devis_signe=dv; relierDevis(d,dv); fermerDevis(`Métré relié au devis ${dv.num} : regarde l'onglet Contrôle`); };
+    $("#dvRemplir").onclick=async()=>{
+      if(deja && !await demander(`Remplacer les ${deja} ouverture(s) du métré par les ${men.length} ligne(s) du devis ? Les cotes seront à ressaisir.`,"Remplacer")) return;
+      d.ouvertures=[]; d.vr.lignes=d.vr.lignes.filter(l=>!l.ouv_id); d.devis_signe=dv;
+      dv.lignes.forEach((li,i)=>{ if(li.genre==="menuiserie"){ const o=ouvertureDepuisDevis(d,dv,li,i); d.ouvertures.push(o); voletDepuisDevis(d,o,li); } else accessoireDepuisDevis(d,li); });
+      if(!d.gamme_defaut) d.gamme_defaut=d.ouvertures[0]?.gamme||"";
+      S.tab="ouvertures"; fermerDevis(`${men.length} ouverture(s) reprises du devis ${dv.num} : il reste les cotes`); };
+  }catch(e){ z.innerHTML=`<p class="hint" style="color:var(--err)">${esc(e.message)}</p><button class="btn" id="dvAutre">‹ Autre devis</button>`; $("#dvAutre").onclick=ouvrirDevisSigne; }
+}
+function fermerDevis(msg){ $("#mDevis").classList.remove("open"); syncVR(S.dossier); save(); renderDossier(); toast(msg); }
 
 /* ---------- Démarrage ---------- */
 $("#logo").src=LOGO;

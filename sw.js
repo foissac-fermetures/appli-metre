@@ -1,7 +1,7 @@
 /* Service worker : l'appli marche sans réseau, et prend la nouvelle version dès qu'il y a du réseau. */
-const CACHE = "metre-v12";
+const CACHE = "metre-v13";
 const FICHIERS = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-180.png", "icon-32.png",
-                  "lib/html2canvas.min.js", "lib/jspdf.umd.min.js"];
+                  "lib/html2canvas.min.js", "lib/jspdf.umd.min.js", "lib/pdf.min.js", "lib/pdf.worker.min.js"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FICHIERS))); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== CACHE).map(x => caches.delete(x))))); self.clients.claim(); });
 self.addEventListener("fetch", e => {

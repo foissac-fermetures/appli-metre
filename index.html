@@ -1672,12 +1672,12 @@ function initSketch(o=S.ouv, cle="croquis"){
       if(s.f==="rect") return x>x1&&x<x2&&y>y1&&y<y2; const rx=(x2-x1)/2||1, ry=(y2-y1)/2||1; return Math.hypot((x-x1-rx)/rx,(y-y1-ry)/ry)<1; };
     return L.find(bord) || L.find(dedans) || null; }
   cv.onpointerdown=e=>{ if(penOnly && e.pointerType==="touch") return;
-    if(texte){ const [x,y]=pt(e); strokes.push({t:texte.t, c:texte.c, x, y}); texte=null; $$("[data-sktxt]").forEach(b=>b.classList.remove("on")); commit(); e.preventDefault(); return; }
+    if(texte){ const [x,y]=pt(e); strokes.push({t:texte.t, c:texte.c, x, y}); if($("#skTxtLibre")&&$("#skTxtLibre").value.trim()===texte.t) $("#skTxtLibre").value=""; texte=null; $$("[data-sktxt]").forEach(b=>b.classList.remove("on")); commit(); e.preventDefault(); return; }
     cv.setPointerCapture(e.pointerId);
     const fo=S.skForme||"", [px,py]=pt(e);
     if(V && fo==="edit"){ e.preventDefault();
       if(sel){ const h=poignees(sel).findIndex(([x,y])=>Math.hypot(x-px,y-py)<26*ratio/1.2); if(h>=0){ act={h}; return; } }
-      sel=toucher(px,py); act=sel?{m:[px,py]}:null; redraw(); const d=$("#skDelSel"); if(d) d.disabled=!sel; return; }
+      sel=toucher(px,py); act=sel?{m:[px,py]}:null; redraw(); const ti=$("#skTxtLibre"); if(ti){ ti.value=sel&&sel.t?sel.t:""; ti.placeholder=sel&&sel.t?"":"Écrire un texte (ex. Chambre 1, 3,20 m, passage combles…)"; } const d=$("#skDelSel"); if(d) d.disabled=!sel; return; }
     if(fo && fo!=="edit" && pen!=="erase" && V){ cur={f:fo,c:pen,a:[px,py],b:[px,py]}; strokes.push(cur); e.preventDefault(); return; }
     cur={c:pen,pts:[pt(e)]}; strokes.push(cur); e.preventDefault(); };
   cv.onpointermove=e=>{
@@ -1703,6 +1703,11 @@ function initSketch(o=S.ouv, cle="croquis"){
     if(S.skForme!=="edit") quitterEdit(); else toast("Touche une forme ou une étiquette : glisse-la pour la déplacer, tire un rond blanc pour l'agrandir");
     if(pen==="erase" && S.skForme!=="edit"){ const p1=$("[data-pen]:not([data-pen='erase'])"); if(p1) p1.click(); } });
   const sq=$("#skCarre input"); if(sq){ sq.checked=!!S.skCarre; $("#skCarre").classList.toggle("on",!!S.skCarre); sq.onchange=()=>{ S.skCarre=sq.checked; $("#skCarre").classList.toggle("on",sq.checked); }; }
+  const tl=$("#skTxtLibre"), tg=$("#skTxtGo");
+  if(tg) tg.onclick=()=>{ const v=tl.value.trim(); if(!v){ tl.focus(); toast("Écris d'abord le texte"); return; }
+    if(sel&&sel.t){ sel.t=v; commit(); return; }
+    texte={t:v, c:pen==="erase"?"#111111":pen}; $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); toast("Touche le schéma à l'endroit voulu"); };
+  if(tl) tl.oninput=()=>{ if(sel&&sel.t&&tl.value.trim()){ sel.t=tl.value.trim(); redraw(); clearTimeout(tl._t); tl._t=setTimeout(commit,600); } };
   const ds=$("#skDelSel"); if(ds){ ds.disabled=true; ds.onclick=()=>{ if(!sel) return; strokes.splice(strokes.indexOf(sel),1); sel=null; commit(); }; }
   $$("[data-sktxt]").forEach(b=>b.onclick=()=>{ const on=!b.classList.contains("on"); $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); texte=on?{t:b.dataset.sktxt, c:b.dataset.c||pen}:null; b.classList.toggle("on",on); if(on) toast("Touche le schéma à l'endroit voulu"); });
   $("#skUndo").onclick=()=>{ const s=strokes.pop(); if(s===sel) sel=null; commit(); };
@@ -1873,12 +1878,15 @@ function renderClim(t){
       ${climSchemas(c).length<6?`<button class="btn small" id="clSchAdd">+ Schéma</button>`:""}</div>
     <div class="row" style="gap:8px;margin-bottom:10px;align-items:end;flex-wrap:wrap"><label class="f" style="flex:1;min-width:220px">Nom de ce schéma (imprimé sur le PDF)<input id="clSchNom" list="dlSchNom" value="${esc(nomSchema(c,schK))}"></label>
       <datalist id="dlSchNom">${CLIM_NOMS_SCH.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
+      ${climSchemas(c).length<6?`<button class="btn small" id="clSchDup">⧉ Dupliquer ce schéma</button>`:""}
       ${(c.sch_extra||[]).includes(schK)?`<button class="btn small danger" id="clSchDel">Supprimer ce schéma</button>`:""}</div>
     <div class="hint" style="margin-bottom:4px">Stylos (légende imprimée avec le schéma) :</div>
     <div class="toolbar">${CLIM_LEGENDE.map((x,i)=>`<button class="btn small${i===0?" on":""}" data-pen="${x.c}"><span class="dot" style="background:${x.c}"></span>${esc(x.l)}</button>`).join("")}</div>
     <div class="hint" style="margin:6px 0 4px">Outil : main levée ou formes (glisse le doigt / stylet d'un coin à l'autre) :</div>
     <div class="toolbar">${[["","✎ Main levée"],["ligne","╱ Trait droit"],["rect","▭ Rectangle"],["rond","◯ Rond"],["fleche","→ Flèche"],["edit","✥ Modifier"]].map(([f,l])=>`<button class="btn small${(S.skForme||"")===f?" on":""}" data-forme="${f}">${l}</button>`).join("")}
       <label class="chip" id="skCarre"><input type="checkbox">Carré / rond parfait</label><button class="btn small danger" id="skDelSel" disabled>🗑 Supprimer la forme</button></div>
+    <div class="row" style="gap:8px;margin:8px 0 4px;align-items:center;flex-wrap:wrap"><input id="skTxtLibre" placeholder="Écrire un texte (ex. Chambre 1, 3,20 m, passage combles…)" style="flex:1;min-width:220px">
+      <button class="btn small" id="skTxtGo">✍ Placer le texte</button></div>
     <div class="hint" style="margin:6px 0 4px">Étiquettes : touche un mot puis l'endroit du schéma :</div>
     <div class="toolbar">${[...CLIM_ETIQUETTES.slice(0,3),...climUnites(c).map(u=>[u,"#d3232f"]),...CLIM_ETIQUETTES.slice(3)].map(([t,co])=>`<button class="btn small" data-sktxt="${esc(t)}" data-c="${co}" style="color:${co}">${esc(t)}</button>`).join("")}</div>
     <div class="toolbar"><button class="btn small" data-pen="erase">Gomme</button><button class="btn small" id="skUndo">Annuler</button><button class="btn small danger" id="skClear">Effacer tout</button>
@@ -1908,6 +1916,11 @@ function renderClim(t){
   $$("[data-clsch]").forEach(b=>b.onclick=()=>{ S.climSch=b.dataset.clsch; re(); });
   const sn=$("#clSchNom"); if(sn) sn.oninput=()=>{ c.sch_noms=c.sch_noms||{}; c.sch_noms[schK]=sn.value.trim(); save(); const b=$(`[data-clsch="${schK}"]`); if(b) b.textContent=nomSchema(c,schK)+(c[schK]?" ✓":""); };
   const sa=$("#clSchAdd"); if(sa) sa.onclick=()=>{ c.sch_extra=c.sch_extra||[]; let i=3; while(climSchemas(c).includes("schema_"+i)) i++; const k="schema_"+i; c.sch_extra.push(k); c[k]=""; S.climSch=k; save(); re(); };
+  const sdu=$("#clSchDup"); if(sdu) sdu.onclick=()=>{ c.sch_extra=c.sch_extra||[]; let i=3; while(climSchemas(c).includes("schema_"+i)) i++; const k="schema_"+i;
+    c.sch_extra.push(k); c[k]=c[schK]||""; if(c[schK+"_vec"]) c[k+"_vec"]=JSON.parse(JSON.stringify(c[schK+"_vec"])); if(c[schK+"_fond"]) c[k+"_fond"]=c[schK+"_fond"];
+    const n=nomSchema(c,schK), noms=climSchemas(c).map(x=>nomSchema(c,x)); c.sch_noms=c.sch_noms||{};
+    c.sch_noms[k]=/rez|rdc|bas/i.test(n)&&!noms.includes("Schéma étage")?"Schéma étage":`${n} (copie)`;
+    S.climSch=k; save(); re(); toast(`Copié dans « ${c.sch_noms[k]} » : renomme-le et modifie-le`); };
   const sd=$("#clSchDel"); if(sd) sd.onclick=async()=>{ if(c[schK] && !await demander(`Supprimer « ${nomSchema(c,schK)} » et son dessin ?`,"Supprimer")) return;
     c.sch_extra=c.sch_extra.filter(x=>x!==schK); delete c[schK]; delete c[schK+"_vec"]; delete c[schK+"_fond"]; if(c.sch_noms) delete c.sch_noms[schK]; S.climSch="schema_etage"; save(); re(); };
   initSketch(c, schK);

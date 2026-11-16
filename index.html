@@ -327,6 +327,7 @@ input:disabled{background:#eef1f7;color:#4a5368}
 <div class="modal" id="mRep"><div class="box" style="max-width:720px">
   <h2>Choisir le repère</h2>
   <div class="rep-apercu" id="repApercu">—</div>
+  <div class="obs-t" style="margin-top:10px">Logement <span class="hint" style="text-transform:none;letter-spacing:0">(facultatif : plusieurs maisons, appartements ou gîtes sur le chantier)</span></div><div id="repLog"></div>
   <div class="obs-t" style="margin-top:10px">1. Niveau</div><div class="rep-chips" id="repNiv"></div>
   <div class="obs-t" style="margin-top:12px">2. Pièce</div><div id="repPiece"></div>
   <div class="obs-t" style="margin-top:12px">3. Numéro <span class="hint" style="text-transform:none;letter-spacing:0">(proposé tout seul si la pièce existe déjà)</span></div><div class="rep-chips" id="repNum"></div>
@@ -655,35 +656,40 @@ function oublierConcurrent(n){ const L=concurrentsConnus().filter(x=>x!==n); try
 /* ---------- Repères rangés étape par étape (16/11/2026) : niveau → pièce → numéro → précision ----------
    Résultat : « Cuisine » (rez-de-chaussée), « Chambre 2 – Étage 1 », « Porte de service 2 », « Salon (côté jardin) – Étage 1 »…
    Sert sur toutes les feuilles : ouvertures, volets roulants, volets battants, climatisation. On peut toujours taper à la main. */
+const REP_LOGEMENTS = ["Maison","Appartement","Gîte"];
 const REP_PRECISIONS = ["Côté rue","Côté jardin","Côté cour","Nord","Sud","Est","Ouest","Gauche","Droite","Fond"];
 const REP_SUFFIXE = {"Rez-de-chaussée":"","Étage 1":"Étage 1","Étage 2":"Étage 2","Étage 3":"Étage 3","Sous-sol":"Sous-sol","Combles":"Combles","Extérieur / annexe":"Extérieur"};
-function repDecoupe(t){ t=String(t||"").trim(); let niv="Rez-de-chaussée", prec="", num="";
+function repDecoupe(t){ t=String(t||"").trim(); let niv="Rez-de-chaussée", prec="", num="", log="";
+  const g=t.match(/^((?:Maison|Appartement|Gîte) \d)\s+·\s+/); if(g){ log=g[1]; t=t.slice(g[0].length); }
   const m=t.match(/\s+–\s+(Étage [123]|Sous-sol|Combles|Extérieur)$/); if(m){ niv=Object.keys(REP_SUFFIXE).find(k=>REP_SUFFIXE[k]===m[1]); t=t.slice(0,m.index); }
   const p=t.match(/\s+\(([^)]+)\)$/); if(p){ prec=p[1]; t=t.slice(0,p.index); }
   const n=t.match(/\s+(\d)$/); if(n){ num=n[1]; t=t.slice(0,n.index); }
-  return {niv, piece:t, num, prec:prec?prec.charAt(0).toUpperCase()+prec.slice(1):""}; }
-function repCompose(r){ if(!r.piece) return ""; const suf=REP_SUFFIXE[r.niv]; return `${r.piece}${r.num?" "+r.num:""}${r.prec?" ("+r.prec.toLowerCase()+")":""}${suf?" – "+suf:""}`; }
+  return {log, niv, piece:t, num, prec:prec?prec.charAt(0).toUpperCase()+prec.slice(1):""}; }
+function repCompose(r){ if(!r.piece) return ""; const suf=REP_SUFFIXE[r.niv]; return `${r.log?r.log+" · ":""}${r.piece}${r.num?" "+r.num:""}${r.prec?" ("+r.prec.toLowerCase()+")":""}${suf?" – "+suf:""}`; }
 function reperesDossier(d){ return [...d.ouvertures.map(o=>o.repere), ...(d.vr?.lignes||[]).map(l=>l.repere), ...(d.clim?.lignes||[]).map(l=>l.piece), ...(d.vb?.lignes||[]).map(l=>l.repere)].filter(Boolean); }
 /* rang pour trier « étape par étape » : niveau puis ordre des pièces */
 function rangRepere(t){ const r=repDecoupe(t), n=Object.keys(REP_SUFFIXE).indexOf(r.niv), P=CAT.pieces||[], i=P.indexOf(r.piece);
-  return [n<0?9:n, i<0?999:i, parseInt(r.num)||0, r.prec]; }
-function cmpRepere(a,b){ const x=rangRepere(a), y=rangRepere(b); for(let i=0;i<3;i++) if(x[i]!==y[i]) return x[i]-y[i]; return String(x[3]).localeCompare(String(y[3])); }
+  const lg=r.log?(REP_LOGEMENTS.indexOf(r.log.replace(/ \d$/,""))+1)*10+(parseInt(r.log.slice(-1))||0):0;
+  return [lg, n<0?9:n, i<0?999:i, parseInt(r.num)||0, r.prec]; }
+function cmpRepere(a,b){ const x=rangRepere(a), y=rangRepere(b); for(let i=0;i<4;i++) if(x[i]!==y[i]) return x[i]-y[i]; return String(x[4]).localeCompare(String(y[4])); }
 let REP_CIBLE=null, REP_ETAT=null;
 function ouvrirRepere(inp){
-  REP_CIBLE=inp; const r=repDecoupe(inp.value), autres=S.dossier?reperesDossier(S.dossier).filter(x=>x!==inp.value):[];
+  REP_CIBLE=inp; const r=repDecoupe(inp.value); if(!inp.value && S.repLog && S.repLogDossier===S.dossier?.id) r.log=S.repLog; const autres=S.dossier?reperesDossier(S.dossier).filter(x=>x!==inp.value):[];
   REP_ETAT={...r, autres};
   const chips=(id,list,cle)=>{ $("#"+id).innerHTML=list.map(x=>`<button class="rep-c${(REP_ETAT[cle]||"")===x?" on":""}" data-rc="${cle}" data-v="${esc(x)}">${esc(x||"—")}</button>`).join(""); };
   const maj=()=>{
+    $("#repLog").innerHTML=`<div class="rep-chips"><button class="rep-c${!REP_ETAT.log?" on":""}" data-rc="log" data-v="">Aucun</button></div>`+REP_LOGEMENTS.map(L=>`<div class="rep-g"><div class="rep-chips">${[1,2,3,4,5].map(n=>`<button class="rep-c${REP_ETAT.log===L+" "+n?" on":""}" data-rc="log" data-v="${L} ${n}">${L} ${n}</button>`).join("")}</div></div>`).join("");
     chips("repNiv",CAT.niveaux||Object.keys(REP_SUFFIXE),"niv");
     $("#repPiece").innerHTML=(CAT.pieces_groupes||[]).map(g=>`<div class="rep-g"><span class="hint">${esc(g.groupe)}</span><div class="rep-chips">${g.items.map(x=>`<button class="rep-c${REP_ETAT.piece===x?" on":""}" data-rc="piece" data-v="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>`).join("");
     chips("repNum",["","1","2","3","4","5","6"],"num"); chips("repPrec",["",...REP_PRECISIONS],"prec");
     $("#repApercu").textContent=repCompose(REP_ETAT)||"Choisis le niveau puis la pièce";
-    $$("#mRep [data-rc]").forEach(b=>b.onclick=()=>{ const c=b.dataset.rc, v=b.dataset.v; REP_ETAT[c]=(c!=="niv"&&c!=="piece"&&REP_ETAT[c]===v)?"":v;
-      if(c==="piece"||c==="niv"){ // numéro proposé : si la même pièce existe déjà au même niveau
-        const meme=REP_ETAT.autres.map(repDecoupe).filter(x=>x.piece===REP_ETAT.piece && x.niv===REP_ETAT.niv);
+    $$("#mRep [data-rc]").forEach(b=>b.onclick=()=>{ const c=b.dataset.rc, v=b.dataset.v; REP_ETAT[c]=(c!=="niv"&&c!=="piece"&&c!=="log"&&REP_ETAT[c]===v)?"":v;
+      if(c==="log"){ S.repLog=v; S.repLogDossier=S.dossier?.id; }   // le logement choisi est proposé d'office pour les repères suivants
+      if(c==="piece"||c==="niv"||c==="log"){ // numéro proposé : si la même pièce existe déjà au même niveau
+        const meme=REP_ETAT.autres.map(repDecoupe).filter(x=>x.piece===REP_ETAT.piece && x.niv===REP_ETAT.niv && x.log===REP_ETAT.log);
         if(meme.length){ const pris=meme.map(x=>parseInt(x.num)||1); REP_ETAT.num=String(Math.max(...pris)+1);
           if(meme.some(x=>!x.num)) toast(`« ${REP_ETAT.piece} » existe déjà à ce niveau : pense à le numéroter 1`); }
-        else if(c==="piece") REP_ETAT.num=""; }
+        else REP_ETAT.num=""; }
       maj(); });
   };
   maj(); $("#mRep").classList.add("open");
@@ -1119,7 +1125,7 @@ function renderDossier(){
       syncVR(d); save(); renderDossier(); };
     if($("#oTri")) $("#oTri").onclick=()=>{ d.ouvertures.sort((a,b)=>(parseInt(a.num_poseur)||9999)-(parseInt(b.num_poseur)||9999)); syncVR(d); save(); renderDossier(); toast("Ouvertures rangées par N° poseur"); };
     $$("[data-o]").forEach(el=>el.onclick=e=>{ if(e.target.closest("button")) return; S.ouv=d.ouvertures.find(o=>o.id===el.dataset.o); renderOuverture(); });
-    $$("[data-dup]").forEach(b=>b.onclick=()=>{ const o=d.ouvertures.find(x=>x.id===b.dataset.dup); const c=JSON.parse(JSON.stringify(o)); c.id=uid(); c.repere=(o.repere||"")+" (copie)"; c.num_poseur=numSuivant(d); c.photos=[]; d.ouvertures.splice(d.ouvertures.indexOf(o)+1,0,c);
+    $$("[data-dup]").forEach(b=>b.onclick=()=>{ const o=d.ouvertures.find(x=>x.id===b.dataset.dup); const c=JSON.parse(JSON.stringify(o)); c.id=uid(); c.repere=o.repere||""; c.num_poseur=numSuivant(d); c.photos=[]; d.ouvertures.splice(d.ouvertures.indexOf(o)+1,0,c);
       const lv=vrLie(d,o); if(lv){ const nl=ajouterVRLie(d,c); Object.assign(nl, JSON.parse(JSON.stringify(lv)), {id:nl.id, ouv_id:c.id}); syncVR(d); } save(); renderDossier(); });
     $$("[data-del]").forEach(b=>b.onclick=async()=>{ const lv=d.vr.lignes.find(l=>l.ouv_id===b.dataset.del);
       if(!await demander(lv?"Supprimer cette ouverture et son volet roulant ?":"Supprimer cette ouverture ?","Supprimer")) return;

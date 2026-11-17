@@ -721,6 +721,9 @@ html.resa-open{overflow:hidden}
 .cv-card h3{margin:0;font:800 .76rem/1.2 var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--cc,#0891b2)}
 .cv-li{display:grid;gap:2px;padding:6px 0;border-top:1px dashed var(--line)}.cv-li:first-of-type{border-top:0}.cv-li b{font-weight:600}.cv-li .sub{font-size:.84rem}
 .cv-kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:6px 10px;font-size:.95rem}.cv-kv dt{color:var(--muted);font-size:.82rem}.cv-kv dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.cv-recap .fcard{border-radius:12px}.cv-wide{grid-column:1/-1}
+.cv-info{display:flex;flex-wrap:wrap;gap:6px}.cv-info span{font-size:.84rem;padding:3px 10px;border-radius:999px;background:color-mix(in srgb,#60a5fa 10%,var(--panel));border:1px solid color-mix(in srgb,#60a5fa 30%,var(--line))}
+.cv-ml{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:8px 0;border-top:1px dashed var(--line)}.cv-ml:first-of-type{border-top:0}.cv-ml .msn{-webkit-line-clamp:2}
 .cv-tl{display:grid;gap:0}.cv-tl div{display:grid;grid-template-columns:62px minmax(0,1fr);gap:8px;padding:5px 0;border-top:1px dashed var(--line);font-size:.9rem}.cv-tl div:first-child{border-top:0}.cv-tl span{color:var(--muted);font-variant-numeric:tabular-nums}
 .mrecap{padding:12px 16px 16px;display:grid;gap:10px}
 .mstat{display:flex;flex-wrap:wrap;gap:8px}.mstat span{display:inline-flex;gap:6px;align-items:center;padding:5px 12px;border-radius:999px;background:color-mix(in srgb,var(--mc,#60a5fa) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--mc,#60a5fa) 35%,var(--line));font-weight:600;font-size:.9rem}
@@ -4065,6 +4068,7 @@ function renderCv(){ const el = $("#cvbody"); if (!el) return; const r = cvSel &
   el.innerHTML = `<div class="cv-head"><div style="min-width:0"><span class="eyebrow">${esc(r.lieu || "")}${r.fic ? " · premier contact le " + fd(r.fic) + "/" + yOf(r) : ""}${r.src ? " · " + esc(r.src) : ""}</span><h2>${esc(r.client)}</h2>
       <div class="cv-pills"><span class="pill ${ST[st].c}">${ST[st].l}</span>${nextPill(r)}</div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">${tl2(r.tel)}${mailOf(r) ? `<a class="btn sm" href="${esc(outlookHref([mailOf(r)], [], "", "Bonjour,\n\n\n" + SIGN))}">✉ Écrire</a>` : ""}<button class="btn sm" type="button" data-id="${esc(r.id)}">Ouvrir la fiche complète</button></div></div>
+    <div class="cv-recap">${recapBox(r)}</div>
     <div class="cv-grid">
       <section class="cv-card" style="--cc:#2563eb"><h3>Coordonnées</h3><dl class="cv-kv"><dt>Téléphone</dt><dd>${esc(r.tel || "—")}</dd><dt>Mail</dt><dd>${esc(mailOf(r) || "—")}</dd><dt>Domicile</dt><dd>${esc(adrOf(r) || "—")}</dd><dt>Chantier</dt><dd>${esc(adrChantier(r) || "même adresse")}</dd>${trajet(r) ? `<dt>Trajet</dt><dd>≈ ${esc(trajet(r).t)} · ${trajet(r).km} km</dd>` : ""}</dl>
         ${C.length ? `<div><span class="eyebrow">Autres contacts</span>${C.map(c => `<div class="cv-li"><b>${esc(c.lien || "Contact")}${c.nom ? " · " + esc(c.nom) : ""}${c.rdv ? " · 📐 pour le RDV" : ""}</b><span class="sub">${esc(c.tel || "")}${c.note ? " · " + esc(c.note.slice(0, 90)) : ""}</span>${c.tel ? `<div>${tl2(c.tel)}</div>` : ""}</div>`).join("")}</div>` : ""}</section>
@@ -4075,15 +4079,55 @@ function renderCv(){ const el = $("#cvbody"); if (!el) return; const r = cvSel &
       <section class="cv-card" style="--cc:#84cc16"><h3>Tâches${T.filter(x => !x.done).length ? " · " + T.filter(x => !x.done).length + " à faire" : ""}</h3>${T.length ? T.slice(0, 10).map(x => `<div class="cv-li"><b>${x.done ? "✅ " : "⬜ "}${esc(tLabel(x))}</b><span class="sub">${x.done ? "faite le " + esc(fd(x.done.d)) : "pour le " + esc(fd(x.due))}${x.note && x.note !== tLabel(x) ? " · " + esc(x.note.slice(0, 120)) : ""}</span></div>`).join("") : `<span class="sub">Aucune tâche.</span>`}</section>
       <section class="cv-card" style="--cc:#dc2626"><h3>SAV${SV.length ? " · " + SV.length : ""}</h3>${SV.length ? SV.map(v => `<div class="cv-li"><b>🔧 ${esc(v.produit || "SAV")} · ${esc(csStatus(v.st).l)}</b><span class="sub">ouvert le ${esc(fd(v.d))}${v.pb ? " · " + esc(v.pb.slice(0, 140)) : ""}</span></div>`).join("") : `<span class="sub">Aucun SAV.</span>`}</section>
       <section class="cv-card" style="--cc:#8b5cf6"><h3>Notes d'appel${N.length ? " · " + N.length : ""}</h3>${N.length ? N.slice(0, 5).map(n => `<div class="cv-li"><b>📞 ${esc(fd(n.d))}${n.dur ? " · " + esc(n.dur) : ""}</b><span class="sub">${esc(((n.pts || []).join(" · ") || n.txt || "").replace(/\d\d:\d\d — /g, "").slice(0, 220))}</span></div>`).join("") : `<span class="sub">Pas encore de note d'appel.</span>`}</section>
-      <section class="cv-card" style="--cc:#60a5fa"><h3>Mails récents</h3>${MAILS.length ? MAILS.map(m => `<div class="cv-li"><a href="${esc(gmLink(m))}" target="_blank" rel="noopener"><b>${esc(m.subject || "(sans objet)")}</b></a><span class="sub">${esc(mailAddr(m.from).n)} · ${esc(fd(iso(new Date(m.date))))}</span></div>`).join("") : `<span class="sub">${mailsList.length ? "Aucun mail de ce client dans les mails chargés." : "Actualise l'onglet Mails pour voir ses mails ici."}</span>`}</section>
+      <section class="cv-card cv-wide" style="--cc:#60a5fa" id="cvmails">${cvMailsHtml(r)}</section>
       <section class="cv-card" style="--cc:#f59e0b"><h3>Historique</h3>${tl.length ? `<div class="cv-tl">${tl.map(x => `<div><span>${esc(fd(x.d))}</span>${esc(x.t)}</div>`).join("")}</div>` : `<span class="sub">Rien de noté pour l'instant.</span>`}${r.notes ? `<div class="cv-li"><b>Suivi noté dans le tableau Drive</b><span class="sub" style="white-space:pre-wrap">${esc(r.notes)}</span></div>` : ""}</section>
       ${REL.length ? `<section class="cv-card" style="--cc:#64748b"><h3>Autres dossiers de ce client</h3>${REL.map(x => `<div class="cv-li"><button class="lnk" type="button" data-cvgo="${esc(x.id)}"><b>${esc(x.client)}</b></button><span class="sub">${x.fic ? "FIC du " + esc(fd(x.fic)) + "/" + yOf(x) : ""}${venteD(x) ? " · vente du " + esc(fd(venteD(x))) : ""} · ${esc(ST[status(x)].l)}</span></div>`).join("")}</section>` : ""}
     </div>`;
   el.querySelectorAll("[data-id]").forEach(b => b.onclick = () => openDossier(b.dataset.id));
-  el.querySelectorAll("[data-cvgo]").forEach(b => b.onclick = () => { cvSel = b.dataset.cvgo; renderCvRes(); renderCv(); }); }
+  el.querySelectorAll("[data-cvgo]").forEach(b => b.onclick = () => { cvSel = b.dataset.cvgo; renderCvRes(); renderCv(); });
+  try { wireCvMails(r); } catch(e){ console.warn(e); }
+  if (!cvMails[r.id]) cvLoadMails(r, false); }
 (() => { const q = $("#cvq"); if (!q) return; q.oninput = () => { renderCvRes(); const L = cvFind(q.value); if (L.length === 1 && cvSel !== L[0].id) { cvSel = L[0].id; renderCvRes(); renderCv(); } };
   q.onkeydown = e => { if (e.key === "Enter") { const L = cvFind(q.value); if (L[0]) { cvSel = L[0].id; renderCvRes(); renderCv(); } } };
   const t = $("#t-cli"); if (t) t.addEventListener("click", () => setTimeout(() => q.focus(), 50)); })();
+/* ses mails à lui : recherche Gmail dédiée (lecture seule) + ce qu'on y repère */
+const cvMails = {};
+function cvQuery(r){ const ml = (mailOf(r) || "").toLowerCase(), P = []; if (ml) P.push("from:" + ml, "to:" + ml); ctOf(r).forEach(c => { const m = String(c.note || "").match(/[\w.+\-]+@[\w\-]+(?:\.[\w\-]+)+/); if (m) P.push("from:" + m[0]); });
+  const nom = upAscii(r.client).split(/[^A-Z]+/).filter(x => x.length >= 4 && !/^(MAIRIE|COMMUNE|SARL|SCI|MONSIEUR|MADAME)$/.test(x))[0]; if (nom) P.push('"' + nom.toLowerCase() + '"');
+  const t = String(r.tel || "").replace(/\D/g, ""); if (t.length >= 10) P.push('"' + t.slice(-10).replace(/(\d\d)(?=\d)/g, "$1 ") + '"');
+  return P.length ? "(" + P.join(" OR ") + ") newer_than:2y -in:chats" : ""; }
+async function cvLoadMails(r, manual){ const q = cvQuery(r); if (!q) { cvMails[r.id] = { err: "Pas d'adresse mail ni de nom exploitable pour chercher ses mails." }; return renderCv(); }
+  if (!manual && window.CRM_ONLINE && CRM_ONLINE.hasRead && !CRM_ONLINE.hasRead()) { cvMails[r.id] = { idle: true }; return renderCv(); }
+  cvMails[r.id] = { busy: true }; renderCv();
+  try { const mcp = await claude.use("mcp"); const res = await mcp.callTool("Gmail", "list_messages", { query: q, max: 25 }); const L = ((res.payload || res).messages || []).sort((x, y) => y.date - x.date);
+    cvMails[r.id] = { L, at: Date.now() }; L.forEach(m => { if (!mailsList.some(x => x.id === m.id)) mailsList.push(m); }); }
+  catch(e){ cvMails[r.id] = { err: e && e.code === "consent_required" ? "Autorise la lecture de tes mails avec le bandeau bleu en haut, puis clique sur « Chercher ses mails »." : e && e.code === "not_in_manifest" ? "La recherche des mails fonctionne dans la version en ligne du CRM." : e && e.code === "needs_reauth" ? "Connecte-toi à Google (bandeau en haut), puis clique sur « Chercher ses mails »." : "Recherche impossible : " + String((e && e.message) || e).slice(0, 120) }; }
+  if (cvSel === r.id) renderCv(); }
+function cvMailsHtml(r){ const st = cvMails[r.id];
+  const head = `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><h3>Ses mails${st && st.L ? " · " + st.L.length : ""}</h3><button class="btn sm" type="button" id="cvmref">${st && st.busy ? "⏳ Recherche…" : "🔄 Chercher ses mails"}</button></div>`;
+  if (!st || st.idle) return head + `<span class="sub">Clique sur « Chercher ses mails » : je cherche dans ta boîte tous les mails de ce client (ou qui parlent de lui) depuis 2 ans, et je te sors ce qu'il faut retenir.</span>`;
+  if (st.busy) return head + `<span class="sub">Je cherche dans ta boîte mail…</span>`;
+  if (st.err) return head + `<span class="sub" style="color:var(--s-lost)">${esc(st.err)}</span>`;
+  if (!st.L.length) return head + `<span class="sub">Aucun mail trouvé pour ce client.</span>`;
+  const A = st.L.filter(m => !MAIL_ME.test(mailAddr(m.from).a)).map(m => mailAna(m, r)), mine = st.L.filter(m => MAIL_ME.test(mailAddr(m.from).a));
+  const infos = []; const seenT = new Set([String(r.tel || "").replace(/\D/g, "").slice(-9)]);
+  A.forEach(o => { const dm = fd(iso(new Date(o.m.date)));
+    o.tels.forEach(t => { if (!seenT.has(t)) { seenT.add(t); infos.push("📞 " + ctTel("0" + t) + " · " + dm); } });
+    (o.clean.match(/\b\d{1,4}(?: ?(?:bis|ter))?,? [^\n,.]{3,60}\b\d{5} [A-Za-zÀ-ÿ' \-]{2,40}/g) || []).slice(0, 2).forEach(ad => { const t = ad.replace(/\s+/g, " ").trim(); if (!infos.some(x => x.includes(t))) infos.push("📍 " + t + " · " + dm); });
+    (o.m.att || []).filter(x => !x.inline && (/pdf/i.test(x.mime) || /^image/.test(x.mime) && x.size > 15000)).forEach(x => infos.push((/pdf/i.test(x.mime) ? "📄 " : "📷 ") + x.name + " · " + dm));
+    o.sig.forEach(k => { if (k === "photo") return; const sg = M_SIG.find(y => y[0] === k); infos.push(sg[1] + " · " + dm); }); });
+  const P = A.flatMap(o => o.props.map(p => [o, p]));
+  const rows2 = st.L.map(m => { const o = A.find(x => x.m.id === m.id), me = !o, a = mailAddr(m.from);
+    return `<div class="cv-ml"><div style="min-width:0"><a href="${esc(gmLink(m))}" target="_blank" rel="noopener"><b>${me ? "↗ " : ""}${esc(m.subject || "(sans objet)")}</b></a><div class="sub">${me ? "envoyé par toi" : esc(a.n)}${o && o.sig.length ? " · " + o.sig.map(k => M_SIG.find(y => y[0] === k)[1]).join(" · ") : ""}</div><div class="msn">${esc(mailClean(m.body).replace(/\s+/g, " ").slice(0, 200) || m.snippet)}</div></div><span class="sub" style="white-space:nowrap">${esc(fd(iso(new Date(m.date))))}${new Date(m.date).getFullYear() !== today().getFullYear() ? "/" + new Date(m.date).getFullYear() : ""}</span></div>`; }).join("");
+  return head + `<span class="sub">${A.length} reçu${A.length > 1 ? "s" : ""} · ${mine.length} envoyé${mine.length > 1 ? "s" : ""} par toi · dernier le ${esc(fd(iso(new Date(st.L[0].date))))}</span>
+    ${infos.length ? `<div><span class="eyebrow">Ce que j'ai repéré dans ses mails</span><div class="cv-info" style="margin-top:6px">${infos.slice(0, 16).map(x => `<span>${esc(x)}</span>`).join("")}</div></div>` : ""}
+    ${P.length ? `<div style="display:grid;gap:8px"><span class="eyebrow">À ajouter à sa fiche</span>${P.map(([o, p]) => `<div class="mprop" style="--cc:${p.c}"><div style="min-width:0"><div class="mpl">${p.ico} ${esc(p.l)}</div><div class="mpd">« ${esc(p.d)} » · mail du ${esc(fd(iso(new Date(o.m.date))))}</div></div><div class="mpb"><button class="btn sm pri" type="button" data-cvok="${esc(p.key)}">✓ Ajouter</button><button class="btn sm" type="button" data-cvign="${esc(p.key)}" title="Ignorer">✕</button></div></div>`).join("")}</div>` : ""}
+    <details${st.L.length <= 6 ? " open" : ""}><summary class="sub" style="cursor:pointer">Les mails (${st.L.length})</summary>${rows2}</details>`; }
+function wireCvMails(r){ const b = $("#cvmref"); if (b) b.onclick = () => cvLoadMails(r, true);
+  const st = cvMails[r.id]; if (!st || !st.L) return; const A = st.L.filter(m => !MAIL_ME.test(mailAddr(m.from).a)).map(m => mailAna(m, r)), P = A.flatMap(o => o.props.map(p => [o, p]));
+  const find = k => P.find(([, p]) => p.key === k);
+  document.querySelectorAll("#cvmails [data-cvok]").forEach(x => x.onclick = async () => { const f = find(x.dataset.cvok); if (f) { x.disabled = true; await mailDo(f[0], f[1]); renderCv(); } });
+  document.querySelectorAll("#cvmails [data-cvign]").forEach(x => x.onclick = async () => { await mailMark(x.dataset.cvign, "ign"); renderCv(); }); }
 /* ===== Onglet Mails : lecture Gmail (lecture seule), tri par client / fournisseur, récap, réponses types, « À classer » ===== */
 let mailsList = [], gmMeta = { s: {} }, mailBusy = false, mailErr = "", mailRep = null, mailAt = null;
 try { const c = JSON.parse(localStorage.getItem("crm-mails") || "null"); if (c && c.L) { mailsList = c.L; mailAt = c.at; } } catch(_){}
@@ -4115,7 +4159,7 @@ const M_SIG = [
   ["liv", "🚚 Livraison / commande", "#0ea5e9", /accus[ée] de r[ée]ception|\bar de commande|confirmation de commande|date de livraison|livraison pr[ée]vue|exp[ée]di|semaine \d{1,2}\b|\bs\d{2}\b|retard de|mise en fabrication/],
   ["devis", "📝 Demande de devis", "#f97316", /demande de devis|un devis pour|faire un devis|chiffrage|estimation|tarif pour|prix pour/],
   ["photo", "📷 Photos", "#64748b", null] ];
-function mailAna(m){
+function mailAna(m, forceR){
   const { a, n } = mailAddr(m.from), clean = mailClean(m.body), S = sansAcc(m.subject + " \n" + clean);
   const o = { m, a, n, clean, sig: [], cat: "autre", client: null, four: "", props: [] };
   const L = m.labels || [];
@@ -4128,6 +4172,7 @@ function mailAna(m){
   if (o.sig.includes("signe") === false && pdfs.some(x => /sign|bon.?pour|bpa|accord|bc\b/i.test(x.name))) o.sig.push("signe");
   if (o.cat !== "pub") { const c = mailClientOf(o.cat === "autre" ? a : "", o.cat === "autre" ? n : "", o.cat === "autre" ? "" : m.subject + "\n" + clean); if (c) { o.client = c.r; o.how = c.how; if (o.cat === "autre") o.cat = "client"; } }
   if (o.how === "nom cité dans le mail") o.weak = true;
+  if (forceR) { o.client = forceR; o.weak = false; if (o.cat === "autre" || o.cat === "pub" && mailOf(forceR) && o.a === mailOf(forceR).toLowerCase()) o.cat = "client"; }
   // numéros vus dans le mail
   const tels = (clean.match(/(?:\+33\s?|0)[1-9](?:[ .\-]?\d{2}){4}/g) || []).map(t => t.replace(/\D/g, "").slice(-9)).filter((t, i, A) => A.indexOf(t) === i && !OUR_TELS.includes(t));
   o.tels = tels;

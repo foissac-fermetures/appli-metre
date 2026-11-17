@@ -632,18 +632,26 @@ html.resa-open{overflow:hidden}
 /* ---- onglet SAV ---- */
 #v-sav:not([hidden]){display:grid;gap:16px}
 .fqs{flex:1 1 240px;min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:inherit;font:inherit}
-.flist{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;padding:14px 16px 16px}
-.fcar{align-content:start;border:1px solid var(--line);border-left:4px solid #34d399;border-radius:12px;padding:12px 14px;display:grid;gap:8px;min-width:0;background:var(--panel)}
-.fcar h3{margin:0;font-size:1.05rem;display:flex;gap:8px;align-items:baseline;justify-content:space-between}
-.fcar .focat{color:var(--muted);font-size:.82rem}
-.foct{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:8px 0 0;border-top:1px dashed var(--line)}
-.foct .fwho{flex:1 1 150px;min-width:0}.foct .fwho b{display:block}.foct .fwho span{color:var(--muted);font-size:.8rem;display:block;overflow-wrap:anywhere}
-.fcall{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:#16a34a;color:#fff;font-weight:700;text-decoration:none;white-space:nowrap}
-.fcall:hover{background:#15803d}.fmail{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;border:1px solid var(--line);color:inherit;text-decoration:none;white-space:nowrap}
-.fnote{font-size:.82rem;color:var(--muted);white-space:pre-wrap}
+.flist{display:grid;gap:0;padding:4px 0 10px}
+.fo-grp{margin:0;padding:14px 16px 6px;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:flex;gap:8px;align-items:center}
+.fo-grp::after{content:"";flex:1;height:1px;background:var(--line)}
+.fo-line{display:grid;grid-template-columns:minmax(200px,280px) 1fr;gap:6px 16px;padding:10px 16px;border-bottom:1px solid var(--line);align-items:start}
+.fo-line:hover{background:color-mix(in srgb,#34d399 5%,var(--panel))}
+.fo-head{min-width:0;display:grid;gap:2px}.fo-head b{font-size:1rem}.fo-cat{color:var(--muted);font-size:.8rem}
+.fo-head .fo-btns{display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap}
+.fo-cts{display:grid;gap:4px;min-width:0}
+.fo-ct{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 190px;gap:4px 10px;align-items:center;padding:3px 0}
+.fo-ct+.fo-ct{border-top:1px dashed var(--line);padding-top:6px}
+.fo-ct .fo-who{min-width:0}.fo-ct .fo-who b{font-weight:600}.fo-ct .fo-who span{color:var(--muted);font-size:.8rem;display:block}
+.fo-ct .fo-num{font-variant-numeric:tabular-nums;font-size:.86rem;min-width:0;overflow-wrap:anywhere}.fo-ct .fo-num span{display:block;color:var(--muted);font-size:.78rem}
+.fo-ct .fo-act{display:flex;gap:6px;justify-content:flex-end}
+.fo-call{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:#16a34a;color:#fff;font-weight:700;text-decoration:none;white-space:nowrap;font-size:.86rem}
+.fo-call:hover{background:#15803d}.fo-mail{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);color:inherit;text-decoration:none;white-space:nowrap;font-size:.86rem}
+.fo-note{font-size:.8rem;color:var(--muted);white-space:pre-wrap}
+@media (max-width:760px){.fo-line{grid-template-columns:1fr}.fo-ct{grid-template-columns:1fr auto}.fo-ct .fo-num{grid-column:1}.fo-ct .fo-act{grid-column:2;grid-row:1/span 2}}
 .fed{display:grid;gap:8px;padding:14px 16px;margin:12px 16px 0;border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,#34d399 7%,var(--panel))}
-.fed input,.fed textarea{width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:inherit;font:inherit}
-.fed .frow{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px}
+.fed input,.fed textarea,.fed select{width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:inherit;font:inherit}
+.fed .fo-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px}
 .fed label{font-size:.8rem;color:var(--muted)}
 .sv{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;padding:10px 16px;border-bottom:1px solid var(--soft)}
 .sv.mine{box-shadow:inset 4px 0 0 var(--s-win)}
@@ -3904,9 +3912,11 @@ const telLink = t => { let d = String(t || "").replace(/[^\d+]/g, ""); if (d.sta
 const fTel = t => { try { return telNorm(t); } catch(_){ return t; } };
 function fourMatch(f, q){ if (!q) return true; const n = x => String(x || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const hay = n([f.nom, f.cat, f.notes, f.tel, f.mail, ...(f.contacts || []).flatMap(c => [c.nom, c.role, c.tel, c.mail])].join(" ")); return n(q).split(/\s+/).every(w => hay.includes(w)); }
-function fourContact(c, f){ const tl = telLink(c.tel), sub = "";
-  return `<div class="foct"><div class="fwho"><b>${esc(c.nom || "Standard")}</b>${c.role ? `<span>${esc(c.role)}</span>` : ""}${c.tel ? `<span>${esc(fTel(c.tel))}</span>` : ""}${c.mail ? `<span>${esc(c.mail)}</span>` : ""}</div>
-    ${tl ? `<a class="fcall" href="${esc(tl)}">📞 Appeler</a>` : ""}${c.mail ? `<a class="fmail" href="${esc(outlookHref([c.mail], [], "Foissac Fermetures Gourdon", ""))}">✉ Mail</a>` : ""}</div>`; }
+const FGRP = ["Fournisseurs principaux", "Quincailleries, pièces, consommables", "Vitrage", "Autres fournisseurs", "Matériaux et logiciels", "Pas encore de compte ouvert"];
+function fourContact(c){ const tl = telLink(c.tel);
+  return `<div class="fo-ct"><div class="fo-who"><b>${esc(c.nom || "Standard")}</b>${c.role ? `<span>${esc(c.role)}</span>` : ""}</div>
+    <div class="fo-num">${c.tel ? esc(fTel(c.tel)) : ""}${c.mail ? `<span>${esc(c.mail)}</span>` : ""}</div>
+    <div class="fo-act">${tl ? `<a class="fo-call" href="${esc(tl)}">📞 Appeler</a>` : ""}${c.mail ? `<a class="fo-mail" href="${esc(outlookHref([c.mail], [], "Foissac Fermetures Gourdon", ""))}" title="Écrire à ${esc(c.mail)}">✉ Mail</a>` : ""}</div></div>`; }
 function renderFour(){ const el = $("#flist"); if (!el) return; const tn = $("#tfour-n");
   const all = Object.entries(fourn).map(([id, f]) => Object.assign({ id }, f)).sort((a, b) => String(a.nom).localeCompare(String(b.nom), "fr"));
   if (tn) tn.textContent = all.length || "";
@@ -3914,19 +3924,22 @@ function renderFour(){ const el = $("#flist"); if (!el) return; const tn = $("#t
   if (!fournOk) { el.innerHTML = `<div class="empty">Chargement…</div>`; return; }
   if (!all.length) { el.innerHTML = `<div class="empty">Aucun fournisseur pour l'instant. Clique « + Fournisseur », ou importe la liste préparée (⇧ Importer mes données).</div>`; return; }
   if (!L.length) { el.innerHTML = `<div class="empty">Aucun fournisseur ne correspond à « ${esc(q)} ».</div>`; return; }
-  el.innerHTML = L.map(f => { const C = [];
+  const groups = {}; L.forEach(f => (groups[f.grp || "Autres fournisseurs"] = groups[f.grp || "Autres fournisseurs"] || []).push(f));
+  const order = FGRP.concat(Object.keys(groups).filter(g => !FGRP.includes(g))).filter(g => groups[g]);
+  el.innerHTML = order.map(g => `<h3 class="fo-grp">${esc(g)} · ${groups[g].length}</h3>` + groups[g].map(f => { const C = [];
       if (f.tel || f.mail) C.push({ nom: "Standard / accueil", tel: f.tel, mail: f.mail });
       (f.contacts || []).forEach(c => C.push(c));
-      return `<article class="fcar"><h3><span>${esc(f.nom)}</span><button class="btn sm" data-fed="${esc(f.id)}" type="button">Modifier</button></h3>
-        ${f.cat ? `<div class="focat">${esc(f.cat)}</div>` : ""}${C.map(c => fourContact(c, f)).join("")}${f.site ? `<a class="sub" href="${esc(/^https?:/.test(f.site) ? f.site : "https://" + f.site)}" target="_blank" rel="noopener">${esc(f.site.replace(/^https?:\/\//, ""))}</a>` : ""}${f.notes ? `<div class="fnote">${esc(f.notes)}</div>` : ""}</article>`; }).join("");
+      return `<article class="fo-line"><div class="fo-head"><b>${esc(f.nom)}</b>${f.cat ? `<span class="fo-cat">${esc(f.cat)}</span>` : ""}${f.notes ? `<span class="fo-note">${esc(f.notes)}</span>` : ""}
+        <span class="fo-btns"><button class="btn sm" data-fed="${esc(f.id)}" type="button">Modifier</button>${f.site ? `<a class="sub" href="${esc(/^https?:/.test(f.site) ? f.site : "https://" + f.site)}" target="_blank" rel="noopener">${esc(f.site.replace(/^https?:\/\//, ""))}</a>` : ""}</span></div>
+        <div class="fo-cts">${C.length ? C.map(fourContact).join("") : `<span class="sub">Pas encore de contact : clique Modifier pour en ajouter.</span>`}</div></article>`; }).join("")).join("");
   el.querySelectorAll("[data-fed]").forEach(b => b.onclick = () => fourForm(b.dataset.fed)); }
 function fourForm(id){ const box = $("#fform"); if (!box) return; fournEdit = id || "";
   const f = id ? Object.assign({ contacts: [] }, fourn[id]) : { nom: "", cat: "", tel: "", mail: "", site: "", notes: "", contacts: [] };
   const cts = (f.contacts || []).concat([{}, {}]);
-  const ctRow = (c, i) => `<div class="frow" data-ct="${i}"><input placeholder="Nom du contact" data-k="nom" value="${esc(c.nom || "")}"><input placeholder="Rôle (commercial, SAV…)" data-k="role" value="${esc(c.role || "")}"><input placeholder="Téléphone" data-k="tel" inputmode="tel" value="${esc(c.tel || "")}"><input placeholder="Mail" data-k="mail" inputmode="email" value="${esc(c.mail || "")}"></div>`;
+  const ctRow = (c, i) => `<div class="fo-row" data-ct="${i}"><input placeholder="Nom du contact" data-k="nom" value="${esc(c.nom || "")}"><input placeholder="Rôle (commercial, SAV…)" data-k="role" value="${esc(c.role || "")}"><input placeholder="Téléphone" data-k="tel" inputmode="tel" value="${esc(c.tel || "")}"><input placeholder="Mail" data-k="mail" inputmode="email" value="${esc(c.mail || "")}"></div>`;
   box.innerHTML = `<form class="fed" id="fedf"><b>${id ? "Modifier " + esc(f.nom) : "Nouveau fournisseur"}</b>
-    <div class="frow"><div><label>Nom du fournisseur</label><input id="fn" required value="${esc(f.nom)}"></div><div><label>Produits</label><input id="fc" value="${esc(f.cat || "")}" placeholder="volets, portes, portails…"></div></div>
-    <div class="frow"><div><label>Téléphone standard</label><input id="ft" inputmode="tel" value="${esc(f.tel || "")}"></div><div><label>Mail général</label><input id="fm" inputmode="email" value="${esc(f.mail || "")}"></div><div><label>Site internet</label><input id="fs" value="${esc(f.site || "")}"></div></div>
+    <div class="fo-row"><div><label>Nom du fournisseur</label><input id="fn" required value="${esc(f.nom)}"></div><div><label>Produits</label><input id="fc" value="${esc(f.cat || "")}" placeholder="volets, portes, portails…"></div><div><label>Rubrique</label><select id="fg">${FGRP.map(g => `<option${(f.grp || "Autres fournisseurs") === g ? " selected" : ""}>${esc(g)}</option>`).join("")}</select></div></div>
+    <div class="fo-row"><div><label>Téléphone standard</label><input id="ft" inputmode="tel" value="${esc(f.tel || "")}"></div><div><label>Mail général</label><input id="fm" inputmode="email" value="${esc(f.mail || "")}"></div><div><label>Site internet</label><input id="fs" value="${esc(f.site || "")}"></div></div>
     <label>Contacts (laisse une ligne vide pour l'ignorer)</label><div id="fcts" style="display:grid;gap:6px">${cts.map(ctRow).join("")}</div>
     <button class="btn sm" type="button" id="fctadd" style="justify-self:start">+ une ligne contact</button>
     <div><label>Notes (n° client, horaires, SAV…)</label><textarea id="fno" rows="2">${esc(f.notes || "")}</textarea></div>
@@ -3938,7 +3951,7 @@ function fourForm(id){ const box = $("#fform"); if (!box) return; fournEdit = id
     try { await db.collection("fournisseurs").doc(id).delete(); delete fourn[id]; box.innerHTML = ""; toast("Fournisseur supprimé"); renderFour(); } catch(e){ toast("Pas supprimé, réessaie"); } };
   $("#fedf").onsubmit = async ev => { ev.preventDefault(); const g = s => ($(s).value || "").trim();
     const contacts = [...box.querySelectorAll("[data-ct]")].map(r => { const o = {}; r.querySelectorAll("[data-k]").forEach(i => { const v = i.value.trim(); if (v) o[i.dataset.k] = v; }); return o; }).filter(o => o.nom || o.tel || o.mail);
-    const v = { nom: g("#fn"), cat: g("#fc"), tel: g("#ft"), mail: g("#fm"), site: g("#fs"), notes: g("#fno"), contacts, maj: new Date().toISOString() };
+    const v = { nom: g("#fn"), grp: $("#fg").value, cat: g("#fc"), tel: g("#ft"), mail: g("#fm"), site: g("#fs"), notes: g("#fno"), contacts, maj: new Date().toISOString() };
     if (!v.nom) return toast("Donne un nom au fournisseur");
     const nid = id || v.nom.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) + "-" + Date.now().toString(36).slice(-4);
     try { await db.collection("fournisseurs").doc(nid).set(v); fourn[nid] = v; box.innerHTML = ""; fournEdit = null; toast("Fournisseur enregistré"); renderFour(); } catch(e){ toast("Pas enregistré, réessaie"); } }; }

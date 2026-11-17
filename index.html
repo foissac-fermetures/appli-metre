@@ -104,6 +104,8 @@ input:focus,select:focus,textarea:focus{outline:3px solid #c9d6f3;border-color:v
 .mic-btn{position:absolute;right:6px;bottom:6px;width:36px;height:36px;border-radius:50%;border:1px solid var(--line,#ccd);background:#fff;font-size:17px;line-height:1;cursor:pointer}
 .mic-btn.rec{background:#d3232f;color:#fff;border-color:#d3232f;animation:micp 1s infinite}@keyframes micp{50%{box-shadow:0 0 0 6px rgba(211,35,47,.25)}}
 .pp-img img{max-height:260px}.vb-imgs.pp-imgs{display:grid;grid-template-columns:2.6fr 1.3fr 2fr;gap:8px;align-items:center;margin-top:4mm}.vb-imgs.pp-imgs img{width:100%;max-height:55mm;object-fit:contain}
+.dos-cli{border-left:5px solid var(--navy,#1b2f5e);cursor:pointer}.dos-cli.ouvert{background:#eef1f7}.dos-ico{font-size:20px;margin-right:6px}.dos-chev{font-size:18px;margin-left:8px;color:var(--navy,#1b2f5e)}
+.dos-sous{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;padding:4px 0 10px 18px;border-left:3px solid #c9d1e3;margin:-4px 0 6px 8px}
 .sketch-wrap{position:relative;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;touch-action:none}
 canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background:
   linear-gradient(#eef1f7 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,#eef1f7 1px,transparent 1px) 0 0/24px 24px}
@@ -1091,8 +1093,19 @@ function setBar(title, back){ $("#barTitle").textContent=title||""; $("#btnBack"
 function majTitre(){ if(S.dossier) setBar(`${S.dossier.client.nom||"Nouveau client"}${S.dossier.devis_nom?" – "+S.dossier.devis_nom:""} · ${S.dossier.variante}`, true); }
 
 /* ---------- Accueil ---------- */
+/* Accueil : un dossier par client (12/11 → 17/11/2026) ; ses devis s'ouvrent en dessous */
+const cleClient = d => (d.client.nom||"").trim().toUpperCase().replace(/\s+/g," ") || ("#"+d.id);
+function groupesClients(ds){ const M=new Map(); ds.forEach(d=>{ const k=cleClient(d); if(!M.has(k)) M.set(k,{cle:k, nom:d.client.nom||"Sans nom", L:[]}); M.get(k).L.push(d); });
+  return [...M.values()].map(G=>{ G.L.sort((x,y)=>String(x.devis_nom||x.variante).localeCompare(String(y.devis_nom||y.variante),"fr",{numeric:true})); return G; }); }
+function carteMetre(d, sous=false){ normaliser(d); const n=nbErreurs(d);
+  return `<div class="item${S.selMode&&S.sel.has(d.id)?" sel":""}" data-id="${d.id}">
+      <div class="row">${S.selMode?`<input type="checkbox" class="hchk" ${S.sel.has(d.id)?"checked":""} aria-label="Sélectionner">`:""}${sous?`<span class="t">${esc(d.devis_nom||"Devis sans nom")}</span>`:`<span class="t">${esc(d.client.nom||"Sans nom")}</span>${d.devis_nom?`<span class="badge b-warn" style="margin-left:6px">${esc(d.devis_nom)}</span>`:""}`}<span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span>${S.selMode?"":`<button class="btn small danger" data-hdel="${d.id}" title="Supprimer ce métré" aria-label="Supprimer ce métré">🗑</button>`}</div>
+      <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.length} ouverture(s)${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}${aPT(d)?` · ${d.pt.elements.length} portail / portillon`:""}${aVB(d)?` · ${d.vb.lignes.length} volet(s) battant(s)`:""}${aPP(d)?` · ${d.pp.lignes.length} porte(s) palière(s)`:""}${aClim(d)?` · clim ${d.clim.lignes.length} pièce(s)`:""}</div>
+      <div class="s">${esc(d.gamme_defaut||"")}</div>
+      <div>${n?`<span class="badge b-err">${n} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} <span class="badge ${estDefinitif(d)?"b-err":"b-n"}">${estDefinitif(d)?"Métré définitif":"Devis"}</span> ${d.drive_attente?`<span class="badge b-n">☁ envoi en attente</span>`:d.drive?`<span class="badge b-ok">☁ dans le Drive</span>`:""} ${envoisClemence(d).length?`<span class="badge b-ok">📨 Clémence ${new Date(envoisClemence(d).slice(-1)[0].le).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</span>`:""}</div>
+    </div>`; }
 async function renderHome(){
-  S.view="home"; S.dossier=null; S.ouv=null; setBar("Mes métrés", false);
+  S.homeOuverts=S.homeOuverts||new Set(); S.view="home"; S.dossier=null; S.ouv=null; setBar("Mes métrés", false);
   const ds=(await DB.all()).sort((a,b)=>(b.modifie||"").localeCompare(a.modifie||""));
   memoriserConcurrents(ds.flatMap(d=>d.concurrents||[]));
   $("#app").innerHTML=`
@@ -1109,23 +1122,30 @@ async function renderHome(){
   <div class="card" id="hAgenda" style="margin-bottom:16px"><p class="hint">Chargement des rendez-vous…</p></div>
   <div class="row" style="margin:6px 0 10px"><h2 style="margin:0">Mes métrés</h2><span class="spacer"></span>
     ${ds.length?(S.selMode?`<button class="btn small" id="hSelTout">Tout cocher</button><button class="btn small danger" id="hSelDel">Supprimer la sélection</button><button class="btn small" id="hSelFin">Annuler</button>`:`<button class="btn small" id="hSel">Supprimer plusieurs…</button>`):""}</div>
-  <div class="list">${ds.map(d=>{ normaliser(d); const n=nbErreurs(d);
-    return `<div class="item${S.selMode&&S.sel.has(d.id)?" sel":""}" data-id="${d.id}">
-      <div class="row">${S.selMode?`<input type="checkbox" class="hchk" ${S.sel.has(d.id)?"checked":""} aria-label="Sélectionner">`:""}<span class="t">${esc(d.client.nom||"Sans nom")}</span>${d.devis_nom?`<span class="badge b-warn" style="margin-left:6px">${esc(d.devis_nom)}</span>`:""}<span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span>${S.selMode?"":`<button class="btn small danger" data-hdel="${d.id}" title="Supprimer ce métré" aria-label="Supprimer ce métré">🗑</button>`}</div>
-      <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.length} ouverture(s)${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}${aPT(d)?` · ${d.pt.elements.length} portail / portillon`:""}${aVB(d)?` · ${d.vb.lignes.length} volet(s) battant(s)`:""}${aPP(d)?` · ${d.pp.lignes.length} porte(s) palière(s)`:""}${aClim(d)?` · clim ${d.clim.lignes.length} pièce(s)`:""}</div>
-      <div class="s">${esc(d.gamme_defaut||"")}</div>
-      <div>${n?`<span class="badge b-err">${n} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} <span class="badge ${estDefinitif(d)?"b-err":"b-n"}">${estDefinitif(d)?"Métré définitif":"Devis"}</span> ${d.drive_attente?`<span class="badge b-n">☁ envoi en attente</span>`:d.drive?`<span class="badge b-ok">☁ dans le Drive</span>`:""} ${envoisClemence(d).length?`<span class="badge b-ok">📨 Clémence ${new Date(envoisClemence(d).slice(-1)[0].le).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</span>`:""}</div>
-    </div>`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau métré ».</div>`}</div>`;
+  <div class="list">${groupesClients(ds).map(G=>{
+      if(G.L.length===1) return carteMetre(G.L[0]);
+      const ouvert=S.homeOuverts.has(G.cle)||S.selMode, nE=G.L.reduce((s,d)=>s+nbErreurs(d),0), nC=G.L.filter(d=>envoisClemence(d).length).length, nA=G.L.filter(d=>nonEnvoyeDrive(d)).length;
+      return `<div class="item dos-cli${ouvert?" ouvert":""}" data-grp="${esc(G.cle)}">
+        <div class="row"><span class="dos-ico">📁</span><span class="t">${esc(G.nom)}</span><span class="spacer"></span><span class="badge b-n">${G.L.length} devis</span><span class="dos-chev">${ouvert?"▾":"▸"}</span></div>
+        <div class="s">${G.L.map(d=>esc(d.devis_nom||d.variante)).join(" · ")}</div>
+        <div>${nE?`<span class="badge b-err">${nE} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} ${nC?`<span class="badge b-ok">📨 ${nC}/${G.L.length} envoyé(s) à Clémence</span>`:""} ${nA?`<span class="badge b-n">☁ ${nA} pas encore dans le Drive</span>`:""}</div></div>
+        ${ouvert?`<div class="dos-sous">${G.L.map(d=>carteMetre(d,true)).join("")}</div>`:""}`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau métré ».</div>`}</div>`;
   $("#hNew").onclick=()=>{ S.dossier=nouveauDossier(); DB.put(S.dossier); S.tab="client"; renderDossier(); };
   $("#hOpen").onclick=()=>$("#fileOpen").click();
   $("#hSync").onclick=async()=>{ const b=$("#hSync"); b.disabled=true; b.textContent="☁ Actualisation…"; await synchroAccueil(true); const b2=$("#hSync"); if(b2){ b2.disabled=false; b2.textContent="☁ Actualiser"; } };
   { const z=document.createElement("div"); z.id="hSyncLe"; z.className="hint"; z.style.textAlign="right"; z.textContent=texteSyncLe(); $("#app .row").after(z); }
-  if(!S.syncAuto || Date.now()-S.syncAuto>120000){ S.syncAuto=Date.now(); setTimeout(()=>synchroAccueil(false),300); }
+  if(!S.syncAuto || Date.now()-S.syncAuto>120000){ S.syncAuto=Date.now(); setTimeout(()=>synchroAccueil(false),300); } else setTimeout(envoyerEnAttente,500);
+  if(driveDispo() && !jetonValide()){ const z=document.createElement("button"); z.className="btn small"; z.style.cssText="display:block;margin:4px 0 0 auto;border:2px solid #e07b00;color:#b35f00";
+    z.textContent="⚠ Pas connecté au Drive : touche ici pour voir et envoyer les métrés de tous tes appareils"; z.onclick=()=>$("#hSync").click(); $("#hSyncLe").after(z); }
   $("#hPT").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.pt=nouveauPT(); S.dossier.pt.elements.push(nouvelElementPT("BATTANT")); DB.put(S.dossier); S.tab="pt"; renderDossier(); };
   $("#hPP").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.pp=nouveauPP(); S.dossier.pp.lignes.push(nouvelleLignePP()); DB.put(S.dossier); S.tab="pp"; renderDossier(); };
   $("#hVB").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.vb=nouveauVB(); S.dossier.vb.lignes.push(nouvelleLigneVB()); DB.put(S.dossier); S.tab="vb"; renderDossier(); };
   $("#hClim").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.clim=nouvelleClim(); S.dossier.clim.lignes.push(nouvelleLigneClim()); DB.put(S.dossier); S.tab="clim"; renderDossier(); };
   $("#hCRM").onclick=()=>ouvrirCRM("nouveau");
+  S.homeOuverts=S.homeOuverts||new Set();
+  $$(".item[data-grp]").forEach(el=>el.onclick=e=>{ if(e.target.closest("button")) return; const k=el.dataset.grp;
+    if(S.selMode){ const ids=groupesClients(ds).find(G=>G.cle===k).L.map(d=>d.id), tous=ids.every(id=>S.sel.has(id)); ids.forEach(id=>tous?S.sel.delete(id):S.sel.add(id)); renderHome(); return; }
+    S.homeOuverts.has(k)?S.homeOuverts.delete(k):S.homeOuverts.add(k); renderHome(); });
   $$(".item[data-id]").forEach(el=>el.onclick=e=>{ if(e.target.closest("button")) return;
     if(S.selMode){ const id=el.dataset.id; S.sel.has(id)?S.sel.delete(id):S.sel.add(id); renderHome(); return; }
     S.dossier=ds.find(d=>d.id===el.dataset.id); S.tab="client"; renderDossier(); });
@@ -2969,22 +2989,35 @@ async function enregistrerDrive(){
   }
 }
 /* Retour du réseau : on envoie ce qui attend (si la connexion Google est encore valable, sinon un bandeau propose de toucher pour envoyer). */
+/* Un métré est « pas encore dans le Drive » s'il n'y a jamais été envoyé ou s'il a changé depuis (y compris les devis créés
+   par « Séparer » / « Autre devis » sans être ouverts). Tant qu'il n'est pas dans le Drive, les autres appareils ne le voient pas. */
+function nonEnvoyeDrive(d){ return !!(d && (d.client.nom||d.ouvertures.length) && (d.drive_attente || !d.drive || !d.drive.le || d.drive.sig!==empreinte(d))); }
+let ENVOI_EN_COURS=false;
 async function envoyerEnAttente(){
-  if(!driveDispo() || !navigator.onLine) return;
-  const attente=(await DB.all()).filter(x=>x.drive_attente); if(!attente.length){ majBandeauDrive(); return; }
+  if(!driveDispo() || !navigator.onLine || ENVOI_EN_COURS) return;
+  const attente=(await DB.all()).filter(x=>nonEnvoyeDrive(x) && !(S.view!=="home" && S.dossier && S.dossier.id===x.id));
+  if(!attente.length){ majBandeauDrive(0); return; }
   if(!jetonValide()){ majBandeauDrive(attente.length); return; }
-  for(const d of attente){ try{ await envoyerDossierDrive(d); }catch(e){ break; } }
-  toast("Dossiers en attente envoyés dans le Drive"); majBandeauDrive();
+  ENVOI_EN_COURS=true; let n=0;
+  try{ for(const d of attente){ try{ await envoyerDossierDrive(d); n++; }catch(e){ d.drive_attente=true; await DB.put(d); break; } } }
+  finally{ ENVOI_EN_COURS=false; }
+  if(n) toast(`${n} métré(s) enregistré(s) dans le Drive : visibles sur tes autres appareils`);
+  majBandeauDrive(); if(n && S.view==="home") renderHome();
 }
 async function majBandeauDrive(n){
   let b=document.getElementById("driveBandeau");
-  if(n==null){ try{ n=(await DB.all()).filter(x=>x.drive_attente).length; }catch(e){ n=0; } }
+  if(n==null){ try{ n=(await DB.all()).filter(nonEnvoyeDrive).length; }catch(e){ n=0; } }
   if(!n){ b?.remove(); return; }
   if(!b){ b=document.createElement("button"); b.id="driveBandeau"; b.className="btn small navy"; b.style.cssText="position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:50";
     b.onclick=async()=>{ try{ await demanderJeton(); await envoyerEnAttente(); }catch(e){ toast("Drive : "+e.message); } }; document.body.appendChild(b); }
-  b.textContent=`☁ ${n} dossier(s) en attente d'envoi dans le Drive – toucher pour envoyer`;
+  b.textContent=`☁ ${n} métré(s) pas encore dans le Drive (invisibles sur les autres appareils) – toucher pour envoyer`;
 }
 window.addEventListener("online", ()=>{ prechargerGoogle(); setTimeout(envoyerEnAttente,1500); });
+setInterval(()=>{ if(document.visibilityState==="visible" && S.view==="home" && jetonValide()){ S.syncAuto=Date.now(); synchroAccueil(false); } }, 120000);   // toutes les 2 min sur l'accueil
+/* iPad : l'appli peut être fermée sans repasser par la liste → on enregistre dès qu'elle passe en arrière-plan (si déjà connecté au Drive) */
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden"){ try{ if(S.dossier) DB.put(S.dossier); }catch(e){}
+    if(S.dossier && jetonValide() && navigator.onLine && nonEnvoyeDrive(S.dossier)) envoyerDossierDrive(S.dossier).catch(()=>{}); }
+  else if(S.view==="home" && (!S.syncAuto || Date.now()-S.syncAuto>60000)){ S.syncAuto=Date.now(); synchroAccueil(false); } });
 setTimeout(()=>{ prechargerGoogle(); envoyerEnAttente(); }, 800);
 
 
@@ -3474,6 +3507,7 @@ async function synchroAccueil(manuel){
     if(r.conflits.length) toast(`Gardé la version de cet appareil (modifiée, pas encore envoyée) : ${r.conflits.join(", ")}`);
     else if(t || manuel) toast(t||"Tout est à jour");
     if((r.ajoutes||r.maj) && S.view==="home") renderHome(); else { const z=document.getElementById("hSyncLe"); if(z) z.textContent=texteSyncLe(); }
+    envoyerEnAttente();   // et dans l'autre sens : ce qui est sur cet appareil part dans le Drive
   }catch(e){ if(manuel) toast("Drive : "+e.message); }
 }
 function texteSyncLe(){ const t=lireLS(SYNC_LE,null); if(!t) return "Pas encore actualisé sur cet appareil"; const d=new Date(t);

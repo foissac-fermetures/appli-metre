@@ -106,6 +106,9 @@ input:focus,select:focus,textarea:focus{outline:3px solid #c9d6f3;border-color:v
 .pp-img img{max-height:260px}.vb-imgs.pp-imgs{display:grid;grid-template-columns:2.6fr 1.3fr 2fr;gap:8px;align-items:center;margin-top:4mm}.vb-imgs.pp-imgs img{width:100%;max-height:55mm;object-fit:contain}
 .dos-cli{border-left:5px solid var(--navy,#1b2f5e);cursor:pointer}.dos-cli.ouvert{background:#eef1f7}.dos-ico{font-size:20px;margin-right:6px}.dos-chev{font-size:18px;margin-left:8px;color:var(--navy,#1b2f5e)}
 .dos-sous{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;padding:4px 0 10px 18px;border-left:3px solid #c9d1e3;margin:-4px 0 6px 8px}
+.rdv-types{display:grid;grid-template-columns:1fr 1fr;gap:8px}.rdv-t{padding:12px;font-size:16px}.rdv-t.on{background:#1b2f5e;border-color:#1b2f5e;color:#fff !important}.rdv-add{padding:14px;font-size:16px}
+.tab-add{border:2px dashed #b9c2d6 !important;background:transparent !important;color:var(--navy,#1b2f5e) !important}
+.log-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#eef1f7;border-radius:10px;padding:8px 12px;margin-bottom:12px;font-weight:600}.log-bar select{font-size:16px;padding:6px 8px}
 .sketch-wrap{position:relative;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;touch-action:none}
 canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background:
   linear-gradient(#eef1f7 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,#eef1f7 1px,transparent 1px) 0 0/24px 24px}
@@ -594,7 +597,8 @@ function commePrecedente(d, src){
   const c=JSON.parse(JSON.stringify(src)); c.id=uid(); c.num_poseur=numSuivant(d);
   c.cotes={ L:["","","",""], H:["","","",""] }; c.fab_force={ L:"", H:"" }; c.vantaux={ G:"", M:"", D:"" }; c.elarg={ haut:"", gauche:"", droite:"" };
   c.photos=[]; c.croquis=""; c.obs_libre=""; c.obs_pose=""; c.quantite=1; delete c.devis_ligne; delete c.devis_ref;
-  const r=repDecoupe(src.repere); if(r.piece && r.num){ r.num=String((parseInt(r.num)||0)+1); c.repere=repCompose(r); } else c.repere="";
+  const r=repDecoupe(src.repere), logSrc=r.log; if(d.logement_courant) r.log=d.logement_courant;
+  if(r.piece && r.num){ r.num=String((parseInt(r.num)||0)+1); c.repere=repCompose(r); } else if(r.piece && d.logement_courant && logSrc!==d.logement_courant) c.repere=repCompose(r); else c.repere="";
   if(c.repere && reperesDossier(d).includes(c.repere)) c.repere="";
   d.ouvertures.splice(d.ouvertures.indexOf(src)+1,0,c); save(); S.ouv=c; renderOuverture(); scrollTo(0,0);
   toast(`Copie de « ${src.repere||"la précédente"} » : ${c.repere?"repère "+c.repere+", ":"choisis le repère, "}il reste les cotes`);
@@ -793,7 +797,7 @@ function rangRepere(t){ const r=repDecoupe(t), n=Object.keys(REP_SUFFIXE).indexO
 function cmpRepere(a,b){ const x=rangRepere(a), y=rangRepere(b); for(let i=0;i<4;i++) if(x[i]!==y[i]) return x[i]-y[i]; return String(x[4]).localeCompare(String(y[4])); }
 let REP_CIBLE=null, REP_ETAT=null;
 function ouvrirRepere(inp){
-  REP_CIBLE=inp; const r=repDecoupe(inp.value); if(!inp.value && S.repLog && S.repLogDossier===S.dossier?.id) r.log=S.repLog; const autres=S.dossier?reperesDossier(S.dossier).filter(x=>x!==inp.value):[];
+  REP_CIBLE=inp; const r=repDecoupe(inp.value); if(!inp.value && S.repLog && S.repLogDossier===S.dossier?.id) r.log=S.repLog; if(!inp.value && S.dossier && S.dossier.logement_courant) r.log=S.dossier.logement_courant; const autres=S.dossier?reperesDossier(S.dossier).filter(x=>x!==inp.value):[];
   REP_ETAT={...r, autres};
   const chips=(id,list,cle)=>{ $("#"+id).innerHTML=list.map(x=>`<button class="rep-c${(REP_ETAT[cle]||"")===x?" on":""}" data-rc="${cle}" data-v="${esc(x)}">${esc(x||"—")}</button>`).join(""); };
   const maj=()=>{
@@ -803,7 +807,7 @@ function ouvrirRepere(inp){
     chips("repNum",["","1","2","3","4","5","6"],"num"); chips("repPrec",["",...REP_PRECISIONS],"prec");
     $("#repApercu").textContent=repCompose(REP_ETAT)||"Choisis le niveau puis la pièce";
     $$("#mRep [data-rc]").forEach(b=>b.onclick=()=>{ const c=b.dataset.rc, v=b.dataset.v; REP_ETAT[c]=(c!=="niv"&&c!=="piece"&&c!=="log"&&REP_ETAT[c]===v)?"":v;
-      if(c==="log"){ S.repLog=v; S.repLogDossier=S.dossier?.id; }   // le logement choisi est proposé d'office pour les repères suivants
+      if(c==="log"){ S.repLog=v; S.repLogDossier=S.dossier?.id; if(S.dossier) S.dossier.logement_courant=v; }   // le logement choisi est proposé d'office pour les repères suivants
       if(c==="piece"||c==="niv"||c==="log"){ // numéro proposé : si la même pièce existe déjà au même niveau
         const meme=REP_ETAT.autres.map(repDecoupe).filter(x=>x.piece===REP_ETAT.piece && x.niv===REP_ETAT.niv && x.log===REP_ETAT.log);
         if(meme.length){ const pris=meme.map(x=>parseInt(x.num)||1); REP_ETAT.num=String(Math.max(...pris)+1);
@@ -1113,12 +1117,8 @@ async function renderHome(){
   <div class="row"><h1>Accueil</h1><span class="spacer"></span>
     <button class="btn" id="hSync" title="Récupérer les métrés faits ou modifiés sur mes autres appareils">☁ Actualiser</button>
     <button class="btn" id="hOpen">Ouvrir un fichier…</button>
-    <button class="btn" id="hCRM">+ Depuis le CRM</button>
-    <button class="btn" id="hPT">+ Portail</button>
-    <button class="btn" id="hVB">+ Volets battants</button>
-    <button class="btn" id="hPP">+ Portes palières</button>
-    <button class="btn" id="hClim">+ Métré clim</button>
-    <button class="btn primary" id="hNew">+ Nouveau métré</button></div>
+    <button class="btn" id="hCRM">Depuis le CRM</button>
+    <button class="btn primary" id="hNew" style="font-size:17px;padding:12px 20px">+ Nouveau rendez-vous</button></div>
   <p class="hint">Chaque métré s'enregistre tout seul quand tu reviens à cette liste, dans <b>Mon Drive › Appli métré – Dossiers › Devis</b> (ou <b>› Métrés définitif</b> pour un métré définitif). Pour l'envoyer à Clémence : bouton <b>📨 Envoyer à Clémence</b> en haut du métré. Plusieurs devis pour un même client (gîtes, maison…) : « + Autre devis pour ce client » dans la fiche client, ou « ✂ Séparer en plusieurs devis » dans les ouvertures. Les métrés faits sur tes autres appareils apparaissent ici tout seuls (ou avec « ☁ Actualiser »).</p>
   <div class="card" id="hAgenda" style="margin-bottom:16px"><p class="hint">Chargement des rendez-vous…</p></div>
   <div class="row" style="margin:6px 0 10px"><h2 style="margin:0">Mes métrés</h2><span class="spacer"></span>
@@ -1130,18 +1130,14 @@ async function renderHome(){
         <div class="row"><span class="dos-ico">📁</span><span class="t">${esc(G.nom)}</span><span class="spacer"></span><span class="badge b-n">${G.L.length} devis</span><span class="dos-chev">${ouvert?"▾":"▸"}</span></div>
         <div class="s">${G.L.map(d=>esc(d.devis_nom||d.variante)).join(" · ")}</div>
         <div>${nE?`<span class="badge b-err">${nE} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} ${nC?`<span class="badge b-ok">📨 ${nC}/${G.L.length} envoyé(s) à Clémence</span>`:""} ${nA?`<span class="badge b-n">☁ ${nA} pas encore dans le Drive</span>`:""}</div></div>
-        ${ouvert?`<div class="dos-sous">${G.L.map(d=>carteMetre(d,true)).join("")}</div>`:""}`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau métré ».</div>`}</div>`;
-  $("#hNew").onclick=()=>{ S.dossier=nouveauDossier(); DB.put(S.dossier); S.tab="client"; renderDossier(); };
+        ${ouvert?`<div class="dos-sous">${G.L.map(d=>carteMetre(d,true)).join("")}</div>`:""}`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau rendez-vous ».</div>`}</div>`;
+  $("#hNew").onclick=()=>nouveauRendezVous();
   $("#hOpen").onclick=()=>$("#fileOpen").click();
   $("#hSync").onclick=async()=>{ const b=$("#hSync"); b.disabled=true; b.textContent="☁ Actualisation…"; await synchroAccueil(true); const b2=$("#hSync"); if(b2){ b2.disabled=false; b2.textContent="☁ Actualiser"; } };
   { const z=document.createElement("div"); z.id="hSyncLe"; z.className="hint"; z.style.textAlign="right"; z.textContent=texteSyncLe(); $("#app .row").after(z); }
   if(!S.syncAuto || Date.now()-S.syncAuto>120000){ S.syncAuto=Date.now(); setTimeout(()=>synchroAccueil(false),300); } else setTimeout(envoyerEnAttente,500);
   if(driveDispo() && !jetonValide()){ const z=document.createElement("button"); z.className="btn small"; z.style.cssText="display:block;margin:4px 0 0 auto;border:2px solid #e07b00;color:#b35f00";
     z.textContent="⚠ Pas connecté au Drive : touche ici pour voir et envoyer les métrés de tous tes appareils"; z.onclick=()=>$("#hSync").click(); $("#hSyncLe").after(z); }
-  $("#hPT").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.pt=nouveauPT(); S.dossier.pt.elements.push(nouvelElementPT("BATTANT")); DB.put(S.dossier); S.tab="pt"; renderDossier(); };
-  $("#hPP").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.pp=nouveauPP(); S.dossier.pp.lignes.push(nouvelleLignePP()); DB.put(S.dossier); S.tab="pp"; renderDossier(); };
-  $("#hVB").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.vb=nouveauVB(); S.dossier.vb.lignes.push(nouvelleLigneVB()); DB.put(S.dossier); S.tab="vb"; renderDossier(); };
-  $("#hClim").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.clim=nouvelleClim(); S.dossier.clim.lignes.push(nouvelleLigneClim()); DB.put(S.dossier); S.tab="clim"; renderDossier(); };
   $("#hCRM").onclick=()=>ouvrirCRM("nouveau");
   S.homeOuverts=S.homeOuverts||new Set();
   $$(".item[data-grp]").forEach(el=>el.onclick=e=>{ if(e.target.closest("button")) return; const k=el.dataset.grp;
@@ -1185,6 +1181,7 @@ async function supprimerMetres(L){
 function renderDossier(){
   S.view="dossier"; S.ouv=null; const d=normaliser(S.dossier); syncVR(d); majTitre();
   if(S.tab==="chantier") S.tab="client";
+  if(!ongletsVisibles(d).includes(S.tab)) S.tab="client";
   const T=[["client","Client & chantier"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["pt",`Portail${d.pt&&d.pt.elements.length?` (${d.pt.elements.length})`:""}`],["vb",`Volets battants${d.vb&&d.vb.lignes.length?` (${d.vb.lignes.length})`:""}`],["pp",`Portes palières${d.pp&&d.pp.lignes.length?` (${d.pp.lignes.length})`:""}`],["clim",`Climatisation${d.clim&&d.clim.lignes.length?` (${d.clim.lignes.length})`:""}`],["controle","Contrôle"]];
   const def=estDefinitif(d);
   $("#app").innerHTML=`
@@ -1196,7 +1193,7 @@ function renderDossier(){
       <small class="clem-etat">${der?`✓ Envoyé le ${new Date(der.le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} → ${esc(der.dossier)}${E.length>1?` (${E.length} envois)`:""}`:`→ ECHANGES › ${esc(cibleClemence(d).nom)}`}</small>`; })()}</div>
   </div>
   <div class="row" style="margin-bottom:12px">
-    <div class="tabs" style="margin:0">${T.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?"on":""}">${l}</button>`).join("")}</div>
+    <div class="tabs" style="margin:0">${T.filter(([k])=>ongletsVisibles(d).includes(k)).map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?"on":""}">${l}</button>`).join("")}<button id="tabAdd" class="tab-add" title="Ajouter un portail, des volets, une clim…">+ Ajouter…</button></div>
     <span class="spacer"></span>
     <button class="btn small" id="dVar">Variante PVC / Alu / Bois</button>
     <button class="btn small" id="dPrint">Imprimer / PDF</button>
@@ -1204,6 +1201,7 @@ function renderDossier(){
   </div>
   <div id="tab"></div>`;
   $$("[data-tab]").forEach(b=>b.onclick=()=>{ S.tab=b.dataset.tab; renderDossier(); });
+  $("#tabAdd").onclick=()=>ajouterAuMetre(d);
   $$("[data-circuit]").forEach(b=>b.onclick=()=>choisirCircuit(b.dataset.circuit));
   $("#dClem").onclick=envoyerClemence; $("#dPrint").onclick=imprimer; $("#dSave").onclick=enregistrerDrive; $("#dVar").onclick=ouvrirVariante;
   const t=$("#tab"), FIC=CAT.fic;
@@ -1275,7 +1273,7 @@ function renderDossier(){
     $("#cTel").onclick=()=>{ const t=String(d.client.telephone||"").replace(/[^\d+]/g,""); if(t) location.href="tel:"+t; else toast("Pas de téléphone"); };
   }
   if(S.tab==="ouvertures"){
-    t.innerHTML=`<div class="row" style="margin-bottom:12px"><span class="hint">Une fiche par ouverture (repère). Appuie sur une fiche pour la remplir.</span><span class="spacer"></span>${d.ouvertures.length>1?`<button class="btn" id="oSep">${S.sepMode?"✕ Annuler la séparation":"✂ Séparer en plusieurs devis"}</button><button class="btn" id="oTriN">Trier par niveau</button><button class="btn" id="oTri">Trier par N° poseur</button>`:""}${d.ouvertures.length?`<button class="btn" id="oComme" title="Nouvelle ouverture avec les mêmes caractéristiques que la dernière ouverte">⧉ Comme la précédente</button>`:""}<button class="btn primary" id="oAdd">+ Ajouter une ouverture</button></div>
+    t.innerHTML=barreLogement(d)+`<div class="row" style="margin-bottom:12px"><span class="hint">Une fiche par ouverture (repère). Appuie sur une fiche pour la remplir.</span><span class="spacer"></span>${d.ouvertures.length>1?`<button class="btn" id="oSep">${S.sepMode?"✕ Annuler la séparation":"✂ Séparer en plusieurs devis"}</button><button class="btn" id="oTriN">Trier par niveau</button><button class="btn" id="oTri">Trier par N° poseur</button>`:""}${d.ouvertures.length?`<button class="btn" id="oComme" title="Nouvelle ouverture avec les mêmes caractéristiques que la dernière ouverte">⧉ Comme la précédente</button>`:""}<button class="btn primary" id="oAdd">+ Ajouter une ouverture</button></div>
     ${S.sepMode?`<div class="card" style="border:2px solid var(--red,#d3232f)"><b>Séparer en plusieurs devis</b> – coche les menuiseries qui doivent partir dans un autre devis (même client).
       <div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap"><button class="btn primary" id="oSepGo">Mettre la sélection (${(S.sepSel||new Set()).size}) dans un nouveau devis…</button><button class="btn" id="oSepLog">Un devis par logement (Gîte 1, Gîte 2…)</button></div></div>`:""}
     <div class="list">${d.ouvertures.map((o,i)=>{ const c=controleOuverture(o), f=calcFab(o);
@@ -1294,6 +1292,7 @@ function renderDossier(){
       if(await demander("Ouvertures rangées par niveau (rez-de-chaussée, étage 1, étage 2…). Renuméroter aussi les N° poseur dans cet ordre ?","Renuméroter")) d.ouvertures.forEach((o,i)=>o.num_poseur=String(i+1));
       syncVR(d); save(); renderDossier(); };
     if($("#oTri")) $("#oTri").onclick=()=>{ d.ouvertures.sort((a,b)=>(parseInt(a.num_poseur)||9999)-(parseInt(b.num_poseur)||9999)); syncVR(d); save(); renderDossier(); toast("Ouvertures rangées par N° poseur"); };
+    initBarreLogement(d, ()=>renderDossier());
     if($("#oSep")) $("#oSep").onclick=()=>{ S.sepMode=!S.sepMode; S.sepSel=new Set(); renderDossier(); };
     if($("#oSepGo")) $("#oSepGo").onclick=()=>separerSelection(d);
     if($("#oSepLog")) $("#oSepLog").onclick=()=>unDevisParLogement(d);
@@ -2018,6 +2017,83 @@ const CLIM_NOMS_SCH = ["Schéma rez-de-chaussée","Schéma étage","Schéma éta
 const CLIM_SCH_DEF = {schema_etage:"Schéma étage", schema_bas:"Schéma bas"};
 const climSchemas = c => ["schema_etage","schema_bas",...(c.sch_extra||[])].filter(k=>!(c.sch_retires||[]).includes(k));
 const nomSchema = (c,k) => (c.sch_noms&&c.sch_noms[k]) || CLIM_SCH_DEF[k] || `Schéma ${climSchemas(c).indexOf(k)+1}`;
+/* ---------- Nouveau rendez-vous : un seul bouton, « Qu'est-ce qu'on mesure ? » (17/11/2026) ----------
+   Crée le bon dossier client avec les bons devis : menuiseries / VR / portail / VB / portes palières ensemble, la clim TOUJOURS à part. */
+const TYPES_RDV = [["menuiseries","🪟 Menuiseries"],["vr","Volets roulants"],["pt","Portail / portillon"],["vb","Volets battants"],["pp","Portes palières (HUET)"],["clim","❄️ Climatisation (devis à part)"]];
+function initTypes(d, types){
+  d.types=[...new Set([...(d.types||[]), ...types.filter(t=>t!=="clim")])];
+  if(types.includes("pt") && !aPT(d)){ d.pt=d.pt||nouveauPT(); if(!d.pt.elements.length) d.pt.elements.push(nouvelElementPT("BATTANT")); }
+  if(types.includes("vb") && !aVB(d)){ d.vb=d.vb||nouveauVB(); if(!d.vb.lignes.length) d.vb.lignes.push(nouvelleLigneVB()); }
+  if(types.includes("pp") && !aPP(d)){ d.pp=d.pp||nouveauPP(); if(!d.pp.lignes.length) d.pp.lignes.push(nouvelleLignePP()); }
+  return d;
+}
+function premierOnglet(d){ return (d.types||[]).find(t=>["menuiseries","vr","pt","vb","pp"].includes(t))?.replace("menuiseries","ouvertures") || (aClim(d)?"clim":"ouvertures"); }
+async function nouveauRendezVous(pre={}){
+  const clients=[...new Set((await DB.all()).map(x=>x.client.nom).filter(Boolean))].sort();
+  return new Promise(ok=>{
+    const m=document.createElement("div"); m.className="modal open";
+    m.innerHTML=`<div class="box" style="max-width:560px"><h2 style="text-transform:none;letter-spacing:0;font-size:20px">Nouveau rendez-vous</h2>
+      <label class="f">Client <small>(nouveau, ou un client déjà dans l'appli)</small><input id="rdvNom" list="rdvList" value="${esc(pre.nom||"")}" placeholder="NOM du client" style="font-size:17px"></label>
+      <datalist id="rdvList">${clients.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
+      <div class="hint" style="margin:14px 0 6px;font-weight:700;color:var(--navy,#1b2f5e)">Qu'est-ce qu'on mesure ?</div>
+      <div class="rdv-types">${TYPES_RDV.map(([k,l])=>`<label class="chip rdv-t"><input type="checkbox" value="${k}" ${(pre.types||["menuiseries"]).includes(k)?"checked":""}>${l}</label>`).join("")}</div>
+      <p class="hint" style="margin-top:8px">Tu pourras ajouter un portail, des volets… en cours de visite (bouton « + Ajouter » dans le métré).</p>
+      <div class="row" style="margin-top:16px;gap:8px"><button class="btn" id="rdvNon">Annuler</button><span class="spacer"></span>${pre.crm===false?"":`<button class="btn" id="rdvCRM">Depuis le CRM…</button>`}<button class="btn primary" id="rdvOui">Commencer</button></div></div>`;
+    document.body.appendChild(m); setTimeout(()=>{ if(!pre.nom) m.querySelector("#rdvNom").focus(); },50);
+    m.querySelectorAll(".rdv-t input").forEach(i=>{ i.closest("label").classList.toggle("on",i.checked); i.onchange=()=>i.closest("label").classList.toggle("on",i.checked); });
+    const fin=v=>{ m.remove(); ok(v); };
+    m.querySelector("#rdvNon").onclick=()=>fin(null);
+    if(m.querySelector("#rdvCRM")) m.querySelector("#rdvCRM").onclick=()=>{ fin(null); ouvrirCRM("nouveau"); };
+    m.querySelector("#rdvOui").onclick=async()=>{
+      const nom=m.querySelector("#rdvNom").value.trim(), types=[...m.querySelectorAll(".rdv-t input:checked")].map(i=>i.value);
+      if(!types.length){ toast("Coche au moins une chose à mesurer"); return; }
+      fin(await creerRendezVous(nom, types, pre.base)); };
+  });
+}
+async function creerRendezVous(nom, types, base){
+  const tous=await DB.all(), existant=nom?tous.filter(x=>cleClient(x)===nom.trim().toUpperCase().replace(/\s+/g," ")).sort((a,b)=>String(b.modifie||"").localeCompare(String(a.modifie||"")))[0]:null;
+  const src=base||existant, neuf=()=>{ const d=src?copierClient(src,nouveauDossier()):nouveauDossier(); if(nom) d.client.nom=src&&src.client.nom?src.client.nom:nom; if(src&&src.drive&&src.drive.dossier) d.drive={dossier:src.drive.dossier}; return d; };
+  const autres=types.filter(t=>t!=="clim"), crees=[];
+  if(autres.length){ const d=base&&!existant?base:neuf(); initTypes(d, autres); await DB.put(d); crees.push(d); }
+  if(types.includes("clim")){ const c=(base&&!existant&&!autres.length)?base:neuf(); c.clim=c.clim||nouvelleClim(); if(!c.clim.lignes.length) c.clim.lignes.push(nouvelleLigneClim());
+    if(autres.length && !c.devis_nom) c.devis_nom="Clim"; await DB.put(c); crees.push(c); }
+  const d=crees[0]; S.dossier=d; S.tab=d.client.nom&&existant?premierOnglet(d):"client"; renderDossier();
+  toast(crees.length>1?`${crees.length} devis créés pour ${d.client.nom||"ce client"} (la clim à part)`:`Métré créé${existant?" pour "+d.client.nom:""}`);
+  return d;
+}
+/* « + Ajouter… » dans un métré : un portail, des volets… découverts pendant la visite */
+async function ajouterAuMetre(d){
+  const vis=ongletsVisibles(d), dispo=TYPES_RDV.filter(([k])=>k==="clim"||!vis.includes(k==="menuiseries"?"ouvertures":k));
+  return new Promise(ok=>{
+    const m=document.createElement("div"); m.className="modal open";
+    m.innerHTML=`<div class="box" style="max-width:520px"><h2 style="text-transform:none;letter-spacing:0;font-size:20px">Ajouter à ce métré</h2>
+      <div class="rdv-types">${dispo.map(([k,l])=>`<button class="btn rdv-add" data-add="${k}">${l}</button>`).join("")}</div>
+      <div class="row" style="margin-top:16px"><span class="spacer"></span><button class="btn" id="addNon">Fermer</button></div></div>`;
+    document.body.appendChild(m); const fin=()=>{ m.remove(); ok(); };
+    m.querySelector("#addNon").onclick=fin;
+    m.querySelectorAll("[data-add]").forEach(b=>b.onclick=async()=>{ const k=b.dataset.add; fin();
+      if(k==="clim"){ if(aClim(d)){ S.tab="clim"; renderDossier(); } else if(aAutreQueClim(d)) devisAPart(d,"clim"); else { d.clim=nouvelleClim(); d.clim.lignes.push(nouvelleLigneClim()); save(); S.tab="clim"; renderDossier(); } return; }
+      if(aClim(d) && !aAutreQueClim(d)){ devisAPart(d,"autre"); return; }
+      initTypes(d,[k]); save(); S.tab=k==="menuiseries"?"ouvertures":k; renderDossier(); });
+  });
+}
+/* Onglets affichés : seulement ce qui sert dans ce métré (+ ce qui a été coché au départ) */
+function ongletsVisibles(d){
+  const t=new Set(d.types||[]), v=["client"];
+  const rien=!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aPT(d) && !aVB(d) && !aPP(d) && !aClim(d) && !t.size;
+  if(rien || t.has("menuiseries") || d.ouvertures.length) v.push("ouvertures");
+  if(t.has("vr") || (d.vr&&d.vr.lignes.length) || d.ouvertures.length) v.push("vr");
+  if(t.has("pt") || aPT(d)) v.push("pt"); if(t.has("vb") || aVB(d)) v.push("vb"); if(t.has("pp") || aPP(d)) v.push("pp");
+  if(aClim(d)) v.push("clim");
+  v.push("controle"); return v;
+}
+/* Mode logement (gîtes, appartements) : « je suis dans le Gîte 2 » → repères « Gîte 2 · … » */
+const LOGEMENTS_CHOIX = ["", ...REP_LOGEMENTS.flatMap(L=>[1,2,3,4,5].map(n=>`${L} ${n}`))];
+function barreLogement(d){ return `<div class="log-bar"><span>🏠 Logement en cours :</span><select id="logCourant">${LOGEMENTS_CHOIX.map(x=>`<option value="${esc(x)}" ${(d.logement_courant||"")===x?"selected":""}>${x||"Aucun (maison individuelle)"}</option>`).join("")}</select>
+  ${d.logement_courant?`<span class="hint">les nouveaux repères commencent par « ${esc(d.logement_courant)} · »</span>`:`<span class="hint">gîtes, appartements : choisis le logement où tu es</span>`}</div>`; }
+function initBarreLogement(d, re){ const s=$("#logCourant"); if(!s) return; s.onchange=()=>{ d.logement_courant=s.value; S.repLog=s.value; S.repLogDossier=d.id; save(); re(); }; }
+function avecLogement(d, repere){ if(!d.logement_courant || !repere) return repere; const r=repDecoupe(repere); if(r.log) return repere; r.log=d.logement_courant; return repCompose(r)||repere; }
+
 /* ---------- La clim est TOUJOURS un devis à part (Nicolas, 17/11/2026) : jamais avec menuiseries, volets, portail… ---------- */
 const aAutreQueClim = d => !!(d.ouvertures.length || (d.vr&&d.vr.lignes.length) || (typeof aPT==="function"&&aPT(d)) || (typeof aVB==="function"&&aVB(d)) || (typeof aPP==="function"&&aPP(d)));
 async function sortirClim(d){
@@ -2126,7 +2202,7 @@ function renderClim(t){
       </div>
       <div class="grid g4 clim-calc ${S.climCalc===i?"":"hide"}" id="climCalc${i}" style="margin-top:8px">${F.numb(k+"L","Longueur (m)",l.L)}${F.numb(k+"l","Largeur (m)",l.l)}${F.numb(k+"h","Hauteur sous plafond (m)",l.h)}<div class="hint" style="align-self:end">Le volume se calcule tout seul.</div></div></div>`; };
   const P=climLignes(d), V=climVariantes(d), tot=climUnites(c).map(u=>{ const L=P.filter(l=>l.unite===u); return L.length?`${u} : ${L.length} unité(s) int.${L.some(l=>puissanceClim(l)!=null)?` · ≈ ${String(Math.round(L.reduce((a,l)=>a+(puissanceClim(l)||0),0)*10)/10).replace(".",",")} kW`:""}`:""; }).filter(Boolean).join(" — ");
-  t.innerHTML=`${dl("dlClimMod",CLIM_MODELES)}${dl("dlClimOpt",CLIM_OPTIONS)}${dl("dlClimTps",CLIM_TEMPS)}${dl("dlClimH",CLIM_HAUTEUR)}${dl("dlClimRal",CLIM_RAL)}<datalist id="dlPiecesClim">${listePiecesDL()}</datalist>
+  t.innerHTML=barreLogement(d)+`${dl("dlClimMod",CLIM_MODELES)}${dl("dlClimOpt",CLIM_OPTIONS)}${dl("dlClimTps",CLIM_TEMPS)}${dl("dlClimH",CLIM_HAUTEUR)}${dl("dlClimRal",CLIM_RAL)}<datalist id="dlPiecesClim">${listePiecesDL()}</datalist>
   <div class="row" style="gap:8px;margin-bottom:12px;flex-wrap:wrap"><span class="hint">Autre devis clim pour ${esc(d.client.nom||"ce client")} (nouvelle version V2, V3… envoyée à part dans le Drive) :</span><span class="spacer"></span>
     <button class="btn small" data-clneuf="copie">⧉ Copier ce métré clim</button><button class="btn small" data-clneuf="vierge">+ Nouveau métré clim vierge</button>${c.lignes.length>1?`<button class="btn small" id="clSep">${S.climSep?"✕ Annuler la séparation":"✂ Séparer en plusieurs devis"}</button>`:""}</div>
   ${S.climSep?`<div class="card" style="border:2px solid var(--red,#d3232f)"><b>Séparer la clim en plusieurs devis</b> – un devis par gîte (un groupe extérieur par gîte), ou coche les pièces à mettre dans un autre devis.
@@ -2183,6 +2259,7 @@ function renderClim(t){
   const ua=$("#clUEAdd"); if(ua) ua.onclick=()=>{ const y=scrollY; c.nb_ue=climNbUE(c)+1; climUE(c,c.nb_ue); save(); re(); scrollTo(0,y); };
   const ud=$("#clUEDel"); if(ud) ud.onclick=()=>{ const y=scrollY, n=climNbUE(c); if(c.lignes.some(l=>l.unite===`Unité ${n}`)){ toast(`Une pièce est encore sur l'unité ${n}`); re(); return; } delete c["ue"+n]; c.nb_ue=n-1; save(); re(); scrollTo(0,y); };
   $$("[data-clneuf]").forEach(b=>b.onclick=()=>nouveauMetreClimClient(b.dataset.clneuf==="copie"));
+  initBarreLogement(d, re);
   if($("#clSep")) $("#clSep").onclick=()=>{ S.climSep=!S.climSep; S.climSel=new Set(); re(); };
   if($("#clSepGrp")) $("#clSepGrp").onclick=()=>climUnDevisParGroupe(d);
   if($("#clSepGo")) $("#clSepGo").onclick=()=>separerClimSelection(d);
@@ -3250,7 +3327,8 @@ async function afficherAgenda(forcer){
         ${e.lieu?`<button class="btn small" data-agnav="${k}">Itinéraire</button>`:""}${i.tel?`<a class="btn small" href="tel:${esc(i.tel.replace(/[^\d+]/g,""))}">Appeler</a>`:""}</div></div>`; }).join("")}</div>`
       : data?`<p class="hint">Aucun rendez-vous client dans les 8 prochains jours.</p>`:`<p class="hint">Touche « Afficher mes rendez-vous » pour lire ton agenda Google.</p>`}`;
   $("#agMaj").onclick=()=>{ $("#agMaj").textContent="Lecture…"; afficherAgenda(true); };
-  $$("[data-agnew]").forEach(b=>b.onclick=async()=>{ b.textContent="Création…"; S.dossier=await metreDepuisRdv(L[+b.dataset.agnew]); await DB.put(S.dossier); S.tab="client"; renderDossier(); toast("Métré créé depuis l'agenda"+(S.dossier.crm?" et le CRM":"")); });
+  $$("[data-agnew]").forEach(b=>b.onclick=async()=>{ b.textContent="Création…"; const base=await metreDepuisRdv(L[+b.dataset.agnew]); b.textContent="+ Créer le métré";
+    const d=await nouveauRendezVous({nom:base.client.nom, base, crm:false}); if(d) toast("Métré créé depuis l'agenda"+(d.crm?" et le CRM":"")); });
   $$("[data-agouv]").forEach(b=>b.onclick=()=>{ S.dossier=ds.find(d=>d.id===b.dataset.agouv); normaliser(S.dossier); S.tab="client"; renderDossier(); });
   $$("[data-agnav]").forEach(b=>b.onclick=()=>itineraire(L[+b.dataset.agnav].lieu));
 }

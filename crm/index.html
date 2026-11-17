@@ -2718,7 +2718,7 @@ function needMetre(r){ const vd = venteD(r); if (!vd) return false;
   return true; }
 function fixStages(){ for (const r of rows) { const V = r.vente || []; if (!V.length) continue; let need = null;
     for (const v of V) { if (v.et0 == null) v.et0 = v.et; if (v.et0 === "commande") { if (need == null) need = needMetre(r); v.et = need ? "metre" : "commande"; } else v.et = v.et0; } } }
-function renderAll(){ try { fixStages(); } catch(e){ console.warn(e); } try { renderMails(); } catch(e){ console.warn(e); } try { if (cvSel) renderCv(); } catch(e){ console.warn(e); } renderPay(); renderTaches(); renderPose(); renderSav(); renderDash(); renderTours(); renderStrip(); renderList(); renderQueue(); renderChantiers(); renderRdv(); renderMailCount(); if (openId) renderDrawer(); }
+function renderAll(){ try { fixStages(); } catch(e){ console.warn(e); } try { renderMails(); } catch(e){ console.warn(e); } try { if (cvSel && !(callRec && callRec.on && callRec.rid === cvSel)) renderCv(); } catch(e){ console.warn(e); } renderPay(); renderTaches(); renderPose(); renderSav(); renderDash(); renderTours(); renderStrip(); renderList(); renderQueue(); renderChantiers(); renderRdv(); renderMailCount(); if (openId) renderDrawer(); }
 
 /* ---------- chantiers signés ---------- */
 function chantiers(){ return rows.flatMap(r => (r.vente||[]).map((v,i) => ({r, v, i}))); }
@@ -4077,7 +4077,7 @@ function cvChantier(r){ let C = []; try { C = chantiers().filter(c => c.r.id ===
         ${(c.v.it || []).length ? `<div class="sub">${(c.v.it || []).map(esc).join(" · ")}</div>` : ""}</section>`; }).join("")}</div>`; }
 /* ===== Onglet « Fiche client » : je tape un nom, j'ai tout sur le client ===== */
 let cvSel = null, cvPicked = false, cvEdit = false, cvCfg = { order: null, hidden: [] };
-const CV_BLOCKS = [["recap", "Récapitulatif"], ["chan", "Avancement du chantier"], ["coord", "Coordonnées"], ["projet", "Le projet"], ["devis", "Devis et ventes"], ["taches", "Tâches"], ["sav", "SAV"], ["notes", "Notes d'appel"], ["mails", "Ses mails"], ["hist", "Historique"], ["autres", "Autres dossiers"]];
+const CV_BLOCKS = [["chan", "Avancement du chantier"], ["recap", "Récapitulatif"], ["coord", "Coordonnées"], ["projet", "Le projet"], ["devis", "Devis et ventes"], ["taches", "Tâches"], ["sav", "SAV"], ["notes", "Notes d'appel"], ["mails", "Ses mails"], ["hist", "Historique"], ["autres", "Autres dossiers"]];
 const CV_WIDE = ["recap", "chan", "mails"];
 function cvWide(k){ const W = cvCfg.wide; return W ? W.includes(k) : CV_WIDE.includes(k); }
 function cvOrderNow(){ const D = CV_BLOCKS.map(x => x[0]); const O = (cvCfg.order || []).filter(k => D.includes(k)); D.forEach((k, i) => { if (!O.includes(k)) { const prev = D.slice(0, i).reverse().find(x => O.includes(x)); O.splice(prev ? O.indexOf(prev) + 1 : 0, 0, k); } }); return O; }
@@ -4114,7 +4114,7 @@ function renderCv(){ const el = $("#cvbody"); if (!el) return; const r = cvSel &
         ${docs.length ? `<div><span class="eyebrow">Documents du Drive</span>${docs.map(([k, p]) => `<div class="cv-li"><a href="https://drive.google.com/file/d/${esc(p[1])}/view" target="_blank" rel="noopener"><b>📄 ${esc(p[0])}</b></a><span class="sub">${esc(k)}${p[2] ? " · " + esc(fd(p[2])) : ""}</span></div>`).join("")}</div>` : ""}</section>`,
     taches: `<section class="cv-card" style="--cc:#84cc16"><h3>Tâches${T.filter(x => !x.done).length ? " · " + T.filter(x => !x.done).length + " à faire" : ""}</h3>${T.length ? T.slice(0, 10).map(x => `<div class="cv-li"><b>${x.done ? "✅ " : "⬜ "}${esc(tLabel(x))}</b><span class="sub">${x.done ? "faite le " + esc(fd(x.done.d)) : "pour le " + esc(fd(x.due))}${x.note && x.note !== tLabel(x) ? " · " + esc(x.note.slice(0, 120)) : ""}</span></div>`).join("") : `<span class="sub">Aucune tâche.</span>`}</section>`,
     sav: `<section class="cv-card" style="--cc:#dc2626"><h3>SAV${SV.length ? " · " + SV.length : ""}</h3>${SV.length ? SV.map(v => `<div class="cv-li"><b>🔧 ${esc(v.produit || "SAV")} · ${esc(csStatus(v.st).l)}</b><span class="sub">ouvert le ${esc(fd(v.d))}${v.pb ? " · " + esc(v.pb.slice(0, 140)) : ""}</span></div>`).join("") : `<span class="sub">Aucun SAV.</span>`}</section>`,
-    notes: `<section class="cv-card" style="--cc:#8b5cf6"><h3>Notes d'appel${N.length ? " · " + N.length : ""}</h3>${N.length ? N.slice(0, 5).map(n => `<div class="cv-li"><b>📞 ${esc(fd(n.d))}${n.dur ? " · " + esc(n.dur) : ""}</b><span class="sub">${esc(((n.pts || []).join(" · ") || n.txt || "").replace(/\d\d:\d\d — /g, "").slice(0, 220))}</span></div>`).join("") : `<span class="sub">Pas encore de note d'appel.</span>`}</section>`,
+    notes: `${callCard(r)}`,
     mails: `<section class="cv-card cv-wide" style="--cc:#60a5fa" id="cvmails">${cvMailsHtml(r)}</section>`,
     hist: `<section class="cv-card" style="--cc:#f59e0b"><h3>Historique</h3>${tl.length ? `<div class="cv-tl">${tl.map(x => `<div><span>${esc(fd(x.d))}</span>${esc(x.t)}</div>`).join("")}</div>` : `<span class="sub">Rien de noté pour l'instant.</span>`}${r.notes ? `<div class="cv-li"><b>Suivi noté dans le tableau Drive</b><span class="sub" style="white-space:pre-wrap">${esc(r.notes)}</span></div>` : ""}</section>`,
     autres: `${REL.length ? `<section class="cv-card" style="--cc:#64748b"><h3>Autres dossiers de ce client</h3>${REL.map(x => `<div class="cv-li"><button class="lnk" type="button" data-cvgo="${esc(x.id)}"><b>${esc(x.client)}</b></button><span class="sub">${x.fic ? "FIC du " + esc(fd(x.fic)) + "/" + yOf(x) : ""}${venteD(x) ? " · vente du " + esc(fd(venteD(x))) : ""} · ${esc(ST[status(x)].l)}</span></div>`).join("")}</section>` : ""}`
@@ -4131,6 +4131,7 @@ function renderCv(){ const el = $("#cvbody"); if (!el) return; const r = cvSel &
   el.querySelectorAll("[data-cvwide]").forEach(b => b.onclick = () => { const k = b.dataset.cvwide, W = (cvCfg.wide || CV_WIDE).slice(), i = W.indexOf(k); if (i >= 0) W.splice(i, 1); else W.push(k); cvCfgSave(Object.assign({}, cvCfg, { wide: W, order: cvOrderNow() })); });
   el.querySelectorAll("[data-cvhide]").forEach(b => b.onclick = () => { const k = b.dataset.cvhide, H = (cvCfg.hidden || []).slice(), i = H.indexOf(k); if (i >= 0) H.splice(i, 1); else H.push(k); cvCfgSave(Object.assign({}, cvCfg, { hidden: H, order: cvOrderNow() })); });
   try { wireCvMails(r); } catch(e){ console.warn(e); }
+  try { if (!(openId && document.querySelector("#drawer #cncard"))) wireCall(r); } catch(e){ console.warn(e); }
   if (!cvMails[r.id]) cvLoadMails(r, false); }
 (() => { const q = $("#cvq"); if (!q) return;
   const unpick = () => { if (!cvPicked) return; cvPicked = false; const sec = document.querySelector(".cv-search"); if (sec) sec.classList.remove("picked"); };
@@ -4187,7 +4188,7 @@ function mailDigest(m, r){ const nom = upAscii(r.client).split(/[^A-Z]+/).filter
       if (t.length < 14 || t.length > 340 || MS_JUNK.test(a) || /@|\b0[1-9](?:[ .]?\d{2}){4}\b.*\b0[1-9](?:[ .]?\d{2}){4}\b/.test(t) && t.length < 60) sc -= 10;
       if (nom.some(n => new RegExp("\\b" + n + "\\b").test(U))) sc += 3; const k = (a.match(new RegExp(MS_KEY.source, "g")) || []).length; sc += Math.min(4, k * 2);
       if (/\b\d{1,2}[\/.]\d{1,2}\b|\b(lundi|mardi|mercredi|jeudi|vendredi|samedi|demain|semaine prochaine|janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\b|\bs\d{2}\b/.test(a)) sc += 2;
-      if (/\d[\d\s.,]*\s?(€|euros?|ht|ttc)\b/i.test(t)) sc += 2; if (/\b\d{2,4}\s?(mm|cm|m)\b/.test(a)) sc += 1;
+      if (/\d[\d\s.,]*\s?(€|euros?|ht|ttc)\b/i.test(t) || /\b(devis|prix|tarif|pose|montant|total|remise)\b[^.]{0,40}\b\d{3,6}\b/.test(a)) sc += 2; if (/\b\d{2,4}\s?(mm|cm|m)\b/.test(a)) sc += 1;
       return { t, i, sc }; });
   let K = S.filter(x => x.sc >= 2).sort((a, b) => b.sc - a.sc).slice(0, 4).sort((a, b) => a.i - b.i);
   if (!K.length) K = S.filter(x => x.sc > -5).slice(0, 1);
@@ -4333,7 +4334,10 @@ async function mailsRefresh(){ if (mailBusy) return; const b = $("#mref"); mailB
     const days = +(($("#mper") || {}).value || 7); const r = await mcp.callTool("Gmail", "list_messages", { query: "in:inbox newer_than:" + days + "d", max: days > 14 ? 100 : 70 });
     mailsList = ((r.payload || r).messages || []).sort((x, y) => y.date - x.date); mailAt = new Date().toISOString(); mailRep = null;
     try { localStorage.setItem("crm-mails", JSON.stringify({ L: mailsList, at: mailAt })); } catch(_){ try { localStorage.setItem("crm-mails", JSON.stringify({ L: mailsList.map(m => Object.assign({}, m, { body: m.body.slice(0, 1500) })), at: mailAt })); } catch(__){} }
-    toast(mailsList.length + " mails lus"); }
+    toast(mailsList.length + " mails lus");
+    try { const byR = {}; mailsList.forEach(m => { const o = mailAna(m); if (!o.client || o.cat === "pub") return; const keyN = upAscii(o.client.client).split(/[^A-Z]+/).find(x => x.length >= 4); const strong = o.how === "même adresse mail" || o.how === "même nom" || (keyN && new RegExp("\\b" + keyN + "\\b").test(upAscii(m.subject))); if (strong) (byR[o.client.id] = byR[o.client.id] || []).push(m); });
+      for (const [rid, L] of Object.entries(byR)) { const r = rows.find(x => x.id === rid); if (r) await cvSaveDigest(r, L); } } catch(e){ console.warn(e); }
+    if (cvSel) { const r = rows.find(x => x.id === cvSel); if (r) cvLoadMails(r, true); } }
   catch(e){ mailErr = e && e.code === "consent_required" ? "Autorise la lecture de tes mails avec le bandeau bleu en haut de la page, puis clique de nouveau sur Actualiser." : e && e.code === "not_in_manifest" ? "L'onglet Mails fonctionne dans la version en ligne du CRM (foissac-fermetures.github.io)." : e && e.code === "needs_reauth" ? "Connecte-toi à Google avec le bouton en haut de la page, puis clique sur Actualiser." : "Lecture impossible : " + String((e && e.message) || e).slice(0, 160); }
   mailBusy = false; if (b) { b.disabled = false; b.textContent = "🔄 Actualiser"; } renderMails(); }
 window.mailsRefresh = mailsRefresh;
@@ -5082,6 +5086,7 @@ function cnAnalyse(txt){ const sents = String(txt || "").replace(/\b\d\d:\d\d �
     else if (cnDate(snt) && !acts.some(x => x.note.includes(snt))) pts.push("📅 " + snt + " (" + fd(cnDate(snt)) + ")");
     else if (/\b(budget|prix|tarif|delai|couleur|coloris|blanc|gris|anthracite|alu|pvc|bois|volet|fenetre|porte|portail|baie|moustiquaire|pergola|store|garage)\b/.test(a) && snt.length < 220) pts.push(snt); });
   return { acts: acts.slice(0, 8), pts: pts.slice(0, 12) }; }
+function cnRender(){ const rid = callRec ? callRec.rid : null; if (openId && (!rid || openId === rid)) renderDrawer(); else if (typeof cvSel !== "undefined" && cvSel) renderCv(); else if (openId) renderDrawer(); }
 function callCard(r){
   const N = cnNotes(r), C = callRec && callRec.rid === r.id ? callRec : null;
   let body = "";
@@ -5103,7 +5108,7 @@ function callCard(r){
       ${(n.pts || []).length ? `<ul class="cn-pts" style="margin-top:6px">${n.pts.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}${(n.acts || []).length ? `<div class="sub" style="margin-top:6px">Tâches créées : ${n.acts.map(a => esc(a.l) + (a.due ? " (" + esc(fd(a.due)) + ")" : "")).join(" · ")}</div>` : ""}
       <div class="cn-txt">${esc(n.txt || "")}</div><div style="margin-top:6px"><button class="btn sm lose" type="button" data-cndel="${esc(n.id)}">Supprimer cette note</button></div></details>`).join("")}</div>` : "";
   return `<section class="fcard" style="--fc:#8b5cf6" id="cncard"><span class="fct">Notes d'appel${N.length ? " · " + N.length : ""}</span>${body}${hist}</section>`; }
-function cnLive(){ const C = callRec; if (!C || C.rid !== openId) return; const el = $("#cnlive"); if (!el) return renderDrawer();
+function cnLive(){ const C = callRec; if (!C) return; const el = $("#cnlive"); if (!el) return cnRender();
   const fin = cnText(C.seg); el.innerHTML = esc(fin) + (C.interim ? ` <i>${esc(C.interim)}</i>` : "") + (!fin && !C.interim ? `<i>Le texte va s'afficher ici au fur et à mesure…</i>` : ""); el.scrollTop = el.scrollHeight; }
 function cnStartRec(r){
   if (!SR) return toast("Prise de notes impossible dans ce navigateur : utilise Google Chrome");
@@ -5111,23 +5116,23 @@ function cnStartRec(r){
   const C = callRec = { rid: r.id, client: r.client, phase: "rec", on: true, t0: Date.now(), paused: 0, seg: [], interim: "", err: "" };
   const rec = new SR(); rec.lang = "fr-FR"; rec.continuous = true; rec.interimResults = true; C.rec = rec;
   rec.onresult = e => { let im = ""; for (let i = e.resultIndex; i < e.results.length; i++) { const x = e.results[i]; if (x.isFinal) { const t = x[0].transcript.trim(); if (t) C.seg.push({ t, ms: Date.now() - C.t0 - C.paused }); } else im += x[0].transcript; } C.interim = im; cnLive(); };
-  rec.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed") { C.err = "Le micro est refusé : autorise le micro pour ce site (icône 🔒 à gauche de l'adresse), puis recommence."; C.on = false; C.pauseAt = Date.now(); renderDrawer(); } else if (e.error === "audio-capture") { C.err = "Aucun micro trouvé sur cet appareil."; C.on = false; C.pauseAt = Date.now(); renderDrawer(); } };
+  rec.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed") { C.err = "Le micro est refusé : autorise le micro pour ce site (icône 🔒 à gauche de l'adresse), puis recommence."; C.on = false; C.pauseAt = Date.now(); cnRender(); } else if (e.error === "audio-capture") { C.err = "Aucun micro trouvé sur cet appareil."; C.on = false; C.pauseAt = Date.now(); cnRender(); } };
   rec.onend = () => { if (callRec === C && C.on) { try { rec.start(); } catch(_){ setTimeout(() => { try { if (callRec === C && C.on) rec.start(); } catch(_){} }, 400); } } };
   try { rec.start(); } catch(e){ C.err = "Impossible de démarrer le micro : " + e.message; }
   C.tick = setInterval(() => { const el = $("#cntime"); if (el && C.on) el.textContent = mmss(Date.now() - C.t0 - C.paused); }, 1000);
-  renderDrawer(); }
-function cnPause(){ const C = callRec; if (!C) return; if (C.on) { C.on = false; C.pauseAt = Date.now(); try { C.rec.stop(); } catch(_){} } else { C.paused += Date.now() - C.pauseAt; C.on = true; C.err = ""; try { C.rec.start(); } catch(_){} } renderDrawer(); }
+  cnRender(); }
+function cnPause(){ const C = callRec; if (!C) return; if (C.on) { C.on = false; C.pauseAt = Date.now(); try { C.rec.stop(); } catch(_){} } else { C.paused += Date.now() - C.pauseAt; C.on = true; C.err = ""; try { C.rec.start(); } catch(_){} } cnRender(); }
 function cnStopRec(silent){ const C = callRec; if (!C) return; const end = C.on ? Date.now() : C.pauseAt; C.on = false; clearInterval(C.tick); try { C.rec.stop(); } catch(_){}
   if (C.interim) { C.seg.push({ t: C.interim, ms: end - C.t0 - C.paused }); C.interim = ""; }
   if (silent) { callRec = null; return; }
   C.dur = mmss(end - C.t0 - C.paused); C.txt = cnText(C.seg); const A = cnAnalyse(C.txt); C.acts = A.acts; C.pts = A.pts; C.phase = "review";
-  if (!C.txt) toast("Je n'ai rien entendu : vérifie le haut-parleur et le micro"); renderDrawer(); }
+  if (!C.txt) toast("Je n'ai rien entendu : vérifie le haut-parleur et le micro"); cnRender(); }
 function cnReadActs(){ const C = callRec; if (!C) return; document.querySelectorAll("#cnacts .cn-act").forEach(row => { const a = C.acts[+row.dataset.i]; if (!a) return;
   row.querySelectorAll("[data-k]").forEach(el => { const k = el.dataset.k; if (k === "on") a.on = el.checked; else if (k === "note") { a.full = el.value; } else a[k] = el.value; }); }); const ta = $("#cnta"); if (ta) C.txt = ta.value; }
 async function cnSave(r){ const C = callRec; if (!C || !db || !canWrite) return toast("Enregistrement impossible dans cette vue"); cnReadActs();
   const now = new Date(), acts = []; for (const a of C.acts.filter(a => a.on)) { const full = a.full || (a.l + " — " + a.note); const id = await tAdd({ rid: r.id, client: r.client, type: a.type, note: full, due: a.due || workDays(iso(today()), 2), from: "appel" }); if (id) acts.push({ l: full.slice(0, 120), due: a.due, type: a.type, tid: id }); }
   const id = "na" + now.getTime().toString(36); const v = { rid: r.id, client: r.client, d: iso(today()), at: now.toISOString(), dur: C.dur || "", txt: C.txt || "", pts: C.pts || [], acts };
-  try { await db.collection("notes_appel").doc(id).set(v); notesAppel[id] = v; callRec = null; toast("Note d'appel enregistrée" + (acts.length ? " · " + acts.length + " tâche" + (acts.length > 1 ? "s" : "") + " créée" + (acts.length > 1 ? "s" : "") : "")); renderAll(); renderDrawer(); }
+  try { await db.collection("notes_appel").doc(id).set(v); notesAppel[id] = v; callRec = null; toast("Note d'appel enregistrée" + (acts.length ? " · " + acts.length + " tâche" + (acts.length > 1 ? "s" : "") + " créée" + (acts.length > 1 ? "s" : "") : "")); renderAll(); cnRender(); }
   catch(e){ toast("Pas enregistré, réessaie"); } }
 function wireCall(r){ const $c = s => document.querySelector("#cncard " + s); if (!$c("") && !document.querySelector("#cncard")) return;
   const on = (sel, f) => { const el = $c(sel); if (el) el.onclick = f; };
@@ -5135,15 +5140,15 @@ function wireCall(r){ const $c = s => document.querySelector("#cncard " + s); if
   on("#cnpastebtn", () => { const b = $c("#cnpastebox"); b.hidden = !b.hidden; if (!b.hidden) $c("#cnpaste").focus(); });
   on("#cnpastego", () => { const t = $c("#cnpaste").value.trim(); if (!t) return toast("Colle ou dicte d'abord le texte");
     const segs = t.split(/\n+|(?<=[.!?])\s+/).map(x => x.trim()).filter(Boolean).map((x, i) => ({ t: x.replace(/[.!?…]+$/, ""), ms: i * 1000 }));
-    callRec = { rid: r.id, client: r.client, phase: "review", on: false, seg: segs, dur: "", txt: segs.map(x => cnSentence(x.t)).join(" ").replace(/([.!?])\s+(?=[A-ZÀ-Ý])/g, "$1 ") }; const A = cnAnalyse(callRec.txt); callRec.acts = A.acts; callRec.pts = A.pts; renderDrawer(); });
+    callRec = { rid: r.id, client: r.client, phase: "review", on: false, seg: segs, dur: "", txt: segs.map(x => cnSentence(x.t)).join(" ").replace(/([.!?])\s+(?=[A-ZÀ-Ý])/g, "$1 ") }; const A = cnAnalyse(callRec.txt); callRec.acts = A.acts; callRec.pts = A.pts; cnRender(); });
   const ta = $c("#cnta"); if (ta) ta.oninput = () => { callRec.txt = ta.value; };
   document.querySelectorAll("#cnacts [data-k]").forEach(el => el.onchange = cnReadActs);
-  on("#cnaddact", () => { cnReadActs(); callRec.acts.push({ on: true, type: "autre", l: "À faire", note: "", due: workDays(iso(today()), 2) }); renderDrawer(); });
-  on("#cnredo", () => { cnReadActs(); const A = cnAnalyse(callRec.txt); callRec.acts = A.acts; callRec.pts = A.pts; renderDrawer(); });
+  on("#cnaddact", () => { cnReadActs(); callRec.acts.push({ on: true, type: "autre", l: "À faire", note: "", due: workDays(iso(today()), 2) }); cnRender(); });
+  on("#cnredo", () => { cnReadActs(); const A = cnAnalyse(callRec.txt); callRec.acts = A.acts; callRec.pts = A.pts; cnRender(); });
   on("#cnsave", () => cnSave(r));
-  const tr = $c("#cntrash"); if (tr) tr.onclick = () => { if (!tr.classList.contains("armed")) { tr.classList.add("armed"); tr.textContent = "Sûr ? Re-clique"; return; } callRec = null; renderDrawer(); };
+  const tr = $c("#cntrash"); if (tr) tr.onclick = () => { if (!tr.classList.contains("armed")) { tr.classList.add("armed"); tr.textContent = "Sûr ? Re-clique"; return; } callRec = null; cnRender(); };
   document.querySelectorAll("#cncard [data-cndel]").forEach(b => b.onclick = async () => { if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = "Sûr ? Re-clique pour supprimer"; return; }
-    try { await db.collection("notes_appel").doc(b.dataset.cndel).delete(); delete notesAppel[b.dataset.cndel]; toast("Note supprimée"); renderDrawer(); } catch(_){ toast("Pas supprimée, réessaie"); } });
+    try { await db.collection("notes_appel").doc(b.dataset.cndel).delete(); delete notesAppel[b.dataset.cndel]; toast("Note supprimée"); cnRender(); } catch(_){ toast("Pas supprimée, réessaie"); } });
   if (callRec && callRec.rid === r.id && callRec.phase === "rec") { const el = $("#cnlive"); if (el) el.scrollTop = el.scrollHeight; } }
 window.addEventListener("beforeunload", e => { if (callRec && (callRec.phase === "rec" || callRec.phase === "review")) { e.preventDefault(); e.returnValue = ""; } });
 /* ---- déjà client chez nous ? même téléphone, même mail, ou même nom (+ prénom) ---- */
@@ -5697,9 +5702,11 @@ function rebuild(){
   db.doc("meta/rattach").onSnapshot(sn => { rattach = Object.assign({ f: {}, v: {} }, sn.exists ? sn.data() : {}); rebuild(); }, () => {});
   db.doc("meta/onglets").onSnapshot(sn => { if (!tabEdit) applyTabOrder(sn.exists ? (sn.data() || {}).order : null); }, () => {});
   db.doc("meta/listes").onSnapshot(sn => { const v = sn.exists ? sn.data() : {}; const j = JSON.stringify(v); if (j === listCfgJson) return; listCfg = v; listCfgJson = j; renderAll(); }, () => {});
-  db.doc("meta/fiche_ordre").onSnapshot(sn => { cvCfg = Object.assign({ order: null, hidden: [] }, sn.exists ? sn.data() : {}); if (cvSel) renderCv(); }, () => {});
+  db.doc("meta/fiche_ordre").onSnapshot(sn => { cvCfg = Object.assign({ order: null, hidden: [] }, sn.exists ? sn.data() : {});
+    if (cvCfg.order && !cvCfg.v2) { const O = cvCfg.order.filter(k => k !== "chan"); O.unshift("chan"); cvCfgSave(Object.assign({}, cvCfg, { order: O, v2: 1 })); return; } // Nicolas : avancement du chantier sous le nom
+    if (cvSel) renderCv(); }, () => {});
   db.doc("meta/gmail_lus").onSnapshot(sn => { gmMeta = Object.assign({ s: {} }, sn.exists ? sn.data() : {}); renderMails(); }, () => {});
-  db.collection("notes_appel").onSnapshot(snap => { notesAppel = {}; snap.docs.forEach(d => notesAppel[d.id] = d.data()); if (openId && !(callRec && callRec.rid === openId && callRec.on)) renderDrawer(); }, () => {});
+  db.collection("notes_appel").onSnapshot(snap => { notesAppel = {}; snap.docs.forEach(d => notesAppel[d.id] = d.data()); if (callRec && callRec.on) return; if (openId) renderDrawer(); else if (cvSel) renderCv(); }, () => {});
   db.collection("fournisseurs").onSnapshot(snap => { fourn = {}; snap.docs.forEach(d => fourn[d.id] = d.data()); fournOk = true; renderFour(); }, () => { fournOk = true; renderFour(); });
   db.collection("sav").onSnapshot(snap => { csav = {}; snap.docs.forEach(d => csav[d.id] = d.data()); renderAll(); }, () => {});
   db.collection("taches").onSnapshot(snap => { taches = {}; snap.docs.forEach(d => taches[d.id] = d.data()); tachesOk = true; renderAll(); autoTasks(); }, () => { tachesOk = true; });

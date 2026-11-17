@@ -113,6 +113,9 @@ input:focus,select:focus,textarea:focus{outline:3px solid #c9d6f3;border-color:v
 .pose-ch .chip{font-size:16px;padding:10px 14px} .pose-total{margin-top:10px;padding:8px 12px;border-radius:10px;background:#eef3fa;color:#1b2f5e;display:inline-block}
 .vb-dessin{max-width:330px;margin:10px auto 0}.vb-dessin svg{width:100%;height:auto;max-height:360px}
 .sig-box{border:1px dashed #8a93a6;border-radius:10px;padding:8px 10px;background:#fff} .sig-cv{width:100%;height:150px;border:1px solid #c9d1e3;border-radius:8px;touch-action:none;background:#fff;display:block}
+#tlmPastille{position:fixed;right:12px;bottom:12px;z-index:60;max-width:330px;background:#fff;border:2px solid #1b2f5e;border-radius:14px;padding:10px 12px;box-shadow:0 6px 20px rgba(0,0,0,.18);display:flex;flex-direction:column;gap:6px;font-size:14px}
+#tlmPastille span{color:#3b4458;line-height:1.35} #btnMesure.on{background:#fff;color:#1b2f5e}
+input.tlm-cible{outline:3px solid #0a84ff!important;outline-offset:1px} input.tlm-ok{background:#d9f7e3!important;transition:background .2s}
 .sk-ipad{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:6px 0 8px;padding:8px 10px;background:#f4f6fa;border-radius:12px}
 .sk-grp{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .sk-c{width:30px;height:30px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #c9d1e3;cursor:pointer;padding:0;position:relative}
@@ -333,6 +336,7 @@ input:disabled{background:#eef1f7;color:#4a5368}
 <header class="bar">
   <div class="brand"><img id="logo" alt="Foissac Fermetures"><span>Métré</span></div>
   <div class="title" id="barTitle"></div>
+  <button class="btn ghost small" id="btnMesure" title="Façon de prendre les cotes">✍︎ Manuel</button>
   <button class="btn ghost small hide" id="btnBack">‹ Retour</button>
 </header>
 
@@ -654,6 +658,58 @@ document.addEventListener("keydown", e=>{ const el=e.target; if(e.key!=="Enter" 
   e.preventDefault(); if(estCoteMM(el)) convertirCote(el);
   const L=[...document.querySelectorAll(estCoteMM(el)?'#app input[data-k^="cotes."]':'#app input[inputmode="decimal"],#app input[inputmode="numeric"]')].filter(x=>x.offsetParent && !x.disabled), i=L.indexOf(el);
   if(i>=0 && L[i+1]){ L[i+1].focus(); try{ L[i+1].select(); }catch(_){} } else el.blur(); });
+
+/* ---------- Télémètre Bosch GLM 120 C en direct (18/11/2026) : deux façons de prendre les cotes ----------
+   ✍︎ Manuel : comme d'habitude (clavier).
+   📏 Télémètre : on touche la case, on vise, on appuie sur le bouton du GLM → la mesure (en m) arrive en mm dans la case, puis la case suivante.
+   Liaison Bluetooth directe (Web Bluetooth) : Chrome / Edge sur PC, Mac, Android. Safari sur iPad ne le permet pas → SerialMagic Keys (déjà géré) ou navigateur Bluefy.
+   Protocole relevé sur le GLM 120 C : service 02a6c0d0-0451-4000-b000-fb3210111989, caractéristique 02a6c0d1-… (indications) ;
+   trame de mesure « C0 55 10 06 … » avec la distance en float 32 bits little-endian, en mètres, à l'octet 7 ; commande laser / mesure « C0 56 01 00 1E ». */
+const GLM_SVC="02a6c0d0-0451-4000-b000-fb3210111989", GLM_CAR="02a6c0d1-0451-4000-b000-fb3210111989";
+const TLM={ mode: (()=>{ try{ return localStorage.getItem("mode_mesure")||"manuel"; }catch(e){ return "manuel"; } })(), dev:null, car:null, cible:null, derniere:null, etat:"" };
+const webBT = () => !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
+function glmDistance(dv){   // DataView d'une indication → mètres (ou null)
+  if(dv.byteLength>=11 && dv.getUint8(0)===0xC0 && dv.getUint8(1)===0x55 && dv.getUint8(3)===0x06){ const m=dv.getFloat32(7,true); if(m>0.02 && m<200) return m; }
+  return null; }
+function majPastilleTLM(){
+  const b=$("#btnMesure"); if(b){ b.textContent=TLM.mode==="telemetre"?(TLM.car?"📏 Télémètre ●":"📏 Télémètre"):"✍︎ Manuel"; b.classList.toggle("on",TLM.mode==="telemetre"); }
+  let z=$("#tlmPastille"); if(TLM.mode!=="telemetre"){ z?.remove(); return; }
+  if(!z){ z=document.createElement("div"); z.id="tlmPastille"; document.body.appendChild(z); }
+  z.innerHTML = !webBT()
+    ? `<b>📏 Télémètre</b><span>Cet appareil (Safari sur iPad) ne peut pas se relier directement au Bluetooth.<br>• Avec <b>SerialMagic Keys</b> : touche la case, mesure, la valeur s'écrit toute seule.<br>• Ou ouvre l'appli dans le navigateur <b>Bluefy</b>.</span><button class="btn small" id="tlmManuel">Revenir au manuel</button>`
+    : TLM.car
+      ? `<b>📏 ${esc(TLM.dev?.name||"GLM")}</b><span>${TLM.derniere!=null?`Dernière mesure : <b>${Math.round(TLM.derniere*1000)} mm</b>`:"Touche une case de cote, puis mesure."}${TLM.etat?"<br>"+esc(TLM.etat):""}</span><div class="row" style="gap:6px"><button class="btn small primary" id="tlmMesurer">Mesurer</button><button class="btn small" id="tlmDeco">Déconnecter</button></div>`
+      : `<b>📏 Télémètre</b><span>${TLM.etat?esc(TLM.etat):"Allume le GLM 120 C et son Bluetooth, puis :"}</span><button class="btn small primary" id="tlmCo">Connecter le télémètre</button>`;
+  $("#tlmCo")?.addEventListener("click", connecterGLM); $("#tlmDeco")?.addEventListener("click", ()=>{ try{ TLM.dev?.gatt?.disconnect(); }catch(e){} });
+  $("#tlmMesurer")?.addEventListener("click", ()=>commandeGLM([0xC0,0x56,0x01,0x00,0x1E]));
+  $("#tlmManuel")?.addEventListener("click", ()=>changerModeMesure("manuel"));
+}
+function changerModeMesure(m){ TLM.mode=m; try{ localStorage.setItem("mode_mesure",m); }catch(e){} majPastilleTLM();
+  toast(m==="telemetre"?"Mode télémètre : touche une case de cote puis mesure avec le GLM":"Mode manuel : saisie au clavier"); }
+async function commandeGLM(octets){ try{ if(TLM.car) await TLM.car.writeValue(new Uint8Array(octets)); }catch(e){ TLM.etat="Commande refusée : appuie sur le bouton du télémètre"; majPastilleTLM(); } }
+async function connecterGLM(){
+  try{ TLM.etat="Recherche du télémètre…"; majPastilleTLM();
+    const dev=await navigator.bluetooth.requestDevice({filters:[{services:[GLM_SVC]},{namePrefix:"GLM"},{namePrefix:"Bosch"}], optionalServices:[GLM_SVC]});
+    TLM.dev=dev; dev.addEventListener("gattserverdisconnected", ()=>{ TLM.car=null; TLM.etat="Télémètre déconnecté"; majPastilleTLM(); });
+    const srv=await dev.gatt.connect(), svc=await srv.getPrimaryService(GLM_SVC), car=await svc.getCharacteristic(GLM_CAR);
+    car.addEventListener("characteristicvaluechanged", e=>{ const m=glmDistance(e.target.value); if(m!=null) recevoirMesure(m); });
+    await car.startNotifications(); TLM.car=car; TLM.etat="";
+    commandeGLM([0xC0,0x55,0x02,0x01,0x00,0x1A]);   // demande l'envoi automatique de chaque mesure faite sur l'appareil
+    majPastilleTLM(); toast("Télémètre connecté : touche une case, vise, appuie sur le bouton du GLM");
+  }catch(e){ TLM.etat=/cancel|chosen/i.test(e.message)?"Aucun télémètre choisi":"Connexion impossible : "+e.message; majPastilleTLM(); }
+}
+const estCaseCote = el => el && el.matches && el.matches('#app input[inputmode="decimal"],#app input[inputmode="numeric"]') && !el.disabled;
+document.addEventListener("focusin", e=>{ if(estCaseCote(e.target)){ TLM.cible=e.target; if(TLM.mode==="telemetre") $$(".tlm-cible").forEach(x=>x.classList.remove("tlm-cible")), e.target.classList.add("tlm-cible"); } });
+function recevoirMesure(m){
+  TLM.derniere=m; const mm=String(Math.round(m*1000)); let el=TLM.cible;
+  if(!el || !document.contains(el)){ majPastilleTLM(); toast(`Mesure ${mm} mm : touche d'abord la case à remplir`); return; }
+  el.value=mm; el.dispatchEvent(new Event("input",{bubbles:true})); el.dispatchEvent(new Event("change",{bubbles:true}));
+  el.classList.add("tlm-ok"); setTimeout(()=>el.classList.remove("tlm-ok"),900);
+  const L=[...document.querySelectorAll(estCoteMM(el)?'#app input[data-k^="cotes."]':'#app input[inputmode="decimal"],#app input[inputmode="numeric"]')].filter(x=>x.offsetParent && !x.disabled), i=L.indexOf(el);
+  if(i>=0 && L[i+1]){ TLM.cible=L[i+1]; L[i+1].focus({preventScroll:false}); L[i+1].scrollIntoView({block:"center",behavior:"smooth"}); }
+  majPastilleTLM();
+}
+setTimeout(()=>{ const b=$("#btnMesure"); if(b) b.onclick=()=>changerModeMesure(TLM.mode==="telemetre"?"manuel":"telemetre"); majPastilleTLM(); },0);
 
 /* ---------- « Comme la précédente » : mêmes caractéristiques, il ne reste que le repère et les cotes ---------- */
 function commePrecedente(d, src){

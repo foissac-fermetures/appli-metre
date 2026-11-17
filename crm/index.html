@@ -566,7 +566,17 @@ details.relblk:not([open]){gap:0}
 @media (min-width:1100px){.drawer.wide{width:min(1320px,94vw)}}
 .fc{grid-template-columns:clamp(380px,38%,500px) minmax(0,1fr)}
 .fcl .kvi{grid-template-columns:28px minmax(0,1fr);gap:10px}
-.kvi:has(#ctf){grid-template-columns:1fr}.kvi:has(#ctf)>.kvico{display:none}
+.kvi:has(#ctf){grid-template-columns:1fr}
+.fcl .kvg-infos{grid-template-columns:1fr 1fr;gap:0;padding:14px 16px 6px}
+.fcl .kvg-infos .kvgt{margin-bottom:6px}
+.fcl .kvg-infos .kvi{grid-template-columns:1fr!important;gap:0;padding:10px 0!important;border-top:1px dashed var(--c-contact-line)!important}
+.fcl .kvg-infos .kvi:nth-of-type(1){grid-column:1/-1;border-top:0!important;padding-top:2px!important}
+.fcl .kvg-infos .kvi:nth-of-type(even){padding-right:12px!important}
+.fcl .kvg-infos .kvi:nth-of-type(odd):not(:nth-of-type(1)){padding-left:12px!important;border-left:1px dashed var(--c-contact-line)}
+.fcl .kvg-infos .kvi:nth-of-type(even):last-child{grid-column:1/-1}
+.fcl .kvg-infos .kvb dt{margin-bottom:3px}
+.fcl .kvg-infos .kvb dd{font-size:1rem!important;font-weight:600;overflow-wrap:break-word;word-break:normal;hyphens:auto}
+.fcl .kvg-infos .kvi:nth-of-type(1) dd{font-size:1.08rem!important}.kvi:has(#ctf)>.kvico{display:none}
 .ct-f{padding:12px;gap:10px;background:var(--panel)}
 .ct-f .two{grid-template-columns:1fr 1fr}
 .ct-f label.sub{display:grid;gap:4px;font-size:.84rem}

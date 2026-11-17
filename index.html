@@ -1116,8 +1116,8 @@ function renderDossier(){
   $("#app").innerHTML=`
   <div class="circuit" role="group" aria-label="Type de métré">
     <span class="circuit-lbl">Ce métré est un :</span>
-    <button class="${def?"":"on"}" data-circuit="devis" aria-pressed="${!def}">Devis<small>dossier Devis → DEVIS A FAIRE</small></button>
-    <button class="${def?"on":""}" data-circuit="definitif" aria-pressed="${def}">Métré définitif<small>dossier Métrés définitif → METRES DEFINITIF</small></button>
+    <button class="${def?"":"on"}" data-circuit="devis" aria-pressed="${!def}">Devis<small>Clémence : DEVIS A FAIRE</small></button>
+    <button class="${def?"on":""}" data-circuit="definitif" aria-pressed="${def}">Métré définitif<small>Clémence : METRES DEFINITIF</small></button>
     <label class="f circuit-gamme">Gamme (nouvelles ouvertures)<select data-k="gamme_defaut">${opts(CAT.gammes,d.gamme_defaut)}</select></label>
     <div class="clem-bloc">${(()=>{ const E=envoisClemence(d), der=E[E.length-1]; return `<button class="btn ${E.length?"":"primary"} clem-btn" id="dClem">📨 ${E.length?"Renvoyer à Clémence (modif)":"Envoyer à Clémence"}</button>
       <small class="clem-etat">${der?`✓ Envoyé le ${new Date(der.le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} → ${esc(der.dossier)}${E.length>1?` (${E.length} envois)`:""}`:`→ ECHANGES › ${esc(cibleClemence(d).nom)}`}</small>`; })()}</div>
@@ -2721,7 +2721,7 @@ async function envoyerClemence(){
 /* Choix bien visible Devis / Métré définitif (écrit dans « Document ») */
 function choisirCircuit(c){
   const d=S.dossier; d.type_document = c==="definitif" ? "DEVIS DÉFINITIF" : "DEVIS"; save(); renderDossier();
-  toast(c==="definitif" ? "Métré définitif : rangé dans « Métrés définitif », copie vers METRES DEFINITIF" : "Devis : rangé dans « Devis », copie vers DEVIS A FAIRE");
+  toast(c==="definitif" ? "Métré définitif : « Envoyer à Clémence » le mettra dans METRES DEFINITIF" : "Devis : « Envoyer à Clémence » le mettra dans DEVIS A FAIRE");
 }
 /* Enregistrement automatique au retour à la liste (seulement si le métré a changé) */
 async function enregistrerAuto(d){

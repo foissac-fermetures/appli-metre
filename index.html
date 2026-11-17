@@ -112,7 +112,7 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .modal{position:fixed;inset:0;background:rgba(15,25,50,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
 .modal.open{display:flex}
 .clem-bloc{display:flex;flex-direction:column;align-items:flex-end;gap:3px;margin-left:auto}.clem-btn{white-space:nowrap}.clem-etat{color:#2d6a4f;font-size:12px}
-#confTxt{white-space:pre-line}
+#confTxt{white-space:pre-line;max-height:60vh;overflow:auto}
 .circuit{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;background:#fff;border:1px solid #d6dbe6;border-radius:14px}
 .circuit-lbl{font-weight:700;color:#1b2f5e;margin-right:4px}
 .circuit button{display:flex;flex-direction:column;align-items:flex-start;min-height:52px;min-width:190px;padding:8px 16px;border-radius:12px;border:2px solid #d6dbe6;background:#f4f6fa;color:#1b2f5e;font:inherit;font-weight:700;font-size:16px;cursor:pointer}
@@ -385,7 +385,7 @@ const num = v => { if (v === "" || v == null) return null; const n = Number(Stri
 const today = () => new Date().toISOString().slice(0,10);
 function getP(o, p){ return p.split(".").reduce((a,k)=> a==null?undefined:a[k], o); }
 function setP(o, p, v){ const ks=p.split("."); let a=o; ks.slice(0,-1).forEach(k=>{ if(a[k]==null||typeof a[k]!=="object") a[k]={}; a=a[k]; }); a[ks.at(-1)]=v; }
-function demander(msg, oui="Confirmer"){ return new Promise(ok=>{ const m=$("#mConf"); $("#confTxt").textContent=msg; $("#confOui").textContent=oui; m.classList.add("open");
+function demander(msg, oui="Confirmer", non="Annuler"){ return new Promise(ok=>{ const m=$("#mConf"); $("#confTxt").textContent=msg; $("#confOui").textContent=oui; $("#confNon").textContent=non; $("#confTxt").style.fontSize=msg.length>220?"15px":"18px"; m.classList.add("open");
   const fin=r=>{ m.classList.remove("open"); $("#confOui").onclick=$("#confNon").onclick=null; ok(r); };
   $("#confOui").onclick=()=>fin(true); $("#confNon").onclick=()=>fin(false); }); }
 function toast(t){ const el=$("#toast"); el.textContent=t; el.classList.add("show"); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove("show"),2200); }
@@ -893,6 +893,14 @@ function controleLigneVR(l, v){
   if(!l.depose) W.push("Dépose à faire non renseignée");
   return {E,W};
 }
+/* Liste lisible des erreurs (rouges) du dossier, avec l'endroit, pour la vérification avant envoi à Clémence */
+function listeErreurs(d){ normaliser(d); const L=[], add=(ou,E,go)=>E.forEach(e=>L.push({ou,e,go}));
+  add("Client",controleDossier(d).E,{tab:"client"});
+  d.ouvertures.forEach((o,i)=>add(`${o.num_poseur?"N°"+o.num_poseur+" ":""}${o.repere||"Ouverture "+(i+1)}`,controleOuverture(o,d).E,{ouv:o.id}));
+  add("Volets roulants",controleVREntete(d.vr).E,{tab:"vr"}); d.vr.lignes.forEach((l,i)=>add(`Volet ${l.repere||i+1}`,controleLigneVR(l,d.vr).E,{tab:"vr"}));
+  if(aClim(d)) add("Clim",controleClim(d).E,{tab:"clim"}); if(aVB(d)) add("Volets battants",controleVB(d).E,{tab:"vb"}); if(aPT(d)) add("Portail",controlePT(d).E,{tab:"pt"});
+  return L; }
+function allerErreur(go){ if(!go) return; if(go.ouv){ const o=S.dossier.ouvertures.find(x=>x.id===go.ouv); if(o){ S.ouv=o; renderOuverture(); scrollTo(0,0); return; } } S.tab=go.tab||"client"; renderDossier(); scrollTo(0,0); }
 function nbErreurs(d){ normaliser(d); return controleDossier(d).E.length + d.ouvertures.reduce((a,o)=>a+controleOuverture(o,d).E.length,0)
   + controleVREntete(d.vr).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0) + (aClim(d)?controleClim(d).E.length:0) + (aVB(d)?controleVB(d).E.length:0) + (aPT(d)?controlePT(d).E.length:0); }
 
@@ -2686,10 +2694,17 @@ async function envoyerClemence(){
   if(!driveDispo()){ toast("Envoi impossible ici : ouvre l'appli en ligne (foissac-fermetures.github.io)"); return; }
   if(!navigator.onLine){ toast("Pas de réseau : l'envoi à Clémence se fera quand tu seras connecté"); return; }
   const cible=cibleClemence(d), nom=nomEnvoiClemence(d), deja=envoisClemence(d);
-  const rouges=d.ouvertures.reduce((s,o)=>s+controleOuverture(o,d).E.length,0);
+  /* 1) contrôle : s'il reste des erreurs, on les montre d'abord */
+  const errs=listeErreurs(d);
+  if(errs.length){
+    const txt=`⚠ Attention : ${errs.length} erreur${errs.length>1?"s":""} à corriger avant d'envoyer à Clémence :\n\n`
+      +errs.slice(0,12).map(x=>`• ${x.ou} : ${x.e}`).join("\n")+(errs.length>12?`\n… et ${errs.length-12} autre(s)`:"")+`\n\nTu veux corriger maintenant ?`;
+    if(await demander(txt,"Corriger maintenant","Envoyer quand même")){ allerErreur(errs[0].go); toast("Corrige les points en rouge, puis renvoie à Clémence"); return; }
+  }
+  /* 2) confirmation de l'envoi */
   const msg=`Envoyer « ${nom} » à Clémence, dans ECHANGES › ${cible.nom} ?`
     +(deja.length?`\n\nDéjà envoyé le ${new Date(deja[deja.length-1].le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} : un nouveau PDF « modif » sera ajouté à côté.`:"")
-    +(rouges?`\n\n⚠ Il reste ${rouges} point(s) à corriger (en rouge).`:"");
+    +(errs.length?`\n\n⚠ ${errs.length} erreur(s) non corrigée(s).`:"\n\n✓ Contrôle OK : aucune erreur.");
   if(!await demander(msg, deja.length?"Envoyer la modif":"Envoyer")) return;
   const b=$("#dClem"); if(b){ b.disabled=true; b.textContent="Envoi en cours…"; }
   try{

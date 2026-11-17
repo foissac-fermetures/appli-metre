@@ -340,7 +340,7 @@ input:disabled{background:#eef1f7;color:#4a5368}
 <!-- Choix d'un client du CRM -->
 <div class="modal" id="mDevis"><div class="box" style="max-width:680px">
   <h2>Devis signé du client</h2>
-  <p class="hint">Dossiers « DEVIS NICOLAS » (lecture seule). Le métré est repris du devis sauf les cotes, puis le contrôle compare ton métré au devis signé.</p>
+  <p class="hint">Dossiers « DEVIS NICOLAS » (lecture seule). Le métré définitif mélange le devis signé (ce qui a été vendu) et ton premier métré (ce qui a été mesuré) ; le contrôle signale ensuite chaque écart.</p>
   <div id="dvZone"></div>
   <div class="row" style="margin-top:12px"><span class="spacer"></span><button class="btn" data-close>Fermer</button></div>
 </div></div>
@@ -3660,6 +3660,107 @@ function comparerDevisVB(d, E, W){
     if(r.qte && +l.qte!==r.qte) E.push(`${n} : devis signé quantité ${r.qte} → métré ${l.qte}`); });
   const pris=new Set(v.lignes.filter(l=>l.devis).map(l=>l.devis.i));
   dv.lignes.forEach((li,i)=>{ if(estLigneVB(li) && !pris.has(i)) E.push(`Devis signé : volet battant non repris au métré – ${libLigneDevis(li)}`); });
+  ((d.premier_metre&&d.premier_metre.absents)||[]).forEach(r=>W.push(`Premier métré : « ${r} » n'est pas dans le devis signé (vérifier avec le client)`));
+}
+/* ---------- Métré définitif = devis signé + premier métré (17/11/2026) ----------
+   Le devis signé donne les produits (ce qui a été vendu) ; le premier métré (celui du devis) donne ce qui a été mesuré :
+   feuillures, cintres, gonds existants, sens, observations, photos, manutention… Les cotes du devis restent « à confirmer ».
+   Premier métré = un métré « Devis » de l'appli pour le même client, ou l'ancienne feuille Numbers volets battants (PDF). */
+const motsRep = s => nrm(s).split(" ").filter(Boolean).map(w=>w.length>3?w.replace(/s$/,""):w);
+function scoreRep(a,b){ const A=motsRep(a), B=motsRep(b); if(!A.length||!B.length) return 0;
+  const nA=A.filter(w=>/^\d+$/.test(w)), nB=B.filter(w=>/^\d+$/.test(w)); if(nA.length&&nB.length&&nA.join()!==nB.join()) return 0;
+  const ok=w=>B.some(x=>x===w||(w.length>=2&&x.length>=2&&(x.startsWith(w)||w.startsWith(x)))); return A.filter(ok).length/Math.max(A.length,B.length); }
+function apparier(Ld, Lm, rep, taille){   // → [[iDevis,iMetre]] (glouton, meilleur score d'abord)
+  const P=[]; Ld.forEach((a,i)=>Lm.forEach((b,j)=>{ let s=scoreRep(rep(a),rep(b))*3; const t=taille(a,b); if(t!=null) s-=t/200; P.push([s,i,j]); }));
+  P.sort((x,y)=>y[0]-x[0]); const ui=new Set(), uj=new Set(), R=[];
+  P.forEach(([s,i,j])=>{ if(s<0.9||ui.has(i)||uj.has(j)) return; ui.add(i); uj.add(j); R.push([i,j]); }); return R; }
+/* Ancienne feuille Numbers « VOLET BATTANT » (PDF) → lignes + gonds existants */
+async function itemsPDF(buf){ await chargerScript(LIB_PDFJS); pdfjsLib.GlobalWorkerOptions.workerSrc=LIB_PDFJS_W;
+  const doc=await pdfjsLib.getDocument({data:buf}).promise, P=[];
+  for(let p=1;p<=doc.numPages;p++){ const tc=await (await doc.getPage(p)).getTextContent(); P.push(tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({x:i.transform[4], y:i.transform[5], w:i.width||0, t:i.str.trim(), c:i.transform[4]+(i.width||0)/2}))); }
+  return P; }
+function lignesTableau(items, hy, cols, xRep){   // regroupe les cellules sous l'en-tête (y < hy) par rangée
+  const R=[]; items.filter(i=>i.y<hy-8).sort((a,b)=>b.y-a.y||a.x-b.x).forEach(i=>{ let r=R.find(r=>Math.abs(r.y-i.y)<3.5); if(!r){ r={y:i.y,rep:[],v:{}}; R.push(r); }
+    if(i.x<xRep) r.rep.push(i.t); else { const k=cols.reduce((b,c)=>Math.abs(c.c-i.c)<Math.abs(b.c-i.c)?c:b).k; r.v[k]=r.v[k]?r.v[k]+" "+i.t:i.t; } });
+  R.forEach(r=>r.repere=r.rep.join(" ").trim()); return R; }
+function lireFeuilleVB(P){
+  const out={lignes:[], gonds:{}, glob:{}}; const T=P.flat(), val=(lab)=>{ const l=T.find(i=>i.t===lab); if(!l) return ""; return T.filter(i=>Math.abs(i.y-l.y)<3&&i.x>l.x+20).sort((a,b)=>a.x-b.x).slice(0,4).map(i=>i.t).join(" "); };
+  if(!T.some(i=>/^VOLET$/i.test(i.t)) || !T.some(i=>/^Profondeur$/i.test(i.t))) return null;
+  out.glob={lame:(T.find(i=>i.t==="Lame")&&T.filter(i=>Math.abs(i.y-T.find(x=>x.t==="Lame").y)<3&&i.x>T.find(x=>x.t==="Lame").x+40&&i.x<T.find(x=>x.t==="Lame").x+250).map(i=>i.t).join(" "))||"",
+    manutention:val("Manutention"), pose:(T.find(i=>/matin|journ|apr[eè]s/i.test(i.t))||{}).t||""};
+  P.forEach(items=>{
+    const q=items.find(i=>i.t==="Quantité"), pr=items.find(i=>i.t==="Profondeur");
+    if(q&&pr){ const hy=q.y, H=items.filter(i=>i.y>hy-10&&i.y<hy+20), f=(re,n=0)=>H.filter(i=>re.test(i.t)).sort((a,b)=>a.x-b.x)[n];
+      const C=[["qte",q],["vantaux",f(/vantaux|^Nbre/)],["L",f(/^Largeur$/,0)],["H",f(/^Hauteur$/,0)],["f_l",f(/^Largeur$/,1)],["f_p",pr],["f_cotes",f(/^C[oô]t[ée]s$/)],["cintre_n",f(/^Naissance/)],["cintre_f",f(/^Valeur/)],["allege",f(/^All[èe]ge$/)],["g",f(/^Gauche$/)],["d",f(/^Droite$/)],["esp",f(/^Espagnolette/)],["opt",f(/^Options$/)]]
+        .filter(x=>x[1]).map(([k,i])=>({k,c:i.c}));
+      let der=null; lignesTableau(items,hy,C,q.x-12).forEach(r=>{ if(r.repere&&/[a-z]/i.test(r.repere)&&r.v.L){ der={repere:r.repere,...r.v}; out.lignes.push(der); } else if(der&&!r.repere){ const t=Object.values(r.v).join(" ").trim(); if(t&&/[a-z]/i.test(t)) der.obs=[der.obs,t].filter(Boolean).join(" · "); } }); }
+    const g1=items.filter(i=>i.t==="Gauche").sort((a,b)=>a.x-b.x), gond=items.find(i=>i.t==="Gond");
+    if(g1.length>=5&&gond){ const hy=gond.y, D=items.filter(i=>i.t==="Droite"&&Math.abs(i.y-hy)<4).sort((a,b)=>a.x-b.x), ob=items.find(i=>/^Observation/.test(i.t));
+      const C=[]; ["A","B","C","D","R"].forEach((x,n)=>{ if(g1[n]) C.push({k:x+"_g",c:g1[n].c}); if(D[n]) C.push({k:x+"_d",c:D[n].c}); }); C.push({k:"gond",c:gond.c}); if(ob) C.push({k:"obs",c:ob.c});
+      lignesTableau(items,hy+4,C,g1[0].x-12).forEach(r=>{ if(r.repere&&/[a-z]/i.test(r.repere)) out.gonds[r.repere]=r.v; }); }
+  });
+  return out.lignes.length?out:null;
+}
+const COTES_FEUILL = {"4":"Droite, gauche, haut et bas","3":"Droite, gauche et haut","2":"Droite et gauche"};
+/* Feuille Numbers → lignes au format de l'appli */
+function feuilleVersLignes(F){
+  return F.lignes.map(r=>{ const l=nouvelleLigneVB(), n=s=>String(s||"").replace(/[^\d]/g,"");
+    Object.assign(l,{repere:r.repere, qte:n(r.qte)||"1", L:n(r.L), H:n(r.H), f_l:n(r.f_l), f_p:n(r.f_p), cintre_n:n(r.cintre_n), cintre_f:n(r.cintre_f), allege:n(r.allege), obs:r.obs||""});
+    const fc=String(r.f_cotes||""), m=fc.match(/(\d)\s*c[oô]t/i); l.f_cotes=m&&COTES_FEUILL[m[1]]||fc;
+    l.sens_g=!!r.g&&!r.d; l.sens_d=!!r.d&&!r.g; if(r.opt) l.obs=[l.obs,r.opt].filter(Boolean).join(" · ");
+    const bruit=/^(avec|pour tous|pos[ée]es?|x|sans|oui|non|(avec )?mortaise( stop ?box)?|stop ?box( avec mortaise)?|arr[êe]ts?.*)$/i;   // reste des colonnes arrêts / espagnolette (déjà dans le devis)
+    l.obs=String(l.obs||"").split(" · ").map(s=>s.trim()).filter(s=>s&&!bruit.test(s)).join(" · ");
+    const g=Object.entries(F.gonds).find(([k])=>scoreRep(k,r.repere)>=0.99)?.[1];
+    if(g){ ["A","B","C","D","R"].forEach(x=>["g","d"].forEach(s=>{ const v=n(g[x+"_"+s]); if(v) l.g[x+"_"+s]=v; }));
+      const dm=String(g.gond||"").match(/(\d{2})\s*mm/i); if(dm&&VB_DIAM_GONDS.includes(`Ø ${dm[1]} mm`)){ ["g","d"].forEach(s=>["h","b"].forEach(p=>l.g["d"+p+"_"+s]=`Ø ${dm[1]} mm`)); l.g.ident=true; }
+      else if(g.gond) l.g.obs=g.gond;
+      if(g.obs) l.g.obs=[l.g.obs,g.obs].filter(Boolean).join(" · "); }
+    return l; });
+}
+/* Mélange : lignes du devis (d.vb.lignes, déjà remplies) + lignes du premier métré */
+function fusionnerPremierVB(d, Lm, glob, source){
+  const v=d.vb; if(!v||!Lm||!Lm.length) return {pris:0, absents:[]};
+  const A=apparier(v.lignes, Lm, x=>x.repere, (a,b)=>{ const la=num(a.L),lb=num(b.L),ha=num(a.H),hb=num(b.H); return la&&lb&&ha&&hb?Math.abs(la-lb)+Math.abs(ha-hb):null; });
+  A.forEach(([i,j])=>{ const l=v.lignes[i], m=Lm[j], notes=[];
+    ["f_l","f_p","f_cotes","cintre_n","cintre_f"].forEach(k=>{ if(!l[k]&&m[k]) l[k]=m[k]; });
+    if(!l.sens_g&&!l.sens_d&&(m.sens_g!==m.sens_d)){ l.sens_g=!!m.sens_g; l.sens_d=!!m.sens_d; }
+    if(!l.allege&&m.allege) l.allege=m.allege; else if(m.allege&&num(m.allege)!==num(l.allege)) notes.push(`allège ${m.allege} au premier métré`);
+    if((num(m.L)&&num(m.L)!==num(l.L))||(num(m.H)&&num(m.H)!==num(l.H))) notes.push(`premier métré ${m.L||"?"} × ${m.H||"?"}`);
+    if(m.g){ Object.keys(m.g).forEach(k=>{ if(m.g[k]!==""&&m.g[k]!=null&&(l.g[k]===""||l.g[k]==null)) l.g[k]=m.g[k]; }); }
+    if(m.pose&&!l.pose&&m.pose!==v.pose) l.pose=m.pose;
+    if(m.options&&m.options.length) l.options=[...new Set([...(l.options||[]),...m.options.filter(o=>o!=="Cintre"||l.cintre_f)])];
+    const dejaOpt=new Set((l.options||[]).map(nrm)), mo=String(m.obs||"").split(" · ").filter(s=>s&&!dejaOpt.has(nrm(s)));
+    const ob=[l.obs,...mo,...notes].filter(Boolean); l.obs=[...new Set(ob)].join(" · ");
+    l.premier=source; });
+  if(glob){ if(glob.lame&&!v.lame){ const s=sansAcc(glob.lame).toLowerCase(); v.lame=/vertic/.test(s)?VB_LAMES[0]:/horiz/.test(s)?VB_LAMES[2]:/cadre/.test(s)?VB_LAMES[4]:/plein|panneau/.test(s)?VB_LAMES[3]:VB_LAMES.includes(glob.lame)?glob.lame:""; }
+    if(glob.manutention&&!v.manutention) v.manutention=trouverDans(CAT.vr.manutention,glob.manutention)||"";
+    if(glob.pose&&!d.jours_pose) d.jours_pose=/matin|apr[eè]s|demi|1\/2/i.test(glob.pose)?"1/2 JOURS":trouverDans(CAT.jours_pose,glob.pose)||""; }
+  const pj=new Set(A.map(x=>x[1])), absents=Lm.filter((m,j)=>!pj.has(j)).map(m=>m.repere||"sans repère");
+  d.premier_metre={source, absents, le:new Date().toISOString()};
+  return {pris:A.length, absents};
+}
+/* Menuiseries : on part des ouvertures du premier métré (avec leurs cotes), reliées au devis signé ; les lignes du devis sans ouverture sont ajoutées (sans cotes) */
+function fusionnerPremierMenuiseries(d, src, dv){
+  const idm={}; d.ouvertures=JSON.parse(JSON.stringify(src.ouvertures||[])).map(o=>{ const n=uid(); idm[o.id]=n; o.id=n; o.premier=true; return o; });
+  d.vr.lignes=[...d.vr.lignes.filter(l=>!l.ouv_id), ...JSON.parse(JSON.stringify((src.vr&&src.vr.lignes)||[])).filter(l=>l.ouv_id&&idm[l.ouv_id]).map(l=>({...l,id:uid(),ouv_id:idm[l.ouv_id]}))];
+  relierDevis(d, dv); const pris=new Set(d.ouvertures.filter(o=>o.devis).map(o=>o.devis.i)); let ajout=0;
+  dv.lignes.forEach((li,i)=>{ if(li.genre!=="menuiserie"||estLigneVB(li)||pris.has(i)) return; const o=ouvertureDepuisDevis(d,dv,li,i); d.ouvertures.push(o); voletDepuisDevis(d,o,li); ajout++; });
+  return {pris:pris.size, ajout};
+}
+/* Candidats « premier métré » : métrés Devis de l'appli du même client, puis PDF du Drive (anciennes feuilles) */
+async function candidatsPremierMetre(d, dv){
+  const cle=cleClient(d), L=(await DB.all()).filter(x=>x.id!==d.id&&cleClient(x)===cle&&!estDefinitif(x)&&(x.ouvertures.length||aVB(x)))
+    .sort((a,b)=>String(b.modifie||"").localeCompare(String(a.modifie||""))).map(x=>({type:"appli", id:x.id, src:x, nom:`Métré de l'appli${x.devis_nom?" – "+x.devis_nom:""} (${[x.ouvertures.length?x.ouvertures.length+" ouverture(s)":"", aVB(x)?x.vb.lignes.length+" volet(s) battant(s)":""].filter(Boolean).join(", ")}) du ${new Date(x.modifie||x.cree||Date.now()).toLocaleDateString("fr-FR")}`}));
+  try{ const dos=new Set((await dossiersDevisSignes()).map(x=>x.id)), mots=motsClient(d.client.nom).slice(0,2);
+    if(mots.length){ const q=`mimeType='application/pdf' and trashed=false and (${mots.map(w=>`name contains '${q_(w)}'`).join(" or ")})`;
+      const f=(await gdrive("https://www.googleapis.com/drive/v3/files?includeItemsFromAllDrives=true&supportsAllDrives=true&corpora=allDrives&pageSize=30&orderBy=modifiedTime%20desc&fields=files(id,name,modifiedTime,parents,description)&q="+encodeURIComponent(q))).files||[];
+      f.filter(x=>x.id!==dv.fichier_id&&!(x.parents||[]).some(p=>dos.has(p))&&!/^Métré Foissac/.test(x.description||"")&&!/sign/i.test(x.name))
+       .forEach(x=>L.push({type:"pdf", id:x.id, nom:`${nomPropre(x.name)} (PDF du ${new Date(x.modifiedTime).toLocaleDateString("fr-FR")})`})); } }catch(e){}
+  return L;
+}
+async function lirePremierPDF(id){
+  const r=await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&supportsAllDrives=true`,{headers:{Authorization:"Bearer "+G_JETON}}); if(!r.ok) throw new Error("Drive "+r.status);
+  const F=lireFeuilleVB(await itemsPDF(await r.arrayBuffer())); if(!F) throw new Error("ce PDF n'est pas une feuille de métré volets battants lisible"); return F;
 }
 /* Volet roulant prévu au devis : ligne VR liée à l'ouverture */
 function voletDepuisDevis(d, o, li){
@@ -3761,19 +3862,33 @@ async function apercuDevis(fic){
       <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap">
         ${deja?`<button class="btn primary" id="dvLier">Comparer avec mon métré (${deja} élément(s) déjà saisi(s))</button><button class="btn" id="dvRemplir">Remplacer mon métré par le devis</button>`
               :`<button class="btn primary" id="dvRemplir">Remplir le métré${vbs.length&&!men.length?" (tout, cotes à confirmer)":vbs.length?" (volets : tout · menuiseries : sauf les cotes)":" (tout sauf les cotes)"}</button>`}
-        <button class="btn" id="dvAutre">‹ Autre devis</button></div>`;
+        <button class="btn" id="dvAutre">‹ Autre devis</button></div>
+      <div id="dvPremier" style="margin-top:12px"><p class="hint">Recherche de ton premier métré (celui du devis)…</p></div>`;
     $("#dvAutre").onclick=ouvrirDevisSigne;
+    let PM=[]; candidatsPremierMetre(d,dv).then(L=>{ PM=L; const z2=$("#dvPremier"); if(!z2) return;
+      z2.innerHTML=`<p style="margin:0 0 6px"><b>Mélanger avec mon premier métré</b> <span class="hint">(feuillures, gonds, sens, observations… ; le devis signé garde le dernier mot sur les produits)</span></p>
+        <div class="crm-liste">${L.map((x,i)=>`<label class="crm-item" style="display:flex;flex-direction:row;justify-content:flex-start;gap:10px;align-items:center;text-align:left"><input type="radio" name="dvPm" value="${i}" ${i===0?"checked":""}>${esc(x.nom)}</label>`).join("")}
+        <label class="crm-item" style="display:flex;flex-direction:row;justify-content:flex-start;gap:10px;align-items:center;text-align:left"><input type="radio" name="dvPm" value="-1" ${L.length?"":"checked"}>Sans premier métré (seulement le devis)</label></div>`; });
+    const premierChoisi=()=>{ const r=document.querySelector("input[name=dvPm]:checked"); return r&&+r.value>=0?PM[+r.value]:null; };
     if($("#dvLier")) $("#dvLier").onclick=()=>{ d.devis_signe=dv; relierDevis(d,dv); relierDevisVB(d,dv); fermerDevis(`Métré relié au devis ${dv.num} : regarde l'onglet Contrôle`); };
     $("#dvRemplir").onclick=async()=>{
       if(deja && !await demander(`Remplacer les ${deja} élément(s) du métré par les ${men.length+vbs.length} ligne(s) du devis ?`,"Remplacer")) return;
       if(men.length||!vbs.length){ d.ouvertures=[]; d.vr.lignes=d.vr.lignes.filter(l=>!l.ouv_id); }
       d.devis_signe=dv;
-      dv.lignes.forEach((li,i)=>{ if(estLigneVB(li)) return; if(li.genre==="menuiserie"){ const o=ouvertureDepuisDevis(d,dv,li,i); d.ouvertures.push(o); voletDepuisDevis(d,o,li); } else accessoireDepuisDevis(d,li); });
+      const pm=premierChoisi(); let infoPM="";
+      if(pm && pm.type==="appli" && pm.src.ouvertures.length && men.length){ const r=fusionnerPremierMenuiseries(d,pm.src,dv); infoPM+=` · ${r.pris} ouverture(s) du premier métré reliées au devis${r.ajout?`, ${r.ajout} ajoutée(s) du devis`:""}`; }
+      else dv.lignes.forEach((li,i)=>{ if(estLigneVB(li)) return; if(li.genre==="menuiserie"){ const o=ouvertureDepuisDevis(d,dv,li,i); d.ouvertures.push(o); voletDepuisDevis(d,o,li); } else accessoireDepuisDevis(d,li); });
       const nvb=vbDepuisDevis(d,dv);
+      if(pm && nvb){ try{ let Lm, glob, src;
+          if(pm.type==="appli"){ if(aVB(pm.src)){ Lm=pm.src.vb.lignes; glob={lame:pm.src.vb.lame, manutention:pm.src.vb.manutention, pose:pm.src.jours_pose}; src="métré du "+new Date(pm.src.modifie||Date.now()).toLocaleDateString("fr-FR");
+            (pm.src.vb.photos||[]).forEach(p=>d.vb.photos.push(JSON.parse(JSON.stringify(p)))); } }
+          else { const F=await lirePremierPDF(pm.id); Lm=feuilleVersLignes(F); glob=F.glob; src=pm.nom; }
+          if(Lm){ const r=fusionnerPremierVB(d,Lm,glob,src); infoPM+=` · ${r.pris} volet(s) complété(s) avec le premier métré${r.absents.length?` (${r.absents.length} absent(s) du devis)`:""}`; } }
+        catch(e){ infoPM+=` · premier métré non lu : ${e.message}`; } }
       if(men.length && !(d.types||[]).includes("menuiseries")) d.types=[...(d.types||[]),"menuiseries"];
       if(!d.gamme_defaut) d.gamme_defaut=d.ouvertures[0]?.gamme||"";
       S.tab=men.length?"ouvertures":nvb?"vb":S.tab;
-      fermerDevis([men.length?`${men.length} ouverture(s) reprises (il reste les cotes)`:"", nvb?`${nvb} volet(s) battant(s) repris, cotes à confirmer`:""].filter(Boolean).join(" · ")+` – devis ${dv.num}`); };
+      fermerDevis([men.length?`${men.length} ouverture(s) reprises (il reste les cotes)`:"", nvb?`${nvb} volet(s) battant(s) repris, cotes à confirmer`:""].filter(Boolean).join(" · ")+` – devis ${dv.num}`+infoPM); };
   }catch(e){ z.innerHTML=`<p class="hint" style="color:var(--err)">${esc(e.message)}</p><button class="btn" id="dvAutre">‹ Autre devis</button>`; $("#dvAutre").onclick=ouvrirDevisSigne; }
 }
 function fermerDevis(msg){ $("#mDevis").classList.remove("open"); syncVR(S.dossier); save(); renderDossier(); toast(msg); }

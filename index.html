@@ -1090,7 +1090,7 @@ function refreshLive(k){
     majFab(); majControle(); majVRInline(); const ds=$("#dessin"); if(ds) ds.innerHTML=dessinMenuiserie(S.ouv);
   } else if(S.view==="dossier"){ majTitre(); if(String(k).startsWith("vr.")) majVR(); if(String(k).startsWith("clim.")) majClim(k);
     if(String(k).startsWith("pt.")) majPT(k);
-    if(["vb.matiere","vb.arrets","vb.type","vb.gonds","vb.pose","vb.couleur"].includes(k)){ if(k==="vb.matiere"){ S.dossier.vb.type=""; S.dossier.vb.couleur=""; S.dossier.vb.couleur_ral=""; } const y=scrollY; renderDossier(); scrollTo(0,y); }
+    if(["vb.matiere","vb.arrets","vb.type","vb.gonds","vb.pose","vb.couleur","vb.sur_gonds"].includes(k)){ if(k==="vb.matiere"){ S.dossier.vb.type=""; S.dossier.vb.couleur=""; S.dossier.vb.couleur_ral=""; } const y=scrollY; renderDossier(); scrollTo(0,y); }
     if(k==="erp" && S.dossier.erp){ let n=0; S.dossier.ouvertures.forEach(o=>{ if(["porte","pf"].includes(modeleDe(o)?.famille) && !o.erp.actif){ o.erp.actif=true; syncAccessoiresERP(o); n++; } }); if(n) toast(`${n} porte(s) passée(s) en « porte d'ERP » : complète l'effectif et le sens dans chaque fiche`); } }
 }
 
@@ -2341,7 +2341,8 @@ const VB_COULEURS_ALU = ["TOUT RAL « Structuré mat fin » (à préciser)","TOU
 const VB_FINITIONS_BOIS = ["Traitement fongicide et hydrofuge","Brut","Impression blanche microporeuse","Lasure miel 03/41","Lasure ambrée 06/41","Peinture nuancier RAL Corrèze (à préciser)","Peinture RAL spécial (à préciser)"];
 const VB_ESSENCES = ["Sapin du nord 27 mm","Sapin du nord 32 mm","Bois exotique 27 mm"];
 const VB_LAMES = ["Lames verticales","Lames larges 150 verticales (alu)","Lames horizontales","Panneau plein","Cadre + lames"];
-const VB_POSES = ["Pose en tableau","Pose en feuillure","Sur gonds existants","Pose en applique / ITE"];
+const VB_POSES = ["Pose en tableau","Pose en feuillure","Pose en applique","Pose en applique / ITE"];   // « sur gonds existants » = case à part, valable avec chaque pose
+const vbPoseTexte = v => [v.pose, v.sur_gonds?"sur gonds existants":""].filter(Boolean).join(" – ");
 const VB_OPTIONS = ["Tire volet","Barre de sécurité","Verrou SDO","Pré-cadre aluminium","Gabarit de perçage des gonds","Crochet crémaillère","Poignée de tirage alu","Couvre-joint","Espagnolette supplémentaire","Cintre","Motorisation","Accessoires pose sur ITE"];
 const VB_FEUILLURES = ["Droite","Gauche","Droite et gauche","Droite, gauche et haut","Droite, gauche et bas","Droite, gauche, haut et bas","Haut","Haut et bas"];
 const VB_COUL_FERRAGE = ["Standard Corrèze","Même couleur que le volet","Noir","Blanc","Autre (préciser en observation)"];
@@ -2354,7 +2355,7 @@ const nouveauVB = () => ({ matiere:"", type:"", couleur:"", essence:"", gonds:""
 const nouvelleLigneVB = () => ({ id:uid(), repere:"", qte:"1", vantaux:"2 vantaux égaux", L:"", H:"", f_l:"", f_p:"", f_cotes:"", cintre_n:"", cintre_f:"", allege:"", sens_g:false, sens_d:false, espagnolette:"", options:[], obs:"",
   g:{A_g:"",A_d:"",B_g:"",B_d:"",C_g:"",C_d:"",D_g:"",D_d:"",R_g:"",R_d:"",gond:"",obs:""} });
 const aVB = d => !!(d.vb && (d.vb.lignes.length || d.vb.type));
-const gondsExistants = v => /existant/i.test(v.gonds||"") || v.pose==="Sur gonds existants";
+const gondsExistants = v => /existant/i.test(v.gonds||"") || !!v.sur_gonds;
 function vbTypes(m){ const P=VB_CAT().produits||[]; const g=P.find(x=>x.groupe.toLowerCase()===(m==="Aluminium"?"aluminium":String(m).toLowerCase())); return g?g.items:P.flatMap(x=>x.items); }
 function vbCouleurs(m){ return m==="Aluminium"?VB_COULEURS_ALU : m==="Bois"?VB_FINITIONS_BOIS : (VB_CAT().couleurs_pvc||[]); }
 function controleVB(d){
@@ -2383,6 +2384,7 @@ function controleVB(d){
 }
 function renderVB(t){
   const d=S.dossier; if(!d.vb) d.vb=nouveauVB(); const v=d.vb, C=VB_CAT();
+  if(v.pose==="Sur gonds existants"){ v.pose=""; v.sur_gonds=true; save(); }   // anciens métrés
   const ligne=l=>{ const i=v.lignes.indexOf(l), k=`vb.lignes.${i}.`;
     return `<div class="card clim-l"><div class="row" style="margin-bottom:8px"><b>${esc(l.repere||"Nouveau volet")}</b><span class="spacer"></span>
       <button class="btn small" data-vbdup="${i}">Dupliquer</button><button class="btn small danger" data-vbdel="${i}" aria-label="Supprimer le volet">✕</button></div>
@@ -2407,7 +2409,7 @@ function renderVB(t){
     ${vbRalAPreciser(v.couleur)?`<div style="grid-column:span 2">${F.text("vb.couleur_ral","Teinte exacte (n° RAL, nom…)",v.couleur_ral||"")}</div>`:""}
     ${v.matiere==="Bois"?F.sel("vb.essence","Essence",VB_ESSENCES,v.essence):""}
     ${F.sel("vb.gonds","Gonds",C.gonds||[],v.gonds)}${F.sel("vb.gond_diam","Diamètre des gonds",VB_DIAM_GONDS,v.gond_diam||"")}${F.sel("vb.ferrage_couleur","Couleur des ferrages",VB_COUL_FERRAGE,v.ferrage_couleur||"")}${F.sel("vb.barre","Barres et écharpes (panneau / ferrage)",C.ferrage||[],v.barre)}${F.sel("vb.ferrage","Ferrage (pentures)",C.pentures||[],v.ferrage)}${F.sel("vb.lame","Lame",VB_LAMES,v.lame)}
-    ${F.sel("vb.pose","Pose",VB_POSES,v.pose)}${F.sel("vb.manutention","Manutention",CAT.vr.manutention,v.manutention)}${F.sel("vb.type_dim","Type de dimensions (Corrèze)",VB_TYPE_DIM,v.type_dim)}
+    ${F.sel("vb.pose","Pose",VB_POSES,v.pose)}<div class="checks" style="align-self:end">${F.chk("vb.sur_gonds","Sur gonds existants",v.sur_gonds)}</div>${F.sel("vb.manutention","Manutention",CAT.vr.manutention,v.manutention)}${F.sel("vb.type_dim","Type de dimensions (Corrèze)",VB_TYPE_DIM,v.type_dim)}
     <div class="checks" style="align-self:end">${F.chk("vb.arrets","Arrêts de vent",v.arrets)}</div>${v.arrets?F.sel("vb.arret_type","Type d'arrêt",C.arrets||[],v.arret_type):""}
   </div>${VB_MAX[v.type]?`<p class="hint">Maximum Corrèze pour ce type : ${VB_MAX[v.type][0]} × ${VB_MAX[v.type][1]} mm.</p>`:""}</div>
   <div class="row" style="margin:14px 0 8px"><h2 style="margin:0"><span class="num">2</span> Volets</h2><span class="spacer"></span><button class="btn primary" id="vbAdd">+ Ajouter un volet</button></div>
@@ -2612,7 +2614,7 @@ function dessinVB(v, l, cls="pdessin"){
 /* ---------- PDF volets battants : même présentation que les menuiseries ---------- */
 function pagesVB(d, head, row){
   const v=d.vb; if(!aVB(d)) return ""; const c=controleVB(d), n=(l,i)=>l.repere||`volet ${i+1}`, ge=gondsExistants(v);
-  const commun=[["Matière",v.matiere],["Type",v.type],[v.matiere==="Bois"?"Finition":"Couleur",vbCouleurTexte(v)],["Essence",v.essence],["Lame",v.lame],["Barres et écharpes",v.barre],["Ferrage (pentures)",v.ferrage],["Gonds",[v.gonds,v.gond_diam].filter(Boolean).join(" – ")],["Couleur des ferrages",v.ferrage_couleur],["Pose",v.pose],["Type de dimensions",v.type_dim],["Arrêts de vent",v.arrets?(v.arret_type||"Oui"):""],["Manutention",v.manutention]];
+  const commun=[["Matière",v.matiere],["Type",v.type],[v.matiere==="Bois"?"Finition":"Couleur",vbCouleurTexte(v)],["Essence",v.essence],["Lame",v.lame],["Barres et écharpes",v.barre],["Ferrage (pentures)",v.ferrage],["Gonds",[v.gonds,v.gond_diam].filter(Boolean).join(" – ")],["Couleur des ferrages",v.ferrage_couleur],["Pose",vbPoseTexte(v)],["Type de dimensions",v.type_dim],["Arrêts de vent",v.arrets?(v.arret_type||"Oui"):""],["Manutention",v.manutention]];
   let h=`<div class="pg">${head(`Volets battants Corrèze – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
     <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","Corrèze Fermetures"],["Nombre de volets",String(v.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div>
     <div><table class="pt">${row(commun)}</table></div></div>
@@ -2623,7 +2625,7 @@ function pagesVB(d, head, row){
   v.lignes.forEach((l,i)=>{ const pre=n(l,i)+" : ", msg=[...c.E,...c.W].filter(x=>x.startsWith(pre)).map(x=>x.slice(pre.length));
     const g=l.g||{}, aG=["A","B","C","D","R"].some(x=>g[x+"_g"]||g[x+"_d"]);
     h+=`<div class="pg">${head(`${i+1}. ${l.repere||"Volet battant"} – ${d.client.nom||""}`)}<div class="p3"><div class="pdim">
-      <div class="pposetitre">VOLET BATTANT – ${esc((v.pose||"pose à préciser").toUpperCase())}</div>
+      <div class="pposetitre">VOLET BATTANT – ${esc((vbPoseTexte(v)||"pose à préciser").toUpperCase())}</div>
       <div class="pdt2"><table class="pt pdt"><tr class="pdir"><th colspan="2">TABLEAU</th></tr>
           <tr><th>Largeur</th><td>${esc(l.L)}</td></tr><tr><th>Hauteur</th><td>${esc(l.H)}</td></tr><tr><th>Allège</th><td>${esc(l.allege)}</td></tr>
           <tr class="pfabr"><th>${esc(v.type_dim===VB_TYPE_DIM[1]?"FOND DE FEUILLURE":"TABLEAU")}</th><td>${esc(l.L)} × ${esc(l.H)}</td></tr></table>

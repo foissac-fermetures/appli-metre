@@ -1095,6 +1095,7 @@ function refreshLive(k){
     majFab(); majControle(); majVRInline(); const ds=$("#dessin"); if(ds) ds.innerHTML=dessinMenuiserie(S.ouv);
   } else if(S.view==="dossier"){ majTitre(); if(String(k).startsWith("vr.")) majVR(); if(String(k).startsWith("clim.")) majClim(k);
     if(String(k).startsWith("pt.")) majPT(k);
+    { const m=String(k).match(/^vb\.lignes\.(\d+)\.sens_([gd])$/); if(m){ const l=S.dossier.vb.lignes[+m[1]]; if(l["sens_"+m[2]]){ l["sens_"+(m[2]==="g"?"d":"g")]=false; save(); } const y=scrollY; renderDossier(); scrollTo(0,y); return; } }   // espagnolette : un seul ouvrant
     if(["vb.matiere","vb.arrets","vb.type","vb.gonds","vb.pose","vb.couleur","vb.sur_gonds"].includes(k) || /^vb\.lignes\.\d+\.(pose|sg|type_dim)$/.test(k)){ if(k==="vb.matiere"){ S.dossier.vb.type=""; S.dossier.vb.couleur=""; S.dossier.vb.couleur_ral=""; } const y=scrollY; renderDossier(); scrollTo(0,y); }
     if(k==="erp" && S.dossier.erp){ let n=0; S.dossier.ouvertures.forEach(o=>{ if(["porte","pf"].includes(modeleDe(o)?.famille) && !o.erp.actif){ o.erp.actif=true; syncAccessoiresERP(o); n++; } }); if(n) toast(`${n} porte(s) passée(s) en « porte d'ERP » : complète l'effectif et le sens dans chaque fiche`); } }
 }
@@ -2365,6 +2366,13 @@ const VB_POS_GONDS = [["h","Haut"],["m","Milieu"],["b","Bas"]];
 const vbGondsIdent = g => g.ident!=null ? g.ident : new Set(["g","d"].flatMap(sd=>VB_POS_GONDS.map(([p])=>g["d"+p+"_"+sd])).filter(Boolean)).size<=1;   // case « tous identiques » cochée par défaut tant qu'ils sont pareils
 const vbDiamTexte = (g,sd) => { const L=VB_POS_GONDS.map(([p,n])=>[n,g["d"+p+"_"+sd]]).filter(x=>x[1]); if(!L.length) return ""; const u=[...new Set(L.map(x=>x[1]))]; return u.length===1?u[0]:L.map(x=>x[0].toLowerCase()+" "+x[1].replace(" mm","")).join(" · ")+" mm"; };
 const vbRalAPreciser = c => /RAL|préciser|hors gamme/i.test(c||"");
+/* Teintes RAL courantes en volets ; les nouvelles teintes tapées s'ajoutent toutes seules (appareil + toutes les teintes déjà utilisées dans les métrés, donc sur les 3 appareils) */
+const VB_RAL_STD = ["RAL 9016 Blanc signalisation","RAL 9010 Blanc pur","RAL 9001 Blanc crème","RAL 1013 Blanc perlé","RAL 1015 Ivoire clair","RAL 1019 Beige gris","RAL 7016 Gris anthracite","RAL 7012 Gris basalte","RAL 7022 Gris terre d'ombre","RAL 7030 Gris pierre","RAL 7032 Gris silex","RAL 7035 Gris clair","RAL 7036 Gris platine","RAL 7038 Gris agate","RAL 7039 Gris quartz","RAL 7040 Gris fenêtre","RAL 7044 Gris soie","RAL 7001 Gris argent","RAL 9006 Aluminium blanc","RAL 9007 Aluminium gris","RAL 9005 Noir foncé","RAL 6005 Vert mousse","RAL 6009 Vert sapin","RAL 6011 Vert réséda","RAL 6019 Vert blanc","RAL 6021 Vert pâle","RAL 6003 Vert olive","RAL 6034 Turquoise pastel","RAL 5003 Bleu saphir","RAL 5010 Bleu gentiane","RAL 5014 Bleu pigeon","RAL 5023 Bleu distant","RAL 5024 Bleu pastel","RAL 5011 Bleu acier","RAL 3004 Rouge pourpre","RAL 3005 Rouge vin","RAL 3011 Rouge brun","RAL 8007 Brun fauve","RAL 8014 Brun sépia","RAL 8017 Brun chocolat","RAL 8019 Brun gris","RAL 1011 Brun beige","RAL 1001 Beige"];
+const ralPerso = () => { try{ return JSON.parse(localStorage.getItem("ral_perso")||"[]"); }catch(e){ return []; } };
+function retenirRAL(t){ t=String(t||"").trim(); if(!t||VB_RAL_STD.includes(t)) return; const L=ralPerso().filter(x=>x!==t); L.unshift(t); try{ localStorage.setItem("ral_perso",JSON.stringify(L.slice(0,80))); }catch(e){} }
+const optsRAL = extra => [...new Set([...ralPerso(), ...(extra||[]), ...VB_RAL_STD])].map(x=>`<option value="${esc(x)}">`).join("");
+async function remplirDlRAL(){ const z=$("#dlRAL"); if(!z) return; const L=(await DB.all()).map(x=>x.vb&&x.vb.couleur_ral).filter(Boolean); z.innerHTML=optsRAL(L); }
+const vbPorteFenetre = l => /porte|\bp\.?\s?f\b|baie/i.test(l.repere||"") || (num(l.H)||0)>=1800;   // porte-fenêtre : pas d'allège
 const vbCouleurTexte = v => [v.couleur, vbRalAPreciser(v.couleur)&&v.couleur_ral?"→ "+v.couleur_ral:""].filter(Boolean).join(" ");
 const VB_TYPE_DIM = ["Dimensions tableau sans feuillure","Dimensions fond de feuillure"];
 const VB_MAX = { "Volet battant PVC plein (2400 × 3580)":[2400,3580], "Volet battant PVC à cadre soudé":[2400,3580], "Volet battant bois plein":[2400,3580], "Volet battant ALU plein (2400 × 3000)":[2400,3000] };
@@ -2389,8 +2397,8 @@ function controleVB(d){
     if(!l.vantaux) E.push(`${n} : nombre de vantaux non choisi`);
     if(mx && L!=null && L>mx[0]) E.push(`${n} : largeur ${L} > maximum Corrèze ${mx[0]}`);
     if(mx && H!=null && H>mx[1]) E.push(`${n} : hauteur ${H} > maximum Corrèze ${mx[1]}`);
-    if(num(l.allege)==null) W.push(`${n} : hauteur d'allège manquante (obligatoire chez Corrèze)`);
-    if(!l.sens_g && !l.sens_d) W.push(`${n} : sens (vue intérieure) non coché`);
+    if(num(l.allege)==null && !vbPorteFenetre(l)) E.push(`${n} : HAUTEUR D'ALLÈGE À NOTER (obligatoire chez Corrèze)`);
+    if(!l.sens_g && !l.sens_d) W.push(`${n} : ouvrant de l'espagnolette (gauche / droite) non coché`); if(l.sens_g && l.sens_d) W.push(`${n} : espagnolette cochée à gauche ET à droite → n'en garder qu'une`);
     if(/à gauche$|– gauche$/.test(l.vantaux) && l.sens_d && !l.sens_g) W.push(`${n} : « ${l.vantaux} » mais sens droite coché`);
     if(/à droite$|– droite$/.test(l.vantaux) && l.sens_g && !l.sens_d) W.push(`${n} : « ${l.vantaux} » mais sens gauche coché`);
     if((l.cintre_n!=="") !== (l.cintre_f!=="")) W.push(`${n} : cintre incomplet (naissance ET valeur de flèche)`);
@@ -2413,7 +2421,7 @@ function renderVB(t){
         <label class="f">Repère<div class="rep-in"><input data-k="${k}repere" value="${esc(l.repere)}" list="dlPiecesVB">${boutonRep(k+"repere")}</div></label>${F.numb(k+"qte","Quantité",l.qte)}
         <div style="grid-column:span 2">${F.sel(k+"vantaux","Nombre de vantaux",C.vantaux||[],l.vantaux)}</div>
         ${F.numb(k+"L","Tableau – largeur (mm)",l.L)}${F.numb(k+"H","Tableau – hauteur (mm)",l.H)}${F.numb(k+"allege","Hauteur d'allège (mm)",l.allege)}
-        <div class="checks" style="align-self:end"><span class="hint" style="width:100%">Sens vue intérieure</span>${F.chk(k+"sens_g","Gauche",l.sens_g)}${F.chk(k+"sens_d","Droite",l.sens_d)}</div>
+        <div class="checks" style="align-self:end"><span class="hint" style="width:100%">Espagnolette sur l'ouvrant (vue int.)</span>${F.chk(k+"sens_g","Gauche",l.sens_g)}${F.chk(k+"sens_d","Droite",l.sens_d)}</div>
         <label class="f vb-fh"><span>Feuillure – largeur <span class="vb-fl">⟷</span> (mm)</span><input data-k="${k}f_l" inputmode="decimal" value="${esc(l.f_l)}" placeholder="⟷"></label><label class="f vb-fv"><span>Feuillure – profondeur <span class="vb-fl">↕</span> (mm)</span><input data-k="${k}f_p" inputmode="decimal" value="${esc(l.f_p)}" placeholder="↕"></label>${F.sel(k+"f_cotes","Feuillure – côtés",l.f_cotes&&!VB_FEUILLURES.includes(l.f_cotes)?[l.f_cotes,...VB_FEUILLURES]:VB_FEUILLURES,l.f_cotes)}<div></div>
         ${F.numb(k+"cintre_n","Naissance du cintre (mm)",l.cintre_n)}${F.numb(k+"cintre_f","Valeur de la flèche (mm)",l.cintre_f)}<div style="grid-column:span 2">${F.sel(k+"espagnolette","Espagnolette",C.espagnolette||[],l.espagnolette)}</div>
       </div>
@@ -2431,10 +2439,10 @@ function renderVB(t){
         :`<table class="vb-gt vb-gd"><tr><th></th>${VB_POS_GONDS.map(([p,n])=>`<th>Gond du ${n.toLowerCase()}</th>`).join("")}</tr>
           ${["g","d"].map(s=>`<tr><th>${s==="g"?"Gauche":"Droite"}</th>${VB_POS_GONDS.map(([p])=>`<td><select data-k="${k}g.d${p}_${s}"><option value="">${p==="m"?"(pas de gond)":"—"}</option>${VB_DIAM_GONDS.map(x=>`<option${l.g["d"+p+"_"+s]===x?" selected":""}>${x}</option>`).join("")}</select></td>`).join("")}</tr>`).join("")}</table>`}`; })()}
         <div style="margin-top:6px">${F.text(k+"g.obs","Observation gonds",l.g.obs)}</div></details></div>`; };
-  t.innerHTML=`<datalist id="dlPiecesVB">${listePiecesDL()}</datalist>
+  t.innerHTML=`<datalist id="dlPiecesVB">${listePiecesDL()}</datalist><datalist id="dlRAL">${optsRAL()}</datalist>
   <div class="card"><h2><span class="num">1</span>Volets battants – Corrèze Fermetures</h2><div class="grid g4">
     ${F.sel("vb.matiere","Matière",VB_MATIERES,v.matiere)}<div style="grid-column:span 2">${F.sel("vb.type","Type",vbTypes(v.matiere),v.type)}</div>${F.sel("vb.couleur",v.matiere==="Bois"?"Finition":"Couleur",vbCouleurs(v.matiere),v.couleur)}
-    ${vbRalAPreciser(v.couleur)?`<div style="grid-column:span 2">${F.text("vb.couleur_ral","Teinte exacte (n° RAL, nom…)",v.couleur_ral||"")}</div>`:""}
+    ${vbRalAPreciser(v.couleur)?`<div style="grid-column:span 2"><label class="f">Teinte exacte <small>(tape « 70 » → RAL 70xx…, les nouvelles teintes sont retenues)</small><input data-k="vb.couleur_ral" list="dlRAL" value="${esc(v.couleur_ral||"")}" placeholder="RAL 7016 Gris anthracite"></label></div>`:""}
     ${v.matiere==="Bois"?F.sel("vb.essence","Essence",VB_ESSENCES,v.essence):""}
     ${F.sel("vb.gonds","Gonds",C.gonds||[],v.gonds)}${F.sel("vb.ferrage_couleur","Couleur des ferrages",VB_COUL_FERRAGE,v.ferrage_couleur||"")}${F.sel("vb.barre","Barres et écharpes (panneau / ferrage)",C.ferrage||[],v.barre)}${F.sel("vb.ferrage","Ferrage (pentures)",C.pentures||[],v.ferrage)}${F.sel("vb.lame","Lame",VB_LAMES,v.lame)}
     ${F.sel("vb.pose","Pose (par défaut)",VB_POSES,v.pose)}<div class="checks" style="align-self:end">${F.chk("vb.sur_gonds","Sur gonds existants",v.sur_gonds)}</div>${F.sel("vb.manutention","Manutention",CAT.vr.manutention,v.manutention)}${F.sel("vb.type_dim","Type de dimensions (Corrèze)",VB_TYPE_DIM,v.type_dim)}
@@ -2450,6 +2458,7 @@ function renderVB(t){
       <div class="row"><button class="btn small" data-phedit="${k}">✏️ Annoter</button><span class="spacer"></span><button class="btn small danger" data-phdel="${k}" aria-label="Supprimer la photo ${k+1}">✕</button></div></figure>`).join("")}
     <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple id="phAdd" class="hide"></label></div></div>`;
   const re=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); };
+  remplirDlRAL(); const ri=$("[data-k='vb.couleur_ral']"); if(ri) ri.addEventListener("change",()=>retenirRAL(ri.value));
   $("#vbAdd").onclick=()=>{ v.lignes.push(nouvelleLigneVB()); save(); re(); };
   const tousGonds=(l,val)=>{ ["g","d"].forEach(sd=>{ ["h","b"].forEach(p=>l.g["d"+p+"_"+sd]=val); if(l.g["dm_"+sd]) l.g["dm_"+sd]=val; }); };
   $$("[data-vbgone]").forEach(s=>s.onchange=()=>{ tousGonds(v.lignes[+s.dataset.vbgone], s.value); save(); });
@@ -2634,7 +2643,8 @@ function dessinVB(v, l, cls="pdessin"){
     if(pentures) ys.forEach(y=>{ const xa=vt.g?x0+2:x1-2, xb=vt.g?x0+w*0.78:x1-w*0.78; s+=`<line x1="${xa}" y1="${y}" x2="${xb}" y2="${y}" stroke="${FER}" stroke-width="4" stroke-linecap="round"/><circle cx="${xb}" cy="${y}" r="3.2" fill="${FER}"/>`; });
     ys.forEach(y=>gd+=`<rect x="${vt.g?x0-7:x1+1}" y="${y-5}" width="6" height="10" rx="1.5" fill="${RED}"/>`);   // gonds (côté rotation)
     x0=x1; });
-  if(esp){ const xi=V.length===1?(V[0].g?X+W-12:X+12):X+W*V.slice(0,Math.ceil(V.length/2)).reduce((s2,x)=>s2+x.w,0)/tot-6; s+=`<line x1="${xi}" y1="${Y+8}" x2="${xi}" y2="${Y+Hh-8}" stroke="${FER}" stroke-width="2.4"/><rect x="${xi-4}" y="${Y+Hh*0.48}" width="8" height="18" rx="2" fill="${FER}"/>`; }
+  if((esp||l.sens_g||l.sens_d) && !/sans/i.test(l.espagnolette||"")){ const ng=V.filter(x=>x.g).reduce((s2,x)=>s2+x.w,0), xm=X+W*ng/tot;
+    const xi = V.length===1||ng===0||ng===tot ? (V[V.length-1].g? X+W-12 : X+12) : (l.sens_d&&!l.sens_g ? xm+7 : xm-7); s+=`<line x1="${xi}" y1="${Y+8}" x2="${xi}" y2="${Y+Hh-8}" stroke="${FER}" stroke-width="2.4"/><rect x="${xi-4}" y="${Y+Hh*0.48}" width="8" height="18" rx="2" fill="${FER}"/>`; }
   s+=`</g><path d="${ouv}" fill="none" stroke="${NAVY}" stroke-width="3"/>${gd}`;
   const pill=(x,y,t,vert)=>{ const n=String(t).length*8.4+14; return `<g><rect x="${vert?x-10:x-n/2}" y="${vert?y-n/2:y-10}" width="${vert?20:n}" height="${vert?n:20}" rx="10" fill="#fff" stroke="${RED}" stroke-width="1.5"/><text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="13" font-weight="700" fill="${RED}"${vert?` transform="rotate(-90 ${x} ${y})"`:""}>${esc(String(t))}</text></g>`; };
   s+=`<line x1="${X}" y1="${Y+Hh+16}" x2="${X+W}" y2="${Y+Hh+16}" stroke="${RED}"/>${pill(X+W/2,Y+Hh+16,L??"L ?",false)}`;
@@ -2650,7 +2660,7 @@ function pagesVB(d, head, row){
   let h=`<div class="pg">${head(`Volets battants Corrèze – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
     <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","Corrèze Fermetures"],["Nombre de volets",String(v.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div>
     <div><table class="pt">${row(commun)}</table></div></div>
-    <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Vantaux</th>${mix?"<th>Pose</th>":""}<th>Largeur</th><th>Hauteur</th><th>Allège</th><th>Sens (vue int.)</th><th>Feuillure l × p · côtés</th><th>Cintre</th><th>Espagnolette</th><th>Options</th></tr>
+    <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Vantaux</th>${mix?"<th>Pose</th>":""}<th>Largeur</th><th>Hauteur</th><th>Allège</th><th>Espagn. sur ouvrant</th><th>Feuillure l × p · côtés</th><th>Cintre</th><th>Espagnolette</th><th>Options</th></tr>
     ${v.lignes.map((l,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.qte)}</td><td>${esc(l.vantaux)}</td>${mix?`<td>${esc(vbPoseLigne(v,l))}${vbTypeDim(v,l)===VB_TYPE_DIM[1]?" (fond de feuill.)":""}</td>`:""}<td><b>${esc(l.L)}</b></td><td><b>${esc(l.H)}</b></td><td>${esc(l.allege)}</td><td>${[l.sens_g&&"Gauche",l.sens_d&&"Droite"].filter(Boolean).join(" + ")}</td>
       <td>${[l.f_l||l.f_p?`${l.f_l||"?"} × ${l.f_p||"?"}`:"",l.f_cotes].filter(Boolean).join(" · ")}</td><td>${l.cintre_f?`flèche ${esc(l.cintre_f)}${l.cintre_n?" / naiss. "+esc(l.cintre_n):""}`:""}</td><td>${esc(l.espagnolette)}</td><td>${esc((l.options||[]).join(", "))}</td></tr>`).join("")}</table>
     ${(()=>{ const pv=v.lignes.map((l,k)=>n(l,k)+" : "), gen=[...c.E,...c.W].filter(x=>!pv.some(p=>x.startsWith(p))), nb=c.E.length+c.W.length-gen.length; return gen.length||nb?`<div class="pwarn">À vérifier : ${esc([...gen, nb?`${nb} point(s) sur les volets, détaillés volet par volet`:""].filter(Boolean).join(" · "))}</div>`:`<div class="pok">Contrôle OK</div>`; })()}
@@ -2669,7 +2679,7 @@ function pagesVB(d, head, row){
           <tr><th>Naiss. cintre</th><td>${esc(l.cintre_n)}</td></tr><tr><th>Flèche</th><td>${esc(l.cintre_f)}</td></tr></table></div>
       ${msg.length?`<div class="pwarn" style="margin-top:4px;font-size:8pt">À vérifier : ${esc(msg.join(" · "))}</div>`:""}
       </div><div>
-      <table class="pt">${row([["Vantaux",l.vantaux],["Sens (vue int.)",[l.sens_g&&"Gauche",l.sens_d&&"Droite"].filter(Boolean).join(" + ")],["Espagnolette",l.espagnolette],["Options",(l.options||[]).join(", ")],["Observation",l.obs]])}</table>
+      <table class="pt">${row([["Vantaux",l.vantaux],["Espagnolette sur ouvrant",[l.sens_g&&"Gauche",l.sens_d&&"Droite"].filter(Boolean).join(" + ")],["Espagnolette",l.espagnolette],["Options",(l.options||[]).join(", ")],["Observation",l.obs]])}</table>
       ${vbSurGonds(v,l)||/existant/i.test(v.gonds||"")||aG?`<div class="pst" style="margin-top:4px">GONDS EXISTANTS <small>– vus de l'intérieur</small></div>
         <div style="display:grid;grid-template-columns:1.25fr repeat(5,1fr) 1.6fr;font-size:7.5pt;margin-top:2px">${["","A","B","C","D/Dp ⟷","R/Db ↕","Ø"].map(x=>`<div style="${tete}">${x}</div>`).join("")}
         ${["g","d"].map(sd=>`<div style="${cel};font-weight:700;text-align:left">${sd==="g"?"Gauche":"Droite"}</div>${["A","B","C","D","R"].map(x=>`<div style="${cel}">${esc(g[x+"_"+sd]||"")||"&nbsp;"}</div>`).join("")}<div style="${cel};font-weight:700;color:#d3232f">${esc(vbDiamTexte(g,sd))||"&nbsp;"}</div>`).join("")}</div>

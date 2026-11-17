@@ -577,6 +577,12 @@ details.relblk:not([open]){gap:0}
 .fcl .kvg-infos .kvb dt{margin-bottom:3px}
 .fcl .kvg-infos .kvb dd{font-size:1rem!important;font-weight:600;overflow-wrap:break-word;word-break:normal;hyphens:auto}
 .fcl .kvg-infos .kvi:nth-of-type(1) dd{font-size:1rem!important}
+.nxp{display:inline-flex;align-items:center;gap:6px;padding:4px 12px 4px 9px;border-radius:999px;font-weight:700;font-size:.9rem;border:1px solid;line-height:1.3}
+.nxp-sm{font-size:.76rem;padding:2px 9px 2px 7px;gap:4px}
+.nxp-todo{color:#9a3412;background:#ffedd5;border-color:#fdba74}.nxp-plan{color:#1e40af;background:#dbeafe;border-color:#93c5fd}.nxp-wait{color:#475569;background:#f1f5f9;border-color:#cbd5e1}
+.nxp-late{color:#991b1b;background:#fee2e2;border-color:#fca5a5}.nxp-ok{color:#166534;background:#dcfce7;border-color:#86efac}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .nxp{background:color-mix(in srgb,currentColor 16%,transparent);border-color:color-mix(in srgb,currentColor 45%,transparent)}:root:not([data-theme="light"]) .nxp-todo{color:#fdba74}:root:not([data-theme="light"]) .nxp-plan{color:#93c5fd}:root:not([data-theme="light"]) .nxp-wait{color:#cbd5e1}:root:not([data-theme="light"]) .nxp-late{color:#fca5a5}:root:not([data-theme="light"]) .nxp-ok{color:#86efac}}
+:root[data-theme="dark"] .nxp{background:color-mix(in srgb,currentColor 16%,transparent);border-color:color-mix(in srgb,currentColor 45%,transparent)}
 .pj-l{display:grid;gap:8px;margin-top:4px}
 .pj-c{display:grid;grid-template-columns:40px minmax(0,1fr);gap:10px;align-items:center;padding:9px 12px;border-radius:12px;border:1px solid color-mix(in srgb,var(--pjc) 35%,var(--line));background:color-mix(in srgb,var(--pjc) 9%,var(--panel));--pjc:#64748b}
 .pj-fe{--pjc:#0ea5e9}.pj-po{--pjc:#b45309}.pj-vo{--pjc:#f97316}.pj-ex{--pjc:#16a34a}.pj-pi{--pjc:#64748b}.pj-ch{--pjc:#7c3aed}.pj-xx{--pjc:#94a3b8}
@@ -2584,7 +2590,7 @@ function renderList(){
       <td class="hide-s">${esc(r.proj||"—")}</td>
       <td class="r num">${a!=null?eur(a):"—"}<div class="sub">${signed(r)!=null?"signé HT":(a!=null?"devis TTC":"")}</div></td>
       <td class="hide-s num">${r.remise?fd(r.remise):"—"}</td>
-      <td><span class="pill ${ST[st].c}">${ST[st].l}</span>${canLose(r)?`<div><span class="r3">${relInfo(r).n} relances sans réponse</span></div>`:""}${lastRel(r)?`<div class="sub">${esc(relLabel(lastRel(r)))}</div>`:""}${w?`<div class="sub ${w.late?"late":""}">Relance ${esc(w.t)}</div>`:""}</td>
+      <td><span class="pill ${ST[st].c}">${ST[st].l}</span>${(() => { const n = nextStep(r); return n && n.l !== "Terminé" ? `<div style="margin-top:4px">${nextPill(r).replace('class="nxp ', 'class="nxp nxp-sm ')}</div>` : ""; })()}${canLose(r)?`<div><span class="r3">${relInfo(r).n} relances sans réponse</span></div>`:""}${lastRel(r)?`<div class="sub">${esc(relLabel(lastRel(r)))}</div>`:""}${w?`<div class="sub ${w.late?"late":""}">Relance ${esc(w.t)}</div>`:""}</td>
     </tr>`;
   }).join("");
   $("#more").hidden = list.length <= shown;
@@ -3331,6 +3337,23 @@ function wf(r){
 function wfAlert(r){ const W = wf(r), cur = W.L.find(x => !x.ok); return cur && cur.late ? cur : null; }
 function stepsOf(r){ return wf(r); }
 const WHO = { nicolas: "À faire par toi", clemence: "Chez Clémence", client: "Chez le client" };
+/* pastille « prochaine étape » sous le nom, pour les clients qui ont signé */
+function nextStep(r){ const V = (r.vente || []).filter(v => !v.ann); if (!V.length) return null;
+  let W; try { W = wf(r); } catch(_){ return null; } const c = W.L.find(x => !x.ok);
+  if (!c) return { ico: "✅", l: "Terminé", tone: "ok" };
+  const rv = rdvCur(r), t = iso(today()), np = typeof nextPose === "function" ? nextPose(r) : null;
+  const M = { "s:def": () => ({ ico: "📄", l: /Plan/.test(c.l) ? "Plan de réservation à recevoir signé" : "Devis définitif" }),
+    "s:rdv": () => rv && rv.d > t ? { ico: "📐", l: "Métré définitif prévu le " + fd(rv.d), tone: "plan" } : { ico: "📐", l: "Métré définitif à faire" },
+    "s:depot": () => ({ ico: "📂", l: "Métré définitif à déposer" }),
+    "s:clem": () => ({ ico: "⌨️", l: "Devis définitif chez Clémence", tone: "wait" }),
+    "s:retour": () => ({ ico: "✍️", l: "Devis définitif à faire signer", tone: "wait" }),
+    "s:cde": () => ({ ico: "🛒", l: "Commande à passer" }),
+    "s:liv": () => ({ ico: "🚚", l: "Livraison" + (c.x ? " " + c.x : " à venir"), tone: "wait" }),
+    "s:pose": () => np ? { ico: "🔧", l: "Pose prévue le " + fd(np.d), tone: "plan" } : { ico: "🔧", l: "Pose à planifier" },
+    "s:paye": () => ({ ico: "💶", l: "Solde à encaisser" }) };
+  const o = (M[c.k] || (() => ({ ico: "➡️", l: c.l })))(); if (c.late) { o.tone = "late"; o.late = c.late; } return o; }
+function nextPill(r){ const n = nextStep(r); if (!n) return "";
+  return `<span class="nxp nxp-${n.tone || "todo"}" title="Prochaine étape du dossier"><span aria-hidden="true">${n.ico}</span>${esc(n.l)}${n.late ? ` · en retard de ${n.late} j` : ""}</span>`; }
 function stepsHtml(r){ const S = wf(r), cur = S.L.findIndex(x => !x.ok), A = cur >= 0 && S.L[cur].late ? S.L[cur] : null, V = (r.vente || []).filter(v => !v.ann);
   const ix = V.length ? ["metre", "commande"].indexOf(V.map(v => v.et).sort()[0]) : -1;
   const canDef = !V.length ? status(r) !== "perdu" : hasMetre(r) && !planOf(r);
@@ -4874,7 +4897,7 @@ function renderDrawer(){
       <button class="x" id="dx" aria-label="Fermer">✕</button></div></div>
       ${status(r)==="perdu"?reactBox(r):""}
       ${canLose(r)?`<div class="lostbar"><span><b>${esc(relDetail(r))}</b> sans réponse : règle des 3 relances atteinte.</span>${loseBtn(r)}</div>`:""}
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="pill ${ST[st].c}">${ST[st].l}</span>${r.coul==="orange"?`<span class="coul"><i style="background:var(--s-call)"></i>Ligne orange dans le suivi des FIC : positif, à rappeler</span>`:r.coul==="rouge"?`<span class="coul"><i style="background:var(--s-dead)"></i>Ligne rouge dans le suivi des FIC : perdu${signed(r)!=null?" (une vente signée reste rattachée)":""}</span>`:""}${d?`<span class="sub ${whenLabel(d).late?"late":""}">Relance ${esc(whenLabel(d).t)} (${fd(d)})</span>`:""}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="pill ${ST[st].c}">${ST[st].l}</span>${nextPill(r)}${r.coul==="orange"?`<span class="coul"><i style="background:var(--s-call)"></i>Ligne orange dans le suivi des FIC : positif, à rappeler</span>`:r.coul==="rouge"?`<span class="coul"><i style="background:var(--s-dead)"></i>Ligne rouge dans le suivi des FIC : perdu${signed(r)!=null?" (une vente signée reste rattachée)":""}</span>`:""}${d?`<span class="sub ${whenLabel(d).late?"late":""}">Relance ${esc(whenLabel(d).t)} (${fd(d)})</span>`:""}</div>
       <dl class="kv">
           <dt>Téléphone</dt><dd><span class="tel"><span class="num" id="telv">${esc(r.tel||"—")}</span>${telPays(r.tel) ? `<span class="sub" style="display:block">numéro étranger · ${esc(telPays(r.tel))}</span>` : ""}${r.tel&&/\d{6}/.test(r.tel.replace(/\s/g,""))?`<button class="btn" id="cp">Copier</button><a class="btn" href="tel:${esc(r.tel.replace(/\s/g,""))}" target="_blank" rel="noopener">Appeler</a><button class="btn" id="smsb" type="button" aria-expanded="${smsFor===r.id}">SMS</button>`:""}</span></dd>
           <dt>Autres contacts</dt><dd id="ctbox">${ctBox(r)}</dd>

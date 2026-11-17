@@ -2540,7 +2540,19 @@ function renderQueue(){
   });
 }
 
-function renderAll(){ renderPay(); renderTaches(); renderPose(); renderSav(); renderDash(); renderTours(); renderStrip(); renderList(); renderQueue(); renderChantiers(); renderRdv(); renderMailCount(); if (openId) renderDrawer(); }
+document.addEventListener("click", async e => { const b = e.target.closest && e.target.closest("[data-metdone],[data-metundo]"); if (!b) return; e.preventDefault();
+  const r = rows.find(x => x.id === (b.dataset.metdone || b.dataset.metundo)); if (!r) return;
+  await metreOk(r, !!b.dataset.metdone); toast(b.dataset.metdone ? "Noté : métré définitif fait" : "Remis à l'étape métré définitif"); renderAll(); });
+/* étape « métré définitif » : le récap des ventes ne la montre que si les infos parlent de métré ; sinon une vente
+   sans date de livraison passe en « commande ». On remet donc en « métré » toute vente qui attend encore son métré définitif
+   (aucun RDV métré passé, aucun métré déposé, pas de devis définitif signé, pas de « métré fait » coché). */
+function needMetre(r){ const vd = venteD(r); if (!vd) return false;
+  if (planOf(r) || metreFait(r) || wfDrop(r, true, r.fic || addDays(vd, -60))) return false;   // métré déjà déposé (parfois avant la saisie de la vente)
+  if (signedDocs(r).some(z => z[2] && z[2] > vd && /D[EÉ]F(INITIF)?\b/i.test(z[0]))) return false;   // devis définitif signé
+  return true; }
+function fixStages(){ for (const r of rows) { const V = r.vente || []; if (!V.length) continue; let need = null;
+    for (const v of V) { if (v.et0 == null) v.et0 = v.et; if (v.et0 === "commande") { if (need == null) need = needMetre(r); v.et = need ? "metre" : "commande"; } else v.et = v.et0; } } }
+function renderAll(){ try { fixStages(); } catch(e){ console.warn(e); } renderPay(); renderTaches(); renderPose(); renderSav(); renderDash(); renderTours(); renderStrip(); renderList(); renderQueue(); renderChantiers(); renderRdv(); renderMailCount(); if (openId) renderDrawer(); }
 
 /* ---------- chantiers signés ---------- */
 function chantiers(){ return rows.flatMap(r => (r.vente||[]).map((v,i) => ({r, v, i}))); }
@@ -4549,7 +4561,7 @@ function renderDrawer(){
         ${!db?`<span class="sub">L'enregistrement n'est pas disponible dans cette vue.</span>`:""}`; })()}
       </section>
       ${(() => { const V = (r.vente || []).filter(v => !v.ann); if (!V.length && !planOf(r)) return "";
-        if (!metreStage(r)) { const et = V.map(v => v.et).find(k => ET[k]); return `<section class="fcard" style="--fc:var(--c-metre)"><span class="fct">Rendez-vous métré définitif</span><div class="sub">Étape du métré passée${et ? " · chantier au stade « " + ET[et].l + " »" : ""}${(r.pdf_metres || []).length ? " · " + r.pdf_metres.length + " métré(s) dans le Drive (carte Devis)" : ""}</div></section>`; }
+        if (!metreStage(r)) { const et = V.map(v => v.et).find(k => ET[k]); return `<section class="fcard" style="--fc:var(--c-metre)"><span class="fct">Rendez-vous métré définitif</span><div class="sub">Étape du métré passée${et ? " · chantier au stade « " + ET[et].l + " »" : ""}${(r.pdf_metres || []).length ? " · " + r.pdf_metres.length + " métré(s) dans le Drive (carte Devis)" : ""}</div>${(suivi[r.id] || {}).metreok && V.some(v => v.et0 === "commande") ? `<button class="lnk" type="button" data-metundo="${esc(r.id)}">Le métré n'est pas encore fait : le remettre à faire</button>` : ""}</section>`; }
         const rv = rdvCur(r), MS = true;
         return `<section class="fcard" style="--fc:var(--c-metre)"><span class="fct">Rendez-vous métré définitif</span>${planOf(r) ? "" : `<fieldset class="rdvset" id="rdvset">
           <legend>RDV métré définitif</legend>
@@ -4564,7 +4576,7 @@ function renderDrawer(){
           <div id="appbox"></div><div class="agday" id="agday"></div><div class="agopen"><a class="btn" id="agol" href="https://calendar.google.com/calendar/r/week" target="_blank" rel="noopener">Ouvrir mon agenda</a><span class="sub">s\u2019ouvre à la semaine du jour choisi</span></div>
           <label>Précision (facultatif)<input type="text" id="rdvt" value="${esc((rv||{}).t||"")}" placeholder="Ex. : métré sur place, voir avec Mme, portail côté rue"></label>
           <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" id="rdvsave" type="button" ${canWrite&&db?"":"disabled"}>${rv?"Modifier le RDV":"Enregistrer le RDV"}</button>${rv?`<button class="btn" id="rdvdel" type="button" ${canWrite&&db?"":"disabled"}>Retirer le RDV</button>`:""}</div>
-        </fieldset>`}${planOf(r) ? "" : attBox(r)}${planBox(r)}</section>`; })()}
+        </fieldset><button class="lnk" type="button" data-metdone="${esc(r.id)}" style="margin-top:6px">Le métré définitif est déjà fait</button>`}${planOf(r) ? "" : attBox(r)}${planBox(r)}</section>`; })()}
       ${csavBox(r)}
       ${r.notes || r.fiche || r.docs ? `<section class="fcard" style="--fc:var(--c-note)"><span class="fct">Notes du Drive</span>
         ${r.notes?`<div class="sec"><span class="eyebrow">Suivi noté dans le tableau Drive</span><div class="note">${esc(r.notes)}</div></div>`:""}

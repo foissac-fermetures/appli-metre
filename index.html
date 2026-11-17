@@ -2283,26 +2283,55 @@ function renderPP(t){
   ["pp.finition","pp.gravage","pp.etancheite","pp.microviseur"].forEach(k=>{ const el=$(`[data-k="${k}"]`); if(el) el.addEventListener("change",()=>setTimeout(re,0)); });
   initPhotos(p, re);
 }
-/* ---------- PDF : bon de commande / devis HUET ---------- */
-function pagesPP(d){
+/* ---------- PDF : même présentation que les menuiseries (en-tête logo, tableaux, une page par porte) ---------- */
+function dessinPP(l){
+  const A=ppA(l), B=ppB(l), W=150, H=Math.round(W*((A&&B)?Math.min(2.8,Math.max(1.6,A/B)):2.4)), X=30, Y=12, gauche=l.sens!=="Poussant droit";
+  const RED="#d3232f", NAVY="#1b2f5e";
+  const pill=(x,y,t,v)=>`<g><rect x="${v?x-10:x-t.length*4.6-7}" y="${v?y-t.length*4.6-7:y-10}" width="${v?20:t.length*9.2+14}" height="${v?t.length*9.2+14:20}" rx="10" fill="#fff" stroke="${RED}" stroke-width="1.5"/><text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="13" font-weight="700" fill="${RED}"${v?` transform="rotate(-90 ${x} ${y})"`:""}>${t}</text></g>`;
+  const hx=gauche?X+8:X+W-8, ax=gauche?X+W-8:X+8;
+  return `<svg class="pdessin" viewBox="0 0 ${W+90} ${H+60}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="${X}" y="${Y}" width="${W}" height="${H}" fill="#fff" stroke="${NAVY}" stroke-width="5"/>
+    <rect x="${X+8}" y="${Y+8}" width="${W-16}" height="${H-8}" fill="#e8ebf2" stroke="${NAVY}" stroke-width="1.5"/>
+    <polyline points="${hx},${Y+8} ${ax},${Y+8+(H-8)/2} ${hx},${Y+H}" fill="none" stroke="${NAVY}" stroke-width="1.3"/>
+    <rect x="${gauche?X+W-22:X+16}" y="${Y+H*0.48}" width="6" height="34" rx="2" fill="${RED}"/>
+    <circle cx="${X+W/2}" cy="${Y+H*0.38}" r="3" fill="${NAVY}"/>
+    <line x1="${X}" y1="${Y+H+16}" x2="${X+W}" y2="${Y+H+16}" stroke="${RED}" stroke-width="1"/>${pill(X+W/2,Y+H+16,String(B??"B ?"),false)}
+    <line x1="${X+W+22}" y1="${Y}" x2="${X+W+22}" y2="${Y+H}" stroke="${RED}" stroke-width="1"/>${pill(X+W+22,Y+H/2,String(A??"A ?"),true)}
+    <text x="${X+W/2}" y="${Y+H+44}" text-anchor="middle" font-family="Arial" font-size="11" fill="#5b6478">${esc(l.sens||"sens ?")}</text></svg>`;
+}
+function pagesPP(d, head, row){
   const p=d.pp; if(!aPP(d)) return "";
-  const ck=b=>b?"☑":"☐", bx=(lab,val)=>`<div class="vb-bx"><span class="vb-lb">${esc(lab)}</span><span class="vb-v">${val}</span></div>`;
-  const rows=p.lignes.map(l=>`<tr><td class="vb-rep">${esc(l.repere)}</td><td>${esc(l.qte)}</td><td class="sm">${esc(l.sens)}</td><td class="sm">${esc(l.existant)}</td>
-    <td class="vb-tab"><b>${ppA(l)??""}</b><br><small>${esc([l.A1,l.A2].filter(x=>x!=="").join(" / "))}</small></td><td class="vb-tab"><b>${ppB(l)??""}</b><br><small>${esc([l.B1,l.B2,l.B3].filter(x=>x!=="").join(" / "))}</small></td>
-    <td>${esc(l.C)}</td><td>${esc(l.D)}</td><td>${esc(l.el_g)}</td><td>${esc(l.el_d)}</td><td>${esc(l.el_h)}</td><td>${l.cloison?"✔":""}</td><td class="sm">${esc(l.obs)}</td></tr>`).join("");
-  return `<div class="pg vb-pg"><div class="vb-titre">PORTES PALIÈRES RÉNO – HUET</div><div class="vb-band">${estDefinitif(d)?"Bon de commande (métré définitif)":"Devis"} · ${esc(d.client.nom)}${d.adresse_chantier?" · "+esc(d.adresse_chantier):""}</div>
-    <div class="vb-haut">
-      ${bx("Modèle de porte",esc(p.modele))}${bx("Modèle d'huisserie",esc(p.huisserie))}${bx("Métreur",esc(d.metreur))}
-      ${bx("Finition",esc([p.finition,p.coloris].filter(Boolean).join(" – ")))}${bx("Gravage Technidécor",esc(p.gravage+(p.motif?" – "+p.motif:"")))}${bx("Étanchéité basse",esc([p.etancheite,p.etancheite==="Seuil suisse"?p.seuil:""].filter(Boolean).join(" – ")))}
-      ${bx("Serrure",esc(p.serrure))}${bx("Microviseur",`${ck(p.microviseur)}${p.microviseur?" "+esc(p.microviseur_fin):""}`)}${bx("Cylindre en fourniture",ck(p.cylindre))}
-      ${bx("Plots anti-dégondage",ck(p.plots))}${bx("Entrebâilleur chrome",ck(p.entrebailleur))}${bx("Garniture / béquille anodisé argent",ck(p.garniture))}
-    </div>
-    <table class="vb-t"><colgroup>${[12,5,9,9,8,8,6,6,6,6,6,5,14].map(w=>`<col style="width:${w}%">`).join("")}</colgroup>
-      <tr class="g1"><th class="nb" colspan="4"></th><th colspan="2" class="vb-tab">Passage retenu (mini)</th><th colspan="2">Feuillure</th><th colspan="3">Espace libre (intérieur)</th><th colspan="2" class="nb"></th></tr>
-      <tr><th class="vb-rep">Repère</th><th>Qté</th><th>Sens (vue ext.)</th><th>Huisserie existante</th><th class="vb-tab">A hauteur</th><th class="vb-tab">B largeur</th><th>C prof.</th><th>D larg.</th><th>Gauche</th><th>Droite</th><th>Haut</th><th>Retour cloison</th><th>Observation</th></tr>
-      ${rows}</table>
-    <div class="vb-imgs pp-imgs"><img src="img/pp-plan.png"><img src="img/pp-coupe.png"><img src="img/pp-sens.png"></div>
-    <div class="vb-pied">Fournisseur : HUET (JH Industries) · cotes relevées sur l'ancienne huisserie · A et B : plus petite des mesures</div></div>`;
+  const ck=b=>b?"Oui":"", c=controlePP(d), n=(l,i)=>l.repere||`porte ${i+1}`;
+  const commun=[["Modèle de porte",p.modele],["Modèle d'huisserie",p.huisserie],["Finition",[p.finition,p.coloris].filter(Boolean).join(" – ")],["Gravage Technidécor",p.gravage!=="Non"?[p.gravage,p.motif].filter(Boolean).join(" – "):""],
+    ["Étanchéité basse",[p.etancheite,p.etancheite==="Seuil suisse"?p.seuil:""].filter(Boolean).join(" – ")],["Serrure",p.serrure],["Microviseur",p.microviseur?"Oui – "+p.microviseur_fin:""],["Cylindre en fourniture",ck(p.cylindre)],
+    ["Plots anti-dégondage",ck(p.plots)],["Entrebâilleur chrome en applique",ck(p.entrebailleur)],["Garniture et béquille anodisé argent",ck(p.garniture)]];
+  let h=`<div class="pg">${head(`Portes palières réno HUET – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
+    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","HUET (JH Industries)"],["Nombre de portes",String(p.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div>
+    <div><table class="pt">${row(commun)}</table></div></div>
+    <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Sens (vue ext.)</th><th>Huisserie existante</th><th>A hauteur</th><th>B largeur</th><th>C prof.</th><th>D larg.</th><th>Espace libre G · D · H</th><th>Observation</th></tr>
+    ${p.lignes.map((l,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.qte)}</td><td>${esc(l.sens)}</td><td>${esc(l.existant)}</td><td><b>${ppA(l)??""}</b></td><td><b>${ppB(l)??""}</b></td><td>${esc(l.C)}</td><td>${esc(l.D)}</td><td>${[l.el_g,l.el_d,l.el_h].map(x=>x||"–").join(" · ")}</td><td>${esc(l.obs)}</td></tr>`).join("")}</table>
+    ${c.E.length||c.W.length?`<div class="pwarn">À vérifier : ${esc([...c.E,...c.W].join(" · "))}</div>`:`<div class="pok">Contrôle OK</div>`}</div>`;
+  p.lignes.forEach((l,i)=>{ const pre=n(l,i)+" : ", msg=[...c.E,...c.W].filter(x=>x.startsWith(pre)).map(x=>x.slice(pre.length));
+    h+=`<div class="pg">${head(`${i+1}. ${l.repere||"Porte palière"} – ${d.client.nom||""}`)}<div class="p3"><div class="pdim">
+      <div class="pposetitre">PORTE PALIÈRE – RÉNOVATION HUET</div>
+      <div class="pst">LARGEUR <small>– vue en plan, sur l'ancienne huisserie</small></div><img class="pimg" src="img/pp-plan.png" style="width:auto;max-width:100%;display:block;margin:0 auto;max-height:60mm">
+      <div class="pst">HAUTEUR <small>– vue en coupe</small></div><img class="pimg" src="img/pp-coupe.png" style="width:auto;max-width:100%;display:block;margin:0 auto;max-height:48mm">
+      <div class="pdt2"><table class="pt pdt"><tr class="pdir"><th colspan="2">LARGEUR</th></tr>
+          <tr><th>B1 en haut</th><td>${esc(l.B1)}</td></tr><tr><th>B2 au milieu</th><td>${esc(l.B2)}</td></tr><tr><th>B3 en bas</th><td>${esc(l.B3)}</td></tr>
+          <tr><th>C prof. feuillure</th><td>${esc(l.C)}</td></tr><tr><th>D larg. feuillure</th><td>${esc(l.D)}</td></tr><tr class="pfabr"><th>B RETENUE</th><td>${ppB(l)??""}</td></tr></table>
+        <table class="pt pdt"><tr class="pdir"><th colspan="2">HAUTEUR</th></tr>
+          <tr><th>A1 à gauche</th><td>${esc(l.A1)}</td></tr><tr><th>A2 à droite</th><td>${esc(l.A2)}</td></tr>
+          <tr><th>Espace libre G</th><td>${esc(l.el_g)}</td></tr><tr><th>Espace libre D</th><td>${esc(l.el_d)}</td></tr><tr><th>Espace libre haut</th><td>${esc(l.el_h)}</td></tr><tr class="pfabr"><th>A RETENUE</th><td>${ppA(l)??""}</td></tr></table></div>
+      </div><div>
+      <table class="pt">${row([["Quantité",l.qte],["Sens (vue extérieure)",l.sens],["Huisserie existante",l.existant],["Retour de cloison",l.cloison?"Oui":""],...commun,["Observation",l.obs]])}</table>
+      </div><div>
+      <div class="pst">DESSIN <small>– vue de l'extérieur (palier)</small></div>${dessinPP(l)}
+      <div class="pst" style="margin-top:6px">SENS</div><img class="pimg" src="img/pp-sens.png" style="width:auto;max-width:100%;display:block;margin:0 auto;max-height:55mm">
+      </div><div class="pbas">${msg.length?`<div class="pwarn">À vérifier : ${esc(msg.join(" · "))}</div>`:""}</div></div></div>`; });
+  const ph=(p.photos||[]).filter(x=>x.img);
+  for(let i=0;i<ph.length;i+=4) h+=`<div class="pg">${head(`Portes palières – Photos${ph.length>4?` (${i/4+1})`:""} – ${d.client.nom||""}`)}
+    <div class="pphotos">${ph.slice(i,i+4).map((x,j)=>`<figure><img src="${x.img}"><figcaption><b>Photo ${i+j+1}</b>${x.txt?" – "+esc(x.txt):""}</figcaption></figure>`).join("")}</div></div>`;
+  return h;
 }
 
 /* ---------- PDF : feuilles « Volet » et « Schéma » de Nicolas ---------- */
@@ -2610,7 +2639,7 @@ function construireImpression(d){
       <div>${tp&&SCHEMAS[tp.img]?`<img src="${SCHEMAS[tp.img]}" style="max-width:100%;border:1px solid #9aa3b5"><div style="text-align:center;font-weight:700">${esc(tp.nom)}</div>`:""}</div></div></div>`;
   }
   h+=pagesPT(d);
-  h+=pagesVB(d); h+=pagesPP(d);
+  h+=pagesVB(d); h+=pagesPP(d, head, row);
   h+=pagesClim(d);
   return h;
 }

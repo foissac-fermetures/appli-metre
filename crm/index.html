@@ -481,6 +481,10 @@ details.relblk:not([open]){gap:0}
 .nc label{display:grid;gap:4px;font-size:.8rem;color:var(--muted)}
 .nc input,.nc select,.nc textarea{padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit;width:100%}
 .nc .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media (max-width:520px){.nc .two{grid-template-columns:1fr}}
+.nc-sms summary{cursor:pointer;display:grid;gap:4px;list-style:none}.nc-sms summary::-webkit-details-marker{display:none}
+.nc-sms[open] summary{margin-bottom:4px}.nc-sms textarea{width:100%;box-sizing:border-box;font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:inherit}
+.nc-sms{border-color:color-mix(in srgb,var(--c-contact) 45%,var(--line));background:color-mix(in srgb,var(--c-contact) 6%,var(--panel))}
+.nc-hit{outline:2px solid #22c55e;outline-offset:1px;background:color-mix(in srgb,#22c55e 10%,var(--panel))!important}
 .nc-f{display:flex;gap:8px;align-items:center;padding:12px 18px;border-top:1px solid var(--line);flex-wrap:wrap}
 .nc-f .sgrow{flex:1}
 .btn.danger{color:#fff;background:var(--s-lost);border-color:var(--s-lost)}
@@ -4447,6 +4451,9 @@ function ncForm(m){
   return `<div class="nc-bd" id="ncbd"><div class="nc" role="dialog" aria-modal="true" aria-labelledby="nct">
     <div class="nc-h"><h2 id="nct">${m ? "Modifier le client" : "Nouveau client"}</h2><button class="btn sm" type="button" id="ncx" aria-label="Fermer">✕</button></div>
     <div class="nc-b">
+      ${m ? "" : `<details class="nc-g nc-sms" id="ncsmsd"><summary><span class="nc-s">📱 Remplir depuis un SMS du client</span><span class="sub">copie le SMS, colle-le ici : je remplis la fiche</span></summary>
+        <textarea id="ncsms" rows="5" placeholder="Colle ici le SMS du client (nom, prénom, téléphone, adresse de facturation, adresse du chantier…)"></textarea>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" type="button" id="ncpaste">📋 Coller le SMS</button><button class="btn pri" type="button" id="ncfill">Remplir la fiche</button><span class="sub" id="ncsmsr"></span></div></details>`}
       <div class="nc-g"><span class="nc-s">Le client</span>
         <div class="two"><label>Nom *<input id="ncnom" value="${esc(v.nom || v.client || "")}" autocomplete="off" placeholder="DUPONT"></label><label>Prénom<input id="ncpre" value="${esc(v.prenom || "")}" placeholder="Marie"></label></div>
         <div class="two"><label>Téléphone<input id="nctel" inputmode="tel" value="${esc(v.tel || "")}" placeholder="06 12 34 56 78"></label><label>Mail<input id="ncmail" type="email" value="${esc(v.mail || "")}" placeholder="client@exemple.fr"></label></div></div>
@@ -4462,6 +4469,74 @@ function ncForm(m){
     <div class="nc-f">${m ? `<button class="btn" type="button" id="ncdel">Supprimer ce client</button>` : ""}<span class="sgrow"></span><button class="btn" type="button" id="ncno">Annuler</button><button class="btn pri" type="button" id="ncok">${m ? "Enregistrer" : "Créer la fiche"}</button></div>
   </div></div>`;
 }
+/* ---- SMS du client → fiche : on repère nom, prénom, téléphone, mail, adresses (facturation / chantier) ---- */
+const PRENOMS = new Set("jean pierre michel philippe alain nicolas christophe patrick daniel bernard eric frederic laurent stephane david olivier thierry pascal julien sebastien francois christian guillaume jacques gerard andre rene claude marc thomas antoine alexandre romain vincent jerome mathieu matthieu maxime anthony kevin yannick ludovic cedric fabrice franck didier serge herve gilles bruno joel denis dominique roger robert paul louis lucas hugo theo leo gabriel arthur raphael jules adam enzo nathan mathis clement benjamin florian quentin damien arnaud benoit loic yohan johan jeremy jordan dylan bastien gael regis remi xavier yves henri georges marcel lucien emile fernand raymond guy patrice gregory sylvain lionel mickael michael fabien marie nathalie isabelle sylvie catherine christine francoise martine valerie sandrine sophie veronique celine stephanie caroline monique nicole chantal brigitte anne helene laurence corinne camille julie aurelie emilie claire elodie laura sarah lea manon chloe emma ines jade louise alice lina rose anna juliette pauline marion audrey melanie virginie delphine florence patricia jacqueline danielle annie josiane colette odile agnes beatrice evelyne muriel karine severine sabrine sabrina cindy jessica amandine justine marine charlotte lucie mathilde morgane oceane clemence estelle magalie magali coralie gaelle armelle solange denise simone jeanne paulette yvette ginette huguette mireille josette lydie fanny elise eloise noemie margaux maeva alexandra jennifer vanessa angelique nadine odette therese suzanne andree".split(" "));
+const sansAcc = x => String(x || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+function smsParse(txt){
+  const out = {}, raw = String(txt || "").replace(/\r/g, ""); if (!raw.trim()) return out;
+  const tm = raw.match(/(?:\+|00)\d[\d .\-]{8,16}\d|\b0[1-9](?:[ .\-]?\d{2}){4}\b/); if (tm) out.tel = tm[0].trim();
+  const mm = raw.match(/[\w.+\-]+@[\w\-]+(?:\.[\w\-]+)+/); if (mm) out.mail = mm[0];
+  const RUE = /\b(rue|route|chemin|avenue|av\.?|bd|boulevard|impasse|imp\.?|all[ée]e|place|lieu[- ]?dit|lotissement|lot\.?|r[ée]sidence|hameau|quartier|cours|faubourg|voie|les?\s|la\s)\b|^\s*\d+\s*(bis|ter)?\s*,?\s+\S/i;
+  // découpe : lignes, et morceaux après « : » d'une étiquette
+  const clean = l => { if (tm) l = l.split(tm[0]).join(" "); if (mm) l = l.split(mm[0]).join(" ");
+    return l.replace(/^(bonjour|bonsoir|salut|hello)\b[^,.!:]*?(?=\b(c'est|je suis|ici|moi c'est)\b)/i, "").replace(/^(bonjour|bonsoir|salut|hello)\s*(m\.|mr|monsieur)?\s*(nicolas\s*)?(brouqui)?[ ,!.]*/i, "")
+      .replace(/^(coucou|bonjour|salut)\s+/i, "").replace(/^(moi c'est|c'est|c|je suis|ici)\s+/i, "").replace(/^(j'habite|j habite|je r[ée]side|nous habitons|on habite)\s*(au|à|a)?\s*:?\s*/i, "")
+      .replace(/\s+/g, " ").replace(/^[\s,;:.\-]+|[\s,;\-]+$/g, "").trim(); };
+  const habite = /j'?\s?habite|je r[ée]side|nous habitons|on habite|domicile/i;
+  const raw2 = raw.replace(/([a-zà-ÿ]{3,})[.!?]+\s+/g, "$1\n").replace(/(?<!\b(?:adresse|de|du|des|la|le|mon|ma|notre|votre|pour))\s+(?=(adresse|t[ée]l(?:[ée]phone)?|portable|e?-?mail|chantier|facturation|travaux)\b\s*[:\-]?\s*\S)/gi, "\n");
+  let L0 = raw2.split(/\n+/).map(x => x.trim()).filter(Boolean);
+  if (L0.length === 1) L0 = raw2.split(/\s*(?:[;|]|\s-\s|,)\s*/).map(x => x.trim()).filter(Boolean);
+  const HAB = L0.map(l => habite.test(l)); let L = L0.map(clean); const keep = L.map((l, i) => !!l); L = L.filter((l, i) => keep[i]); const HB = HAB.filter((_, i) => keep[i]);
+  const lab = l => { const a = sansAcc(l);
+    if (/chantier|travaux|maison secondaire|lieu de pose/.test(a) && !/\b\d{5}\b/.test(a) && (/:\s*$/.test(l) || /^(le |la |pour le |adresse )?(du |de |des )?(chantier|travaux)/.test(a))) return "adc";
+    if (/^(adresse\s+)?(du\s+|de\s+|des\s+)?(chantier|travaux|pose|lieu des travaux|installation)/.test(a)) return "adc";
+    if (/^(adresse\s+)?(de\s+|du\s+)?(facturation|factur|domicile|postale|perso)/.test(a) || /^adresse\b/.test(a)) return "adr";
+    if (/^pr[e]?nom\b|^prenom\b/.test(a)) return "pre"; if (/^nom\b/.test(a)) return "nom";
+    if (/^(tel|telephone|portable|mobile|port)\b/.test(a)) return "tel"; if (/^(mail|e-mail|email|courriel)\b/.test(a)) return "mail"; return ""; };
+  const body = l => (/:/.test(l) ? l.replace(/^[^:]{1,40}:\s*/, "") : l.replace(/^(adresse(\s+(de\s+)?(facturation|du chantier|des travaux|domicile))?|facturation|chantier|travaux|t[ée]l(?:[ée]phone)?|portable|e?-?mail)\s*-?\s*/i, "")).trim();
+  const isAdrPiece = l => /\b\d{5}\b/.test(l) || RUE.test(l);
+  const adrs = []; let cur = null, used = new Set();
+  for (let i = 0; i < L.length; i++) { const l = L[i], k = lab(l), b = k ? body(l) : l.replace(/^(adresse\s+)?(du\s+|de\s+|des\s+)?(chantier|facturation|domicile|travaux)\s*/i, "").trim();
+    if (k === "nom" && b) { out.nom = b; used.add(i); continue; } if (k === "pre" && b) { out.prenom = b; used.add(i); continue; }
+    if (k === "tel" || k === "mail") { used.add(i); continue; }
+    if (k === "adc" && /m[eê]me|identique|pareil/i.test(l)) { used.add(i); cur = null; continue; }
+    if (k === "adc" && /:\s*$/.test(l)) { cur = { k, t: [] }; adrs.push(cur); used.add(i); continue; }
+    if (k === "adr" || k === "adc") { cur = { k, t: b ? [b] : [] }; adrs.push(cur); used.add(i); if (/\b\d{5}\b/.test(b)) cur = null; continue; }
+    if (isAdrPiece(l) && !/@/.test(l) && !(tm && l.replace(/\D/g, "") === tm[0].replace(/\D/g, ""))) {
+      const l2 = tm ? l.replace(tm[0], "").trim() : l; if (!l2) { used.add(i); continue; }
+      if (!cur) { cur = { k: HB[i] ? "adr" : "", t: [] }; adrs.push(cur); } cur.t.push(l2); used.add(i); if (/\b\d{5}\b/.test(l2)) cur = null; continue; }
+    if (cur && (cur.t.length || cur.k === "adc") && !/\b\d{5}\b/.test(cur.t.join(" ")) && /^[A-Za-zÀ-ÿ' \-]{3,40}$/.test(l) && !/^(merci|cordialement|bonne)/i.test(l)) { cur.t.push(l); used.add(i); cur = null; continue; }
+    cur = null; }
+  const A = adrs.map(a => ({ k: a.k, t: a.t.join(", ").replace(/\s*,\s*,/g, ",").replace(/\s+/g, " ").replace(/[\s,]+$/, "").trim() })).filter(a => a.t);
+  const fa = A.find(a => a.k === "adr"), ch = A.find(a => a.k === "adc"), rest = A.filter(a => !a.k);
+  out.adr = fa ? fa.t : (rest[0] || {}).t; out.adc = ch ? ch.t : (fa ? (rest[0] || {}).t : (rest[1] || {}).t);
+  if (out.adc && out.adr && sansAcc(out.adc).replace(/\W/g, "") === sansAcc(out.adr).replace(/\W/g, "")) delete out.adc;
+  if (!out.adr && out.adc) { out.adr = out.adc; delete out.adc; }
+  if (/m[eê]me adresse|identique/i.test(raw) && out.adc && !fa) {} 
+  // nom / prénom : ligne étiquetée, sinon première ligne « Prénom Nom » qui n'est ni salutation ni adresse
+  if (!out.nom) { for (let i = 0; i < L.length; i++) { if (used.has(i)) continue;
+      let l = L[i].replace(/^(bonjour|bonsoir|salut|hello)[ ,!.]*/i, "").replace(/^(c'est|je suis|ici|de la part de|voici mes coordonn[ée]es|voici)\s*:?\s*/i, "").replace(/^((m\.|mr|mme|mlle|monsieur|madame|mademoiselle)\s*(et|&)?\s*)+/i, "").replace(/[,.!:;]+$/, "").trim();
+      if (!l || /\d|@|merci|cordialement|bonne|journ[ée]e|soir[ée]e|devis|rendez|rdv/i.test(l)) continue;
+      const w = l.split(/\s+/).filter(Boolean); if (w.length < 1 || w.length > 4 || !w.every(x => /^[A-Za-zÀ-ÿ'\-]+$/.test(x))) continue;
+      if (w.length === 1) { out.nom = w[0]; break; }
+      const up = w.filter(x => x.length > 1 && x === x.toUpperCase()), pi = w.findIndex(x => PRENOMS.has(sansAcc(x)));
+      if (up.length && up.length < w.length) { out.nom = up.join(" "); out.prenom = w.filter(x => !up.includes(x)).join(" "); }
+      else if (pi === 0) { out.prenom = w[0]; out.nom = w.slice(1).join(" "); }
+      else if (pi > 0) { out.prenom = w[pi]; out.nom = w.filter((_, j) => j !== pi).join(" "); }
+      else { out.prenom = w[0]; out.nom = w.slice(1).join(" "); }
+      break; } }
+  if (out.nom) out.nom = upAscii(out.nom).replace(/\s+/g, " ").trim();
+  if (out.prenom) out.prenom = out.prenom.toLowerCase().replace(/(^|[\s\-'])\p{L}/gu, c => c.toUpperCase());
+  if (out.tel) { try { out.tel = telNorm(out.tel); } catch(_){} }
+  return out; }
+function smsFill(){
+  const t = ($("#ncsms") || {}).value || "", r = smsParse(t), got = [];
+  const put = (id, v, lbl) => { const el = $(id); if (!el || !v) return; el.value = v; el.classList.add("nc-hit"); got.push(lbl); };
+  put("#ncnom", r.nom, "nom"); put("#ncpre", r.prenom, "prénom"); put("#nctel", r.tel, "téléphone"); put("#ncmail", r.mail, "mail");
+  put("#ncadr", r.adr, "adresse de facturation"); put("#ncadc", r.adc, "adresse du chantier");
+  const n = $("#ncnote"); if (n && t.trim() && !n.value.includes(t.trim())) n.value = (n.value ? n.value + "\n\n" : "") + "SMS du client :\n" + t.trim();
+  const res = $("#ncsmsr"); if (res) res.textContent = got.length ? "✓ Rempli : " + got.join(", ") + ". Vérifie les cases en vert avant de créer la fiche." : "Je n'ai rien reconnu : remplis la fiche à la main (le SMS est recopié dans les notes).";
+  return got.length; }
 function openNewClient(m){
   if (!db || !canWrite) { toast("Enregistrement impossible dans cette vue"); return; }
   const host = document.createElement("div"); host.innerHTML = ncForm(m); document.body.append(host.firstElementChild);
@@ -4469,6 +4544,8 @@ function openNewClient(m){
   $("#ncx").onclick = close; $("#ncno").onclick = close; bd.addEventListener("click", e => { if (e.target === bd) close(); });
   document.addEventListener("keydown", function esc1(e){ if (e.key === "Escape" && document.body.contains(bd)) { close(); document.removeEventListener("keydown", esc1); } });
   setTimeout(() => $("#ncnom").focus(), 30);
+  const fillB = $("#ncfill"); if (fillB) { fillB.onclick = smsFill; $("#ncsms").addEventListener("paste", () => setTimeout(smsFill, 30));
+    $("#ncpaste").onclick = async () => { try { const t = await navigator.clipboard.readText(); if (!t) throw 0; $("#ncsms").value = t; smsFill(); } catch(_){ $("#ncsms").focus(); $("#ncsmsr").textContent = "Appuie longtemps dans la case puis « Coller » (ou Ctrl+V sur le PC)."; } }; }
   const del = $("#ncdel"); if (del) { let armed = false; del.onclick = async () => { if (!armed) { armed = true; del.textContent = "Confirmer la suppression"; del.classList.add("danger"); return; }
       try { await db.collection("clients").doc(m.id).set(Object.assign({}, m, { deleted: iso(today()) })); toast(m.client + " supprimé"); close(); closeDossier(); } catch(_){ toast("Pas supprimé, réessaie"); } }; }
   $("#ncok").onclick = async () => {

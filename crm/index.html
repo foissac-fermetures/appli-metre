@@ -4369,7 +4369,7 @@ const telLink = t => { let d = String(t || "").replace(/[^\d+]/g, ""); if (d.sta
 const fTel = t => { try { return telNorm(t); } catch(_){ return t; } };
 function fourMatch(f, q){ if (!q) return true; const n = x => String(x || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const hay = n([f.nom, f.cat, f.notes, f.tel, f.mail, ...(f.contacts || []).flatMap(c => [c.nom, c.role, c.tel, c.mail])].join(" ")); return n(q).split(/\s+/).every(w => hay.includes(w)); }
-const FGRP = ["Fournisseurs principaux", "Quincailleries, pièces, consommables", "Vitrage", "Autres fournisseurs", "Matériaux et logiciels", "Pas encore de compte ouvert"];
+const FGRP = ["Agences Foissac Fermetures", "Fournisseurs principaux", "Quincailleries, pièces, consommables", "Vitrage", "Autres fournisseurs", "Matériaux et logiciels", "Pas encore de compte ouvert"];
 function fourContact(c){ const tl = telLink(c.tel);
   return `<div class="fo-ct"><div class="fo-who"><b>${esc(c.nom || "Standard")}</b>${c.role ? `<span>${esc(c.role)}</span>` : ""}</div>
     <div class="fo-num">${c.tel ? esc(fTel(c.tel)) : ""}${c.mail ? `<span>${esc(c.mail)}</span>` : ""}</div>

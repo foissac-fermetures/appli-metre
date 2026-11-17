@@ -14,13 +14,15 @@
     "https://www.googleapis.com/auth/calendar.events"        // tes rendez-vous dans Google Agenda
   ].join(" ");
   const GMAIL = "https://www.googleapis.com/auth/gmail.compose";   // brouillons Gmail (jamais d'envoi) : demandé seulement si tu t'en sers
+  const GMAIL_R = "https://www.googleapis.com/auth/gmail.readonly"; // lire les mails pour l'onglet Mails (jamais d'envoi, jamais de suppression)
   const DATA_FILE = "crm-gourdon-donnees.json";
   const LS_TOKEN = "crm_g_jeton", LS_OK = "crm_g_ok";
 
   /* ---------- connexion Google ---------- */
-  let token = null, tokenEnd = 0, granted = "", gClient = null, gReady = null, wantGmail = false;
+  let token = null, tokenEnd = 0, granted = "", gClient = null, gReady = null, wantGmail = false, wantRead = false;
   try { const j = JSON.parse(localStorage.getItem(LS_TOKEN) || "null"); if (j && j.s === SCOPES && j.f > Date.now() + 60000) { token = j.t; tokenEnd = j.f; granted = j.g || ""; } } catch (e) {}
   const hasGmail = () => granted.indexOf(GMAIL) >= 0;
+  const hasRead = () => granted.indexOf(GMAIL_R) >= 0;
   const tokenOk = () => token && Date.now() < tokenEnd - 60000;
   function loadGis() {
     if (gReady) return gReady;
@@ -39,13 +41,14 @@
       gClient.callback = r => {
         if (r.error) return ko(new Error(r.error));
         token = r.access_token; tokenEnd = Date.now() + r.expires_in * 1000; granted = r.scope || SCOPES;
-        if (hasGmail()) wantGmail = false;
-        try { localStorage.setItem(LS_TOKEN, JSON.stringify({ t: token, f: tokenEnd, s: SCOPES, g: granted })); localStorage.setItem(LS_OK, "1"); if (hasGmail()) localStorage.setItem("crm_g_gmail", "1"); } catch (e) {}
+        if (hasGmail()) wantGmail = false; if (hasRead()) wantRead = false;
+        try { localStorage.setItem(LS_TOKEN, JSON.stringify({ t: token, f: tokenEnd, s: SCOPES, g: granted })); localStorage.setItem(LS_OK, "1"); if (hasGmail()) localStorage.setItem("crm_g_gmail", "1"); if (hasRead()) localStorage.setItem("crm_g_gmailr", "1"); } catch (e) {}
         banner(); authWaiters.splice(0).forEach(f => f()); ok(token);
         try { if (typeof window.loadAgenda === "function") window.loadAgenda(); } catch (e) {}
       };
       gClient.error_callback = e => ko(new Error(e && e.type === "popup_closed" ? "fenêtre Google fermée" : "connexion Google impossible"));
-      const sc = SCOPES + ((withGmail || localStorage.getItem("crm_g_gmail")) ? " " + GMAIL : "");
+      const rd = withGmail === "read" || localStorage.getItem("crm_g_gmailr");
+      const sc = SCOPES + ((withGmail || localStorage.getItem("crm_g_gmail")) ? " " + GMAIL : "") + (rd ? " " + GMAIL_R + (localStorage.getItem("crm_g_gmail") || withGmail ? "" : " " + GMAIL) : "");
       gClient.requestAccessToken({ scope: sc, include_granted_scopes: true, prompt: localStorage.getItem(LS_OK) && !withGmail ? "" : "consent" });
     });
   }
@@ -69,6 +72,11 @@
       bar.style.cssText = "position:sticky;top:0;z-index:9999;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;padding:10px 16px;background:#1b2f5e;color:#fff;font:600 14px -apple-system,Segoe UI,Arial,sans-serif";
       document.body.prepend(bar);
     }
+    if (tokenOk() && wantRead) {
+      bar.hidden = false; bar.innerHTML = `<span>Pour l'onglet Mails, autorise une fois le CRM à lire tes mails Gmail (il n'envoie et ne supprime jamais rien).</span><button type="button" style="font:inherit;padding:7px 14px;border-radius:8px;border:0;background:#fff;color:#1b2f5e;cursor:pointer">Autoriser la lecture des mails</button><button type="button" data-x style="font:inherit;background:none;border:0;color:#fff;cursor:pointer;text-decoration:underline">plus tard</button><span id="gbarmsg" style="font-weight:400"></span>`;
+      bar.querySelector("button").onclick = () => signIn("read").then(() => { try { window.mailsRefresh && window.mailsRefresh(); } catch (e) {} }, e => { bar.querySelector("#gbarmsg").textContent = e.message; });
+      bar.querySelector("[data-x]").onclick = () => { wantRead = false; banner(); };
+      return; }
     if (tokenOk() && wantGmail) {
       bar.hidden = false; bar.innerHTML = `<span>Pour préparer des brouillons Gmail, autorise Gmail une fois (le CRM n'envoie jamais rien tout seul).</span><button type="button" style="font:inherit;padding:7px 14px;border-radius:8px;border:0;background:#fff;color:#1b2f5e;cursor:pointer">Autoriser Gmail</button><button type="button" data-x style="font:inherit;background:none;border:0;color:#fff;cursor:pointer;text-decoration:underline">plus tard</button><span id="gbarmsg" style="font-weight:400"></span>`;
       bar.querySelector("button").onclick = () => signIn(true).catch(e => { bar.querySelector("#gbarmsg").textContent = e.message; });
@@ -257,6 +265,35 @@
         if (!hasGmail()) { wantGmail = true; banner(); const e = new Error("Autorise Gmail avec le bouton bleu en haut de la page, puis reclique."); e.code = "consent_required"; throw e; }
         const r = await gfetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: { raw: b64url(mime(i)) } }) });
         return { draft: r, viewUrl: "https://mail.google.com/mail/u/0/#drafts?compose=" + (r.message && r.message.id) };
+      },
+      async reply_draft(i) {   // brouillon de réponse dans la même conversation
+        if (!hasGmail()) { wantGmail = true; banner(); const e = new Error("Autorise Gmail avec le bouton bleu en haut de la page, puis reclique."); e.code = "consent_required"; throw e; }
+        let raw = mime(i); if (i.inReplyTo) raw = raw.replace("MIME-Version: 1.0", "MIME-Version: 1.0\r\nIn-Reply-To: " + i.inReplyTo + "\r\nReferences: " + i.inReplyTo);
+        const r = await gfetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: { raw: b64url(raw), threadId: i.threadId || undefined } }) });
+        return { draft: r };
+      },
+      async list_messages(i) {   // lecture seule : les mails reçus récents, avec un extrait du texte
+        if (!hasRead()) { wantRead = true; banner(); const e = new Error("Autorise la lecture des mails avec le bouton bleu en haut de la page, puis clique à nouveau sur Actualiser."); e.code = "consent_required"; throw e; }
+        const q = i.query || "in:inbox newer_than:14d", max = Math.min(100, i.max || 60);
+        const L = await gfetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=" + max + "&q=" + encodeURIComponent(q));
+        const ids = (L.messages || []).map(m => m.id), out = [];
+        const dec = d => { try { return new TextDecoder().decode(Uint8Array.from(atob(String(d).replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0))); } catch (e) { return ""; } };
+        const html2txt = h => String(h).replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ").replace(/<br\s*\/?>|<\/(p|div|tr|li|h\d)>/gi, "\n").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/[ \t]+/g, " ").replace(/\n\s*\n\s*/g, "\n\n").trim();
+        async function one(id) {
+          const m = await gfetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/" + id + "?format=full");
+          const H = {}; ((m.payload && m.payload.headers) || []).forEach(h => { H[h.name.toLowerCase()] = h.value; });
+          let txt = "", html = ""; const att = [];
+          (function walk(p) { if (!p) return; const mt = p.mimeType || "";
+            if (p.filename) att.push({ name: p.filename, mime: mt, size: (p.body && p.body.size) || 0, id: p.body && p.body.attachmentId, inline: /inline/i.test(((p.headers || []).find(h => /content-disposition/i.test(h.name)) || {}).value || "") });
+            else if (mt === "text/plain" && p.body && p.body.data && !txt) txt = dec(p.body.data);
+            else if (mt === "text/html" && p.body && p.body.data && !html) html = dec(p.body.data);
+            (p.parts || []).forEach(walk); })(m.payload);
+          const body = (txt || html2txt(html)).replace(/\r/g, "");
+          return { id: m.id, threadId: m.threadId, labels: m.labelIds || [], date: +m.internalDate, from: H["from"] || "", to: H["to"] || "", cc: H["cc"] || "", subject: H["subject"] || "", msgId: H["message-id"] || "",
+            listUnsub: !!H["list-unsubscribe"], snippet: (m.snippet || "").replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&"), body: body.slice(0, 6000), att };
+        }
+        for (let k = 0; k < ids.length; k += 8) { const part = await Promise.all(ids.slice(k, k + 8).map(id => one(id).catch(() => null))); part.forEach(x => x && out.push(x)); }
+        return { messages: out };
       }
     }
   };
@@ -271,7 +308,7 @@
   window.claude = Object.freeze({
     use: async name => name === "db" ? (await store.load(), dbApi) : name === "mcp" ? mcpApi : name === "user" ? userApi : null
   });
-  window.CRM_ONLINE = { store, signIn, tokenOk };
+  window.CRM_ONLINE = { store, signIn, tokenOk, hasRead: () => hasRead() };
 
   loadGis().catch(() => {});
   banner();

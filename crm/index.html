@@ -709,6 +709,23 @@ html.resa-open{overflow:hidden}
 @media (max-width:640px){.tk{grid-template-columns:28px minmax(0,1fr)}.tkw{grid-column:2}}
 /* ---- onglet SAV ---- */
 #v-sav:not([hidden]){display:grid;gap:16px}
+#v-mail:not([hidden]){display:grid;gap:16px}
+.mrecap{padding:12px 16px 16px;display:grid;gap:10px}
+.mstat{display:flex;flex-wrap:wrap;gap:8px}.mstat span{display:inline-flex;gap:6px;align-items:center;padding:5px 12px;border-radius:999px;background:color-mix(in srgb,var(--mc,#60a5fa) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--mc,#60a5fa) 35%,var(--line));font-weight:600;font-size:.9rem}
+.mstat b{font-size:1.05rem}
+.mlist{display:grid}.mrow{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:4px 12px;padding:12px 16px;border-top:1px solid var(--line);align-items:start}
+.mrow.unread .msub{font-weight:800}.mav{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;background:var(--mc,#64748b);font-size:1rem}
+.mfrom{font-weight:700;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.mfrom small{font-weight:400;color:var(--muted)}
+.msub{font-weight:600;margin-top:2px;overflow-wrap:anywhere}.msn{color:var(--muted);font-size:.88rem;margin-top:2px;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mchips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}.mchip{font-size:.76rem;font-weight:700;padding:2px 9px;border-radius:999px;background:color-mix(in srgb,var(--cc,#64748b) 14%,var(--panel));color:color-mix(in srgb,var(--cc,#64748b) 80%,var(--ink));border:1px solid color-mix(in srgb,var(--cc,#64748b) 30%,var(--line))}
+button.mchip{cursor:pointer}
+.mdate{font-size:.8rem;color:var(--muted);text-align:right;white-space:nowrap}
+.mact{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.mrep{grid-column:2/-1;display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,#60a5fa 6%,var(--panel));margin-top:6px}
+.mrep textarea,.mrep select{width:100%;box-sizing:border-box;font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:inherit}
+.mtodo{display:grid;gap:8px;padding:4px 16px 14px}.mprop{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center;padding:10px 12px;border:1px solid color-mix(in srgb,var(--cc,#f59e0b) 40%,var(--line));border-left:4px solid var(--cc,#f59e0b);border-radius:10px;background:color-mix(in srgb,var(--cc,#f59e0b) 6%,var(--panel))}
+.mprop .mpl{font-weight:700}.mprop .mpd{font-size:.84rem;color:var(--muted);overflow-wrap:anywhere}.mprop .mpb{display:flex;gap:6px}
+@media (max-width:640px){.mrow{grid-template-columns:34px minmax(0,1fr)}.mav{width:34px;height:34px}.mdate{grid-column:2;text-align:left}.mact,.mrep{grid-column:1/-1}.mprop{grid-template-columns:1fr}}
 .fqs{flex:1 1 240px;min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:inherit;font:inherit}
 .flist{display:grid;gap:0;padding:4px 0 10px}
 .fo-grp{margin:0;padding:14px 16px 6px;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:flex;gap:8px;align-items:center}
@@ -876,6 +893,7 @@ h2{text-transform:none;letter-spacing:0;font-weight:800;font-size:1.12rem}
     <button class="tab" id="t-taches" aria-selected="false" style="--dc:#a3e635"><i></i><span>Tâches</span><span class="tab-n" id="ttask-n"></span></button>
     <button class="tab" id="t-pose" aria-selected="false" style="--dc:#f472b6"><i></i><span>Pose</span><span class="tab-n" id="tpose-n"></span></button>
     <button class="tab" id="t-sav" aria-selected="false" style="--dc:#f87171"><i></i><span>SAV</span><span class="tab-n" id="tsav-n"></span></button>
+    <button class="tab" id="t-mail" aria-selected="false" style="--dc:#60a5fa"><i></i><span>Mails</span><span class="tab-n" id="tmail-n"></span></button>
     <button class="tab" id="t-four" aria-selected="false" style="--dc:#34d399"><i></i><span>Fournisseurs</span><span class="tab-n" id="tfour-n"></span></button>
     <button class="tab" id="t-tour" hidden aria-selected="false" style="--dc:#94a3b8"><i></i><span>Tournées</span><span class="tab-n" id="ttour-n"></span></button>
   </nav>
@@ -996,6 +1014,11 @@ h2{text-transform:none;letter-spacing:0;font-weight:800;font-size:1.12rem}
   <div id="v-pay" hidden>
     <section class="strip" id="paystrip" aria-label="Paiements en attente"></section>
     <section class="panel"><div class="hd"><h2 id="payTitle">Paiements à relancer</h2><span class="sub">clique un client pour noter ta relance : appel, message, SMS ou mail</span></div><div id="paylist"><div class="empty">Chargement…</div></div></section>
+  </div>
+  <div id="v-mail" hidden>
+    <section class="panel"><div class="hd"><h2>Mes mails</h2><div class="filters"><label class="sub">depuis <select id="mper"><option value="2">2 jours</option><option value="7" selected>7 jours</option><option value="14">14 jours</option><option value="30">30 jours</option></select></label><button class="btn pri" id="mref" type="button">🔄 Actualiser</button></div></div>
+      <div id="mrecap" class="mrecap"><div class="empty">Clique sur « Actualiser » : je lis tes mails, je les range par client et je te prépare ce qu'il y a à noter.</div></div></section>
+    <div id="mbody" style="display:grid;gap:16px"></div>
   </div>
   <div id="v-four" hidden>
     <section class="panel"><div class="hd"><h2>Mes fournisseurs</h2><div class="filters"><input type="search" id="fqs" class="fqs" placeholder="Chercher un fournisseur, un nom, un produit…" aria-label="Chercher un fournisseur"><button class="btn pri sm" id="fadd" type="button">+ Fournisseur</button></div></div>
@@ -2658,7 +2681,7 @@ function needMetre(r){ const vd = venteD(r); if (!vd) return false;
   return true; }
 function fixStages(){ for (const r of rows) { const V = r.vente || []; if (!V.length) continue; let need = null;
     for (const v of V) { if (v.et0 == null) v.et0 = v.et; if (v.et0 === "commande") { if (need == null) need = needMetre(r); v.et = need ? "metre" : "commande"; } else v.et = v.et0; } } }
-function renderAll(){ try { fixStages(); } catch(e){ console.warn(e); } renderPay(); renderTaches(); renderPose(); renderSav(); renderDash(); renderTours(); renderStrip(); renderList(); renderQueue(); renderChantiers(); renderRdv(); renderMailCount(); if (openId) renderDrawer(); }
+function renderAll(){ try { fixStages(); } catch(e){ console.warn(e); } try { renderMails(); } catch(e){ console.warn(e); } renderPay(); renderTaches(); renderPose(); renderSav(); renderDash(); renderTours(); renderStrip(); renderList(); renderQueue(); renderChantiers(); renderRdv(); renderMailCount(); if (openId) renderDrawer(); }
 
 /* ---------- chantiers signés ---------- */
 function chantiers(){ return rows.flatMap(r => (r.vente||[]).map((v,i) => ({r, v, i}))); }
@@ -4002,6 +4025,143 @@ async function exportData(){ const b = $("#expBtn"); if (!db) return; b.textCont
   catch(e){ toast(e && e.code === "declined" ? "Export annulé" : "Export impossible : " + String((e && e.message) || e).slice(0, 80)); }
   b.textContent = "⇩ Exporter mes données"; }
 (async () => { try { const dl = await claude.use("downloads"); if (dl) { const b = $("#expBtn"); b.hidden = false; b.onclick = exportData; } } catch(_){} })();
+/* ===== Onglet Mails : lecture Gmail (lecture seule), tri par client / fournisseur, récap, réponses types, « À classer » ===== */
+let mailsList = [], gmMeta = { s: {} }, mailBusy = false, mailErr = "", mailRep = null, mailAt = null;
+try { const c = JSON.parse(localStorage.getItem("crm-mails") || "null"); if (c && c.L) { mailsList = c.L; mailAt = c.at; } } catch(_){}
+const MAIL_ME = /^(nb@foissacfermetures\.fr)$/i, OUR_TELS = ["682199910", "565377342"];
+const MAIL_TEAM = { "contact46@foissacfermetures.fr": "Clémence", "dt@foissacfermetures.fr": "Delphine (compta)", "compta@foissacfermetures.fr": "Compta", "od@foissacfermetures.fr": "Océane", "simon@foissacfermetures.fr": "Simon", "ff@foissacfermetures.fr": "Frédéric Foissac", "foissac.fermetures@gmail.com": "Frédéric Foissac", "pierre@foissacfermetures.fr": "Pierre" };
+const GENERIC_DOM = /^(gmail|googlemail|hotmail|outlook|live|msn|yahoo|orange|wanadoo|free|sfr|neuf|laposte|bbox|icloud|me|aol|gmx|protonmail)\./i;
+function mailAddr(f){ const m = String(f || "").match(/<([^>]+)>/); const a = (m ? m[1] : String(f || "")).trim().toLowerCase(); const n = m ? String(f).slice(0, m.index).replace(/["']/g, "").trim() : ""; return { a, n: n || a.split("@")[0] }; }
+function mailClean(b){ let t = String(b || ""); const cut = t.search(/^\s*(>|Le .{4,90}a [ée]crit|De\s?:|From\s?:|-{3,}\s*(Original|Message)|Envoy[ée]\s?:|_{6,}|Début du message transféré)/mi); if (cut > 40) t = t.slice(0, cut); return t.replace(/\[(cid|image|https?):[^\]]*\]/g, " ").replace(/<https?:[^>]+>/g, "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim(); }
+let mailFournIx = null;
+function mailFourn(a){ if (!mailFournIx) { mailFournIx = { a: {}, d: {} }; Object.values(fourn || {}).forEach(f => { [f.mail, ...(f.contacts || []).map(c => c.mail)].filter(Boolean).forEach(m => { m = m.toLowerCase(); mailFournIx.a[m] = f.nom; const d = m.split("@")[1]; if (d && !GENERIC_DOM.test(d)) mailFournIx.d[d] = f.nom; }); }); }
+  return mailFournIx.a[a] || mailFournIx.d[a.split("@")[1]] || ""; }
+let mailNameIx = null;
+function mailNames(){ if (mailNameIx) return mailNameIx; const W = {}; const SKIP = /^(MAIRIE|COMMUNE|SCI|SARL|SAS|EARL|GAEC|MONSIEUR|MADAME|MR|MME|LES|DES|DE|DU|LA|LE|ET|CHEZ|CLIENT|SAV|GARAGE|MAISON|DOMAINE|CAMPING|HOTEL|RESTAURANT|EGLISE|ECOLE|COMMUNAUTE)$/;
+  const LIEUX = new Set(); rows.forEach(r => upAscii(r.lieu || "").split(/[^A-Z]+/).forEach(x => x.length >= 4 && LIEUX.add(x))); ["GOURDON", "CAHORS", "SARLAT", "SOUILLAC", "FIGEAC", "TOULOUSE", "BRIVE", "PARIS", "ROUTE", "CHEMIN", "AVENUE", "IMPASSE", "PLACE"].forEach(x => LIEUX.add(x));
+  rows.forEach(r => { const w = upAscii(r.client).split(/[^A-Z]+/).filter(x => x.length >= 4 && !SKIP.test(x)); const k = w[0]; if (!k) return; (W[k] = W[k] || []).push(r); });
+  W.__lieux = LIEUX; return (mailNameIx = W); }
+function mailClientOf(a, n, text){
+  if (a) { const r = rows.find(r => mailOf(r) && mailOf(r).toLowerCase() === a); if (r) return { r, how: "même adresse mail" }; }
+  const N = mailNames(), U = " " + upAscii(n || "") + " ", T = " " + upAscii(text || "").slice(0, 900) + " ";
+  for (const [k, L] of Object.entries(N)) { if (k === "__lieux") continue; const re = new RegExp("[^A-Z]" + k + "[^A-Z]"); if (re.test(U)) { const r = L.slice().sort((x, y) => String(y.fic || y.vd || "").localeCompare(String(x.fic || x.vd || "")))[0]; return { r, how: "même nom" }; } }
+  if (!text) return null;
+  for (const [k, L] of Object.entries(N)) { if (k === "__lieux" || k.length < 5 || N.__lieux.has(k)) continue; const re = new RegExp("[^A-Z]" + k + "[^A-Z]"); if (re.test(T)) { const r = L.slice().sort((x, y) => String(y.fic || y.vd || "").localeCompare(String(x.fic || x.vd || "")))[0]; return { r, how: "nom cité dans le mail" }; } }
+  return null; }
+const M_SIG = [
+  ["sav", "🔧 SAV / problème", "#dc2626", /ne (fonctionne|marche|ferme|s'ouvre|descend|monte|remonte)\s*(plus|pas)|bloqu|cass[ée]|fuite|en panne|d[ée]fectu|sous garantie|\bsav\b|r[ée]paration|d[ée]fault|ray[ée]|abim|infiltration|bruit anormal/],
+  ["rdv", "📅 RDV / rappel", "#7c3aed", /rendez[- ]vous|\brdv\b|vos disponibilit|me rappeler|rappelez[- ]moi|pouvez[- ]vous (m'appeler|me contacter|passer)|quand pouvez[- ]vous|passer (nous )?voir/],
+  ["signe", "✍️ Devis signé", "#16a34a", /devis sign|bon pour accord|ci-joint (le )?devis (sign|accept)|nous acceptons (votre|le) devis|je vous retourne (le )?devis|valid(ons|e) (le|votre) devis/],
+  ["pay", "💶 Paiement / facture", "#ca8a04", /virement|ch[eè]que|acompte|r[eè]glement|facture|paiement|solde|rib\b/],
+  ["liv", "🚚 Livraison / commande", "#0ea5e9", /accus[ée] de r[ée]ception|\bar de commande|confirmation de commande|date de livraison|livraison pr[ée]vue|exp[ée]di|semaine \d{1,2}\b|\bs\d{2}\b|retard de|mise en fabrication/],
+  ["devis", "📝 Demande de devis", "#f97316", /demande de devis|un devis pour|faire un devis|chiffrage|estimation|tarif pour|prix pour/],
+  ["photo", "📷 Photos", "#64748b", null] ];
+function mailAna(m){
+  const { a, n } = mailAddr(m.from), clean = mailClean(m.body), S = sansAcc(m.subject + " \n" + clean);
+  const o = { m, a, n, clean, sig: [], cat: "autre", client: null, four: "", props: [] };
+  const L = m.labels || [];
+  if (MAIL_TEAM[a] || /@foissacfermetures\.fr$/.test(a)) { o.cat = "team"; o.team = MAIL_TEAM[a] || n; }
+  else if (L.some(x => /CATEGORY_(PROMOTIONS|SOCIAL|FORUMS)/.test(x)) || /no-?reply|newsletter|notification|mailer|marketing|^news@|^info@.*(promo|news)/.test(a) || (m.listUnsub && !mailFourn(a))) o.cat = "pub";
+  else if (mailFourn(a)) { o.cat = "four"; o.four = mailFourn(a); }
+  M_SIG.forEach(([k, l, c, re]) => { if (re && re.test(S)) o.sig.push(k); });
+  const imgs = (m.att || []).filter(x => /^image\//.test(x.mime) && !x.inline && x.size > 15000); if (imgs.length) o.sig.push("photo");
+  const pdfs = (m.att || []).filter(x => /pdf$/i.test(x.mime) || /\.pdf$/i.test(x.name)); o.pdfs = pdfs;
+  if (o.sig.includes("signe") === false && pdfs.some(x => /sign|bon.?pour|bpa|accord|bc\b/i.test(x.name))) o.sig.push("signe");
+  if (o.cat !== "pub") { const c = mailClientOf(o.cat === "autre" ? a : "", o.cat === "autre" ? n : "", o.cat === "autre" ? "" : m.subject + "\n" + clean); if (c) { o.client = c.r; o.how = c.how; if (o.cat === "autre") o.cat = "client"; } }
+  if (o.how === "nom cité dans le mail") o.weak = true;
+  // numéros vus dans le mail
+  const tels = (clean.match(/(?:\+33\s?|0)[1-9](?:[ .\-]?\d{2}){4}/g) || []).map(t => t.replace(/\D/g, "").slice(-9)).filter((t, i, A) => A.indexOf(t) === i && !OUR_TELS.includes(t));
+  o.tels = tels;
+  const r = o.client, key = k => m.id + ":" + k, done = k => (gmMeta.s || {})[key(k)];
+  const quote = re => { const sn = clean.split(/(?<=[.!?])\s+|\n+/).find(x => re.test(sansAcc(x))); return (sn || clean).replace(/\s+/g, " ").trim().slice(0, 220); };
+  const reOf = k => (M_SIG.find(x => x[0] === k) || [])[3] || /./;
+  if (r && o.sig.includes("sav")) { const open = Object.entries(csav).find(([, v]) => v && v.rid === r.id && !/clos|termin|fini|regl/i.test(v.st || ""));
+    if (o.cat === "four" && open) o.props.push({ k: "savnote", ico: "🔧", c: "#dc2626", l: "Ajouter la réponse de " + o.four + " au SAV en cours de " + r.client, d: quote(reOf("sav")), sid: open[0] });
+    else if (!open) o.props.push({ k: "sav", ico: "🔧", c: "#dc2626", l: "Créer un SAV pour " + r.client, d: quote(reOf("sav")) }); }
+  if (r && o.sig.includes("liv") && o.cat === "four") { const w = (S.match(/semaine (\d{1,2})|\bs(\d{2})\b/) || []); const sem = w[1] || w[2]; o.props.push({ k: "liv", ico: "🚚", c: "#0ea5e9", l: "Noter dans le dossier " + r.client + " : " + (sem ? "livraison semaine " + sem : "info livraison / commande") + " (" + o.four + ")", d: quote(reOf("liv")) }); }
+  if (r && o.sig.includes("signe") && o.cat === "client") o.props.push({ k: "signe", ico: "✍️", c: "#16a34a", l: "Noter dans le dossier " + r.client + " : devis signé reçu par mail" + (pdfs.length ? " (" + pdfs.map(x => x.name).join(", ") + ")" : ""), d: "Pense à le déposer dans le Drive pour que le CRM le retrouve." });
+  if (r && o.sig.includes("rdv") && o.cat === "client") { const due = (typeof cnDate === "function" && cnDate(quote(reOf("rdv")))) || workDays(iso(today()), 1); o.props.push({ k: "rdv", ico: "📅", c: "#7c3aed", l: "Tâche : rappeler " + r.client + " pour le RDV (" + fd(due) + ")", d: quote(reOf("rdv")), due }); }
+  if (r && o.sig.includes("pay") && o.cat === "client") o.props.push({ k: "pay", ico: "💶", c: "#ca8a04", l: "Noter dans le dossier " + r.client + " : paiement / facture", d: quote(reOf("pay")) });
+  if (r && (o.cat === "client") && tels.length) { const known = [r.tel, ...ctOf(r).map(c => c.tel)].join(" ").replace(/\D/g, " "); const nt = tels.find(t => !known.replace(/\s/g, "|").includes(t) && !String(r.tel || "").replace(/\D/g, "").endsWith(t)); if (nt) o.props.push({ k: "tel", ico: "📞", c: "#2563eb", l: "Ajouter le " + ctTel("0" + nt) + " aux contacts de " + r.client, d: ((clean.split(/(?<=[.!?])\s+|\n+/).find(x => x.replace(/\D/g, "").includes(nt)) || "").trim().slice(0, 220)), tel: "0" + nt }); }
+  if (!r && o.cat === "autre" && (o.sig.includes("devis") || o.sig.includes("rdv"))) o.props.push({ k: "new", ico: "🆕", c: "#f97316", l: "Nouvelle demande de " + n + " : créer la fiche client", d: clean.replace(/\s+/g, " ").slice(0, 200) });
+  o.props = o.props.filter(p => !done(p.k)).map(p => Object.assign(p, { key: key(p.k) }));
+  return o; }
+async function mailMark(keys, st){ if (!db || !canWrite) return; const cur = Object.assign({}, gmMeta.s || {}), t = iso(today()), lim = addDays(t, -75);
+  [].concat(keys).forEach(k => cur[k] = { k: st, d: t }); Object.keys(cur).forEach(k => { if (cur[k].d < lim) delete cur[k]; });
+  const next = Object.assign({}, gmMeta, { s: cur }); try { await db.doc("meta/gmail_lus").set(next); gmMeta = next; } catch(_){ toast("Pas enregistré, réessaie"); } }
+async function suiviLog(r, txt){ const cur = suivi[r.id] || {}, now = new Date().toISOString(); const next = Object.assign({}, cur, { client: r.client, updated: now, log: (cur.log || []).concat([{ d: iso(today()), at: now, t: txt }]) });
+  await db.collection("suivi").doc(r.id).set(next); suivi[r.id] = next; }
+const gmLink = m => "https://mail.google.com/mail/u/0/#all/" + m.threadId;
+async function mailDo(o, p){ const r = o.client, m = o.m, dm = fd(iso(new Date(m.date)));
+  try {
+    if (p.k === "sav") { const id = "s" + Date.now().toString(36), now = new Date().toISOString(); const v = { rid: r.id, client: r.client, d: iso(today()), st: "nouveau", produit: "", garantie: "", pb: p.d, piece: "", fourn: "", piece_cmd: "", inter: "", tech: "", lien: gmLink(m), notes: "D'après le mail du " + dm + " : « " + m.subject + " »", clem: false, updated: now, ud: iso(today()), at: now, hist: [{ d: iso(today()), at: now, t: "SAV ouvert depuis un mail du " + dm }] };
+      await db.collection("sav").doc(id).set(v); csav[id] = v; toast("SAV créé pour " + r.client); }
+    else if (p.k === "savnote") { const v = Object.assign({}, csav[p.sid]), now = new Date().toISOString(); v.notes = (v.notes ? v.notes + "\n" : "") + dm + " – " + o.four + " : " + p.d; v.hist = (v.hist || []).concat({ d: iso(today()), at: now, t: "Réponse de " + o.four + " (mail du " + dm + ")" }).slice(-30); v.updated = now; v.ud = iso(today());
+      await db.collection("sav").doc(p.sid).set(v); csav[p.sid] = v; toast("Ajouté au SAV de " + r.client); }
+    else if (p.k === "liv" || p.k === "signe" || p.k === "pay") { await suiviLog(r, (p.k === "liv" ? "🚚 " : p.k === "signe" ? "✍️ " : "💶 ") + p.l.replace(/^Noter dans le dossier [^:]+: /, "") + " – mail du " + dm + " : « " + m.subject + " »"); toast("Noté dans le dossier de " + r.client); }
+    else if (p.k === "rdv") { await tAdd({ rid: r.id, client: r.client, type: "relance", note: "Mail du " + dm + " : " + p.d, due: p.due, from: "mail" }); toast("Tâche créée"); }
+    else if (p.k === "tel") { const L = ctOf(r).concat([{ lien: o.a === (mailOf(r) || "").toLowerCase() ? "Autre numéro du client" : "", nom: o.n, tel: ctTel(p.tel), note: "vu dans le mail du " + dm, rdv: false, d: iso(today()) }]); await ctSave(r, L); toast("Numéro ajouté aux contacts de " + r.client); }
+    else if (p.k === "new") { openNewClient(null); setTimeout(() => { const d = $("#ncsmsd"); if (d) d.open = true; const t = $("#ncsms"); if (t) { t.value = o.n + "\n" + o.a + "\n" + o.clean; smsFill(); } const ml = $("#ncmail"); if (ml && !ml.value) ml.value = o.a; }, 60); }
+    await mailMark(p.key, "ok"); renderAll(); renderMails();
+  } catch(e){ toast("Pas enregistré : " + String(e.message || e).slice(0, 80)); } }
+const MAIL_TPL = {
+  ar: ["Accusé de réception", "Bonjour,\n\nMerci pour votre message, je l'ai bien reçu. Je reviens vers vous très rapidement.\n\n"],
+  rdv: ["Proposer un rendez-vous", "Bonjour,\n\nMerci pour votre message. Je vous propose de nous voir le … à …h. Est-ce que cela vous conviendrait ?\n\nN'hésitez pas à me proposer un autre créneau si besoin.\n\n"],
+  devis: ["Devis en cours", "Bonjour,\n\nMerci pour votre demande. Votre devis est en cours de préparation, vous le recevrez dans les prochains jours.\n\nJe reste à votre disposition pour toute question.\n\n"],
+  signe: ["Devis signé bien reçu", "Bonjour,\n\nJe vous remercie pour votre confiance : j'ai bien reçu votre devis signé.\n\nJe reviens vers vous très prochainement pour la suite (rendez-vous du métré définitif, puis commande).\n\n"],
+  sav: ["SAV pris en compte", "Bonjour,\n\nJe suis désolé pour ce désagrément. J'ai bien pris en compte votre demande et je reviens vers vous rapidement pour convenir d'un passage.\n\nSi vous avez des photos du problème, n'hésitez pas à me les envoyer en réponse à ce mail.\n\n"],
+  pay: ["Paiement bien reçu", "Bonjour,\n\nJe vous confirme la bonne réception de votre règlement. Merci beaucoup.\n\n"],
+  fourn: ["Fournisseur : bien reçu", "Bonjour,\n\nBien reçu, merci.\n\n"],
+  delai: ["Fournisseur : demander le délai", "Bonjour,\n\nPouvez-vous me confirmer la date de livraison prévue pour cette commande ?\n\nMerci d'avance,\n\n"] };
+function mailTplFor(o){ return o.cat === "four" ? (o.sig.includes("liv") ? "fourn" : "delai") : o.sig.includes("signe") ? "signe" : o.sig.includes("sav") ? "sav" : o.sig.includes("pay") ? "pay" : o.sig.includes("devis") ? "devis" : o.sig.includes("rdv") ? "rdv" : "ar"; }
+const CAT = { client: ["Clients", "#2563eb"], four: ["Fournisseurs", "#16a34a"], team: ["Équipe (Clémence, Delphine…)", "#db2777"], autre: ["Autres", "#64748b"], pub: ["Pubs et notifications", "#94a3b8"] };
+function mailRow(o){ const m = o.m, c = CAT[o.cat][1], r = o.client, d = new Date(m.date), today0 = iso(today()) === iso(d);
+  const who = o.cat === "team" ? o.team : o.n, ini = (who || "?").replace(/[^A-Za-zÀ-ÿ]/g, "").charAt(0).toUpperCase() || "?";
+  const sig = o.sig.map(k => { const s = M_SIG.find(x => x[0] === k); return `<span class="mchip" style="--cc:${s[2]}">${s[1]}</span>`; }).join("");
+  const rep = mailRep && mailRep.id === m.id ? `<div class="mrep"><select id="mrtpl">${Object.entries(MAIL_TPL).map(([k, [l]]) => `<option value="${k}" ${k === mailRep.tpl ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>
+      <textarea id="mrtxt" rows="8">${esc(mailRep.txt)}</textarea><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn pri sm" type="button" id="mrgm">Brouillon dans Gmail</button><a class="btn sm" id="mrol" href="#">Ouvrir dans Outlook</a><button class="btn sm" type="button" id="mrno">Annuler</button></div><span class="sub">Rien n'est envoyé : le brouillon attend ta relecture.</span></div>` : "";
+  return `<div class="mrow ${m.labels && m.labels.includes("UNREAD") ? "unread" : ""}" data-mid="${esc(m.id)}" style="--mc:${c}"><span class="mav" aria-hidden="true">${esc(ini)}</span>
+    <div style="min-width:0"><div class="mfrom">${esc(who)}<small>${esc(o.a)}</small>${o.four ? `<span class="mchip" style="--cc:#16a34a">${esc(o.four)}</span>` : ""}</div>
+      <div class="msub">${esc(m.subject || "(sans objet)")}</div><div class="msn">${esc(o.clean.replace(/\s+/g, " ").slice(0, 260) || m.snippet)}</div>
+      <div class="mchips">${r ? `<button class="mchip" type="button" data-id="${esc(r.id)}" style="--cc:#2563eb" title="${esc(o.how || "")}">👤 ${esc(r.client)}${o.weak ? " ?" : ""}</button>${nextStep(r) && nextStep(r).l !== "Terminé" ? nextPill(r).replace('class="nxp ', 'class="nxp nxp-sm ') : ""}` : ""}${sig}${(m.att || []).filter(x => !x.inline).length ? `<span class="mchip">📎 ${(m.att || []).filter(x => !x.inline).length}</span>` : ""}</div></div>
+    <div class="mdate">${today0 ? d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "2-digit" })}</div>
+    <div class="mact">${r ? `<button class="btn sm" type="button" data-id="${esc(r.id)}">Ouvrir la fiche</button>` : ""}${o.cat !== "pub" ? `<button class="btn sm" type="button" data-mrep="${esc(m.id)}">↩ Répondre</button>` : ""}${r ? `<button class="btn sm" type="button" data-mtask="${esc(m.id)}">+ Tâche</button>` : ""}<a class="btn sm" href="${esc(gmLink(m))}" target="_blank" rel="noopener">Voir dans Gmail</a></div>${rep}</div>`; }
+function renderMails(){ const box = $("#mbody"), rc = $("#mrecap"); if (!box || !rc) return; mailFournIx = null; mailNameIx = null;
+  const A = mailsList.filter(m => !MAIL_ME.test(mailAddr(m.from).a)).map(mailAna), P = A.flatMap(o => o.props.map(p => [o, p]));
+  const tn = $("#tmail-n"); if (tn) tn.textContent = P.length || "";
+  if (mailErr) rc.innerHTML = `<div class="empty" style="color:var(--s-lost)">${esc(mailErr)}</div>`;
+  else if (!mailsList.length) rc.innerHTML = `<div class="empty">${mailBusy ? "Je lis tes mails…" : "Clique sur « Actualiser » : je lis tes mails, je les range par client et je te prépare ce qu'il y a à noter."}</div>`;
+  else { const by = k => A.filter(o => o.cat === k), cl = by("client"), cnt = k => A.filter(o => o.sig.includes(k)).length;
+    rc.innerHTML = `<div class="sub">${mailBusy ? "Actualisation en cours… · " : ""}${A.length} mails depuis ${$("#mper") ? $("#mper").value : 7} jours${mailAt ? " · actualisé " + (iso(today()) === iso(new Date(mailAt)) ? "aujourd'hui à " + new Date(mailAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }).replace(":", "h") : "le " + fd(iso(new Date(mailAt)))) : ""}</div>
+      <div class="mstat"><span style="--mc:#2563eb">👤 <b>${cl.length}</b> clients</span><span style="--mc:#16a34a">🏭 <b>${by("four").length}</b> fournisseurs</span><span style="--mc:#db2777">👥 <b>${by("team").length}</b> équipe</span><span style="--mc:#64748b">✉️ <b>${by("autre").length}</b> autres</span><span style="--mc:#94a3b8">🗞️ <b>${by("pub").length}</b> pubs masquées</span></div>
+      <div class="mstat">${cnt("signe") ? `<span style="--mc:#16a34a">✍️ <b>${cnt("signe")}</b> devis signé${cnt("signe") > 1 ? "s" : ""}</span>` : ""}${cnt("sav") ? `<span style="--mc:#dc2626">🔧 <b>${cnt("sav")}</b> SAV</span>` : ""}${cnt("rdv") ? `<span style="--mc:#7c3aed">📅 <b>${cnt("rdv")}</b> RDV / rappels</span>` : ""}${cnt("devis") ? `<span style="--mc:#f97316">📝 <b>${cnt("devis")}</b> demandes de devis</span>` : ""}${cnt("liv") ? `<span style="--mc:#0ea5e9">🚚 <b>${cnt("liv")}</b> livraison / commande</span>` : ""}${cnt("pay") ? `<span style="--mc:#ca8a04">💶 <b>${cnt("pay")}</b> paiement</span>` : ""}</div>`; }
+  let h = "";
+  if (P.length) h += `<section class="panel"><div class="hd"><h2>À classer <span class="cnt">${P.length}</span></h2><span class="sub">ce que j'ai repéré dans tes mails · ✓ pour le ranger dans le CRM, ✕ pour l'ignorer</span></div><div class="mtodo">${P.map(([o, p]) => `<div class="mprop" style="--cc:${p.c}"><div style="min-width:0"><div class="mpl">${p.ico} ${esc(p.l)}</div><div class="mpd">« ${esc(p.d)} » · ${esc(o.cat === "team" ? o.team : o.n)}, ${esc(fd(iso(new Date(o.m.date))))}</div></div><div class="mpb"><button class="btn sm pri" type="button" data-mok="${esc(p.key)}">✓ ${p.k === "new" ? "Créer" : "Classer"}</button><button class="btn sm" type="button" data-mign="${esc(p.key)}" title="Ignorer">✕</button></div></div>`).join("")}</div></section>`;
+  ["client", "four", "team", "autre", "pub"].forEach(k => { const L = A.filter(o => o.cat === k).sort((x, y) => y.m.date - x.m.date); if (!L.length) return;
+    h += `<section class="panel"><details class="rgd" ${k === "pub" ? "" : "open"}><summary class="hd"><h2><span class="chev" aria-hidden="true"></span>${CAT[k][0]} <span class="cnt">${L.length}</span></h2></summary><div class="mlist">${L.map(mailRow).join("")}</div></details></section>`; });
+  box.innerHTML = h;
+  box.querySelectorAll("[data-id]").forEach(b => b.onclick = () => openDossier(b.dataset.id));
+  const findP = key => { for (const [o, p] of P) if (p.key === key) return [o, p]; return null; };
+  box.querySelectorAll("[data-mok]").forEach(b => b.onclick = () => { const x = findP(b.dataset.mok); if (x) { b.disabled = true; mailDo(x[0], x[1]); } });
+  box.querySelectorAll("[data-mign]").forEach(b => b.onclick = async () => { await mailMark(b.dataset.mign, "ign"); renderMails(); });
+  box.querySelectorAll("[data-mtask]").forEach(b => b.onclick = async () => { const o = A.find(x => x.m.id === b.dataset.mtask); if (!o || !o.client) return; if (await tAdd({ rid: o.client.id, client: o.client.client, type: "autre", note: "Suite au mail du " + fd(iso(new Date(o.m.date))) + " : « " + o.m.subject + " »", from: "mail" })) { toast("Tâche créée pour " + o.client.client); renderAll(); } });
+  box.querySelectorAll("[data-mrep]").forEach(b => b.onclick = () => { const o = A.find(x => x.m.id === b.dataset.mrep); if (!o) return; const tpl = mailTplFor(o); mailRep = { id: o.m.id, tpl, txt: MAIL_TPL[tpl][1] + SIGN }; renderMails(); });
+  if (mailRep) { const o = A.find(x => x.m.id === mailRep.id); const sel = $("#mrtpl"), ta = $("#mrtxt");
+    if (o && sel && ta) { const subj = /^re\s?:/i.test(o.m.subject) ? o.m.subject : "RE: " + o.m.subject;
+      const upd = () => { mailRep.txt = ta.value; const ol = $("#mrol"); if (ol) ol.href = outlookHref([o.a], [], subj, ta.value); }; upd();
+      sel.onchange = () => { mailRep.tpl = sel.value; ta.value = MAIL_TPL[sel.value][1] + SIGN; upd(); }; ta.oninput = upd;
+      $("#mrno").onclick = () => { mailRep = null; renderMails(); };
+      $("#mrgm").onclick = async () => { try { const mcp = await claude.use("mcp"); await mcp.callTool("Gmail", "reply_draft", { to: [o.a], subject: subj, body: ta.value, threadId: o.m.threadId, inReplyTo: o.m.msgId }); toast("Brouillon prêt dans Gmail (rien n'est envoyé)"); mailRep = null; renderMails(); } catch(e){ toast(e && e.code === "consent_required" ? "Autorise Gmail avec le bandeau bleu en haut, puis reclique" : "Brouillon impossible : " + String(e.message || e).slice(0, 80)); } }; } } }
+async function mailsRefresh(){ if (mailBusy) return; const b = $("#mref"); mailBusy = true; mailErr = ""; if (b) { b.disabled = true; b.textContent = "⏳ Lecture…"; } renderMails();
+  try { const mcp = await claude.use("mcp"); if (!mcp) throw new Error("Connexion indisponible");
+    const days = +(($("#mper") || {}).value || 7); const r = await mcp.callTool("Gmail", "list_messages", { query: "in:inbox newer_than:" + days + "d", max: days > 14 ? 100 : 70 });
+    mailsList = ((r.payload || r).messages || []).sort((x, y) => y.date - x.date); mailAt = new Date().toISOString(); mailRep = null;
+    try { localStorage.setItem("crm-mails", JSON.stringify({ L: mailsList, at: mailAt })); } catch(_){ try { localStorage.setItem("crm-mails", JSON.stringify({ L: mailsList.map(m => Object.assign({}, m, { body: m.body.slice(0, 1500) })), at: mailAt })); } catch(__){} }
+    toast(mailsList.length + " mails lus"); }
+  catch(e){ mailErr = e && e.code === "consent_required" ? "Autorise la lecture de tes mails avec le bandeau bleu en haut de la page, puis clique de nouveau sur Actualiser." : e && e.code === "not_in_manifest" ? "L'onglet Mails fonctionne dans la version en ligne du CRM (foissac-fermetures.github.io)." : e && e.code === "needs_reauth" ? "Connecte-toi à Google avec le bouton en haut de la page, puis clique sur Actualiser." : "Lecture impossible : " + String((e && e.message) || e).slice(0, 160); }
+  mailBusy = false; if (b) { b.disabled = false; b.textContent = "🔄 Actualiser"; } renderMails(); }
+window.mailsRefresh = mailsRefresh;
+(() => { const b = $("#mref"); if (b) b.onclick = mailsRefresh; const pr = $("#mper"); if (pr) { try { const v = localStorage.getItem("crm-mails-per"); if (v) pr.value = v; } catch(_){} pr.onchange = () => { try { localStorage.setItem("crm-mails-per", pr.value); } catch(_){} mailsRefresh(); }; } })();
 /* ===== Fournisseurs : fiches contacts, bouton Appeler (tel:) et Mail (Outlook) ===== */
 let fourn = {}, fournOk = false, fournEdit = null;
 const telLink = t => { let d = String(t || "").replace(/[^\d+]/g, ""); if (d.startsWith("00")) d = "+" + d.slice(2); if (/^0\d{9}$/.test(d)) d = "+33" + d.slice(1); return d ? "tel:" + d : ""; };
@@ -4364,9 +4524,9 @@ $("#tdep").onchange = e => { depart = e.target.value; AGENCE = DEPARTS[depart]; 
 $("#told").onchange = e => { tourOld = e.target.checked; renderTours(); };
 
 /* ---------- vues ---------- */
-const VIEWS = { pay: ["#v-pay", "#t-pay", "#relance-paiement"], taches: ["#v-taches", "#t-taches", "#taches"], sav: ["#v-sav", "#t-sav", "#sav"], pose: ["#v-pose", "#t-pose", "#pose"], tour: ["#v-tour", "#t-tour", "#tournees"], dash: ["#v-dash", "#t-dash", "#tableau-de-bord"], pros: ["#v-pros", "#t-pros", "#prospection"], chantiers: ["#v-chan", "#t-chan", "#chantiers"], rdv: ["#v-rdv", "#t-rdv", "#rendez-vous"], four: ["#v-four", "#t-four", "#fournisseurs"] };
-function viewFromHash(){ return location.hash === "#relance-paiement" ? "pay" : location.hash === "#chantiers" ? "chantiers" : location.hash === "#rendez-vous" ? "rdv" : location.hash === "#prospection" ? "pros" : location.hash === "#tournees" ? "rdv" : location.hash === "#pose" ? "pose" : location.hash === "#sav" ? "sav" : location.hash === "#taches" ? "taches" : location.hash === "#fournisseurs" ? "four" : "dash"; }
-const VTITLE = { pay: "Relance paiement", taches: "Tâches", sav: "SAV", pose: "Pose", dash: "Tableau de bord", pros: "Relances et devis", chantiers: "Chantiers signés", rdv: "Rendez-vous à prendre", tour: "Tournées", four: "Fournisseurs" };
+const VIEWS = { pay: ["#v-pay", "#t-pay", "#relance-paiement"], taches: ["#v-taches", "#t-taches", "#taches"], sav: ["#v-sav", "#t-sav", "#sav"], pose: ["#v-pose", "#t-pose", "#pose"], tour: ["#v-tour", "#t-tour", "#tournees"], dash: ["#v-dash", "#t-dash", "#tableau-de-bord"], pros: ["#v-pros", "#t-pros", "#prospection"], chantiers: ["#v-chan", "#t-chan", "#chantiers"], rdv: ["#v-rdv", "#t-rdv", "#rendez-vous"], four: ["#v-four", "#t-four", "#fournisseurs"], mail: ["#v-mail", "#t-mail", "#mails"] };
+function viewFromHash(){ return location.hash === "#relance-paiement" ? "pay" : location.hash === "#chantiers" ? "chantiers" : location.hash === "#rendez-vous" ? "rdv" : location.hash === "#prospection" ? "pros" : location.hash === "#tournees" ? "rdv" : location.hash === "#pose" ? "pose" : location.hash === "#sav" ? "sav" : location.hash === "#taches" ? "taches" : location.hash === "#fournisseurs" ? "four" : location.hash === "#mails" ? "mail" : "dash"; }
+const VTITLE = { pay: "Relance paiement", taches: "Tâches", sav: "SAV", pose: "Pose", dash: "Tableau de bord", pros: "Relances et devis", chantiers: "Chantiers signés", rdv: "Rendez-vous à prendre", tour: "Tournées", four: "Fournisseurs", mail: "Mails" };
 function showView(v){
   Object.entries(VIEWS).forEach(([k, [sec, tab]]) => { $(sec).hidden = k !== v; $(tab).setAttribute("aria-selected", k === v); });
   const vt = $("#vtitle"); if (vt) vt.textContent = VTITLE[v] || "Mes dossiers Gourdon";
@@ -4374,7 +4534,7 @@ function showView(v){
 Object.entries(VIEWS).forEach(([k, [, tab, hash]]) => { $(tab).onclick = () => { showView(k); try { history.replaceState(null, "", hash); } catch(e){} }; });
 window.addEventListener("hashchange", () => showView(viewFromHash()));
 /* ordre des onglets choisi par Nicolas (meta/onglets) : bouton « Ranger les onglets », flèches ▲ ▼ */
-const TAB_DEFAULT = ["t-dash", "t-rdv", "t-taches", "t-pros", "t-chan", "t-pose", "t-pay", "t-sav", "t-four", "t-tour"];
+const TAB_DEFAULT = ["t-dash", "t-mail", "t-rdv", "t-taches", "t-pros", "t-chan", "t-pose", "t-pay", "t-sav", "t-four", "t-tour"];
 let tabEdit = false;
 function applyTabOrder(order){ const nav = $(".snav"); if (!nav) return; const ids = (order || TAB_DEFAULT).concat(TAB_DEFAULT).filter((x, i, a) => a.indexOf(x) === i); ids.forEach(id => { const b = $("#" + id); if (b) nav.append(b); }); }
 function tabOrderNow(){ return [...document.querySelectorAll(".snav > .tab")].map(b => b.id); }
@@ -5359,6 +5519,7 @@ function rebuild(){
   db.doc("meta/rattach").onSnapshot(sn => { rattach = Object.assign({ f: {}, v: {} }, sn.exists ? sn.data() : {}); rebuild(); }, () => {});
   db.doc("meta/onglets").onSnapshot(sn => { if (!tabEdit) applyTabOrder(sn.exists ? (sn.data() || {}).order : null); }, () => {});
   db.doc("meta/listes").onSnapshot(sn => { const v = sn.exists ? sn.data() : {}; const j = JSON.stringify(v); if (j === listCfgJson) return; listCfg = v; listCfgJson = j; renderAll(); }, () => {});
+  db.doc("meta/gmail_lus").onSnapshot(sn => { gmMeta = Object.assign({ s: {} }, sn.exists ? sn.data() : {}); renderMails(); }, () => {});
   db.collection("notes_appel").onSnapshot(snap => { notesAppel = {}; snap.docs.forEach(d => notesAppel[d.id] = d.data()); if (openId && !(callRec && callRec.rid === openId && callRec.on)) renderDrawer(); }, () => {});
   db.collection("fournisseurs").onSnapshot(snap => { fourn = {}; snap.docs.forEach(d => fourn[d.id] = d.data()); fournOk = true; renderFour(); }, () => { fournOk = true; renderFour(); });
   db.collection("sav").onSnapshot(snap => { csav = {}; snap.docs.forEach(d => csav[d.id] = d.data()); renderAll(); }, () => {});

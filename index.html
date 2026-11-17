@@ -2354,6 +2354,7 @@ const VB_COUL_FERRAGE = ["Standard Corrèze","Même couleur que le volet","Noir"
 const VB_DIAM_GONDS = ["Ø 12 mm","Ø 14 mm","Ø 16 mm","Ø 18 mm"];
 /* Ø des gonds existants : un par gond (haut / milieu / bas), à gauche et à droite — ils ne sont pas toujours tous pareils */
 const VB_POS_GONDS = [["h","Haut"],["m","Milieu"],["b","Bas"]];
+const vbGondsIdent = g => g.ident!=null ? g.ident : new Set(["g","d"].flatMap(sd=>VB_POS_GONDS.map(([p])=>g["d"+p+"_"+sd])).filter(Boolean)).size<=1;   // case « tous identiques » cochée par défaut tant qu'ils sont pareils
 const vbDiamTexte = (g,sd) => { const L=VB_POS_GONDS.map(([p,n])=>[n,g["d"+p+"_"+sd]]).filter(x=>x[1]); if(!L.length) return ""; const u=[...new Set(L.map(x=>x[1]))]; return u.length===1?u[0]:L.map(x=>x[0].toLowerCase()+" "+x[1].replace(" mm","")).join(" · ")+" mm"; };
 const vbRalAPreciser = c => /RAL|préciser|hors gamme/i.test(c||"");
 const vbCouleurTexte = v => [v.couleur, vbRalAPreciser(v.couleur)&&v.couleur_ral?"→ "+v.couleur_ral:""].filter(Boolean).join(" ");
@@ -2412,9 +2413,12 @@ function renderVB(t){
       <details class="vb-gonds" ${gondsExistants(v)?"open":""}><summary><b>Gonds existants</b> <span class="hint">– cotes vues de l'intérieur (voir les schémas en bas)</span></summary>
         <table class="vb-gt"><tr><th></th><th>A</th><th>B</th><th>C</th><th class="vb-h">Départ D / Dp<br><span class="vb-fl">⟷</span> horizontal</th><th class="vb-v">Départ ou renvoi R / Db<br><span class="vb-fl">↕</span> vertical</th></tr>
           ${["g","d"].map(s=>`<tr><th>${s==="g"?"Gauche":"Droite"}</th>${["A","B","C","D","R"].map(x=>`<td class="${x==="D"?"vb-h":x==="R"?"vb-v":""}"><input data-k="${k}g.${x}_${s}" inputmode="decimal" value="${esc(l.g[x+"_"+s])}" placeholder="${x==="D"?"⟷":x==="R"?"↕":""}"></td>`).join("")}</tr>`).join("")}</table>
-        <div class="grid g2" style="margin-top:6px"></div><div class="row" style="margin:10px 0 4px;gap:8px"><b>Diamètre des gonds existants</b><span class="spacer"></span><label class="hint" style="display:flex;align-items:center;gap:6px">Tous les gonds en <select data-vbgall="${i}"><option value="">—</option>${VB_DIAM_GONDS.map(x=>`<option>${x}</option>`).join("")}</select></label></div>
-        <table class="vb-gt vb-gd"><tr><th></th>${VB_POS_GONDS.map(([p,n])=>`<th>Gond du ${n.toLowerCase()}</th>`).join("")}</tr>
-          ${["g","d"].map(s=>`<tr><th>${s==="g"?"Gauche":"Droite"}</th>${VB_POS_GONDS.map(([p])=>`<td><select data-k="${k}g.d${p}_${s}"><option value="">${p==="m"?"(pas de gond)":"—"}</option>${VB_DIAM_GONDS.map(x=>`<option${l.g["d"+p+"_"+s]===x?" selected":""}>${x}</option>`).join("")}</select></td>`).join("")}</tr>`).join("")}</table>
+        <div class="grid g2" style="margin-top:6px"></div>${(()=>{ const id=vbGondsIdent(l.g), val=l.g.dh_g||l.g.db_g||l.g.dh_d||l.g.db_d||"";
+        return `<div class="row" style="margin:10px 0 4px;gap:10px;flex-wrap:wrap"><b>Diamètre des gonds existants</b><span class="spacer"></span>
+          <button type="button" class="chip ${id?"on":""}" data-vbgid="${i}">${id?"✔ ":""}Tous les gonds identiques</button></div>
+        ${id?`<div class="grid g4"><label class="f">Diamètre de tous les gonds<select data-vbgone="${i}"><option value="">—</option>${VB_DIAM_GONDS.map(x=>`<option${val===x?" selected":""}>${x}</option>`).join("")}</select></label></div>`
+        :`<table class="vb-gt vb-gd"><tr><th></th>${VB_POS_GONDS.map(([p,n])=>`<th>Gond du ${n.toLowerCase()}</th>`).join("")}</tr>
+          ${["g","d"].map(s=>`<tr><th>${s==="g"?"Gauche":"Droite"}</th>${VB_POS_GONDS.map(([p])=>`<td><select data-k="${k}g.d${p}_${s}"><option value="">${p==="m"?"(pas de gond)":"—"}</option>${VB_DIAM_GONDS.map(x=>`<option${l.g["d"+p+"_"+s]===x?" selected":""}>${x}</option>`).join("")}</select></td>`).join("")}</tr>`).join("")}</table>`}`; })()}
         <div style="margin-top:6px">${F.text(k+"g.obs","Observation gonds",l.g.obs)}</div></details></div>`; };
   t.innerHTML=`<datalist id="dlPiecesVB">${listePiecesDL()}</datalist>
   <div class="card"><h2><span class="num">1</span>Volets battants – Corrèze Fermetures</h2><div class="grid g4">
@@ -2436,7 +2440,10 @@ function renderVB(t){
     <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple id="phAdd" class="hide"></label></div></div>`;
   const re=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); };
   $("#vbAdd").onclick=()=>{ v.lignes.push(nouvelleLigneVB()); save(); re(); };
-  $$("[data-vbgall]").forEach(s=>s.onchange=()=>{ const l=v.lignes[+s.dataset.vbgall]; if(!s.value) return; ["g","d"].forEach(sd=>["h","b"].forEach(p=>l.g["d"+p+"_"+sd]=s.value)); ["g","d"].forEach(sd=>{ if(l.g["dm_"+sd]) l.g["dm_"+sd]=s.value; }); save(); const y=scrollY; re(); scrollTo(0,y); });
+  const tousGonds=(l,val)=>{ ["g","d"].forEach(sd=>{ ["h","b"].forEach(p=>l.g["d"+p+"_"+sd]=val); if(l.g["dm_"+sd]) l.g["dm_"+sd]=val; }); };
+  $$("[data-vbgone]").forEach(s=>s.onchange=()=>{ tousGonds(v.lignes[+s.dataset.vbgone], s.value); save(); });
+  $$("[data-vbgid]").forEach(b=>b.onclick=()=>{ const l=v.lignes[+b.dataset.vbgid], id=!vbGondsIdent(l.g); l.g.ident=id;
+    if(id){ const val=l.g.dh_g||l.g.db_g||l.g.dh_d||l.g.db_d||""; tousGonds(l,val); } save(); const y=scrollY; re(); scrollTo(0,y); });
   const majD=()=>v.lignes.forEach((l,i)=>{ const z=$("#vbD"+i); if(z) z.innerHTML=dessinVB(v,l,"vbsvg"); });
   t.addEventListener("input", e=>{ if(e.target.dataset&&/^vb\./.test(e.target.dataset.k||"")) setTimeout(majD,0); });
   t.addEventListener("change", e=>{ if(e.target.dataset&&/^vb\./.test(e.target.dataset.k||"")) setTimeout(majD,0); });

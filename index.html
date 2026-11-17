@@ -103,6 +103,7 @@ input:focus,select:focus,textarea:focus{outline:3px solid #c9d6f3;border-color:v
 .mic-wrap{position:relative;display:block}.mic-wrap textarea{padding-right:46px;width:100%}
 .mic-btn{position:absolute;right:6px;bottom:6px;width:36px;height:36px;border-radius:50%;border:1px solid var(--line,#ccd);background:#fff;font-size:17px;line-height:1;cursor:pointer}
 .mic-btn.rec{background:#d3232f;color:#fff;border-color:#d3232f;animation:micp 1s infinite}@keyframes micp{50%{box-shadow:0 0 0 6px rgba(211,35,47,.25)}}
+.pp-img img{max-height:260px}.vb-imgs.pp-imgs{display:grid;grid-template-columns:2.6fr 1.3fr 2fr;gap:8px;align-items:center;margin-top:4mm}.vb-imgs.pp-imgs img{width:100%;max-height:55mm;object-fit:contain}
 .sketch-wrap{position:relative;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;touch-action:none}
 canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background:
   linear-gradient(#eef1f7 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,#eef1f7 1px,transparent 1px) 0 0/24px 24px}
@@ -851,7 +852,7 @@ function controleDossier(d){
   if(!d.client.date_rdv) W.push("Date du RDV manquante");
   if(!d.adresse_chantier) W.push("Adresse du chantier manquante");
   if(d.ouvertures.length && !d.jours_pose) W.push("Jours de pose estimés non renseignés");
-  if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aClim(d) && !aVB(d) && !aPT(d)) E.push("Aucune ouverture, volet, portail ni climatisation saisi");
+  if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aClim(d) && !aVB(d) && !aPT(d) && !aPP(d)) E.push("Aucune ouverture, volet, portail ni climatisation saisi");
   comparerDevisDossier(d, E, W);
   return {E,W};
 }
@@ -898,11 +899,11 @@ function listeErreurs(d){ normaliser(d); const L=[], add=(ou,E,go)=>E.forEach(e=
   add("Client",controleDossier(d).E,{tab:"client"});
   d.ouvertures.forEach((o,i)=>add(`${o.num_poseur?"N°"+o.num_poseur+" ":""}${o.repere||"Ouverture "+(i+1)}`,controleOuverture(o,d).E,{ouv:o.id}));
   add("Volets roulants",controleVREntete(d.vr).E,{tab:"vr"}); d.vr.lignes.forEach((l,i)=>add(`Volet ${l.repere||i+1}`,controleLigneVR(l,d.vr).E,{tab:"vr"}));
-  if(aClim(d)) add("Clim",controleClim(d).E,{tab:"clim"}); if(aVB(d)) add("Volets battants",controleVB(d).E,{tab:"vb"}); if(aPT(d)) add("Portail",controlePT(d).E,{tab:"pt"});
+  if(aClim(d)) add("Clim",controleClim(d).E,{tab:"clim"}); if(aVB(d)) add("Volets battants",controleVB(d).E,{tab:"vb"}); if(aPT(d)) add("Portail",controlePT(d).E,{tab:"pt"}); if(aPP(d)) add("Portes palières",controlePP(d).E,{tab:"pp"});
   return L; }
 function allerErreur(go){ if(!go) return; if(go.ouv){ const o=S.dossier.ouvertures.find(x=>x.id===go.ouv); if(o){ S.ouv=o; renderOuverture(); scrollTo(0,0); return; } } S.tab=go.tab||"client"; renderDossier(); scrollTo(0,0); }
 function nbErreurs(d){ normaliser(d); return controleDossier(d).E.length + d.ouvertures.reduce((a,o)=>a+controleOuverture(o,d).E.length,0)
-  + controleVREntete(d.vr).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0) + (aClim(d)?controleClim(d).E.length:0) + (aVB(d)?controleVB(d).E.length:0) + (aPT(d)?controlePT(d).E.length:0); }
+  + controleVREntete(d.vr).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0) + (aClim(d)?controleClim(d).E.length:0) + (aVB(d)?controleVB(d).E.length:0) + (aPT(d)?controlePT(d).E.length:0) + (aPP(d)?controlePP(d).E.length:0); }
 
 /* ---------- Catalogue : aides ---------- */
 const GAMME_COULEUR = { "PVC - REHAU PORTEO":"REHAU", "PVC - FENSTAR FLAT (droit)":"FENSTAR", "PVC - FENSTAR NEW (arrondie)":"FENSTAR",
@@ -1052,6 +1053,7 @@ async function renderHome(){
     <button class="btn" id="hCRM">+ Depuis le CRM</button>
     <button class="btn" id="hPT">+ Portail</button>
     <button class="btn" id="hVB">+ Volets battants</button>
+    <button class="btn" id="hPP">+ Portes palières</button>
     <button class="btn" id="hClim">+ Métré clim</button>
     <button class="btn primary" id="hNew">+ Nouveau métré</button></div>
   <p class="hint">Chaque métré s'enregistre tout seul quand tu reviens à cette liste, dans <b>Mon Drive › Appli métré – Dossiers › Devis</b> (ou <b>› Métrés définitif</b> pour un métré définitif). Une fois recontrôlé, déplace son dossier dans le <b>2026</b> de ce même dossier : la copie part toute seule chez Clémence (DEVIS A FAIRE ou METRES DEFINITIF). Les métrés faits sur tes autres appareils apparaissent ici tout seuls (ou avec « ☁ Actualiser »).</p>
@@ -1061,7 +1063,7 @@ async function renderHome(){
   <div class="list">${ds.map(d=>{ normaliser(d); const n=nbErreurs(d);
     return `<div class="item${S.selMode&&S.sel.has(d.id)?" sel":""}" data-id="${d.id}">
       <div class="row">${S.selMode?`<input type="checkbox" class="hchk" ${S.sel.has(d.id)?"checked":""} aria-label="Sélectionner">`:""}<span class="t">${esc(d.client.nom||"Sans nom")}</span><span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span>${S.selMode?"":`<button class="btn small danger" data-hdel="${d.id}" title="Supprimer ce métré" aria-label="Supprimer ce métré">🗑</button>`}</div>
-      <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.length} ouverture(s)${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}${aPT(d)?` · ${d.pt.elements.length} portail / portillon`:""}${aVB(d)?` · ${d.vb.lignes.length} volet(s) battant(s)`:""}${aClim(d)?` · clim ${d.clim.lignes.length} pièce(s)`:""}</div>
+      <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.length} ouverture(s)${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}${aPT(d)?` · ${d.pt.elements.length} portail / portillon`:""}${aVB(d)?` · ${d.vb.lignes.length} volet(s) battant(s)`:""}${aPP(d)?` · ${d.pp.lignes.length} porte(s) palière(s)`:""}${aClim(d)?` · clim ${d.clim.lignes.length} pièce(s)`:""}</div>
       <div class="s">${esc(d.gamme_defaut||"")}</div>
       <div>${n?`<span class="badge b-err">${n} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} <span class="badge ${estDefinitif(d)?"b-err":"b-n"}">${estDefinitif(d)?"Métré définitif":"Devis"}</span> ${d.drive_attente?`<span class="badge b-n">☁ envoi en attente</span>`:d.drive?`<span class="badge b-ok">☁ dans le Drive</span>`:""} ${envoisClemence(d).length?`<span class="badge b-ok">📨 Clémence ${new Date(envoisClemence(d).slice(-1)[0].le).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</span>`:""}</div>
     </div>`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau métré ».</div>`}</div>`;
@@ -1071,6 +1073,7 @@ async function renderHome(){
   { const z=document.createElement("div"); z.id="hSyncLe"; z.className="hint"; z.style.textAlign="right"; z.textContent=texteSyncLe(); $("#app .row").after(z); }
   if(!S.syncAuto || Date.now()-S.syncAuto>120000){ S.syncAuto=Date.now(); setTimeout(()=>synchroAccueil(false),300); }
   $("#hPT").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.pt=nouveauPT(); S.dossier.pt.elements.push(nouvelElementPT("BATTANT")); DB.put(S.dossier); S.tab="pt"; renderDossier(); };
+  $("#hPP").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.pp=nouveauPP(); S.dossier.pp.lignes.push(nouvelleLignePP()); DB.put(S.dossier); S.tab="pp"; renderDossier(); };
   $("#hVB").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.vb=nouveauVB(); S.dossier.vb.lignes.push(nouvelleLigneVB()); DB.put(S.dossier); S.tab="vb"; renderDossier(); };
   $("#hClim").onclick=()=>{ S.dossier=nouveauDossier(); S.dossier.clim=nouvelleClim(); S.dossier.clim.lignes.push(nouvelleLigneClim()); DB.put(S.dossier); S.tab="clim"; renderDossier(); };
   $("#hCRM").onclick=()=>ouvrirCRM("nouveau");
@@ -1111,7 +1114,7 @@ async function supprimerMetres(L){
 function renderDossier(){
   S.view="dossier"; S.ouv=null; const d=normaliser(S.dossier); syncVR(d); majTitre();
   if(S.tab==="chantier") S.tab="client";
-  const T=[["client","Client & chantier"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["pt",`Portail${d.pt&&d.pt.elements.length?` (${d.pt.elements.length})`:""}`],["vb",`Volets battants${d.vb&&d.vb.lignes.length?` (${d.vb.lignes.length})`:""}`],["clim",`Climatisation${d.clim&&d.clim.lignes.length?` (${d.clim.lignes.length})`:""}`],["controle","Contrôle"]];
+  const T=[["client","Client & chantier"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["pt",`Portail${d.pt&&d.pt.elements.length?` (${d.pt.elements.length})`:""}`],["vb",`Volets battants${d.vb&&d.vb.lignes.length?` (${d.vb.lignes.length})`:""}`],["pp",`Portes palières${d.pp&&d.pp.lignes.length?` (${d.pp.lignes.length})`:""}`],["clim",`Climatisation${d.clim&&d.clim.lignes.length?` (${d.clim.lignes.length})`:""}`],["controle","Contrôle"]];
   const def=estDefinitif(d);
   $("#app").innerHTML=`
   <div class="circuit" role="group" aria-label="Type de métré">
@@ -1223,6 +1226,7 @@ function renderDossier(){
   if(S.tab==="vr") renderVR(t);
   if(S.tab==="clim") renderClim(t);
   if(S.tab==="vb") renderVB(t);
+  if(S.tab==="pp") renderPP(t);
   if(S.tab==="pt") renderPT(t);
   if(S.tab==="controle"){
     const cd=controleDossier(d);
@@ -1231,6 +1235,7 @@ function renderDossier(){
     t.innerHTML=`<p class="hint"><span class="badge b-err">À corriger</span> bloque le métré (cotes, modèle, couleur, vantaux…) · <span class="badge b-warn">Conseillé</span> à compléter si possible (adresse, jours de pose, repère…)</p>`+bloc("Dossier",cd)+d.ouvertures.map((o,i)=>bloc(`${numP(o)||i+1+"."} ${o.repere||"Sans repère"}`,controleOuverture(o))).join("")
       +(aPT(d)?bloc("Portail",controlePT(d)):"")
       +(aVB(d)?bloc("Volets battants",controleVB(d)):"")
+      +(aPP(d)?bloc("Portes palières HUET",controlePP(d)):"")
       +(aClim(d)?bloc("Climatisation",controleClim(d)):"")
       +(d.vr.lignes.length?bloc("Volets roulants – en-tête",controleVREntete(d.vr))+d.vr.lignes.map((l,i)=>bloc(`VR ${i+1}. ${l.repere||"Sans repère"}`,controleLigneVR(l,d.vr))).join(""):"");
   }
@@ -2187,6 +2192,119 @@ function renderVB(t){
   $$("[data-vbdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.vbdup, n=JSON.parse(JSON.stringify(v.lignes[i])); n.id=uid(); v.lignes.splice(i+1,0,n); save(); re(); });
   initPhotos(v, re);
 }
+/* ---------- Portes palières HUET (rénovation, logement collectif) ----------
+   Reprend le « Bon de commande / devis pour Portes Palières Réno » HUET et la feuille de prise de cotes du bâti rénovation métallique (RE03).
+   Cotes : A hauteur de passage · B largeur de passage · C profondeur de feuillure · D largeur de feuillure · espaces libres (intérieur).
+   Sources : Drive FOURNISSEURS › HUET (bon de commande xlsx, fiche RE03, documentation commerciale rénovation porte palière). */
+const PP_MODELES = ["Axiome 39 DB (CR3 – EI30)","Axiome 42 DB","Isaclub 30 DB","Isaclub 39 DB"];
+const PP_HUISSERIES = ["Réno métallique blanc","Réno métallique noir","RBA (bois et aile alu blanche)","RBA (bois et aile alu noire)"];
+const PP_FINITIONS = ["Pré-peint blanc","Stratifié 2 faces","Placage bois"];
+const PP_GRAVAGE = ["Non","Oui – 2 faces","Oui – 1 face extérieure","Oui – 1 face intérieure"];
+const PP_ETANCHEITE = ["Joint balai","Seuil suisse"];
+const PP_SEUILS = ["50 × 20 mm bois rouge","35 × 20 mm bois revêtu inox","37 × 20 mm métallique intégré"];
+const PP_SERRURES = ["3 points – standard","5 points – A2P*"];
+const PP_EXISTANT = ["Huisserie bois","Huisserie métallique"];
+const PP_SENS = ["Poussant gauche","Poussant droit"];
+const nouveauPP = () => ({ modele:PP_MODELES[0], huisserie:"", finition:"", coloris:"", gravage:"Non", motif:"", etancheite:"", seuil:"", microviseur:false, microviseur_fin:"Chrome",
+  serrure:PP_SERRURES[0], cylindre:false, plots:true, entrebailleur:false, garniture:false, lignes:[], photos:[] });
+const nouvelleLignePP = () => ({ id:uid(), repere:"", qte:"1", existant:"", sens:"", A1:"", A2:"", B1:"", B2:"", B3:"", C:"", D:"", el_g:"", el_d:"", el_h:"", cloison:false, obs:"" });
+const aPP = d => !!(d.pp && (d.pp.lignes.length));
+const ppMin = (...v) => { const n=v.map(num).filter(x=>x!=null); return n.length?Math.min(...n):null; };
+const ppA = l => ppMin(l.A1,l.A2), ppB = l => ppMin(l.B1,l.B2,l.B3);
+const ppAxiome = p => /axiome/i.test(p.modele||""), ppCR3 = p => /cr3/i.test(p.modele||"");
+function controlePP(d){
+  const p=d.pp, E=[], W=[]; if(!p) return {E,W};
+  if(!p.modele) E.push("Modèle de porte non choisi"); if(!p.huisserie) E.push("Modèle d'huisserie non choisi"); if(!p.finition) E.push("Finition de la porte non choisie");
+  if(/stratifi|placage/i.test(p.finition) && !p.coloris) E.push("Coloris du stratifié / placage non renseigné");
+  if(/^Oui/.test(p.gravage) && !p.motif) W.push("Gravage Technidécor : nom du motif à préciser");
+  if(!p.etancheite) W.push("Étanchéité basse non choisie (joint balai ou seuil suisse)");
+  if(p.etancheite==="Seuil suisse" && !p.seuil) E.push("Seuil suisse : type de seuil non choisi");
+  if(!p.lignes.length) E.push("Aucune porte saisie");
+  p.lignes.forEach((l,i)=>{ const n=l.repere||`porte ${i+1}`, A=ppA(l), B=ppB(l), C=num(l.C), D=num(l.D);
+    if(A==null) E.push(`${n} : hauteur de passage (A) manquante`); if(B==null) E.push(`${n} : largeur de passage (B) manquante`);
+    if(C==null) E.push(`${n} : profondeur de feuillure (C) manquante`); if(D==null) E.push(`${n} : largeur de feuillure (D) manquante`);
+    if(!l.sens) E.push(`${n} : sens d'ouverture (vue extérieure) non choisi`);
+    if(!l.existant) W.push(`${n} : huisserie existante bois ou métallique ?`);
+    if(A!=null && A<1950) E.push(`${n} : A = ${A} < 1950 mini HUET`);
+    if(B!=null && B<670) E.push(`${n} : B = ${B} < 670 mini HUET`);
+    if(A!=null && B!=null){
+      if(ppAxiome(p)){ if(B>1206) E.push(`${n} : B = ${B} > 1206 maxi Axiome`); else if(B>1036 && A>2244) E.push(`${n} : B > 1036 → A maxi 2244 (A = ${A})`); else if(A>2494) E.push(`${n} : A = ${A} > 2494 maxi Axiome`);
+        if(ppCR3(p) && B>1006) W.push(`${n} : B = ${B} : vantail > 1030 mm → plus de classement CR3`); }
+      else { if(A>2494) E.push(`${n} : A = ${A} > 2494 maxi Isaclub`); if(B>1006) E.push(`${n} : B = ${B} > 1006 maxi Isaclub`); } }
+    if(C!=null && (C<27||C>50)) E.push(`${n} : profondeur de feuillure C = ${C} hors limites HUET (27 à 50)`);
+    if(D!=null && (D<11||D>20)) E.push(`${n} : largeur de feuillure D = ${D} hors limites HUET (11 à 20)`);
+    [["el_g","à gauche"],["el_d","à droite"],["el_h","en haut"]].forEach(([k,t])=>{ const v=num(l[k]); if(v==null) W.push(`${n} : espace libre ${t} non relevé (mini 50 mm)`); else if(v<40) E.push(`${n} : espace libre ${t} = ${v} < 40 mm : bâti rénovation impossible tel quel`); else if(v<50) W.push(`${n} : espace libre ${t} = ${v} mm (HUET demande 50 mm mini)`); });
+    if(num(l.A1)!=null && num(l.A2)!=null && Math.abs(num(l.A1)-num(l.A2))>10) W.push(`${n} : A1 et A2 diffèrent de plus de 10 mm (huisserie pas d'équerre ?)`);
+    const Bs=[l.B1,l.B2,l.B3].map(num).filter(x=>x!=null); if(Bs.length>1 && Math.max(...Bs)-Math.min(...Bs)>10) W.push(`${n} : B1 / B2 / B3 diffèrent de plus de 10 mm`);
+    if(p.etancheite==="Seuil suisse" && /37/.test(p.seuil||"")){ if(!/métallique/i.test(p.huisserie||"")) E.push(`${n} : seuil métallique intégré seulement avec un bâti réno métallique`); else if(C!=null && C<=37) W.push(`${n} : seuil métallique intégré : prévu si profondeur de feuillure > 37 mm (C = ${C})`); }
+  });
+  return {E,W};
+}
+function renderPP(t){
+  const d=S.dossier; if(!d.pp) d.pp=nouveauPP(); const p=d.pp;
+  const ligne=l=>{ const i=p.lignes.indexOf(l), k=`pp.lignes.${i}.`, A=ppA(l), B=ppB(l);
+    return `<div class="card clim-l"><div class="row" style="margin-bottom:8px"><b>${esc(l.repere||"Nouvelle porte")}</b>${A!=null||B!=null?`<span class="badge b-n" style="margin-left:8px">Passage retenu : ${A??"?"} × ${B??"?"}</span>`:""}<span class="spacer"></span>
+      <button class="btn small" data-ppdup="${i}">⧉ Comme celle-ci</button><button class="btn small danger" data-ppdel="${i}" aria-label="Supprimer la porte">✕</button></div>
+      <div class="grid g4">
+        <label class="f">Repère (appartement, étage…)<div class="rep-in"><input data-k="${k}repere" value="${esc(l.repere)}" list="dlPiecesPP">${boutonRep(k+"repere")}</div></label>${F.numb(k+"qte","Quantité",l.qte)}
+        ${F.sel(k+"existant","Huisserie existante",PP_EXISTANT,l.existant)}${F.sel(k+"sens","Sens d'ouverture vue extérieure",PP_SENS,l.sens)}
+      </div>
+      <div class="hint" style="margin:10px 0 4px"><b>A – Hauteur de passage</b> (du sol fini intérieur) : relever à gauche et à droite · <b>B – Largeur de passage</b> : en haut, au milieu, en bas. La plus petite est retenue.</div>
+      <div class="grid g4">${F.numb(k+"A1","A1 – hauteur à gauche (mm)",l.A1)}${F.numb(k+"A2","A2 – hauteur à droite (mm)",l.A2)}<div></div><div></div>
+        ${F.numb(k+"B1","B1 – largeur en haut (mm)",l.B1)}${F.numb(k+"B2","B2 – largeur au milieu (mm)",l.B2)}${F.numb(k+"B3","B3 – largeur en bas (mm)",l.B3)}<div></div>
+        ${F.numb(k+"C","C – profondeur de feuillure (27 à 50)",l.C)}${F.numb(k+"D","D – largeur de feuillure (11 à 20)",l.D)}<div></div><div></div>
+        ${F.numb(k+"el_g","Espace libre à gauche (mm)",l.el_g)}${F.numb(k+"el_d","Espace libre à droite (mm)",l.el_d)}${F.numb(k+"el_h","Espace libre en haut (mm)",l.el_h)}
+        <div class="checks" style="align-self:end">${F.chk(k+"cloison","Retour de cloison",l.cloison)}</div></div>
+      <div style="margin-top:8px">${F.text(k+"obs","Observation",l.obs)}</div></div>`; };
+  t.innerHTML=`<datalist id="dlPiecesPP">${listePiecesDL()}</datalist>
+  <div class="card"><h2><span class="num">1</span>Portes palières rénovation – HUET <small style="font-weight:400;text-transform:none">– bloc-porte blindé, bâti rénovation 4 côtés posé en applique, sans réduction de passage</small></h2><div class="grid g4">
+    <div style="grid-column:span 2">${F.sel("pp.modele","Modèle de porte",PP_MODELES,p.modele)}</div><div style="grid-column:span 2">${F.sel("pp.huisserie","Modèle d'huisserie (bâti rénovation)",PP_HUISSERIES,p.huisserie)}</div>
+    ${F.sel("pp.finition","Finition de la porte",PP_FINITIONS,p.finition)}${/stratifi|placage/i.test(p.finition)?F.text("pp.coloris","Coloris stratifié / placage (nuancier Boréal…)",p.coloris):"<div></div>"}
+    ${F.sel("pp.gravage","Gravage Technidécor",PP_GRAVAGE,p.gravage)}${/^Oui/.test(p.gravage)?F.text("pp.motif","Nom du motif gravé",p.motif):"<div></div>"}
+    ${F.sel("pp.etancheite","Étanchéité basse",PP_ETANCHEITE,p.etancheite)}${p.etancheite==="Seuil suisse"?F.sel("pp.seuil","Seuil suisse",PP_SEUILS,p.seuil):"<div></div>"}
+    ${F.sel("pp.serrure","Serrure",PP_SERRURES,p.serrure)}${p.microviseur?F.sel("pp.microviseur_fin","Finition microviseur",["Chrome","Laiton"],p.microviseur_fin):"<div></div>"}
+  </div>
+  <div class="checks" style="margin-top:10px">${F.chk("pp.microviseur","Microviseur",p.microviseur)}${F.chk("pp.cylindre","Cylindre en fourniture",p.cylindre)}${F.chk("pp.plots","Plots anti-dégondage",p.plots)}${F.chk("pp.entrebailleur","Entrebâilleur chrome en applique",p.entrebailleur)}${F.chk("pp.garniture","Garniture et béquille anodisé argent (béquille int. / poignée de tirage ext.)",p.garniture)}</div>
+  <p class="hint">Limites HUET : A (hauteur de passage) 1950 à 2494 · B (largeur) 670 à 1006 (Isaclub), 1036 (Axiome, ou 1206 si A ≤ 2244) · C 27 à 50 · D 11 à 20 · espace libre autour mini 50 mm.</p></div>
+  <div class="row" style="margin:14px 0 8px"><h2 style="margin:0"><span class="num">2</span> Portes</h2><span class="spacer"></span><button class="btn primary" id="ppAdd">+ Ajouter une porte</button></div>
+  ${p.lignes.map(ligne).join("")||`<p class="hint">Aucune porte. Appuie sur « + Ajouter une porte ».</p>`}
+  <details class="card" open><summary><h2 style="display:inline"><span class="num">3</span>Prise de cotes HUET <small style="font-weight:400;text-transform:none">– sur l'ancienne huisserie (bois ou métallique)</small></h2></summary>
+    <div class="vb-img pp-img"><img src="img/pp-plan.png" alt="Vue en plan : cotes B, C, D et espaces libres"><img src="img/pp-coupe.png" alt="Coupe : cote A hauteur de passage"><img src="img/pp-sens.png" alt="Sens : poussant gauche, poussant droit (vue extérieure)"></div></details>
+  <div class="card"><h2><span class="num">4</span>Photos <small style="font-weight:400;text-transform:none">– porte côté palier et côté logement, huisserie, sol, plafond…</small></h2>
+    <div class="photos">${p.photos.map((ph,k)=>`<figure class="photo"><img src="${ph.img}" alt="Photo ${k+1}" data-phedit="${k}">
+      <textarea data-k="pp.photos.${k}.txt" rows="2" placeholder="Repère et remarque">${esc(ph.txt||"")}</textarea>
+      <div class="row"><button class="btn small" data-phedit="${k}">✏️ Annoter</button><span class="spacer"></span><button class="btn small danger" data-phdel="${k}" aria-label="Supprimer la photo ${k+1}">✕</button></div></figure>`).join("")}
+    <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple id="phAdd" class="hide"></label></div></div>`;
+  const re=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); };
+  $("#ppAdd").onclick=()=>{ p.lignes.push(nouvelleLignePP()); save(); re(); };
+  $$("[data-ppdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer cette porte ?","Supprimer")) return; p.lignes.splice(+b.dataset.ppdel,1); save(); re(); });
+  $$("[data-ppdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.ppdup, s=p.lignes[i], n=Object.assign(nouvelleLignePP(),{existant:s.existant, sens:s.sens, C:s.C, D:s.D});
+    const r=repDecoupe(s.repere); if(r.piece&&r.num){ r.num=String((parseInt(r.num)||0)+1); n.repere=repCompose(r); } p.lignes.splice(i+1,0,n); save(); re(); toast("Même porte : il reste le repère et les cotes A / B / espaces"); });
+  ["pp.finition","pp.gravage","pp.etancheite","pp.microviseur"].forEach(k=>{ const el=$(`[data-k="${k}"]`); if(el) el.addEventListener("change",()=>setTimeout(re,0)); });
+  initPhotos(p, re);
+}
+/* ---------- PDF : bon de commande / devis HUET ---------- */
+function pagesPP(d){
+  const p=d.pp; if(!aPP(d)) return "";
+  const ck=b=>b?"☑":"☐", bx=(lab,val)=>`<div class="vb-bx"><span class="vb-lb">${esc(lab)}</span><span class="vb-v">${val}</span></div>`;
+  const rows=p.lignes.map(l=>`<tr><td class="vb-rep">${esc(l.repere)}</td><td>${esc(l.qte)}</td><td class="sm">${esc(l.sens)}</td><td class="sm">${esc(l.existant)}</td>
+    <td class="vb-tab"><b>${ppA(l)??""}</b><br><small>${esc([l.A1,l.A2].filter(x=>x!=="").join(" / "))}</small></td><td class="vb-tab"><b>${ppB(l)??""}</b><br><small>${esc([l.B1,l.B2,l.B3].filter(x=>x!=="").join(" / "))}</small></td>
+    <td>${esc(l.C)}</td><td>${esc(l.D)}</td><td>${esc(l.el_g)}</td><td>${esc(l.el_d)}</td><td>${esc(l.el_h)}</td><td>${l.cloison?"✔":""}</td><td class="sm">${esc(l.obs)}</td></tr>`).join("");
+  return `<div class="pg vb-pg"><div class="vb-titre">PORTES PALIÈRES RÉNO – HUET</div><div class="vb-band">${estDefinitif(d)?"Bon de commande (métré définitif)":"Devis"} · ${esc(d.client.nom)}${d.adresse_chantier?" · "+esc(d.adresse_chantier):""}</div>
+    <div class="vb-haut">
+      ${bx("Modèle de porte",esc(p.modele))}${bx("Modèle d'huisserie",esc(p.huisserie))}${bx("Métreur",esc(d.metreur))}
+      ${bx("Finition",esc([p.finition,p.coloris].filter(Boolean).join(" – ")))}${bx("Gravage Technidécor",esc(p.gravage+(p.motif?" – "+p.motif:"")))}${bx("Étanchéité basse",esc([p.etancheite,p.etancheite==="Seuil suisse"?p.seuil:""].filter(Boolean).join(" – ")))}
+      ${bx("Serrure",esc(p.serrure))}${bx("Microviseur",`${ck(p.microviseur)}${p.microviseur?" "+esc(p.microviseur_fin):""}`)}${bx("Cylindre en fourniture",ck(p.cylindre))}
+      ${bx("Plots anti-dégondage",ck(p.plots))}${bx("Entrebâilleur chrome",ck(p.entrebailleur))}${bx("Garniture / béquille anodisé argent",ck(p.garniture))}
+    </div>
+    <table class="vb-t"><colgroup>${[12,5,9,9,8,8,6,6,6,6,6,5,14].map(w=>`<col style="width:${w}%">`).join("")}</colgroup>
+      <tr class="g1"><th class="nb" colspan="4"></th><th colspan="2" class="vb-tab">Passage retenu (mini)</th><th colspan="2">Feuillure</th><th colspan="3">Espace libre (intérieur)</th><th colspan="2" class="nb"></th></tr>
+      <tr><th class="vb-rep">Repère</th><th>Qté</th><th>Sens (vue ext.)</th><th>Huisserie existante</th><th class="vb-tab">A hauteur</th><th class="vb-tab">B largeur</th><th>C prof.</th><th>D larg.</th><th>Gauche</th><th>Droite</th><th>Haut</th><th>Retour cloison</th><th>Observation</th></tr>
+      ${rows}</table>
+    <div class="vb-imgs pp-imgs"><img src="img/pp-plan.png"><img src="img/pp-coupe.png"><img src="img/pp-sens.png"></div>
+    <div class="vb-pied">Fournisseur : HUET (JH Industries) · cotes relevées sur l'ancienne huisserie · A et B : plus petite des mesures</div></div>`;
+}
+
 /* ---------- PDF : feuilles « Volet » et « Schéma » de Nicolas ---------- */
 function pagesVB(d){
   const v=d.vb; if(!aVB(d)) return "";
@@ -2492,7 +2610,7 @@ function construireImpression(d){
       <div>${tp&&SCHEMAS[tp.img]?`<img src="${SCHEMAS[tp.img]}" style="max-width:100%;border:1px solid #9aa3b5"><div style="text-align:center;font-weight:700">${esc(tp.nom)}</div>`:""}</div></div></div>`;
   }
   h+=pagesPT(d);
-  h+=pagesVB(d);
+  h+=pagesVB(d); h+=pagesPP(d);
   h+=pagesClim(d);
   return h;
 }
@@ -2621,6 +2739,7 @@ function nomMetre(d){
   const nom=(d.client.nom||"SANS NOM").trim().toUpperCase().replace(/[\\/:*?"<>|]+/g," ");
   if(typeof aPT==="function" && aPT(d)) mat.push("PORTAIL");
   if(typeof aVB==="function" && aVB(d)) mat.push("VB");
+  if(typeof aPP==="function" && aPP(d)) mat.push("PORTES PALIERES");
   if(typeof aClim==="function" && aClim(d)) mat.push("CLIM");
   return `${nom} ME ${mat.length?mat.join(" ET "):(d.vr.lignes.length?"VR":"")}${n>1?" V"+n:""}`.replace(/\s+/g," ").trim();
 }
@@ -2664,6 +2783,8 @@ async function envoyerDossierDrive(d){
     try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – PORTAIL – ${(p.txt||"photo").replace(/[\\/:*?"<>|\n]+/g," ").slice(0,60)} – ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
   for(const [k,p] of ((d.vb&&d.vb.photos)||[]).entries()){ if(p.drive || !p.img) continue;
     try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – VOLETS BATTANTS – ${(p.txt||"photo").replace(/[\\/:*?"<>|\n]+/g," ").slice(0,60)} – ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
+  for(const [k,p] of ((d.pp&&d.pp.photos)||[]).entries()){ if(p.drive || !p.img) continue;
+    try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – PORTES PALIÈRES – ${(p.txt||"photo").replace(/[\\/:*?"<>|\n]+/g," ").slice(0,60)} – ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
   for(const [k,p] of ((d.clim&&d.clim.photos)||[]).entries()){ if(p.drive || !p.img) continue;
     try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – CLIM – ${(p.txt||"photo").replace(/[\\/:*?"<>|\n]+/g," ").slice(0,60)} – ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
   d.drive={le:new Date().toISOString(), dossier:sous, lien:f.webViewLink||"", base, sig:empreinte(d)}; delete d.drive_attente;
@@ -2678,7 +2799,7 @@ const CLEMENCE = {
   definitif: {id:"170tJN-Niqmt-f2Y_lnbtQwsg1yd7goVR", nom:"METRES DEFINITIF"},
   clim:      {id:"1WIbVWzbxaK36L_GEyLvmMwf5T8PAjlKZ", nom:"DEVIS CLIM"}
 };
-const climSeul = d => typeof aClim==="function" && aClim(d) && !d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !(typeof aPT==="function"&&aPT(d)) && !(typeof aVB==="function"&&aVB(d));
+const climSeul = d => typeof aClim==="function" && aClim(d) && !d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !(typeof aPT==="function"&&aPT(d)) && !(typeof aVB==="function"&&aVB(d)) && !(typeof aPP==="function"&&aPP(d));
 const cibleClemence = d => climSeul(d) ? CLEMENCE.clim : estDefinitif(d) ? CLEMENCE.definitif : CLEMENCE.devis;
 const envoisClemence = d => (d.clemence && d.clemence.envois) || [];
 function nomEnvoiClemence(d){ const n=envoisClemence(d).length, base=nomMetre(d); return n ? `${base} modif${n>1?" "+n:""}.pdf` : `${base}.pdf`; }

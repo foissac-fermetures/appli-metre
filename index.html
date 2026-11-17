@@ -1544,6 +1544,10 @@ function dessinMenuiserie(o, opt={}){
   let n = md ? md.vantaux : [codes.G,codes.M,codes.D].filter(Boolean).length || 1;
   if(fam==="fixe" || n===0){ fam="fixe"; n=1; }
   const f=calcFab(o), Lr=num(f.L)??num(coteTab(o,"L")), Hr=num(f.H)??num(coteTab(o,"H"));
+  /* ERP / accessoires : barre anti-panique et ferme-porte dessinés sur la porte */
+  const AP_COL="#2d6a4f", accTxt=(o.accessoires||[]).join(" | "), erpOn=typeof porteERP==="function"&&porteERP(o);
+  const avecAP = (erpOn && o.erp.ap && (typeof ERP_AP==="undefined" || o.erp.ap_type!==ERP_AP[1])) || /anti.?panique/i.test(accTxt);
+  const avecGroom = (erpOn && o.erp.groom) || /ferme-porte|groom/i.test(accTxt), groomType=(erpOn&&o.erp.groom_type)||accTxt;
   let ratio = (Lr&&Hr) ? Hr/Lr : (fam==="pf"||fam==="porte"?2.1:1.25);
   ratio=Math.min(2.6,Math.max(0.45,ratio));
   const W=300, P=10;                                  // P : marge autour du dormant
@@ -1633,7 +1637,16 @@ function dessinMenuiserie(o, opt={}){
       else hingeLeft = i<2;
       s+=triangle(x+m,y+m,w-2*m,hh,hingeLeft);
       if(ob(i)) s+=triOB(x+m,y+m,w-2*m,hh);
-      if(i===princ){ const hx=hingeLeft?x+w-12:x+6; s+=`<rect x="${hx}" y="${y+h/2-18}" width="6" height="36" rx="2" fill="${RED}"/>`; }
+      if(i===princ && !avecAP){ const hx=hingeLeft?x+w-12:x+6; s+=`<rect x="${hx}" y="${y+h/2-18}" width="6" height="36" rx="2" fill="${RED}"/>`; }
+      /* barre anti-panique : barre horizontale à ~1 m du sol sur chaque vantail ouvrant */
+      if(avecAP){ const pxmm=Hr?hTot/Hr:0, by=Math.max(y+h*0.35, Math.min(y+h-24, pxmm?y+h-1000*pxmm:y+h*0.55)), bx1=x+m+8, bx2=x+w-m-8;
+        s+=`<rect x="${bx1}" y="${by-7}" width="14" height="14" rx="2" fill="${AP_COL}"/><rect x="${bx2-14}" y="${by-7}" width="14" height="14" rx="2" fill="${AP_COL}"/>`
+          +`<rect x="${bx1+10}" y="${by-4}" width="${bx2-bx1-20}" height="8" rx="4" fill="#fff" stroke="${AP_COL}" stroke-width="2.4"/>`; }
+      /* ferme-porte (groom) : corps en haut du vantail côté paumelles + bras vers le dormant */
+      if(avecGroom && (i===princ || n===1 || (n===2 && !o.semi_fixe))){ const gl=Math.min(70,(w-2*m)*0.42), gy0=y+m+6, gx0=hingeLeft?x+m+6:x+w-m-6-gl;
+        s+=`<rect x="${gx0}" y="${gy0}" width="${gl}" height="11" rx="3" fill="${AP_COL}"/>`;
+        if(/glissi/i.test(groomType)){ const rx=hingeLeft?gx0+gl+4:gx0-4-gl*0.9; s+=`<rect x="${rx}" y="${y+2}" width="${gl*0.9}" height="4" fill="${AP_COL}"/>`+line(hingeLeft?gx0+gl:gx0, gy0+5, hingeLeft?rx+gl*0.5:rx+gl*0.4, y+5, 2.4, AP_COL); }
+        else { const ax=hingeLeft?gx0+gl-6:gx0+6, kx=hingeLeft?ax+gl*0.55:ax-gl*0.55; s+=line(ax,gy0+5,kx,gy0+16,2.6,AP_COL)+line(kx,gy0+16,kx+(hingeLeft?-gl*0.15:gl*0.15),y-2,2.6,AP_COL)+`<circle cx="${kx}" cy="${gy0+16}" r="2.6" fill="${AP_COL}"/>`; } }
     }
     /* grille de ventilation : en haut du vantail opposé à la serrure (ou du vantail unique) */
     const gvIci = n===1 ? true : (n===2 ? i!==princ : i===(princ===0?1:0));

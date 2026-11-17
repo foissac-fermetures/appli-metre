@@ -430,7 +430,9 @@ const DB = {
   async open(){ try{ this.db = await new Promise((ok,ko)=>{ const r=indexedDB.open("appli-metre",1); r.onupgradeneeded=()=>r.result.createObjectStore("dossiers",{keyPath:"id"}); r.onsuccess=()=>ok(r.result); r.onerror=()=>ko(r.error); }); }catch(e){ this.db=null; } },
   tx(mode){ return this.db.transaction("dossiers",mode).objectStore("dossiers"); },
   async all(){ if(!this.db) return Object.values(this.mem); return new Promise(ok=>{ const r=this.tx("readonly").getAll(); r.onsuccess=()=>ok(r.result||[]); r.onerror=()=>ok([]); }); },
-  async put(d){ d.modifie=new Date().toISOString(); if(!this.db){ this.mem[d.id]=d; return; } return new Promise(ok=>{ const r=this.tx("readwrite").put(JSON.parse(JSON.stringify(d))); r.onsuccess=ok; r.onerror=ok; }); },
+  /* « modifie » = date de la dernière VRAIE modification (sert à départager deux appareils) : on ne la change pas si le contenu est identique */
+  async put(d, garderDate){ let e=null; try{ e=typeof empreinte==="function"?empreinte(d):null; }catch(_){}
+    if(!garderDate && (e==null || d._e!==e || !d.modifie)) d.modifie=new Date().toISOString(); if(e!=null) d._e=e; if(!this.db){ this.mem[d.id]=d; return; } return new Promise(ok=>{ const r=this.tx("readwrite").put(JSON.parse(JSON.stringify(d))); r.onsuccess=ok; r.onerror=ok; }); },
   async del(id){ if(!this.db){ delete this.mem[id]; return; } return new Promise(ok=>{ const r=this.tx("readwrite").delete(id); r.onsuccess=ok; r.onerror=ok; }); }
 };
 
@@ -3404,8 +3406,8 @@ async function deposerDrive(nom, blob, parent, description){
   const ex=(await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id)&q="+encodeURIComponent(q))).files[0];
   const meta=ex ? {name:nom} : {name:nom, parents:[parent]}, b="metre"+Date.now(); if(description) meta.description=description;
   const corps=new Blob([`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${b}\r\nContent-Type: ${blob.type}\r\n\r\n`, blob, `\r\n--${b}--`]);
-  const url=ex ? `https://www.googleapis.com/upload/drive/v3/files/${ex.id}?uploadType=multipart&fields=id,webViewLink`
-               : "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink";
+  const url=ex ? `https://www.googleapis.com/upload/drive/v3/files/${ex.id}?uploadType=multipart&fields=id,webViewLink,modifiedTime`
+               : "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink,modifiedTime";
   return gdrive(url,{method:ex?"PATCH":"POST", headers:{"Content-Type":"multipart/related; boundary="+b}, body:corps});
 }
 
@@ -3459,7 +3461,7 @@ function nomMetre(d){
   return `${nom} ME ${mat.length?mat.join(" ET "):(d.vr.lignes.length?"VR":"")}${labS?" "+labS:""}${n>1?" V"+n:""}`.replace(/\s+/g," ").trim();
 }
 /* Empreinte du contenu, pour savoir s'il a changé depuis le dernier envoi */
-function empreinte(d){ const {drive,drive_attente,modifie,...r}=d; const t=JSON.stringify(r); let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))|0; return String(h); }
+function empreinte(d){ const {drive,drive_attente,modifie,_e,...r}=d; const t=JSON.stringify(r); let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))|0; return String(h); }
 /* Dossier du client : créé dans « Devis » ou « Métrés définitif(s) » au premier envoi, puis réutilisé là où il est.
    S'il attend encore son contrôle (directement dans l'un des deux) et que le choix Devis / Métré définitif a changé, il passe dans l'autre. */
 async function dossierClient(d){
@@ -3485,7 +3487,7 @@ async function envoyerDossierDrive(d){
       if(ex) await gdrive(`https://www.googleapis.com/drive/v3/files/${ex.id}?fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:base+ext})});
     }catch(e){} }
   }
-  await deposerDrive(base+".json", new Blob([JSON.stringify(d,null,1)],{type:"application/json"}), sous);
+  const fj=await deposerDrive(base+".json", new Blob([JSON.stringify(d,null,1)],{type:"application/json"}), sous);   // heure du Drive (pas celle de l'appareil, souvent décalée)
   const pdf=await genererPDF(d); envoyerDossierDrive.dernierPDF=pdf;
   // « clemence:envoye » : déjà envoyé à Clémence par le bouton de l'appli → le programme Google ne le recopie pas
   const f=await deposerDrive(base+".pdf", pdf, sous, `Métré Foissac – circuit:${circuit} – ${d.type_document||""}${d.clemence&&d.clemence.envoye?" – clemence:envoye":""}`);
@@ -3509,8 +3511,8 @@ async function envoyerDossierDrive(d){
       if(ex) await gdrive(`https://www.googleapis.com/drive/v3/files/${ex.id}?fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:true})});
     }catch(e){} } }
   delete d.drive_ancien;
-  d.drive={le:new Date().toISOString(), dossier:sous, lien:f.webViewLink||"", base, sig:empreinte(d)}; delete d.drive_attente;
-  await DB.put(d);
+  d.drive={le:(fj&&fj.modifiedTime)||new Date().toISOString(), dossier:sous, lien:f.webViewLink||"", base, sig:empreinte(d)}; delete d.drive_attente;
+  await DB.put(d,true);
   return f;
 }
 /* ---------- Envoyer à Clémence : PDF déposé directement dans le Drive partagé « ECHANGES NICOLAS / ORIANE / CLEMENCE » ----------
@@ -3615,6 +3617,15 @@ async function majBandeauDrive(n){
     b.onclick=async()=>{ try{ await demanderJeton(); await envoyerEnAttente(); }catch(e){ toast("Drive : "+e.message); } }; document.body.appendChild(b); }
   b.textContent=`☁ ${n} métré(s) pas encore dans le Drive (invisibles sur les autres appareils) – toucher pour envoyer`;
 }
+/* Tablette : la connexion Google ne dure qu'une heure et ne peut être renouvelée que sur un geste.
+   → au premier toucher sur l'accueil (ou sur « Retour »), on la renouvelle en silence puis on synchronise. */
+let G_RENOUV=0;
+document.addEventListener("pointerdown", e=>{
+  if(!driveDispo() || !navigator.onLine || jetonValide() || !G_CLIENT || !localStorage.getItem("g_ok3")) return;
+  if(!(S.view==="home" || e.target.closest?.("#btnBack,#hSync,#driveBandeau"))) return;
+  if(Date.now()-G_RENOUV<5*60000) return; G_RENOUV=Date.now();
+  demanderJeton().then(()=>{ S.syncAuto=Date.now(); synchroAccueil(false); }).catch(()=>{});
+}, true);
 window.addEventListener("online", ()=>{ prechargerGoogle(); setTimeout(envoyerEnAttente,1500); });
 setInterval(()=>{ if(document.visibilityState==="visible" && S.view==="home" && jetonValide()){ S.syncAuto=Date.now(); synchroAccueil(false); } }, 120000);   // toutes les 2 min sur l'accueil
 /* iPad : l'appli peut être fermée sans repasser par la liste → on enregistre dès qu'elle passe en arrière-plan (si déjà connecté au Drive) */
@@ -4268,19 +4279,22 @@ async function synchroniserMetres(manuel=false){
       files.push(...r.files); page=r.nextPageToken||""; } while(page && files.length<1000);
     for(const f of files){
       if(vus[f.id]===f.modifiedTime) continue;
-      let R; try{ const rr=await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&supportsAllDrives=true`,{headers:{Authorization:"Bearer "+G_JETON}}); if(!rr.ok) continue; R=await rr.json(); }catch(e){ vus[f.id]=f.modifiedTime; continue; }
+      let R; try{ const rr=await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&supportsAllDrives=true`,{headers:{Authorization:"Bearer "+G_JETON}}); if(!rr.ok){ if(rr.status===401) throw new Error("connexion Google expirée"); res.echecs=(res.echecs||0)+1; continue; } R=await rr.json(); }
+        catch(e){ if(/expirée/.test(e.message)) throw e; res.echecs=(res.echecs||0)+1; continue; }   // réseau coupé (tablette) : on réessaiera la prochaine fois
       vus[f.id]=f.modifiedTime;
       if(!R || R.app!=="appli-metre" || !R.id || suppr.has(R.id)) continue;
       const L=locaux.get(R.id), tF=new Date(f.modifiedTime).getTime();
       if(L){
         if(L.drive && L.drive.le && new Date(L.drive.le).getTime() >= tF-5000) continue;     // c'est notre propre envoi (ou plus ancien)
         const nonEnvoye = L.drive_attente || !L.drive || L.drive.sig!==empreinte(L);
-        if(nonEnvoye){ res.conflits.push(L.client?.nom||"Sans nom"); continue; }
+        // modifié des deux côtés : la modification la plus récente gagne (celle de l'autre appareil si elle est postérieure à la dernière retouche ici)
+        if(nonEnvoye && !(L.modifie && new Date(L.modifie).getTime() < tF-5000)){ res.conflits.push(L.client?.nom||"Sans nom"); continue; }
       }
       R.drive={...(R.drive||{}), le:f.modifiedTime, dossier:(f.parents||[])[0]||R.drive?.dossier, base:f.name.replace(/\.json$/i,"")};
       delete R.drive_attente; if(typeof normaliser==="function") normaliser(R);
       R.drive.sig=empreinte(R);
-      await DB.put(R); L?res.maj++:res.ajoutes++;
+      R.modifie=f.modifiedTime; await DB.put(R,true); L?res.maj++:res.ajoutes++;
+      if(S.dossier && S.dossier.id===R.id && S.view!=="home") S.dossier=R;
     }
     ecrireLS(SYNC_VUS,vus); ecrireLS(SYNC_LE,new Date().toISOString());
     return res;
@@ -4301,7 +4315,11 @@ function texteSyncLe(){ const t=lireLS(SYNC_LE,null); if(!t) return "Pas encore 
 /* ---------- Démarrage ---------- */
 $("#logo").src=LOGO;
 $("#btnBack").onclick=()=>{ if(S.view==="ouverture"){ S.tab="ouvertures"; renderDossier(); } else { const d=S.dossier; clearTimeout(S.saveT); if(d){ DB.put(d); enregistrerAuto(d).then(()=>{ if(S.view==="home") renderHome(); }); } renderHome(); } scrollTo(0,0); };
-DB.open().then(renderHome);
+DB.open().then(async()=>{ await normaliserTout(); renderHome(); });
+/* Mises à jour de l'appli : les anciens métrés sont convertis une fois sur l'appareil SANS être comptés comme « modifiés »
+   (sinon un autre appareil verrait sa version écrasée par cette conversion) */
+async function normaliserTout(){ try{ for(const d of await DB.all()){ const avant=empreinte(d), synchro=d.drive&&d.drive.sig===avant; normaliser(d); const apres=empreinte(d);
+    if(apres!==avant){ if(synchro) d.drive.sig=apres; await DB.put(d,true); } } }catch(e){} }
 /* Mise à jour automatique : un appareil resté ouvert (PC, onglet jamais fermé) prend la nouvelle version tout seul.
    Sur l'accueil : rechargement direct ; ailleurs : bandeau « Nouvelle version – toucher pour mettre à jour » (le métré est enregistré avant). */
 if("serviceWorker" in navigator && location.protocol==="https:"){

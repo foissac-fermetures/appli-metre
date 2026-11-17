@@ -302,6 +302,16 @@ input:disabled{background:#eef1f7;color:#4a5368}
   .pdc .pdessin,.p3 .pdc .pimg{max-height:52mm}
   .pdessin.pdpetit,.p3 .pimg.pcroq{max-height:58mm}
   .pprev{border:1.5px solid #1b2f5e;border-radius:6px;padding:6px 10px;margin-top:4px} .pprev .pst{margin:0 0 4px} .pprev-i{display:flex;gap:8px;align-items:flex-start;font-size:10pt;margin:3px 0} .pcase{flex:0 0 11px;height:11px;border:1.5px solid #1b2f5e;border-radius:2px;margin-top:2px}
+  .sv{font-family:Arial,Helvetica,sans-serif;color:#1d2433} .sv-h{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2.5px solid #1b3a7a;padding-bottom:6px;margin-bottom:8px} .sv-h img{height:44px}
+  .sv-t{font-size:22pt;font-weight:800;color:#1b3a7a;letter-spacing:.3px} .sv-t small{font-size:11pt;font-weight:400} .sv-s{font-size:10pt;color:#5b6478;margin-top:2px}
+  .sv-c{display:grid;grid-template-columns:38% 1fr;gap:14px} .sv-sec{background:#1b3a7a;color:#fff;font-weight:700;font-size:11pt;letter-spacing:1px;padding:3px 8px;margin:6px 0 5px}
+  .sv-cl{width:100%;border-collapse:collapse;font-size:10pt} .sv-cl th{text-align:left;font-weight:400;width:30%;padding:3px 0} .sv-cl td{border-bottom:1px solid #8a93a6;padding:3px 0}
+  .sv-txt{font-size:10pt;line-height:1.45} .sv-txt p{margin:0 0 6px} .sv-cons{background:#eef0f4;border-radius:5px;padding:6px 8px;font-size:10pt;margin:4px 0}
+  .sv-fo{display:flex;gap:7px;align-items:flex-start;font-size:10pt;margin:3px 0} .sv-int{border:1.5px solid #1b3a7a;border-radius:7px;padding:8px 10px;margin-top:10px}
+  .sv-il{font-size:10pt;display:flex;gap:10px} .sv-il span{flex:1;border-bottom:1px solid #8a93a6} .sv-sig{display:grid;grid-template-columns:1.8fr 1fr;gap:10px;margin-top:8px} .sv-sig>div{border:1px dashed #8a93a6;border-radius:5px;padding:5px 8px;height:24mm;font-size:9.5pt} .sv-sig i{display:block;font-size:8.5pt;color:#5b6478}
+  .sv-tab{width:100%;border-collapse:collapse;font-size:9.5pt} .sv-tab th{text-align:left;color:#5b6478;font-weight:700;padding:5px;border-bottom:1.5px solid #1d2433} .sv-tab td{padding:5px;border-bottom:1px solid #d3d8e2;vertical-align:middle} .sv-tab tr:nth-child(odd) td{background:#f6f7fa} .sv-f{text-align:center} .sv-f .pcase{display:inline-block;width:12px;height:12px;flex:none}
+  .sv-ph{border:1px solid #c9ced8;border-radius:7px;padding:6px 8px;margin-top:10px} .sv-pht{font-size:9.5pt;font-weight:700;color:#5b6478;letter-spacing:1px;margin-bottom:5px} .sv-phg{display:grid;grid-template-columns:repeat(4,1fr);gap:7px} .sv-ph8 .sv-phg{grid-template-columns:repeat(4,1fr)}
+  .sv-phg figure{margin:0} .sv-phg img{width:100%;height:36mm;object-fit:cover;border-radius:4px;display:block} .sv-ph8 .sv-phg img{height:70mm} .sv-phg figcaption{font-size:8pt;color:#5b6478;margin-top:2px}
   .vbbloc{display:grid;grid-template-columns:33% 1fr 25%;gap:8px;align-items:start;border-top:1.5px solid #1b2f5e;padding:6px 0 4px;margin-top:4px;break-inside:avoid}
   .vbbloc .pdim{grid-row:auto} .vbdes svg{display:block;margin:0 auto;max-width:100%;max-height:50mm;width:auto;height:auto}
   .vbsous{font-size:9pt;color:#5b6478;margin:-2px 0 2px}
@@ -947,7 +957,7 @@ function controleDossier(d){
   if(!d.client.date_rdv) W.push("Date du RDV manquante");
   if(!d.adresse_chantier) W.push("Adresse du chantier manquante");
   if(d.equipe_pose!=="Sans pose" && (d.ouvertures.length||(d.vr&&d.vr.lignes.length)||aVB(d)||aPT(d)||aPP(d))){ if(!d.equipe_pose) W.push("Pose : nombre de personnes non choisi (onglet Client & chantier)"); if(!d.jours_pose) W.push("Pose : durée non choisie (onglet Client & chantier)"); }
-  if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aClim(d) && !aVB(d) && !aPT(d) && !aPP(d)) E.push("Aucune ouverture, volet, portail ni climatisation saisi");
+  if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aClim(d) && !aVB(d) && !aPT(d) && !aPP(d) && !aSAV(d)) E.push("Aucune ouverture, volet, portail ni climatisation saisi");
   if(aClim(d) && aAutreQueClim(d)) E.push("Clim et menuiseries / volets / portail dans le même devis : la clim doit être un devis à part (onglet Climatisation › « Sortir la clim »)");
   comparerDevisDossier(d, E, W);
   return {E,W};
@@ -994,11 +1004,11 @@ function listeErreurs(d){ normaliser(d); const L=[], add=(ou,E,go)=>E.forEach(e=
   add("Client",controleDossier(d).E,{tab:"client"});
   d.ouvertures.forEach((o,i)=>add(`${o.num_poseur?"N°"+o.num_poseur+" ":""}${o.repere||"Ouverture "+(i+1)}`,controleOuverture(o,d).E,{ouv:o.id}));
   add("Volets roulants",controleVREntete(d.vr).E,{tab:"vr"}); d.vr.lignes.forEach((l,i)=>add(`Volet ${l.repere||i+1}`,controleLigneVR(l,d.vr).E,{tab:"vr"}));
-  if(aClim(d)) add("Clim",controleClim(d).E,{tab:"clim"}); if(aVB(d)) add("Volets battants",controleVB(d).E,{tab:"vb"}); if(aPT(d)) add("Portail",controlePT(d).E,{tab:"pt"}); if(aPP(d)) add("Portes palières",controlePP(d).E,{tab:"pp"});
+  if(aClim(d)) add("Clim",controleClim(d).E,{tab:"clim"}); if(aVB(d)) add("Volets battants",controleVB(d).E,{tab:"vb"}); if(aPT(d)) add("Portail",controlePT(d).E,{tab:"pt"}); if(aPP(d)) add("Portes palières",controlePP(d).E,{tab:"pp"}); if(aSAV(d)) add("Fiche SAV",controleSAV(d).E,{tab:"sav"});
   return L; }
 function allerErreur(go){ if(!go) return; if(go.ouv){ const o=S.dossier.ouvertures.find(x=>x.id===go.ouv); if(o){ S.ouv=o; renderOuverture(); scrollTo(0,0); return; } } S.tab=go.tab||"client"; renderDossier(); scrollTo(0,0); }
 function nbErreurs(d){ normaliser(d); return controleDossier(d).E.length + d.ouvertures.reduce((a,o)=>a+controleOuverture(o,d).E.length,0)
-  + controleVREntete(d.vr).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0) + (aClim(d)?controleClim(d).E.length:0) + (aVB(d)?controleVB(d).E.length:0) + (aPT(d)?controlePT(d).E.length:0) + (aPP(d)?controlePP(d).E.length:0); }
+  + controleVREntete(d.vr).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0) + (aClim(d)?controleClim(d).E.length:0) + (aVB(d)?controleVB(d).E.length:0) + (aPT(d)?controlePT(d).E.length:0) + (aPP(d)?controlePP(d).E.length:0) + (aSAV(d)?controleSAV(d).E.length:0); }
 
 /* ---------- Catalogue : aides ---------- */
 const GAMME_COULEUR = { "PVC - REHAU PORTEO":"REHAU", "PVC - FENSTAR FLAT (droit)":"FENSTAR", "PVC - FENSTAR NEW (arrondie)":"FENSTAR",
@@ -1143,7 +1153,7 @@ function majTitre(){ if(S.dossier) setBar(`${S.dossier.client.nom||"Nouveau clie
 const cleClient = d => (d.client.nom||"").trim().toUpperCase().replace(/\s+/g," ") || ("#"+d.id);
 function groupesClients(ds){ const M=new Map(); ds.forEach(d=>{ const k=cleClient(d); if(!M.has(k)) M.set(k,{cle:k, nom:d.client.nom||"Sans nom", L:[]}); M.get(k).L.push(d); });
   return [...M.values()].map(G=>{ G.L.sort((x,y)=>String(x.devis_nom||x.variante).localeCompare(String(y.devis_nom||y.variante),"fr",{numeric:true})); return G; }); }
-const contenuDevis = d => [d.ouvertures.length&&"Menuiseries", d.vr&&d.vr.lignes.length&&"Volets roulants", aPT(d)&&"Portail", aVB(d)&&"Volets battants", aPP(d)&&"Portes palières", aClim(d)&&"Clim"].filter(Boolean).join(" + ")||"Devis vide";
+const contenuDevis = d => [d.ouvertures.length&&"Menuiseries", d.vr&&d.vr.lignes.length&&"Volets roulants", aPT(d)&&"Portail", aVB(d)&&"Volets battants", aPP(d)&&"Portes palières", aClim(d)&&"Clim", aSAV(d)&&"🔧 SAV"].filter(Boolean).join(" + ")||"Devis vide";
 function carteMetre(d, sous=false){ normaliser(d); const n=nbErreurs(d);
   return `<div class="item${S.selMode&&S.sel.has(d.id)?" sel":""}" data-id="${d.id}">
       <div class="row">${S.selMode?`<input type="checkbox" class="hchk" ${S.sel.has(d.id)?"checked":""} aria-label="Sélectionner">`:""}${sous?`<span class="t">${d.devis_nom?esc(d.devis_nom):`<i style="font-weight:600;color:#6b7385">${esc(contenuDevis(d))}</i>`}</span><button class="btn small" data-hren="${d.id}" title="Renommer ce devis" aria-label="Renommer ce devis" style="margin-left:6px">✏️</button>`:`<span class="t">${esc(d.client.nom||"Sans nom")}</span>${d.devis_nom?`<span class="badge b-warn" style="margin-left:6px">${esc(d.devis_nom)}</span>`:""}`}<span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span>${S.selMode?"":`<button class="btn small danger" data-hdel="${d.id}" title="Supprimer ce métré" aria-label="Supprimer ce métré">🗑</button>`}</div>
@@ -1222,21 +1232,21 @@ async function supprimerMetres(L){
 function renderDossier(){
   S.view="dossier"; S.ouv=null; const d=normaliser(S.dossier); syncVR(d); majTitre();
   if(S.tab==="chantier") S.tab="client";
-  if(!ongletsVisibles(d).includes(S.tab)) S.tab="client";
-  const T=[["client","Client & chantier"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["pt",`Portail${d.pt&&d.pt.elements.length?` (${d.pt.elements.length})`:""}`],["vb",`Volets battants${d.vb&&d.vb.lignes.length?` (${d.vb.lignes.length})`:""}`],["pp",`Portes palières${d.pp&&d.pp.lignes.length?` (${d.pp.lignes.length})`:""}`],["clim",`Climatisation${d.clim&&d.clim.lignes.length?` (${d.clim.lignes.length})`:""}`],["controle","Contrôle"]];
+  if(!ongletsVisibles(d).includes(S.tab)) S.tab=ongletsVisibles(d)[0];
+  const T=[["client","Client & chantier"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["pt",`Portail${d.pt&&d.pt.elements.length?` (${d.pt.elements.length})`:""}`],["vb",`Volets battants${d.vb&&d.vb.lignes.length?` (${d.vb.lignes.length})`:""}`],["pp",`Portes palières${d.pp&&d.pp.lignes.length?` (${d.pp.lignes.length})`:""}`],["clim",`Climatisation${d.clim&&d.clim.lignes.length?` (${d.clim.lignes.length})`:""}`],["sav","🔧 Fiche SAV"],["controle","Contrôle"]];
   const def=estDefinitif(d);
   $("#app").innerHTML=`
   <div class="circuit" role="group" aria-label="Type de métré">
-    <span class="circuit-lbl">Ce métré est un :</span>
+    ${aSAV(d)?`<span class="circuit-lbl">🔧 Fiche SAV</span><span class="hint">Clémence : dossier SAV</span>`:`<span class="circuit-lbl">Ce métré est un :</span>
     <button class="${def?"":"on"}" data-circuit="devis" aria-pressed="${!def}">Devis<small>Clémence : DEVIS A FAIRE</small></button>
-    <button class="${def?"on":""}" data-circuit="definitif" aria-pressed="${def}">Métré définitif<small>Clémence : METRES DEFINITIF</small></button>
+    <button class="${def?"on":""}" data-circuit="definitif" aria-pressed="${def}">Métré définitif<small>Clémence : METRES DEFINITIF</small></button>`}
     <div class="clem-bloc">${(()=>{ const E=envoisClemence(d), der=E[E.length-1]; return `<button class="btn ${E.length?"":"primary"} clem-btn" id="dClem">📨 ${E.length?"Renvoyer à Clémence (modif)":"Envoyer à Clémence"}</button>
       <small class="clem-etat">${der?`✓ Envoyé le ${new Date(der.le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} → ${esc(der.dossier)}${E.length>1?` (${E.length} envois)`:""}`:`→ ECHANGES › ${esc(cibleClemence(d).nom)}`}</small>`; })()}</div>
   </div>
   <div class="row" style="margin-bottom:12px">
     <div class="tabs" style="margin:0">${T.filter(([k])=>ongletsVisibles(d).includes(k)).map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?"on":""}">${l}</button>`).join("")}<button id="tabAdd" class="tab-add" title="Ajouter un portail, des volets, une clim…">+ Ajouter…</button></div>
     <span class="spacer"></span>
-    <button class="btn small" id="dVar">Variante PVC / Alu / Bois</button>
+    ${aSAV(d)?"":`<button class="btn small" id="dVar">Variante PVC / Alu / Bois</button>`}
     <button class="btn small" id="dPrint">Imprimer / PDF</button>
     <button class="btn small" id="dSave" title="Enregistrement automatique au retour à la liste. Toucher pour forcer un envoi.${d.drive?" Dernier envoi : "+new Date(d.drive.le).toLocaleString("fr-FR"):""}" aria-label="Forcer l'enregistrement dans le Drive">☁ Drive${d.drive_attente?" (en attente)":d.drive?" ✓":""}</button>
   </div>
@@ -1244,7 +1254,7 @@ function renderDossier(){
   $$("[data-tab]").forEach(b=>b.onclick=()=>{ S.tab=b.dataset.tab; renderDossier(); });
   $("#tabAdd").onclick=()=>ajouterAuMetre(d);
   $$("[data-circuit]").forEach(b=>b.onclick=()=>choisirCircuit(b.dataset.circuit));
-  $("#dClem").onclick=envoyerClemence; $("#dPrint").onclick=imprimer; $("#dSave").onclick=enregistrerDrive; $("#dVar").onclick=ouvrirVariante;
+  $("#dClem").onclick=envoyerClemence; $("#dPrint").onclick=imprimer; $("#dSave").onclick=enregistrerDrive; if($("#dVar")) $("#dVar").onclick=ouvrirVariante;
   const t=$("#tab"), FIC=CAT.fic;
   if(S.tab==="client"){
     const nbCom=[d.client.origine,d.client.situation,d.client.travail,d.logement.maison,d.logement.motivation1,d.logement.motivation2,d.logement.precisions,
@@ -1365,6 +1375,7 @@ function renderDossier(){
   if(S.tab==="clim") renderClim(t);
   if(S.tab==="vb") renderVB(t);
   if(S.tab==="pp") renderPP(t);
+  if(S.tab==="sav") renderSAV(t);
   if(S.tab==="pt") renderPT(t);
   }
   if(S.tab==="controle"){
@@ -1375,6 +1386,7 @@ function renderDossier(){
       +(aPT(d)?bloc("Portail",controlePT(d)):"")
       +(aVB(d)?bloc("Volets battants",controleVB(d)):"")
       +(aPP(d)?bloc("Portes palières HUET",controlePP(d)):"")
+      +(aSAV(d)?bloc("Fiche SAV",controleSAV(d)):"")
       +(aClim(d)?bloc("Climatisation",controleClim(d)):"")
       +(d.vr.lignes.length?bloc("Volets roulants – en-tête",controleVREntete(d.vr))+d.vr.lignes.map((l,i)=>bloc(`VR ${i+1}. ${l.repere||"Sans repère"}`,controleLigneVR(l,d.vr))).join(""):"");
   }
@@ -2072,15 +2084,15 @@ const climSchemas = c => ["schema_etage","schema_bas",...(c.sch_extra||[])].filt
 const nomSchema = (c,k) => (c.sch_noms&&c.sch_noms[k]) || CLIM_SCH_DEF[k] || `Schéma ${climSchemas(c).indexOf(k)+1}`;
 /* ---------- Nouveau rendez-vous : un seul bouton, « Qu'est-ce qu'on mesure ? » (17/11/2026) ----------
    Crée le bon dossier client avec les bons devis : menuiseries / VR / portail / VB / portes palières ensemble, la clim TOUJOURS à part. */
-const TYPES_RDV = [["menuiseries","🪟 Menuiseries"],["vr","Volets roulants"],["pt","Portail / portillon"],["vb","Volets battants"],["pp","Portes palières (HUET)"],["clim","❄️ Climatisation (devis à part)"]];
+const TYPES_RDV = [["menuiseries","🪟 Menuiseries"],["vr","Volets roulants"],["pt","Portail / portillon"],["vb","Volets battants"],["pp","Portes palières (HUET)"],["clim","❄️ Climatisation (devis à part)"],["sav","🔧 SAV (fiche à part)"]];
 function initTypes(d, types){
-  d.types=[...new Set([...(d.types||[]), ...types.filter(t=>t!=="clim")])];
+  d.types=[...new Set([...(d.types||[]), ...types.filter(t=>t!=="clim"&&t!=="sav")])];
   if(types.includes("pt") && !aPT(d)){ d.pt=d.pt||nouveauPT(); if(!d.pt.elements.length) d.pt.elements.push(nouvelElementPT("BATTANT")); }
   if(types.includes("vb") && !aVB(d)){ d.vb=d.vb||nouveauVB(); if(!d.vb.lignes.length) d.vb.lignes.push(nouvelleLigneVB()); }
   if(types.includes("pp") && !aPP(d)){ d.pp=d.pp||nouveauPP(); if(!d.pp.lignes.length) d.pp.lignes.push(nouvelleLignePP()); }
   return d;
 }
-function premierOnglet(d){ return (d.types||[]).find(t=>["menuiseries","vr","pt","vb","pp"].includes(t))?.replace("menuiseries","ouvertures") || (aClim(d)?"clim":"ouvertures"); }
+function premierOnglet(d){ if(aSAV(d)) return "sav"; return (d.types||[]).find(t=>["menuiseries","vr","pt","vb","pp"].includes(t))?.replace("menuiseries","ouvertures") || (aClim(d)?"clim":"ouvertures"); }
 async function nouveauRendezVous(pre={}){
   const clients=[...new Set((await DB.all()).map(x=>x.client.nom).filter(Boolean))].sort();
   return new Promise(ok=>{
@@ -2111,12 +2123,13 @@ async function nouveauRendezVous(pre={}){
 async function creerRendezVous(nom, types, base, definitif){
   const tous=await DB.all(), existant=nom?tous.filter(x=>cleClient(x)===nom.trim().toUpperCase().replace(/\s+/g," ")).sort((a,b)=>String(b.modifie||"").localeCompare(String(a.modifie||"")))[0]:null;
   const src=base||existant, neuf=()=>{ const d=src?copierClient(src,nouveauDossier()):nouveauDossier(); if(nom) d.client.nom=src&&src.client.nom?src.client.nom:nom; if(src&&src.drive&&src.drive.dossier) d.drive={dossier:src.drive.dossier}; return d; };
-  const autres=types.filter(t=>t!=="clim"), crees=[];
+  const autres=types.filter(t=>t!=="clim"&&t!=="sav"), crees=[];
   if(autres.length){ const d=base&&!existant?base:neuf(); initTypes(d, autres); await DB.put(d); crees.push(d); }
   if(types.includes("clim")){ const c=(base&&!existant&&!autres.length)?base:neuf(); c.clim=c.clim||nouvelleClim(); if(!c.clim.lignes.length) c.clim.lignes.push(nouvelleLigneClim());
     if(autres.length && !c.devis_nom) c.devis_nom="Clim"; await DB.put(c); crees.push(c); }
-  if(definitif) for(const x of crees){ if(!aClim(x)||aAutreQueClim(x)){ x.type_document="DEVIS DÉFINITIF"; await DB.put(x); } }
-  const d=crees[0]; S.dossier=d; S.tab=d.client.nom&&(existant||definitif)?premierOnglet(d):"client"; renderDossier();
+  if(types.includes("sav")){ const v=(base&&!existant&&!autres.length&&!types.includes("clim"))?base:neuf(); v.sav=v.sav||nouveauSAV(); v.devis_nom=v.devis_nom||"SAV"; v.type_document="SAV"; await DB.put(v); crees.push(v); }
+  if(definitif) for(const x of crees){ if(!aSAV(x) && (!aClim(x)||aAutreQueClim(x))){ x.type_document="DEVIS DÉFINITIF"; await DB.put(x); } }
+  const d=crees[0]; S.dossier=d; S.tab=(d.client.nom&&(existant||definitif))||aSAV(d)?premierOnglet(d):"client"; renderDossier();
   toast(crees.length>1?`${crees.length} devis créés pour ${d.client.nom||"ce client"} (la clim à part)`:`Métré créé${existant?" pour "+d.client.nom:""}`);
   return d;
 }
@@ -2131,6 +2144,8 @@ async function ajouterAuMetre(d){
     document.body.appendChild(m); const fin=()=>{ m.remove(); ok(); };
     m.querySelector("#addNon").onclick=fin;
     m.querySelectorAll("[data-add]").forEach(b=>b.onclick=async()=>{ const k=b.dataset.add; fin();
+      if(k==="sav"){ if(aSAV(d)){ S.tab="sav"; renderDossier(); return; } const v=copierClient(d, nouveauDossier()); v.sav=nouveauSAV(); v.devis_nom="SAV"; v.type_document="SAV"; if(d.drive&&d.drive.dossier) v.drive={dossier:d.drive.dossier}; await DB.put(v); S.dossier=v; S.tab="sav"; renderDossier(); toast("Fiche SAV créée pour "+(d.client.nom||"ce client")); return; }
+      if(aSAV(d)){ const c=copierClient(d, nouveauDossier()); c.type_document="DEVIS"; if(k==="clim"){ c.clim=nouvelleClim(); c.clim.lignes.push(nouvelleLigneClim()); c.devis_nom="Clim"; } else initTypes(c,[k]); await DB.put(c); S.dossier=c; S.tab=k==="menuiseries"?"ouvertures":k; renderDossier(); toast("Nouveau devis créé à côté de la fiche SAV"); return; }   // la fiche SAV reste seule
       if(k==="clim"){ if(aClim(d)){ S.tab="clim"; renderDossier(); } else if(aAutreQueClim(d)) devisAPart(d,"clim"); else { d.clim=nouvelleClim(); d.clim.lignes.push(nouvelleLigneClim()); save(); S.tab="clim"; renderDossier(); } return; }
       if(aClim(d) && !aAutreQueClim(d)){ devisAPart(d,"autre"); return; }
       initTypes(d,[k]); save(); S.tab=k==="menuiseries"?"ouvertures":k; renderDossier(); });
@@ -2138,6 +2153,7 @@ async function ajouterAuMetre(d){
 }
 /* Onglets affichés : seulement ce qui sert dans ce métré (+ ce qui a été coché au départ) */
 function ongletsVisibles(d){
+  if(aSAV(d)) return ["sav","controle"];   // fiche SAV : document à part
   const t=new Set(d.types||[]), v=["client"];
   const rien=!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aPT(d) && !aVB(d) && !aPP(d) && !aClim(d) && !t.size;
   if(rien || t.has("menuiseries") || d.ouvertures.length) v.push("ouvertures");
@@ -2783,6 +2799,84 @@ const PT_DEDUCTION = 100;   // feuille de Nicolas : « Si portail battant −100
 const nouveauPT = () => ({ ref:"", jours:"", elements:[], photos:[] });
 const nouvelElementPT = (type="BATTANT") => ({ id:uid(), type, modele:"", couleur:"", finition:"", lames:"", poignee:"", moto:"", sens:"", dim:"ENTRE PILE", inegaux:false, vantail_p:"",
   moto_type:"", moto_marque:"", moto_modele:"", L:"", H:"", h_pilier:"", l_pilier:"", options:[], gond_pente:false, pente_l:"", pente_h:"", traverse:"", plan_resa:false, refoulement:"", obs:"" });
+/* ---------- Fiche SAV (18/11/2026) : même fiche que celle de M. Souladier (05/11/2026), à remplir chez le client ----------
+   Toujours un document à part (comme la clim). PDF : une page A4 « FICHE SAV · … » (client, résumé, fournitures, intervention / désordres, photos). */
+const SAV_TITRES = ["Révision des menuiseries","Réglage menuiserie","Volet roulant en panne","Volet battant à reprendre","Porte d'entrée à régler","Vitrage cassé / fêlé","Infiltration d'eau / d'air","Portail / motorisation","Porte de garage"];
+const SAV_MENUISERIES = ["Fenêtre 1 vantail","Fenêtre 2 vantaux","Porte-fenêtre","Baie vitrée","Coulissant 2 vantaux","Fixe","Soufflet","Porte d'entrée","Porte de service","Porte de garage","Volet roulant","Volet battant","Portail","Portillon","Moustiquaire"];
+const SAV_COTES = ["–","Gauche (int.)","Droit (int.)","Gauche (ext.)","Droit (ext.)","Haut","Bas","Les deux"];
+const aujourdhuiISO = () => { const t=new Date(); return new Date(t.getTime()-t.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+const nouveauSAV = () => ({ titre:"Révision des menuiseries", demande_le:"", constat_le:aujourdhuiISO(), suivi:"N. Brouqui", resume:"", constat:"", desordres:[nouveauDesordre()], fournitures:[], photos:[], intervention_le:"" });
+const nouveauDesordre = () => ({ id:uid(), piece:"", menuiserie:"", cote:"", defaut:"" });
+const aSAV = d => !!d.sav;
+const dateLongue = s => { if(!s) return ""; const x=new Date(s+"T12:00:00"); return isNaN(x)?s:x.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}); };
+function controleSAV(d){ const s=d.sav, E=[], W=[]; if(!s) return {E,W};
+  if(!d.client.nom) E.push("Nom du client manquant"); if(!d.client.telephone) W.push("Téléphone du client manquant"); if(!d.adresse_chantier) W.push("Adresse du chantier manquante");
+  if(!s.titre) W.push("Titre de la fiche SAV manquant"); if(!String(s.resume||"").trim()) W.push("Résumé de la demande vide");
+  const L=s.desordres.filter(x=>x.defaut||x.piece||x.menuiserie); if(!L.length) E.push("Aucun désordre relevé");
+  s.desordres.forEach((x,i)=>{ if((x.piece||x.menuiserie)&&!String(x.defaut||"").trim()) E.push(`Désordre ${i+1} (${x.piece||x.menuiserie}) : défaut à reprendre non décrit`); if(x.defaut&&!x.piece&&!x.menuiserie) W.push(`Désordre ${i+1} : pièce ou menuiserie à préciser`); });
+  if(!s.photos.length) W.push("Pas de photo : en prendre au moins une par défaut si possible");
+  return {E,W}; }
+function renderSAV(t){
+  const d=S.dossier; if(!d.sav) d.sav=nouveauSAV(); const s=d.sav;
+  const ligne=(x,i)=>{ const k=`sav.desordres.${i}.`;
+    return `<div class="card clim-l"><div class="row" style="margin-bottom:8px"><b>Désordre ${i+1}${x.piece?" – "+esc(x.piece):""}</b><span class="spacer"></span>
+      <button class="btn small" data-savdup="${i}">⧉ Même menuiserie, autre côté</button><button class="btn small danger" data-savdel="${i}" aria-label="Supprimer le désordre">✕</button></div>
+      <div class="grid g4"><label class="f">Pièce<div class="rep-in"><input data-k="${k}piece" value="${esc(x.piece)}" list="dlPiecesSAV"></div></label>
+        <label class="f">Menuiserie<input data-k="${k}menuiserie" value="${esc(x.menuiserie)}" list="dlMenSAV" placeholder="Baie vitrée, coulissant…"></label>
+        ${F.sel(k+"cote","Côté",SAV_COTES,x.cote)}</div>
+      <div style="margin-top:8px">${F.area(k+"defaut","Défaut à reprendre",x.defaut)}</div></div>`; };
+  t.innerHTML=`<datalist id="dlPiecesSAV">${listePiecesDL()}</datalist><datalist id="dlMenSAV">${SAV_MENUISERIES.map(x=>`<option value="${esc(x)}">`).join("")}</datalist><datalist id="dlTitreSAV">${SAV_TITRES.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
+  <div class="card"><h2><span class="num">1</span>Client et chantier</h2><div class="grid g4">
+    ${F.text("client.nom","Nom (ex. M. Souladier Alain)",d.client.nom)}${F.text("client.telephone","Téléphone",d.client.telephone)}${F.text("client.email","E-mail",d.client.email)}${F.text("sav.suivi","Suivi par",s.suivi)}</div>
+    <div style="margin-top:8px">${F.area("adresse_chantier","Adresse du chantier",d.adresse_chantier)}</div></div>
+  <div class="card"><h2><span class="num">2</span>La demande</h2><div class="grid g4">
+    <label class="f" style="grid-column:span 2">Titre de la fiche (après « FICHE SAV · »)<input data-k="sav.titre" value="${esc(s.titre)}" list="dlTitreSAV"></label>
+    <label class="f">Demande reçue le<input type="date" data-k="sav.demande_le" value="${esc(s.demande_le)}"></label><label class="f">Constat sur place le<input type="date" data-k="sav.constat_le" value="${esc(s.constat_le)}"></label></div>
+    <div style="margin-top:8px">${F.area("sav.resume","Résumé de la demande (ce que dit le client, défaut récurrent…)",s.resume)}</div>
+    <div style="margin-top:8px">${F.area("sav.constat","Constat sur place (facultatif – sinon « désordres relevés ci-contre »)",s.constat)}</div></div>
+  <div class="row" style="margin:14px 0 8px"><h2 style="margin:0"><span class="num">3</span> Désordres relevés</h2><span class="spacer"></span><button class="btn primary" id="savAdd">+ Ajouter un désordre</button></div>
+  ${s.desordres.map(ligne).join("")||`<p class="hint">Aucun désordre. Appuie sur « + Ajouter un désordre ».</p>`}
+  <div class="card"><h2><span class="num">4</span>Fournitures à prévoir</h2>
+    ${s.fournitures.map((f,i)=>`<div class="row" style="gap:8px;margin-bottom:6px"><input data-k="sav.fournitures.${i}.txt" value="${esc(f.txt)}" placeholder="Ex. Vis béton : 3 (salon haut)" style="flex:1"><button class="btn small danger" data-savfdel="${i}" aria-label="Retirer">✕</button></div>`).join("")}
+    <button class="btn" id="savFAdd">+ Ajouter une fourniture</button></div>
+  <div class="card"><h2><span class="num">5</span>Photos du client <small style="font-weight:400;text-transform:none">– les 4 premières vont sur la fiche, les autres en page suivante</small></h2>
+    <div class="photos">${s.photos.map((ph,k)=>`<figure class="photo"><img src="${ph.img}" alt="Photo ${k+1}" data-phedit="${k}">
+      <textarea data-k="sav.photos.${k}.txt" rows="2" placeholder="Pièce et défaut">${esc(ph.txt||"")}</textarea>
+      <div class="row"><button class="btn small" data-phedit="${k}">✏️ Annoter</button><span class="spacer"></span><button class="btn small danger" data-phdel="${k}" aria-label="Supprimer la photo ${k+1}">✕</button></div></figure>`).join("")}
+    <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple id="phAdd" class="hide"></label></div></div>
+  <div class="card"><h2><span class="num">6</span>Intervention</h2><div class="grid g4"><label class="f">Intervention prévue le (facultatif)<input type="date" data-k="sav.intervention_le" value="${esc(s.intervention_le)}"></label></div>
+    <p class="hint">La fiche imprimée garde les cases « Fait », la signature du client (« Bon pour accord ») et « Pour Foissac Fermetures » à remplir lors de l'intervention.</p></div>`;
+  const re=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); };
+  $("#savAdd").onclick=()=>{ s.desordres.push(nouveauDesordre()); save(); re(); };
+  $$("[data-savdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer ce désordre ?","Supprimer")) return; s.desordres.splice(+b.dataset.savdel,1); save(); re(); });
+  $$("[data-savdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.savdup, x=s.desordres[i]; s.desordres.splice(i+1,0,Object.assign(nouveauDesordre(),{piece:x.piece, menuiserie:x.menuiserie})); save(); re(); });
+  $("#savFAdd").onclick=()=>{ s.fournitures.push({id:uid(),txt:""}); save(); re(); setTimeout(()=>{ const z=$$("[data-k^='sav.fournitures.']"); if(z.length) z[z.length-1].focus(); },50); };
+  $$("[data-savfdel]").forEach(b=>b.onclick=()=>{ s.fournitures.splice(+b.dataset.savfdel,1); save(); re(); });
+  initPhotos(s, re);
+}
+/* PDF : reprise fidèle de « Fiche SAV - Souladier Alain - 2026-11-05.pdf » */
+function pagesSAV(d){
+  const s=d.sav, L=s.desordres.filter(x=>x.defaut||x.piece||x.menuiserie), ph=s.photos.filter(p=>p.img), N=10;
+  const sous=[d.client.nom, s.demande_le&&"demande reçue le "+dateLongue(s.demande_le), s.constat_le&&"constat sur place le "+dateLongue(s.constat_le)].filter(Boolean).join(" · ");
+  const head=suite=>`<div class="sv-h"><div><div class="sv-t">FICHE SAV · ${esc((s.titre||"").toUpperCase())}${suite?` <small>(suite)</small>`:""}</div><div class="sv-s">${esc(sous)}</div></div><img src="${LOGO}"></div>`;
+  const ligne=x=>`<tr><td><b>${esc(x.piece||"–")}</b></td><td>${esc(x.menuiserie||"–")}</td><td>${esc(x.cote&&x.cote!=="–"?x.cote:"–")}</td><td>${esc(x.defaut)}</td><td class="sv-f"><span class="pcase"></span></td></tr>`;
+  const table=R=>`<table class="sv-tab"><tr><th style="width:15%">Pièce</th><th style="width:16%">Menuiserie</th><th style="width:13%">Côté</th><th>Défaut à reprendre</th><th style="width:6%">Fait</th></tr>${R.map(ligne).join("")}</table>`;
+  const photos=P=>P.length?`<div class="sv-ph"><div class="sv-pht">PHOTOS DU CLIENT</div><div class="sv-phg">${P.map(p=>`<figure><img src="${p.img}">${p.txt?`<figcaption>${esc(p.txt)}</figcaption>`:""}</figure>`).join("")}</div></div>`:"";
+  const F=s.fournitures.filter(f=>String(f.txt||"").trim());
+  let h=`<div class="pg sv">${head(false)}<div class="sv-c"><div class="sv-g">
+    <div class="sv-sec">1 · CLIENT ET CHANTIER</div>
+    <table class="sv-cl">${[["Nom",d.client.nom],["Adresse chantier",String(d.adresse_chantier||"").replace(/\n/g,", ")],["Téléphone",d.client.telephone],["E-mail",d.client.email],["Suivi par",s.suivi]].map(([k,v])=>`<tr><th>${k}</th><td>${esc(v||"")}</td></tr>`).join("")}</table>
+    <div class="sv-sec">2 · RÉSUMÉ DE LA DEMANDE</div>
+    <div class="sv-txt">${String(s.resume||"").split(/\n+/).filter(Boolean).map(p=>`<p>${esc(p)}</p>`).join("")}</div>
+    <div class="sv-cons"><b>Constat sur place :</b> ${esc(s.constat||(s.constat_le?`passage chez le client le ${dateLongue(s.constat_le)}, désordres relevés ci-contre.`:"désordres relevés ci-contre."))}</div>
+    ${F.length?`<div class="sv-sec">3 · FOURNITURES À PRÉVOIR</div>${F.map(f=>`<div class="sv-fo"><span class="pcase"></span>${esc(f.txt)}</div>`).join("")}`:""}
+    <div class="sv-int"><div class="sv-il">Intervention le <span>${s.intervention_le?esc(dateLongue(s.intervention_le)):""}</span></div>
+      <div class="sv-sig"><div><b>Signature du client</b><i>Travaux réalisés, précédée de « Bon pour accord »</i></div><div><b>Pour Foissac Fermetures</b></div></div></div>
+  </div><div class="sv-d"><div class="sv-sec">${F.length?4:3} · DÉSORDRES RELEVÉS</div>${table(L.slice(0,N))}${photos(ph.slice(0,4))}</div></div></div>`;
+  for(let i=N;i<L.length;i+=14) h+=`<div class="pg sv">${head(true)}<div class="sv-sec">DÉSORDRES RELEVÉS (suite)</div>${table(L.slice(i,i+14))}</div>`;
+  for(let i=4;i<ph.length;i+=8) h+=`<div class="pg sv">${head(true)}<div class="sv-ph" style="border:0">${photos(ph.slice(i,i+8)).replace('class="sv-ph"','class="sv-ph sv-ph8"')}</div></div>`;
+  return h;
+}
 const aPT = d => !!(d.pt && d.pt.elements.length);
 function fabPT(e){ const L=num(e.L); if(L==null) return null; return e.dim==="ENTRE PILE" ? L-PT_DEDUCTION : L; }
 function controlePT(d){
@@ -2971,6 +3065,7 @@ async function imprimer(){
   }catch(e){ if(w && !w.closed) w.close(); toast("PDF impossible : "+e.message+" – impression directe"); $("#print").innerHTML=construireImpression(d); setTimeout(()=>window.print(),150); }
 }
 function construireImpression(d){
+  if(aSAV(d)) return pagesSAV(d);
   const row=(a)=>a.filter(x=>x[1]!==""&&x[1]!=null&&!(Array.isArray(x[1])&&!x[1].length)).map(([k,v])=>`<tr><th>${esc(k)}</th><td>${esc(Array.isArray(v)?v.join(", "):v)}</td></tr>`).join("");
   const head=t=>`<div class="ph"><img src="${LOGO}"><div class="tt">${esc(t)}</div><div>${esc(d.type_document)} · ${esc(d.variante)}<br>${fmtDate(d.client.date_rdv)} · Métreur : ${esc(d.metreur)}</div></div>`;
   const PV=prevoirTout(d), boitePrev=PV.length?`<div class="pprev"><div class="pst">À PRÉVOIR POUR LA POSE</div>${PV.map(x=>`<div class="pprev-i"><span class="pcase"></span>${esc(x)}</div>`).join("")}</div>`:"";
@@ -3154,6 +3249,7 @@ async function genererPDF(d){
 const estDefinitif = d => /D[ÉE]FINITIF/i.test(d.type_document||"");
 /* Nom du PDF, comme d'habitude : « NOM ME PVC », « NOM ME PVC ET ALU », + « V2 »… pour les variantes */
 function nomMetre(d){
+  if(typeof aSAV==="function" && aSAV(d)) return `Fiche SAV - ${(d.client.nom||"SANS NOM").trim().replace(/[\\/:*?"<>|]+/g," ")} - ${d.sav.constat_le||new Date().toISOString().slice(0,10)}`;
   const mat=[...new Set((d.ouvertures.length?(d.ouvertures.some(o=>o.gamme)?d.ouvertures.map(o=>o.gamme):[d.gamme_defaut]):[]).filter(Boolean).map(g=>g.split(" - ")[0].trim().toUpperCase()))];
   const n=parseInt(String(d.variante||"").replace(/^V(\d+).*/,"$1"))||1;
   const nom=(d.client.nom||"SANS NOM").trim().toUpperCase().replace(/[\\/:*?"<>|]+/g," ");
@@ -3226,10 +3322,11 @@ async function envoyerDossierDrive(d){
 const CLEMENCE = {
   devis:     {id:"1ZRUgVd713Gljsp2awjdqcNGYjV1Uz7Ax", nom:"DEVIS A FAIRE"},
   definitif: {id:"170tJN-Niqmt-f2Y_lnbtQwsg1yd7goVR", nom:"METRES DEFINITIF"},
-  clim:      {id:"1WIbVWzbxaK36L_GEyLvmMwf5T8PAjlKZ", nom:"DEVIS CLIM"}
+  clim:      {id:"1WIbVWzbxaK36L_GEyLvmMwf5T8PAjlKZ", nom:"DEVIS CLIM"},
+  sav:       {id:"1d2oPqltHreO90yeAChWczD1jsVHO-vXM", nom:"SAV"}
 };
 const climSeul = d => typeof aClim==="function" && aClim(d) && !d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !(typeof aPT==="function"&&aPT(d)) && !(typeof aVB==="function"&&aVB(d)) && !(typeof aPP==="function"&&aPP(d));
-const cibleClemence = d => climSeul(d) ? CLEMENCE.clim : estDefinitif(d) ? CLEMENCE.definitif : CLEMENCE.devis;
+const cibleClemence = d => (typeof aSAV==="function"&&aSAV(d)) ? CLEMENCE.sav : climSeul(d) ? CLEMENCE.clim : estDefinitif(d) ? CLEMENCE.definitif : CLEMENCE.devis;
 const envoisClemence = d => (d.clemence && d.clemence.envois) || [];
 function nomEnvoiClemence(d){ const n=envoisClemence(d).length, base=nomMetre(d); return n ? `${base} modif${n>1?" "+n:""}.pdf` : `${base}.pdf`; }
 async function deposerNouveau(nom, blob, parent, description){   // crée toujours un nouveau fichier (jamais de remplacement chez Clémence)

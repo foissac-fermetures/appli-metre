@@ -111,6 +111,8 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .dot{width:26px;height:26px;border-radius:50%;display:inline-block;border:2px solid #fff;box-shadow:0 0 0 1px var(--line)}
 .modal{position:fixed;inset:0;background:rgba(15,25,50,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
 .modal.open{display:flex}
+.clem-bloc{display:flex;flex-direction:column;align-items:flex-end;gap:3px;margin-left:auto}.clem-btn{white-space:nowrap}.clem-etat{color:#2d6a4f;font-size:12px}
+#confTxt{white-space:pre-line}
 .circuit{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;background:#fff;border:1px solid #d6dbe6;border-radius:14px}
 .circuit-lbl{font-weight:700;color:#1b2f5e;margin-right:4px}
 .circuit button{display:flex;flex-direction:column;align-items:flex-start;min-height:52px;min-width:190px;padding:8px 16px;border-radius:12px;border:2px solid #d6dbe6;background:#f4f6fa;color:#1b2f5e;font:inherit;font-weight:700;font-size:16px;cursor:pointer}
@@ -1053,7 +1055,7 @@ async function renderHome(){
       <div class="row">${S.selMode?`<input type="checkbox" class="hchk" ${S.sel.has(d.id)?"checked":""} aria-label="Sélectionner">`:""}<span class="t">${esc(d.client.nom||"Sans nom")}</span><span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span>${S.selMode?"":`<button class="btn small danger" data-hdel="${d.id}" title="Supprimer ce métré" aria-label="Supprimer ce métré">🗑</button>`}</div>
       <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.length} ouverture(s)${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}${aPT(d)?` · ${d.pt.elements.length} portail / portillon`:""}${aVB(d)?` · ${d.vb.lignes.length} volet(s) battant(s)`:""}${aClim(d)?` · clim ${d.clim.lignes.length} pièce(s)`:""}</div>
       <div class="s">${esc(d.gamme_defaut||"")}</div>
-      <div>${n?`<span class="badge b-err">${n} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} <span class="badge ${estDefinitif(d)?"b-err":"b-n"}">${estDefinitif(d)?"Métré définitif":"Devis"}</span> ${d.drive_attente?`<span class="badge b-n">☁ envoi en attente</span>`:d.drive?`<span class="badge b-ok">☁ dans le Drive</span>`:""}</div>
+      <div>${n?`<span class="badge b-err">${n} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} <span class="badge ${estDefinitif(d)?"b-err":"b-n"}">${estDefinitif(d)?"Métré définitif":"Devis"}</span> ${d.drive_attente?`<span class="badge b-n">☁ envoi en attente</span>`:d.drive?`<span class="badge b-ok">☁ dans le Drive</span>`:""} ${envoisClemence(d).length?`<span class="badge b-ok">📨 Clémence ${new Date(envoisClemence(d).slice(-1)[0].le).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</span>`:""}</div>
     </div>`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau métré ».</div>`}</div>`;
   $("#hNew").onclick=()=>{ S.dossier=nouveauDossier(); DB.put(S.dossier); S.tab="client"; renderDossier(); };
   $("#hOpen").onclick=()=>$("#fileOpen").click();
@@ -1109,6 +1111,8 @@ function renderDossier(){
     <button class="${def?"":"on"}" data-circuit="devis" aria-pressed="${!def}">Devis<small>dossier Devis → DEVIS A FAIRE</small></button>
     <button class="${def?"on":""}" data-circuit="definitif" aria-pressed="${def}">Métré définitif<small>dossier Métrés définitif → METRES DEFINITIF</small></button>
     <label class="f circuit-gamme">Gamme (nouvelles ouvertures)<select data-k="gamme_defaut">${opts(CAT.gammes,d.gamme_defaut)}</select></label>
+    <div class="clem-bloc">${(()=>{ const E=envoisClemence(d), der=E[E.length-1]; return `<button class="btn ${E.length?"":"primary"} clem-btn" id="dClem">📨 ${E.length?"Renvoyer à Clémence (modif)":"Envoyer à Clémence"}</button>
+      <small class="clem-etat">${der?`✓ Envoyé le ${new Date(der.le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} → ${esc(der.dossier)}${E.length>1?` (${E.length} envois)`:""}`:`→ ECHANGES › ${esc(cibleClemence(d).nom)}`}</small>`; })()}</div>
   </div>
   <div class="row" style="margin-bottom:12px">
     <div class="tabs" style="margin:0">${T.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?"on":""}">${l}</button>`).join("")}</div>
@@ -1120,7 +1124,7 @@ function renderDossier(){
   <div id="tab"></div>`;
   $$("[data-tab]").forEach(b=>b.onclick=()=>{ S.tab=b.dataset.tab; renderDossier(); });
   $$("[data-circuit]").forEach(b=>b.onclick=()=>choisirCircuit(b.dataset.circuit));
-  $("#dPrint").onclick=imprimer; $("#dSave").onclick=enregistrerDrive; $("#dVar").onclick=ouvrirVariante;
+  $("#dClem").onclick=envoyerClemence; $("#dPrint").onclick=imprimer; $("#dSave").onclick=enregistrerDrive; $("#dVar").onclick=ouvrirVariante;
   const t=$("#tab"), FIC=CAT.fic;
   if(S.tab==="client"){
     const nbCom=[d.client.origine,d.client.situation,d.client.travail,d.logement.maison,d.logement.motivation1,d.logement.motivation2,d.logement.precisions,
@@ -2604,7 +2608,7 @@ async function genererPDF(d){
 const estDefinitif = d => /D[ÉE]FINITIF/i.test(d.type_document||"");
 /* Nom du PDF, comme d'habitude : « NOM ME PVC », « NOM ME PVC ET ALU », + « V2 »… pour les variantes */
 function nomMetre(d){
-  const mat=[...new Set([d.gamme_defaut,...d.ouvertures.map(o=>o.gamme)].filter(Boolean).map(g=>g.split(" - ")[0].trim().toUpperCase()))];
+  const mat=[...new Set((d.ouvertures.length?[d.gamme_defaut,...d.ouvertures.map(o=>o.gamme)]:[]).filter(Boolean).map(g=>g.split(" - ")[0].trim().toUpperCase()))];
   const n=parseInt(String(d.variante||"").replace(/^V(\d+).*/,"$1"))||1;
   const nom=(d.client.nom||"SANS NOM").trim().toUpperCase().replace(/[\\/:*?"<>|]+/g," ");
   if(typeof aPT==="function" && aPT(d)) mat.push("PORTAIL");
@@ -2640,8 +2644,9 @@ async function envoyerDossierDrive(d){
     }catch(e){} }
   }
   await deposerDrive(base+".json", new Blob([JSON.stringify(d,null,1)],{type:"application/json"}), sous);
-  const pdf=await genererPDF(d);
-  const f=await deposerDrive(base+".pdf", pdf, sous, `Métré Foissac – circuit:${circuit} – ${d.type_document||""}`);
+  const pdf=await genererPDF(d); envoyerDossierDrive.dernierPDF=pdf;
+  // « clemence:envoye » : déjà envoyé à Clémence par le bouton de l'appli → le programme Google ne le recopie pas
+  const f=await deposerDrive(base+".pdf", pdf, sous, `Métré Foissac – circuit:${circuit} – ${d.type_document||""}${d.clemence&&d.clemence.envoye?" – clemence:envoye":""}`);
   // photos pour les poseurs : chaque nouvelle photo (ou photo annotée) est aussi rangée en JPG dans le dossier du client
   for(const o of d.ouvertures) for(const [k,p] of (o.photos||[]).entries()){ if(p.drive || !p.img) continue;
     try{ const blob=await (await fetch(p.img)).blob();
@@ -2657,6 +2662,47 @@ async function envoyerDossierDrive(d){
   await DB.put(d);
   return f;
 }
+/* ---------- Envoyer à Clémence : PDF déposé directement dans le Drive partagé « ECHANGES NICOLAS / ORIANE / CLEMENCE » ----------
+   Devis → DEVIS A FAIRE · Métré définitif → METRES DEFINITIF · métré clim seul → DEVIS CLIM.
+   Premier envoi : « NOM ME PVC.pdf » ; renvoi après modification : un NOUVEAU fichier « NOM ME PVC modif.pdf » (modif 2, modif 3…). */
+const CLEMENCE = {
+  devis:     {id:"1ZRUgVd713Gljsp2awjdqcNGYjV1Uz7Ax", nom:"DEVIS A FAIRE"},
+  definitif: {id:"170tJN-Niqmt-f2Y_lnbtQwsg1yd7goVR", nom:"METRES DEFINITIF"},
+  clim:      {id:"1WIbVWzbxaK36L_GEyLvmMwf5T8PAjlKZ", nom:"DEVIS CLIM"}
+};
+const climSeul = d => typeof aClim==="function" && aClim(d) && !d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !(typeof aPT==="function"&&aPT(d)) && !(typeof aVB==="function"&&aVB(d));
+const cibleClemence = d => climSeul(d) ? CLEMENCE.clim : estDefinitif(d) ? CLEMENCE.definitif : CLEMENCE.devis;
+const envoisClemence = d => (d.clemence && d.clemence.envois) || [];
+function nomEnvoiClemence(d){ const n=envoisClemence(d).length, base=nomMetre(d); return n ? `${base} modif${n>1?" "+n:""}.pdf` : `${base}.pdf`; }
+async function deposerNouveau(nom, blob, parent, description){   // crée toujours un nouveau fichier (jamais de remplacement chez Clémence)
+  let n=nom, k=2; const existe=async x=>(await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id)&q="+encodeURIComponent(`name='${q_(x)}' and trashed=false and '${parent}' in parents`))).files.length>0;
+  while(await existe(n)){ n=nom.replace(/\.pdf$/i,` (${k++}).pdf`); if(k>20) break; }
+  const meta={name:n, parents:[parent]}; if(description) meta.description=description; const b="clem"+Date.now();
+  const corps=new Blob([`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${b}\r\nContent-Type: ${blob.type||"application/pdf"}\r\n\r\n`, blob, `\r\n--${b}--`]);
+  return gdrive("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink",{method:"POST", headers:{"Content-Type":"multipart/related; boundary="+b}, body:corps});
+}
+async function envoyerClemence(){
+  const d=S.dossier; if(!d) return;
+  if(!driveDispo()){ toast("Envoi impossible ici : ouvre l'appli en ligne (foissac-fermetures.github.io)"); return; }
+  if(!navigator.onLine){ toast("Pas de réseau : l'envoi à Clémence se fera quand tu seras connecté"); return; }
+  const cible=cibleClemence(d), nom=nomEnvoiClemence(d), deja=envoisClemence(d);
+  const rouges=d.ouvertures.reduce((s,o)=>s+controleOuverture(o,d).E.length,0);
+  const msg=`Envoyer « ${nom} » à Clémence, dans ECHANGES › ${cible.nom} ?`
+    +(deja.length?`\n\nDéjà envoyé le ${new Date(deja[deja.length-1].le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} : un nouveau PDF « modif » sera ajouté à côté.`:"")
+    +(rouges?`\n\n⚠ Il reste ${rouges} point(s) à corriger (en rouge).`:"");
+  if(!await demander(msg, deja.length?"Envoyer la modif":"Envoyer")) return;
+  const b=$("#dClem"); if(b){ b.disabled=true; b.textContent="Envoi en cours…"; }
+  try{
+    await demanderJeton();
+    d.clemence=d.clemence||{envois:[]}; d.clemence.envoye=true;
+    await envoyerDossierDrive(d);                       // ta copie dans « Appli métré – Dossiers » (PDF à jour)
+    const pdf=envoyerDossierDrive.dernierPDF||await genererPDF(d);
+    const f=await deposerNouveau(nom, pdf, cible.id, `Métré Foissac – envoyé depuis l'appli – ${d.type_document||""}`);
+    d.clemence.envois.push({le:new Date().toISOString(), nom:f.name||nom, dossier:cible.nom, id:f.id, lien:f.webViewLink||""});
+    await DB.put(d); renderDossier(); toast(`✓ Envoyé à Clémence : ${f.name||nom} → ${cible.nom}`);
+  }catch(e){ toast(/Failed to fetch/i.test(e.message)?"Réseau coupé : rien n'a été envoyé, réessaie":"Envoi à Clémence impossible : "+e.message); renderDossier(); }
+}
+
 /* Choix bien visible Devis / Métré définitif (écrit dans « Document ») */
 function choisirCircuit(c){
   const d=S.dossier; d.type_document = c==="definitif" ? "DEVIS DÉFINITIF" : "DEVIS"; save(); renderDossier();

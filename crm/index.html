@@ -737,6 +737,9 @@ html.resa-open{overflow:hidden}
 .cv-next{padding:8px 12px;border-radius:10px;font-weight:700;background:color-mix(in srgb,var(--cc) 10%,var(--panel));color:color-mix(in srgb,var(--cc) 75%,var(--ink));border:1px solid color-mix(in srgb,var(--cc) 30%,var(--line))}.cv-wide{grid-column:1/-1}
 .cv-info{display:flex;flex-wrap:wrap;gap:6px}.cv-info span{font-size:.84rem;padding:3px 10px;border-radius:999px;background:color-mix(in srgb,#60a5fa 10%,var(--panel));border:1px solid color-mix(in srgb,#60a5fa 30%,var(--line))}
 .cv-ml{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:8px 0;border-top:1px dashed var(--line)}.cv-ml:first-of-type{border-top:0}.cv-ml .msn{-webkit-line-clamp:2}
+.cv-said{display:grid;gap:8px}.cv-sd{padding:8px 12px;border-left:3px solid #60a5fa;background:color-mix(in srgb,#60a5fa 6%,var(--panel));border-radius:0 8px 8px 0}
+.cv-sdh{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}.cv-sdh span{font-variant-numeric:tabular-nums;color:var(--muted);font-size:.84rem}.cv-sdh a{flex:1;min-width:120px}
+.cv-sd ul{margin:4px 0 0;padding-left:18px;display:grid;gap:3px}.cv-sd li{font-size:.92rem;line-height:1.4}
 .cv-tl{display:grid;gap:0}.cv-tl div{display:grid;grid-template-columns:62px minmax(0,1fr);gap:8px;padding:5px 0;border-top:1px dashed var(--line);font-size:.9rem}.cv-tl div:first-child{border-top:0}.cv-tl span{color:var(--muted);font-variant-numeric:tabular-nums}
 .mrecap{padding:12px 16px 16px;display:grid;gap:10px}
 .mstat{display:flex;flex-wrap:wrap;gap:8px}.mstat span{display:inline-flex;gap:6px;align-items:center;padding:5px 12px;border-radius:999px;background:color-mix(in srgb,var(--mc,#60a5fa) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--mc,#60a5fa) 35%,var(--line));font-weight:600;font-size:.9rem}
@@ -4145,13 +4148,13 @@ async function cvLoadMails(r, manual){ const q = cvQuery(r); if (!q) { cvMails[r
   if (!manual && window.CRM_ONLINE && CRM_ONLINE.hasRead && !CRM_ONLINE.hasRead()) { cvMails[r.id] = { idle: true }; return renderCv(); }
   cvMails[r.id] = { busy: true }; renderCv();
   try { const mcp = await claude.use("mcp"); const res = await mcp.callTool("Gmail", "list_messages", { query: q, max: 25 }); const L = ((res.payload || res).messages || []).sort((x, y) => y.date - x.date);
-    cvMails[r.id] = { L, at: Date.now() }; L.forEach(m => { if (!mailsList.some(x => x.id === m.id)) mailsList.push(m); }); }
+    cvMails[r.id] = { L, at: Date.now() }; L.forEach(m => { if (!mailsList.some(x => x.id === m.id)) mailsList.push(m); }); await cvSaveDigest(r, L); }
   catch(e){ cvMails[r.id] = { err: e && e.code === "consent_required" ? "Autorise la lecture de tes mails avec le bandeau bleu en haut, puis clique sur « Chercher ses mails »." : e && e.code === "not_in_manifest" ? "La recherche des mails fonctionne dans la version en ligne du CRM." : e && e.code === "needs_reauth" ? "Connecte-toi à Google (bandeau en haut), puis clique sur « Chercher ses mails »." : "Recherche impossible : " + String((e && e.message) || e).slice(0, 120) }; }
   if (cvSel === r.id) renderCv(); }
 function cvMailsHtml(r){ const st = cvMails[r.id];
   const head = `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><h3>Ses mails${st && st.L ? " · " + st.L.length : ""}</h3><button class="btn sm" type="button" id="cvmref">${st && st.busy ? "⏳ Recherche…" : "🔄 Chercher ses mails"}</button></div>`;
-  if (!st || st.idle) return head + `<span class="sub">Clique sur « Chercher ses mails » : je cherche dans ta boîte tous les mails de ce client (ou qui parlent de lui) depuis 2 ans, et je te sors ce qu'il faut retenir.</span>`;
-  if (st.busy) return head + `<span class="sub">Je cherche dans ta boîte mail…</span>`;
+  if (!st || st.idle) return head + cvSaidHtml(r) + `<span class="sub">Clique sur « Chercher ses mails » : je cherche dans ta boîte tous les mails de ce client (ou qui parlent de lui) depuis 2 ans, et je te sors ce qu'il faut retenir.</span>`;
+  if (st.busy) return head + `<span class="sub">Je cherche et je lis ses mails…</span>` + cvSaidHtml(r);
   if (st.err) return head + `<span class="sub" style="color:var(--s-lost)">${esc(st.err)}</span>`;
   if (!st.L.length) return head + `<span class="sub">Aucun mail trouvé pour ce client.</span>`;
   const A = st.L.filter(m => !MAIL_ME.test(mailAddr(m.from).a)).map(m => mailAna(m, r)), mine = st.L.filter(m => MAIL_ME.test(mailAddr(m.from).a));
@@ -4165,14 +4168,38 @@ function cvMailsHtml(r){ const st = cvMails[r.id];
   const rows2 = st.L.map(m => { const o = A.find(x => x.m.id === m.id), me = !o, a = mailAddr(m.from);
     return `<div class="cv-ml"><div style="min-width:0"><a href="${esc(gmLink(m))}" target="_blank" rel="noopener"><b>${me ? "↗ " : ""}${esc(m.subject || "(sans objet)")}</b></a><div class="sub">${me ? "envoyé par toi" : esc(a.n)}${o && o.sig.length ? " · " + o.sig.map(k => M_SIG.find(y => y[0] === k)[1]).join(" · ") : ""}</div><div class="msn">${esc(mailClean(m.body).replace(/\s+/g, " ").slice(0, 200) || m.snippet)}</div></div><span class="sub" style="white-space:nowrap">${esc(fd(iso(new Date(m.date))))}${new Date(m.date).getFullYear() !== today().getFullYear() ? "/" + new Date(m.date).getFullYear() : ""}</span></div>`; }).join("");
   return head + `<span class="sub">${A.length} reçu${A.length > 1 ? "s" : ""} · ${mine.length} envoyé${mine.length > 1 ? "s" : ""} par toi · dernier le ${esc(fd(iso(new Date(st.L[0].date))))}</span>
+    ${cvSaidHtml(r)}
     ${infos.length ? `<div><span class="eyebrow">Ce que j'ai repéré dans ses mails</span><div class="cv-info" style="margin-top:6px">${infos.slice(0, 16).map(x => `<span>${esc(x)}</span>`).join("")}</div></div>` : ""}
     ${P.length ? `<div style="display:grid;gap:8px"><span class="eyebrow">À ajouter à sa fiche</span>${P.map(([o, p]) => `<div class="mprop" style="--cc:${p.c}"><div style="min-width:0"><div class="mpl">${p.ico} ${esc(p.l)}</div><div class="mpd">« ${esc(p.d)} » · mail du ${esc(fd(iso(new Date(o.m.date))))}</div></div><div class="mpb"><button class="btn sm pri" type="button" data-cvok="${esc(p.key)}">✓ Ajouter</button><button class="btn sm" type="button" data-cvign="${esc(p.key)}" title="Ignorer">✕</button></div></div>`).join("")}</div>` : ""}
     <details${st.L.length <= 6 ? " open" : ""}><summary class="sub" style="cursor:pointer">Les mails (${st.L.length})</summary>${rows2}</details>`; }
 function wireCvMails(r){ const b = $("#cvmref"); if (b) b.onclick = () => cvLoadMails(r, true);
+  document.querySelectorAll("#cvmails [data-cvsdx]").forEach(x => x.onclick = async () => { const cur = suivi[r.id] || {}; const next = Object.assign({}, cur, { mailsumHide: (cur.mailsumHide || []).concat(x.dataset.cvsdx), updated: new Date().toISOString() }); try { await db.collection("suivi").doc(r.id).set(next); suivi[r.id] = next; renderCv(); } catch(_){ toast("Pas enregistré"); } });
   const st = cvMails[r.id]; if (!st || !st.L) return; const A = st.L.filter(m => !MAIL_ME.test(mailAddr(m.from).a)).map(m => mailAna(m, r)), P = A.flatMap(o => o.props.map(p => [o, p]));
   const find = k => P.find(([, p]) => p.key === k);
   document.querySelectorAll("#cvmails [data-cvok]").forEach(x => x.onclick = async () => { const f = find(x.dataset.cvok); if (f) { x.disabled = true; await mailDo(f[0], f[1]); renderCv(); } });
   document.querySelectorAll("#cvmails [data-cvign]").forEach(x => x.onclick = async () => { await mailMark(x.dataset.cvign, "ign"); renderCv(); }); }
+/* « Ce qui s'est dit » : je lis chaque mail (même s'il vient de Clémence, d'un fournisseur ou de toi) et j'en garde les phrases utiles sur le client */
+const MS_KEY = /\b(rdv|rendez|metre|mesur|devis|commande|command|livr|pose|poser|chantier|accord|valid|sign|refus|annul|report|modif|chang|couleur|coloris|ral|blanc|gris|anthracite|alu|pvc|bois|dimension|largeur|hauteur|cote|probleme|sav|garantie|panne|bloqu|paiement|acompte|facture|virement|cheque|solde|delai|retard|semaine|urgent|attente|piece|rappel|devra|doit|faut|souhait|veut|voudrait|prefere|plutot|accepte|ok pour|d'accord)\w*/;
+const MS_JUNK = /^(bonjour|bonsoir|salut|hello|cordialement|bien cordialement|bien a vous|merci( beaucoup| d'avance| par avance)?|bonne (journee|soiree|fin de journee|semaine)|a bientot|envoye de mon|sent from|tel|tél|port|fixe|mob|www\.|http|nicolas brouqui|responsable secteur|agence de gourdon|route de cahors|dans l'attente|restant a votre disposition|je reste a votre disposition|n'hesitez pas)/;
+function mailSentences(txt){ return String(txt || "").replace(/\r/g, "").split(/\n{2,}|(?<=[.!?])(?<!\b(?:M|Mr|Mme|Mlle|Dr|St|Ste|av|bd|n°|N°|tél|Tél)\.)\s+|\n(?=[A-ZÀ-Ý•\-–])/).map(x => x.replace(/\s+/g, " ").replace(/^[•\-–>\s]+/, "").trim()).filter(Boolean); }
+function mailDigest(m, r){ const nom = upAscii(r.client).split(/[^A-Z]+/).filter(x => x.length >= 4 && !/^(MAIRIE|COMMUNE|SARL|SCI)$/.test(x)), clean = mailClean(m.body);
+  const S = mailSentences(clean).map((t, i) => { const a = sansAcc(t), U = upAscii(t); let sc = 0;
+      if (t.length < 14 || t.length > 340 || MS_JUNK.test(a) || /@|\b0[1-9](?:[ .]?\d{2}){4}\b.*\b0[1-9](?:[ .]?\d{2}){4}\b/.test(t) && t.length < 60) sc -= 10;
+      if (nom.some(n => new RegExp("\\b" + n + "\\b").test(U))) sc += 3; const k = (a.match(new RegExp(MS_KEY.source, "g")) || []).length; sc += Math.min(4, k * 2);
+      if (/\b\d{1,2}[\/.]\d{1,2}\b|\b(lundi|mardi|mercredi|jeudi|vendredi|samedi|demain|semaine prochaine|janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\b|\bs\d{2}\b/.test(a)) sc += 2;
+      if (/\d[\d\s.,]*\s?(€|euros?|ht|ttc)\b/i.test(t)) sc += 2; if (/\b\d{2,4}\s?(mm|cm|m)\b/.test(a)) sc += 1;
+      return { t, i, sc }; });
+  let K = S.filter(x => x.sc >= 2).sort((a, b) => b.sc - a.sc).slice(0, 4).sort((a, b) => a.i - b.i);
+  if (!K.length) K = S.filter(x => x.sc > -5).slice(0, 1);
+  const f = mailAddr(m.from), me = MAIL_ME.test(f.a), toA = mailAddr((m.to || "").split(",")[0]);
+  const who = me ? "Toi → " + (MAIL_TEAM[toA.a] || toA.n) : (MAIL_TEAM[f.a] || (mailFourn(f.a) ? f.n + " (" + mailFourn(f.a) + ")" : f.n));
+  return { id: m.id, t: m.threadId, d: iso(new Date(m.date)), who, s: m.subject || "", p: K.map(x => x.t.length > 260 ? x.t.slice(0, 257) + "…" : x.t) }; }
+async function cvSaveDigest(r, L){ if (!db || !canWrite || !L.length) return; const cur = suivi[r.id] || {}, old = cur.mailsum || [], ids = new Set(old.map(x => x.id));
+  const add = L.map(m => mailDigest(m, r)).filter(x => !ids.has(x.id) && x.p.length); if (!add.length) return;
+  const next = Object.assign({}, cur, { client: r.client, mailsum: old.concat(add).sort((a, b) => String(b.d).localeCompare(String(a.d))).slice(0, 60), updated: new Date().toISOString() });
+  try { await db.collection("suivi").doc(r.id).set(next); suivi[r.id] = next; } catch(_){} }
+function cvSaidHtml(r){ const L = ((suivi[r.id] || {}).mailsum || []).filter(x => !(((suivi[r.id] || {}).mailsumHide) || []).includes(x.id)); if (!L.length) return "";
+  return `<div style="display:grid;gap:6px"><span class="eyebrow">Ce qui s'est dit dans les mails (${L.length})</span><div class="cv-said">${L.slice(0, 25).map(x => `<div class="cv-sd"><div class="cv-sdh"><span>${esc(fd(x.d))}${x.d.slice(0, 4) !== String(today().getFullYear()) ? "/" + x.d.slice(0, 4) : ""}</span><b>${esc(x.who)}</b><a class="sub" href="https://mail.google.com/mail/u/0/#all/${esc(x.t)}" target="_blank" rel="noopener">${esc(x.s.slice(0, 70))}</a><button class="lnk sub" type="button" data-cvsdx="${esc(x.id)}" title="Retirer de la fiche">✕</button></div><ul>${x.p.map(t => `<li>${esc(t)}</li>`).join("")}</ul></div>`).join("")}</div></div>`; }
 /* ===== Onglet Mails : lecture Gmail (lecture seule), tri par client / fournisseur, récap, réponses types, « À classer » ===== */
 let mailsList = [], gmMeta = { s: {} }, mailBusy = false, mailErr = "", mailRep = null, mailAt = null;
 try { const c = JSON.parse(localStorage.getItem("crm-mails") || "null"); if (c && c.L) { mailsList = c.L; mailAt = c.at; } } catch(_){}

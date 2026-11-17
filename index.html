@@ -3517,7 +3517,22 @@ function texteSyncLe(){ const t=lireLS(SYNC_LE,null); if(!t) return "Pas encore 
 $("#logo").src=LOGO;
 $("#btnBack").onclick=()=>{ if(S.view==="ouverture"){ S.tab="ouvertures"; renderDossier(); } else { const d=S.dossier; clearTimeout(S.saveT); if(d){ DB.put(d); enregistrerAuto(d).then(()=>{ if(S.view==="home") renderHome(); }); } renderHome(); } scrollTo(0,0); };
 DB.open().then(renderHome);
-if("serviceWorker" in navigator && location.protocol==="https:") navigator.serviceWorker.register("sw.js").catch(()=>{});
+/* Mise à jour automatique : un appareil resté ouvert (PC, onglet jamais fermé) prend la nouvelle version tout seul.
+   Sur l'accueil : rechargement direct ; ailleurs : bandeau « Nouvelle version – toucher pour mettre à jour » (le métré est enregistré avant). */
+if("serviceWorker" in navigator && location.protocol==="https:"){
+  const avaitCtrl=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register("sw.js").then(reg=>{
+    const verif=()=>reg.update().catch(()=>{}); setInterval(verif, 10*60*1000);
+    document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") verif(); });
+  }).catch(()=>{});
+  navigator.serviceWorker.addEventListener("controllerchange", ()=>{
+    if(!avaitCtrl || window.__majFaite) return;
+    const go=async()=>{ window.__majFaite=true; try{ if(S.dossier) await DB.put(S.dossier); }catch(e){} location.reload(); };
+    if(S.view==="home" && !document.querySelector(".modal.open")) { go(); return; }
+    const b=document.createElement("button"); b.className="btn small primary"; b.style.cssText="position:fixed;right:14px;top:62px;z-index:60";
+    b.textContent="⬆ Nouvelle version de l'appli – toucher pour mettre à jour"; b.onclick=go; document.body.appendChild(b);
+  });
+}
 </script>
 </body>
 </html>

@@ -484,6 +484,9 @@ details.relblk:not([open]){gap:0}
 .nc-sms summary{cursor:pointer;display:grid;gap:4px;list-style:none}.nc-sms summary::-webkit-details-marker{display:none}
 .nc-sms[open] summary{margin-bottom:4px}.nc-sms textarea{width:100%;box-sizing:border-box;font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:inherit}
 .nc-sms{border-color:color-mix(in srgb,var(--c-contact) 45%,var(--line));background:color-mix(in srgb,var(--c-contact) 6%,var(--panel))}
+.nc-known{display:grid;gap:8px;padding:12px;border:1px solid color-mix(in srgb,#f59e0b 55%,var(--line));border-radius:10px;background:color-mix(in srgb,#f59e0b 8%,var(--panel))}
+.nc-known .nck{display:grid;gap:4px;padding:8px 0}.nc-known .nck+.nck{border-top:1px dashed var(--line)}.nc-known .nck .sub{display:block}
+.nc-fill{outline:2px solid #3b82f6;outline-offset:1px;background:color-mix(in srgb,#3b82f6 10%,var(--panel))!important}
 .nc-hit{outline:2px solid #22c55e;outline-offset:1px;background:color-mix(in srgb,#22c55e 10%,var(--panel))!important}
 .nc-f{display:flex;gap:8px;align-items:center;padding:12px 18px;border-top:1px solid var(--line);flex-wrap:wrap}
 .nc-f .sgrow{flex:1}
@@ -4453,7 +4456,7 @@ function ncForm(m){
     <div class="nc-b">
       ${m ? "" : `<details class="nc-g nc-sms" id="ncsmsd"><summary><span class="nc-s">📱 Remplir depuis un SMS du client</span><span class="sub">copie le SMS, colle-le ici : je remplis la fiche</span></summary>
         <textarea id="ncsms" rows="5" placeholder="Colle ici le SMS du client (nom, prénom, téléphone, adresse de facturation, adresse du chantier…)"></textarea>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" type="button" id="ncpaste">📋 Coller le SMS</button><button class="btn pri" type="button" id="ncfill">Remplir la fiche</button><span class="sub" id="ncsmsr"></span></div></details>`}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" type="button" id="ncpaste">📋 Coller le SMS</button><button class="btn pri" type="button" id="ncfill">Remplir la fiche</button><span class="sub" id="ncsmsr"></span></div></details><div id="ncknown"></div>`}
       <div class="nc-g"><span class="nc-s">Le client</span>
         <div class="two"><label>Nom *<input id="ncnom" value="${esc(v.nom || v.client || "")}" autocomplete="off" placeholder="DUPONT"></label><label>Prénom<input id="ncpre" value="${esc(v.prenom || "")}" placeholder="Marie"></label></div>
         <div class="two"><label>Téléphone<input id="nctel" inputmode="tel" value="${esc(v.tel || "")}" placeholder="06 12 34 56 78"></label><label>Mail<input id="ncmail" type="email" value="${esc(v.mail || "")}" placeholder="client@exemple.fr"></label></div></div>
@@ -4529,6 +4532,33 @@ function smsParse(txt){
   if (out.prenom) out.prenom = out.prenom.toLowerCase().replace(/(^|[\s\-'])\p{L}/gu, c => c.toUpperCase());
   if (out.tel) { try { out.tel = telNorm(out.tel); } catch(_){} }
   return out; }
+/* ---- déjà client chez nous ? même téléphone, même mail, ou même nom (+ prénom) ---- */
+function knownMatches(p){
+  const d9 = x => String(x || "").replace(/\D/g, "").slice(-9), t = d9(p.tel), ml = String(p.mail || "").toLowerCase().trim();
+  const nom = upAscii(p.nom), pre = upAscii(p.prenom), seen = {}, out = [];
+  for (const r of rows) { if (!r || !r.client) continue; const C = upAscii(r.client); let sc = 0, why = [];
+    if (t.length === 9 && String(r.tel || "").split(/[\/;,]|\bou\b/).some(x => d9(x) === t)) { sc += 5; why.push("même téléphone"); }
+    if (ml && mailOf(r).toLowerCase() === ml) { sc += 5; why.push("même mail"); }
+    if (nom.length >= 3 && new RegExp("(^|[^A-Z])" + nom.replace(/[^A-Z0-9 ]/g, "") + "([^A-Z]|$)").test(C)) { if (pre && C.includes(pre)) { sc += 3; why.push("même nom et prénom"); } else if (!pre) { sc += 2; why.push("même nom"); } else { sc += 1; why.push("même nom de famille"); } }
+    if (!sc) continue; const key = C + "|" + d9(r.tel); if (seen[key] && seen[key].sc >= sc) continue;
+    const m = { r, sc, why: why.join(", ") }; if (seen[key]) out.splice(out.indexOf(seen[key]), 1); seen[key] = m; out.push(m); }
+  return out.sort((a, b) => b.sc - a.sc || String(b.r.fic || b.r.vd || "").localeCompare(String(a.r.fic || a.r.vd || ""))).filter(x => x.sc >= 2).slice(0, 3); }
+function knownInfo(r){ const s = suivi[r.id] || {};
+  return { tel: r.tel || "", mail: mailOf(r), adr: adrOf(r), adc: adrChantier(r), src: r.src || "", prenom: r.prenom || "" }; }
+function renderKnown(){ const box = $("#ncknown"); if (!box) return;
+  const p = { nom: $("#ncnom").value, prenom: $("#ncpre").value, tel: $("#nctel").value, mail: $("#ncmail").value };
+  const M = knownMatches(p); if (!M.length) { box.innerHTML = ""; return; }
+  box.innerHTML = `<div class="nc-known"><span class="nc-s" style="color:#b45309">👤 Déjà connu chez nous ?</span>${M.map((x, i) => { const r = x.r, k = knownInfo(r);
+      const quand = r.fic ? "premier contact le " + fd(r.fic) + (r.y ? "/" + r.y : "") : r.vd ? "vente du " + fd(r.vd) : "";
+      return `<div class="nck"><b>${esc(r.client)}</b><span class="sub">${esc(x.why)}${quand ? " · " + esc(quand) : ""}${r.lieu ? " · " + esc(r.lieu) : ""}</span>
+        <span class="sub">${[k.tel, k.mail, k.adr].filter(Boolean).map(esc).join(" · ") || "pas d'autre info"}</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm pri" type="button" data-kfill="${i}">Compléter avec ses infos</button><button class="btn sm" type="button" data-kopen="${esc(r.id)}">Ouvrir son dossier</button></div></div>`; }).join("")}
+    <span class="sub">« Compléter » remplit seulement les cases vides (en bleu). Si c'est le même projet, ouvre plutôt son dossier au lieu de créer un doublon.</span></div>`;
+  box.querySelectorAll("[data-kfill]").forEach(b => b.onclick = () => { const k = knownInfo(M[+b.dataset.kfill].r), got = [];
+    const put = (id, v, l) => { const el = $(id); if (!el || !v || el.value.trim()) return; if (el.tagName === "SELECT" && ![...el.options].some(o => o.value === v || o.text === v)) el.add(new Option(v, v)); el.value = v; el.classList.add("nc-fill"); got.push(l); };
+    put("#ncpre", k.prenom, "prénom"); put("#nctel", k.tel, "téléphone"); put("#ncmail", k.mail, "mail"); put("#ncadr", k.adr, "adresse"); put("#ncadc", k.adc, "adresse du chantier"); put("#ncsrc", k.src, "connu par");
+    toast(got.length ? "Complété : " + got.join(", ") : "Rien à compléter : la fiche a déjà tout"); });
+  box.querySelectorAll("[data-kopen]").forEach(b => b.onclick = () => { const bd = $("#ncbd"); if (bd) bd.remove(); openDossier(b.dataset.kopen); }); }
 function smsFill(){
   const t = ($("#ncsms") || {}).value || "", r = smsParse(t), got = [];
   const put = (id, v, lbl) => { const el = $(id); if (!el || !v) return; el.value = v; el.classList.add("nc-hit"); got.push(lbl); };
@@ -4536,7 +4566,7 @@ function smsFill(){
   put("#ncadr", r.adr, "adresse de facturation"); put("#ncadc", r.adc, "adresse du chantier");
   const n = $("#ncnote"); if (n && t.trim() && !n.value.includes(t.trim())) n.value = (n.value ? n.value + "\n\n" : "") + "SMS du client :\n" + t.trim();
   const res = $("#ncsmsr"); if (res) res.textContent = got.length ? "✓ Rempli : " + got.join(", ") + ". Vérifie les cases en vert avant de créer la fiche." : "Je n'ai rien reconnu : remplis la fiche à la main (le SMS est recopié dans les notes).";
-  return got.length; }
+  renderKnown(); return got.length; }
 function openNewClient(m){
   if (!db || !canWrite) { toast("Enregistrement impossible dans cette vue"); return; }
   const host = document.createElement("div"); host.innerHTML = ncForm(m); document.body.append(host.firstElementChild);
@@ -4544,6 +4574,7 @@ function openNewClient(m){
   $("#ncx").onclick = close; $("#ncno").onclick = close; bd.addEventListener("click", e => { if (e.target === bd) close(); });
   document.addEventListener("keydown", function esc1(e){ if (e.key === "Escape" && document.body.contains(bd)) { close(); document.removeEventListener("keydown", esc1); } });
   setTimeout(() => $("#ncnom").focus(), 30);
+  if ($("#ncknown")) ["#ncnom", "#ncpre", "#nctel", "#ncmail"].forEach(id => $(id).addEventListener("change", renderKnown));
   const fillB = $("#ncfill"); if (fillB) { fillB.onclick = smsFill; $("#ncsms").addEventListener("paste", () => setTimeout(smsFill, 30));
     $("#ncpaste").onclick = async () => { try { const t = await navigator.clipboard.readText(); if (!t) throw 0; $("#ncsms").value = t; smsFill(); } catch(_){ $("#ncsms").focus(); $("#ncsmsr").textContent = "Appuie longtemps dans la case puis « Coller » (ou Ctrl+V sur le PC)."; } }; }
   const del = $("#ncdel"); if (del) { let armed = false; del.onclick = async () => { if (!armed) { armed = true; del.textContent = "Confirmer la suppression"; del.classList.add("danger"); return; }

@@ -576,7 +576,17 @@ details.relblk:not([open]){gap:0}
 .fcl .kvg-infos .kvi:nth-of-type(even):last-child{grid-column:1/-1}
 .fcl .kvg-infos .kvb dt{margin-bottom:3px}
 .fcl .kvg-infos .kvb dd{font-size:1rem!important;font-weight:600;overflow-wrap:break-word;word-break:normal;hyphens:auto}
-.fcl .kvg-infos .kvi:nth-of-type(1) dd{font-size:1.08rem!important}.kvi:has(#ctf)>.kvico{display:none}
+.fcl .kvg-infos .kvi:nth-of-type(1) dd{font-size:1rem!important}
+.pj-l{display:grid;gap:8px;margin-top:4px}
+.pj-c{display:grid;grid-template-columns:40px minmax(0,1fr);gap:10px;align-items:center;padding:9px 12px;border-radius:12px;border:1px solid color-mix(in srgb,var(--pjc) 35%,var(--line));background:color-mix(in srgb,var(--pjc) 9%,var(--panel));--pjc:#64748b}
+.pj-fe{--pjc:#0ea5e9}.pj-po{--pjc:#b45309}.pj-vo{--pjc:#f97316}.pj-ex{--pjc:#16a34a}.pj-pi{--pjc:#64748b}.pj-ch{--pjc:#7c3aed}.pj-xx{--pjc:#94a3b8}
+.pj-i{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:1.35rem;background:color-mix(in srgb,var(--pjc) 18%,var(--panel))}
+.pj-t{display:grid;gap:3px;min-width:0}.pj-t b{font-size:1rem;font-weight:700;line-height:1.25}
+.pj-q{display:inline-grid;place-items:center;min-width:24px;height:22px;padding:0 6px;margin-right:7px;border-radius:999px;background:var(--pjc);color:#fff;font-size:.82rem;font-weight:800;vertical-align:1px}
+.pj-m{display:flex;flex-wrap:wrap;gap:4px}.pj-m i,.pj-m span{font-style:normal;font-size:.74rem;font-weight:700;padding:1px 8px;border-radius:999px;background:var(--panel);border:1px solid color-mix(in srgb,var(--pjc) 35%,var(--line));color:color-mix(in srgb,var(--pjc) 75%,var(--ink))}
+.pj-m span{font-weight:500}
+.pj-f{font-size:.8rem;color:var(--muted);font-weight:500}
+.src-b{display:inline-flex;align-items:center;gap:7px;padding:4px 12px 4px 8px;border-radius:999px;background:color-mix(in srgb,var(--c-contact) 10%,var(--panel));border:1px solid var(--c-contact-line);font-weight:600}.kvi:has(#ctf)>.kvico{display:none}
 .ct-f{padding:12px;gap:10px;background:var(--panel)}
 .ct-f .two{grid-template-columns:1fr 1fr}
 .ct-f label.sub{display:grid;gap:4px;font-size:.84rem}
@@ -4588,6 +4598,39 @@ function smsParse(txt){
   if (out.prenom) out.prenom = out.prenom.toLowerCase().replace(/(^|[\s\-'])\p{L}/gu, c => c.toUpperCase());
   if (out.tel) { try { out.tel = telNorm(out.tel); } catch(_){} }
   return out; }
+/* ===== « Le projet » lisible : PE → Porte d'entrée, VR SOLAIRE → Volet roulant solaire, etc. ===== */
+const PJ = [ // [motif, libellé, icône, famille]
+  [/^PORTE?S? D'?ENTREE$|^PE$/, "Porte d'entrée", "🚪", "po"], [/^PS$|^PORTE DE SERVICE$/, "Porte de service", "🚪", "po"],
+  [/^PG( SECTIONNELLE)?$|^PORTE DE GARAGE/, "Porte de garage", "🏠", "po"], [/^PF$|^PORTES?[- ]FENETRES?$/, "Porte-fenêtre", "🪟", "fe"],
+  [/^ME$|^MENUISERIES?$|^FENETRES?$|^FEN$/, "Fenêtre", "🪟", "fe"], [/^COULISSANTS?( MONOBLOC)?$|^BAIES?( COULISSANTES?)?$/, "Baie coulissante", "↔️", "fe"], [/^GALANDAGES?$/, "Galandage", "↔️", "fe"],
+  [/^PH$/, "Porte-fenêtre (PH)", "🪟", "fe"], [/^VITRAGES?( COULISSANT)?$/, "Vitrage", "🔷", "fe"],
+  [/^VR SOLAIRES?$/, "Volet roulant solaire", "☀️", "vo"], [/^VR$|^VOLETS? ROULANTS?$/, "Volet roulant", "🔽", "vo"], [/^VB$|^VOLETS? BATTANTS?$/, "Volet battant", "🪵", "vo"],
+  [/^PERSIENNES?$/, "Persiennes", "🪵", "vo"], [/^BSO$/, "Brise-soleil orientable", "🌤️", "vo"], [/^TABLIER$/, "Tablier de volet", "🔽", "pi"],
+  [/^MOTEURS?( VR)?$/, "Moteur", "⚙️", "pi"], [/^TELECOMMANDE|^EMETTEUR/, "Télécommande", "📡", "pi"], [/^POIGNEES?/, "Poignée", "🔩", "pi"], [/^GV/, "Grille de ventilation", "🌬️", "pi"],
+  [/^PORTAILS?$/, "Portail", "⛩️", "ex"], [/^PORTILLONS?$/, "Portillon", "⛩️", "ex"], [/^STORE BANNE$/, "Store banne", "⛱️", "ex"], [/^STORES?( ZIP)?$/, "Store", "⛱️", "ex"],
+  [/^PERGOLAS?$/, "Pergola", "🏡", "ex"], [/^CARPORT$/, "Carport", "🚗", "ex"], [/^MOUSTI(QUAIRES?|PLISS)?$/, "Moustiquaire", "🦟", "ex"], [/^GARDE[- ]?CORPS?$/, "Garde-corps", "🛡️", "ex"],
+  [/^FERMETURE TERRASSE/, "Fermeture de terrasse", "🏡", "ex"],
+  [/^CONSTRUCTION( NEUVE)?$/, "Construction neuve", "🏗️", "ch"], [/^RENO(VATION)?( (MAISON|COMPLETE|PVC|ALU|ME|MAISON ALU))?$/, "Rénovation", "🔨", "ch"] ];
+const PJ_MAT = /\b(PVC|ALU|ALUMINIUM|BOIS|MIXTE|ACIER)\b/g;
+function projItems(txt){ const raw = String(txt || "").trim(); if (!raw || raw === "?") return [];
+  return raw.split(/\s\+\s|\s*\+\s*(?=\d|[A-Z])|\s+ET\s+|\s*,\s*|\s+-\s+/i).map(x => x.trim()).filter(Boolean).map(part => {
+    let p = part, liv = "", four = "", note = "";
+    const lm = p.match(/·\s*livr\.?\s*(.+)$/i); if (lm) { liv = lm[1].trim(); p = p.slice(0, lm.index).trim(); }
+    const fm = p.match(/\(([^)]+)\)\s*$/); if (fm) { four = fm[1].trim(); p = p.slice(0, fm.index).trim(); }
+    let q = 0; const qm = p.match(/^(\d+)\s*(.*)$/); if (qm) { q = +qm[1]; p = qm[2]; }
+    const U = upAscii(p); const mats = [...new Set((U.match(PJ_MAT) || []).map(m => m === "ALUMINIUM" ? "ALU" : m))];
+    let core = U.replace(PJ_MAT, " ").replace(/\b(OU|ET)\b\s*$/, "").replace(/\s+/g, " ").trim();
+    let alt = null; if (/ OU /.test(core)) { const A = core.split(/ OU /).map(c => c.trim()).filter(Boolean).map(c => PJ.find(([re]) => re.test(c)) || PJ.find(([re]) => re.test(c.split(" ")[0])));
+      if (A.length > 1 && A.every(Boolean)) { alt = A; core = core.split(/ OU /)[0].trim(); } else if (!A.every(Boolean)) note = "à choisir : " + core.toLowerCase(); }
+    const extra = []; if (/SOLAIRE/.test(core) && !/^VR SOLAIRE/.test(core)) extra.push("solaire"); if (/SECTIONNELLE/.test(core)) extra.push("sectionnelle"); if (/ASSURANCE/.test(core)) { extra.push("assurance"); core = core.replace(/\s*ASSURANCE/, ""); }
+    let hit = PJ.find(([re]) => re.test(core)); if (!hit) { const first = core.split(" ")[0]; hit = PJ.find(([re]) => re.test(first)); if (hit) { const rest = core.slice(first.length).trim(); if (rest && !/^(SOLAIRE|SECTIONNELLE)$/.test(rest)) extra.push(rest.toLowerCase()); } }
+    if (alt) return { q, l: alt.map(h => h[1]).join(" ou "), ico: alt[0][2], fam: alt[0][3], mats, four, liv, extra: ["à choisir"], raw: part };
+    return { q, l: hit ? hit[1] : (p || part), ico: hit ? hit[2] : "📦", fam: hit ? hit[3] : "xx", mats, four, liv, extra: extra.concat(note ? [note] : []), raw: part }; }); }
+function projHtml(txt){ const I = projItems(txt); if (!I.length) return `<span class="sub">Projet pas encore précisé</span>`;
+  return `<div class="pj-l">${I.map(x => `<div class="pj-c pj-${x.fam}" title="${esc(x.raw)}"><span class="pj-i" aria-hidden="true">${x.ico}</span><span class="pj-t"><b>${x.q ? `<span class="pj-q">${x.q}</span>` : ""}${esc(x.l)}${x.q > 1 && !/s$|Persiennes/.test(x.l) && x.fam !== "ch" ? "s" : ""}</b>${x.mats.length || x.extra.length ? `<span class="pj-m">${x.mats.length > 1 && /OU/.test(upAscii(x.raw)) ? `<i>${x.mats.map(esc).join(" ou ")}</i>` : x.mats.map(m => `<i>${esc(m)}</i>`).join("")}${x.extra.map(e => `<span>${esc(e)}</span>`).join("")}</span>` : ""}${x.four || x.liv ? `<span class="pj-f">${x.four ? esc(x.four) : ""}${x.four && x.liv ? " · " : ""}${x.liv ? "livr. " + esc(x.liv) : ""}</span>` : ""}</span></div>`).join("")}</div>`; }
+const SRC_ICO = [[/RELATION|CONNAISSANCE|AMI|FAMILLE/, "🤝"], [/ANCIEN CLIENT|^CLIENT/, "⭐"], [/SITE|INTERNET|GOOGLE|WEB/, "🌐"], [/PUB|FLYER|JOURNAL|RADIO/, "📣"], [/PANNEAU/, "🪧"], [/ARCHI/, "📐"], [/BAO|BOUCHE/, "💬"], [/SALON|FOIRE/, "🎪"], [/MAIRIE|COMMUNE/, "🏛️"], [/PA\b|PAGES/, "📒"]];
+function srcHtml(src){ const v = String(src || "").trim(); if (!v) return `<span class="sub">—</span>`; const ic = (SRC_ICO.find(([re]) => re.test(upAscii(v))) || [, "🔎"])[1];
+  return `<span class="src-b"><span aria-hidden="true">${ic}</span>${esc(v.charAt(0) + v.slice(1).toLowerCase())}</span>`; }
 /* ===== Autres contacts d'un dossier (père, voisin, locataire…) : à appeler pour le RDV / le métré ===== */
 let ctFormFor = null;
 const CT_LIENS = [["pere", "Père", /\b(mon|son|leur|votre|le)\s+p[eè]re\b|\bpapa\b|\bbeau[- ]p[eè]re\b/], ["mere", "Mère", /\b(ma|sa|leur|votre|la)\s+m[eè]re\b|\bmaman\b|\bbelle[- ]m[eè]re\b/], ["fils", "Fils", /\b(mon|son|leur|votre|le)\s+fils\b/], ["fille", "Fille", /\b(ma|sa|leur|votre|la)\s+fille\b/],
@@ -4843,8 +4886,8 @@ function renderDrawer(){
           <dt>Mail</dt><dd>${mailOf(r)?`<span style="overflow-wrap:anywhere">${esc(mailOf(r))}</span> <span class="sub">· ${(suivi[r.id]||{}).mail?"noté dans le CRM":"lu sur le devis"}</span><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn" id="mailcp" type="button">Copier</button><button class="btn" id="mailed" type="button">Corriger</button></div>`:`<span class="sub">adresse inconnue</span><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${pdfIds(r).length?`<button class="btn" id="mailfind" type="button" ${canWrite&&db?"":"disabled"}>Chercher dans les devis</button>`:""}<button class="btn" id="mailed" type="button">Ajouter</button></div>`}
             <div id="mailform" hidden style="display:grid;gap:6px;margin-top:6px"><input type="email" id="maili" value="${esc(mailOf(r))}" placeholder="adresse mail du client" style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);width:100%"><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn pri" id="mailsave" type="button" ${canWrite&&db?"":"disabled"}>Enregistrer le mail</button>${(suivi[r.id]||{}).mail&&r.mail?`<button class="btn" id="mailreset" type="button">Revenir au mail du devis</button>`:""}</div></div>
             <div style="margin-top:6px"><button class="btn" id="cmb" type="button" aria-expanded="${cmFor===r.id}">Écrire un mail</button></div></dd>
-          <dt>Projet</dt><dd>${esc(r.proj||"—")}</dd>
-          <dt>Connu par</dt><dd>${esc(r.src||"—")}</dd>
+          <dt>Projet</dt><dd class="pj-dd">${projHtml(r.proj)}</dd>
+          <dt>Connu par</dt><dd>${srcHtml(r.src)}</dd>
           ${r.r1t?`<dt>Métré / RDV</dt><dd>${esc(r.r1t)}</dd>`:""}
           ${r.conc?`<dt>Concurrence</dt><dd>${esc(r.conc)}</dd>`:""}
         </dl>

@@ -109,6 +109,7 @@ input:focus,select:focus,textarea:focus{outline:3px solid #c9d6f3;border-color:v
 .rdv-types{display:grid;grid-template-columns:1fr 1fr;gap:8px}.rdv-t{padding:12px;font-size:16px}.rdv-t.on{background:#1b2f5e;border-color:#1b2f5e;color:#fff !important}.rdv-add{padding:14px;font-size:16px}
 .tab-add{border:2px dashed #b9c2d6 !important;background:transparent !important;color:var(--navy,#1b2f5e) !important}
 .log-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#eef1f7;border-radius:10px;padding:8px 12px;margin-bottom:12px;font-weight:600}.log-bar select{font-size:16px;padding:6px 8px}
+.vb-dessin{max-width:330px;margin:10px auto 0}.vb-dessin svg{width:100%;height:auto;max-height:360px}
 .sketch-wrap{position:relative;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;touch-action:none}
 canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background:
   linear-gradient(#eef1f7 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,#eef1f7 1px,transparent 1px) 0 0/24px 24px}
@@ -2391,6 +2392,7 @@ function renderVB(t){
       </div>
       <div class="hint" style="margin:8px 0 4px">Options</div>${F.multi(k+"options",VB_OPTIONS,l.options)}
       <div style="margin-top:8px">${F.text(k+"obs","Observation",l.obs)}</div>
+      <div class="vb-dessin" id="vbD${i}">${dessinVB(v,l,"vbsvg")}</div>
       <details class="vb-gonds" ${gondsExistants(v)?"open":""}><summary><b>Gonds existants</b> <span class="hint">– cotes vues de l'intérieur (voir les schémas en bas)</span></summary>
         <table class="vb-gt"><tr><th></th><th>A</th><th>B</th><th>C</th><th class="vb-h">Départ D / Dp<br><span class="vb-fl">⟷</span> horizontal</th><th class="vb-v">Départ ou renvoi R / Db<br><span class="vb-fl">↕</span> vertical</th></tr>
           ${["g","d"].map(s=>`<tr><th>${s==="g"?"Gauche":"Droite"}</th>${["A","B","C","D","R"].map(x=>`<td class="${x==="D"?"vb-h":x==="R"?"vb-v":""}"><input data-k="${k}g.${x}_${s}" inputmode="decimal" value="${esc(l.g[x+"_"+s])}" placeholder="${x==="D"?"⟷":x==="R"?"↕":""}"></td>`).join("")}</tr>`).join("")}</table>
@@ -2414,6 +2416,9 @@ function renderVB(t){
     <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple id="phAdd" class="hide"></label></div></div>`;
   const re=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); };
   $("#vbAdd").onclick=()=>{ v.lignes.push(nouvelleLigneVB()); save(); re(); };
+  const majD=()=>v.lignes.forEach((l,i)=>{ const z=$("#vbD"+i); if(z) z.innerHTML=dessinVB(v,l,"vbsvg"); });
+  t.addEventListener("input", e=>{ if(e.target.dataset&&/^vb\./.test(e.target.dataset.k||"")) setTimeout(majD,0); });
+  t.addEventListener("change", e=>{ if(e.target.dataset&&/^vb\./.test(e.target.dataset.k||"")) setTimeout(majD,0); });
   $$("[data-vbdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer ce volet ?","Supprimer")) return; v.lignes.splice(+b.dataset.vbdel,1); save(); re(); });
   $$("[data-vbdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.vbdup, n=JSON.parse(JSON.stringify(v.lignes[i])); n.id=uid(); v.lignes.splice(i+1,0,n); save(); re(); });
   initPhotos(v, re);
@@ -2561,37 +2566,78 @@ function pagesPP(d, head, row){
 }
 
 /* ---------- PDF : feuilles « Volet » et « Schéma » de Nicolas ---------- */
-function pagesVB(d){
-  const v=d.vb; if(!aVB(d)) return "";
-  const x=b=>b?"✔":"", pad=(L,n)=>[...L,...Array(Math.max(0,n-L.length)).fill(null)];
-  const bx=(lab,val,w="")=>`<div class="vb-bx"${w?` style="grid-column:${w}"`:""}><span class="vb-lb">${esc(lab)}</span><span class="vb-v">${val}</span></div>`;
-  const ligne=l=>l?`<tr><td class="vb-rep">${esc(l.repere)}</td><td>${esc(l.qte)}</td><td class="sm">${esc(l.vantaux)}</td><td class="vb-tab">${esc(l.L)}</td><td class="vb-tab">${esc(l.H)}</td><td>${esc(l.f_l)}</td><td>${esc(l.f_p)}</td><td>${esc(l.f_cotes)}</td><td>${esc(l.cintre_n)}</td><td>${esc(l.cintre_f)}</td><td>${esc(l.allege)}</td><td>${x(l.sens_g)}</td><td>${x(l.sens_d)}</td><td class="sm">${esc(l.espagnolette)}</td><td class="sm">${esc([...l.options,l.obs].filter(Boolean).join(", "))}</td></tr>`
-    : `<tr><td class="vb-rep"></td>${"<td></td>".repeat(14)}</tr>`;
-  let h=`<div class="pg vb-pg"><div class="vb-titre">VOLET BATTANT</div><div class="vb-band">${estDefinitif(d)?"Métré définitif":"Devis"}</div>
-    <div class="vb-haut">
-      ${bx("Client",esc(d.client.nom),"1")}${bx("Gonds",esc(v.gonds),"2")}${bx("MÉTREUR",esc(d.metreur),"3")}
-      ${bx("Couleur",esc([v.couleur,v.matiere==="Bois"?v.essence:""].filter(Boolean).join(" – ")),"1")}${bx("Barre et écharpe",esc(v.barre),"2")}${bx("Pose",esc(v.pose),"3")}
-      ${bx("Matière",esc(v.matiere),"1")}${bx("Ferrage",esc(v.ferrage),"2")}${bx("Arrêts de vent",`<span class="cbx">${v.arrets?"☑":"☐"}</span>${v.arrets&&v.arret_type?" "+esc(v.arret_type):""}`,"3")}
-      ${bx("Type",esc(v.type),"1")}${bx("Lame",esc(v.lame),"2")}${bx("Manutention",esc(v.manutention),"3")}
-    </div>
-    <table class="vb-t"><colgroup>${[11,5.5,7,6,6,6,6.5,6,7,6,6,5,5,8,9].map(w=>`<col style="width:${w}%">`).join("")}</colgroup>
-      <tr class="g1"><th class="nb" colspan="3"></th><th colspan="2" class="vb-tab">Tableau</th><th colspan="3">Feuillures</th><th colspan="2">Cintre</th><th class="nb"></th><th colspan="2">Sens vue intérieur</th><th rowspan="2">Espagnolettes</th><th rowspan="2">Options</th></tr>
-      <tr><th class="vb-rep">Repère</th><th>Quantité</th><th>Nbre de vantaux</th><th class="vb-tab">Largeur</th><th class="vb-tab">Hauteur</th><th>Largeur</th><th>Profondeur</th><th>Cotés</th><th>Naissance du cintre</th><th>Valeur flèche</th><th>Hauteur Allège</th><th>Gauche</th><th>Droite</th></tr>
-      ${pad(v.lignes,15).map(ligne).join("")}</table>
-    <div class="vb-pied">${esc(v.type_dim||"")} · Fournisseur : Corrèze Fermetures</div></div>`;
-  const avecG=v.lignes.filter(l=>Object.values(l.g).some(z=>z!==""));
-  if(gondsExistants(v) || avecG.length){
-    const gl=l=>l?`<tr><td class="vb-rep">${esc(l.repere)}</td>${["A","B","C","D","R"].map(z=>`<td>${esc(l.g[z+"_g"])}</td><td>${esc(l.g[z+"_d"])}</td>`).join("")}<td>${esc(l.g.gond)}</td><td class="sm">${esc(l.g.obs)}</td></tr>`
-      : `<tr><td class="vb-rep"></td>${"<td></td>".repeat(12)}</tr>`;
-    h+=`<div class="pg vb-pg"><div class="vb-titre">VOLET BATTANT – Schéma</div><div class="vb-band">Gonds existants – ${esc(d.client.nom)}</div>
-      <div class="vb-imgs"><img src="img/vb-gonds-formes.jpg"><img src="img/vb-gonds-deport.jpg"></div>
-      <table class="vb-t"><tr class="g1"><th class="nb"></th><th colspan="10">Toujours vu de l'intérieur</th><th class="nb" colspan="2"></th></tr>
-        <tr class="g1"><th class="nb"></th><th colspan="2">A</th><th colspan="2">B</th><th colspan="2">C</th><th colspan="2">Départ : D Dp &nbsp;⟷</th><th colspan="2">Départ ou renvoi : R/db &nbsp;↕</th><th class="nb" colspan="2"></th></tr>
-        <tr><th class="vb-rep">Repère</th>${"<th>Gauche</th><th>Droite</th>".repeat(5)}<th>Gond</th><th>Observations</th></tr>
-        ${pad(v.lignes,10).map(gl).join("")}</table></div>`;
-  }
-  const ph=v.photos.filter(p=>p.img), head=t=>`<div class="ph"><img src="${LOGO}"><div class="tt">${esc(t)}</div><div>${esc(d.client.nom)}<br>${fmtDate(d.client.date_rdv)}</div></div>`;
-  for(let i=0;i<ph.length;i+=4) h+=`<div class="pg">${head("Photos volets battants")}<div class="pphotos">${ph.slice(i,i+4).map((p,j)=>`<figure><img src="${p.img}"><figcaption><b>Photo ${i+j+1}</b>${p.txt?" – "+esc(p.txt):""}</figcaption></figure>`).join("")}</div></div>`;
+/* ancienne page volets battants (style feuille Numbers) remplacée le 17/11/2026 par la présentation menuiseries */
+/* ---------- Dessin d'un volet battant (vue de l'intérieur, comme le sens Corrèze) ---------- */
+function vantauxVB(t){ t=String(t||"");
+  if(/^1 vantail.*gauche/i.test(t)) return [{w:1,g:true}]; if(/^1 vantail.*droite/i.test(t)) return [{w:1,g:false}];
+  if(/même côté – gauche/i.test(t)) return [{w:1,g:true},{w:1,g:true}]; if(/même côté – droite/i.test(t)) return [{w:1,g:false},{w:1,g:false}];
+  if(/inégaux/i.test(t)) return [{w:1.7,g:true},{w:1,g:false}];
+  if(/2 à gauche et 1 à droite/i.test(t)) return [{w:1,g:true},{w:1,g:true},{w:1,g:false}]; if(/1 à gauche et 2 à droite/i.test(t)) return [{w:1,g:true},{w:1,g:false},{w:1,g:false}];
+  if(/^4/.test(t)) return [{w:1,g:true},{w:1,g:true},{w:1,g:false},{w:1,g:false}];
+  return [{w:1,g:true},{w:1,g:false}]; }
+function dessinVB(v, l, cls="pdessin"){
+  const L=num(l.L), H=num(l.H), r=(L&&H)?Math.min(2.6,Math.max(0.45,H/L)):1.25, W=r>1.6?130:200, Hh=Math.round(W*r), X=34, Y=16;
+  const RED="#d3232f", NAVY="#1b2f5e", FER="#2b2f36", fond=/blanc/i.test(v.couleur||"")||!v.couleur?"#f4f6fa":"#e3e7ef";
+  const f=num(l.cintre_f), fl=f&&L?Math.min(Hh*0.35, f*W/L):0, V=vantauxVB(l.vantaux), tot=V.reduce((s,x)=>s+x.w,0);
+  const cadre=/cadre/i.test(v.type||"")||/cadre/i.test(v.lame||""), horiz=/horizontal/i.test(v.lame||""), plein=/plein/i.test(v.lame||"")&&!/cadre/i.test(v.lame||"");
+  const barres=/barres/i.test(v.barre||""), echarpes=/écharpes/i.test(v.barre||""), dauph=/dauphinois/i.test(v.barre||""), pentures=v.ferrage&&!/sans/i.test(v.ferrage)||/pentures/i.test(v.barre||""), esp=l.espagnolette&&!/sans/i.test(l.espagnolette);
+  const top=x=>{ if(!fl) return Y; const t=(x-X)/W; return Y+fl*(1-4*t*(1-t)); };   // cintre : arc sur toute la largeur
+  const ouv=`M${X},${Y+Hh} L${X},${top(X)} ${fl?`Q${X+W/2},${Y-fl} ${X+W},${top(X+W)}`:`L${X+W},${Y}`} L${X+W},${Y+Hh} Z`;
+  let s=`<defs><clipPath id="cvb${l.id}"><path d="${ouv}"/></clipPath></defs><g clip-path="url(#cvb${l.id})">`;
+  let x0=X, gd=""; const nb=H&&H>1700?3:2;
+  V.forEach((vt,i)=>{ const w=W*vt.w/tot, x1=x0+w; s+=`<rect x="${x0+1}" y="${Y-fl}" width="${w-2}" height="${Hh+fl}" fill="${fond}" stroke="${NAVY}" stroke-width="2"/>`;
+    const m=cadre||dauph?9:0; if(m) s+=`<rect x="${x0+m}" y="${Y-fl+m}" width="${w-2*m}" height="${Hh+fl-2*m}" fill="none" stroke="${NAVY}" stroke-width="1.4"/>`;
+    if(!plein){ if(horiz) for(let y=Y-fl+m+10;y<Y+Hh-m;y+=10) s+=`<line x1="${x0+m+2}" y1="${y}" x2="${x1-m-2}" y2="${y}" stroke="#8a93a6" stroke-width="0.8"/>`;
+      else for(let x=x0+m+12;x<x1-m-3;x+=12) s+=`<line x1="${x}" y1="${Y-fl+m+2}" x2="${x}" y2="${Y+Hh-m-2}" stroke="#8a93a6" stroke-width="0.8"/>`; }
+    const ys=Array.from({length:nb},(_,k)=>Y+Hh*(nb===2?[0.16,0.84][k]:[0.12,0.5,0.88][k]));
+    if(barres && !cadre){ ys.forEach(y=>s+=`<rect x="${x0+4}" y="${y-5}" width="${w-8}" height="10" fill="${fond}" stroke="${NAVY}" stroke-width="1.3"/>`);
+      if(echarpes) for(let k=0;k<ys.length-1;k++){ const ya=ys[k+1]-5, yb=ys[k]+5, xa=vt.g?x0+6:x1-6, xb=vt.g?x1-6:x0+6; s+=`<path d="M${xa},${ya} L${xa+(vt.g?10:-10)},${ya} L${xb},${yb} L${xb+(vt.g?-10:10)},${yb} Z" fill="${fond}" stroke="${NAVY}" stroke-width="1.3"/>`; } }
+    if(pentures) ys.forEach(y=>{ const xa=vt.g?x0+2:x1-2, xb=vt.g?x0+w*0.78:x1-w*0.78; s+=`<line x1="${xa}" y1="${y}" x2="${xb}" y2="${y}" stroke="${FER}" stroke-width="4" stroke-linecap="round"/><circle cx="${xb}" cy="${y}" r="3.2" fill="${FER}"/>`; });
+    ys.forEach(y=>gd+=`<rect x="${vt.g?x0-7:x1+1}" y="${y-5}" width="6" height="10" rx="1.5" fill="${RED}"/>`);   // gonds (côté rotation)
+    x0=x1; });
+  if(esp){ const xi=V.length===1?(V[0].g?X+W-12:X+12):X+W*V.slice(0,Math.ceil(V.length/2)).reduce((s2,x)=>s2+x.w,0)/tot-6; s+=`<line x1="${xi}" y1="${Y+8}" x2="${xi}" y2="${Y+Hh-8}" stroke="${FER}" stroke-width="2.4"/><rect x="${xi-4}" y="${Y+Hh*0.48}" width="8" height="18" rx="2" fill="${FER}"/>`; }
+  s+=`</g><path d="${ouv}" fill="none" stroke="${NAVY}" stroke-width="3"/>${gd}`;
+  const pill=(x,y,t,vert)=>{ const n=String(t).length*8.4+14; return `<g><rect x="${vert?x-10:x-n/2}" y="${vert?y-n/2:y-10}" width="${vert?20:n}" height="${vert?n:20}" rx="10" fill="#fff" stroke="${RED}" stroke-width="1.5"/><text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="13" font-weight="700" fill="${RED}"${vert?` transform="rotate(-90 ${x} ${y})"`:""}>${esc(String(t))}</text></g>`; };
+  s+=`<line x1="${X}" y1="${Y+Hh+16}" x2="${X+W}" y2="${Y+Hh+16}" stroke="${RED}"/>${pill(X+W/2,Y+Hh+16,L??"L ?",false)}`;
+  s+=`<line x1="${X+W+22}" y1="${Y}" x2="${X+W+22}" y2="${Y+Hh}" stroke="${RED}"/>${pill(X+W+22,Y+Hh/2,H??"H ?",true)}`;
+  if(fl) s+=`<text x="${X+W/2}" y="${Y-fl-4}" text-anchor="middle" font-family="Arial" font-size="11" fill="${RED}">flèche ${esc(l.cintre_f)}${l.cintre_n?" · naissance "+esc(l.cintre_n):""}</text>`;
+  if(num(l.allege)!=null) s+=`<text x="${X}" y="${Y+Hh+44}" font-family="Arial" font-size="11" fill="#5b6478">Allège ${esc(l.allege)} mm</text>`;
+  return `<svg class="${cls}" viewBox="0 0 ${W+80} ${Hh+Y+(fl?fl+4:0)+52}" xmlns="http://www.w3.org/2000/svg"><g transform="translate(0,${fl?fl+4:0})">${s}</g></svg>`;
+}
+/* ---------- PDF volets battants : même présentation que les menuiseries ---------- */
+function pagesVB(d, head, row){
+  const v=d.vb; if(!aVB(d)) return ""; const c=controleVB(d), n=(l,i)=>l.repere||`volet ${i+1}`, ge=gondsExistants(v);
+  const commun=[["Matière",v.matiere],["Type",v.type],[v.matiere==="Bois"?"Finition":"Couleur",v.couleur],["Essence",v.essence],["Lame",v.lame],["Barres et écharpes",v.barre],["Ferrage (pentures)",v.ferrage],["Gonds",v.gonds],["Pose",v.pose],["Type de dimensions",v.type_dim],["Arrêts de vent",v.arrets?(v.arret_type||"Oui"):""],["Manutention",v.manutention]];
+  let h=`<div class="pg">${head(`Volets battants Corrèze – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
+    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","Corrèze Fermetures"],["Nombre de volets",String(v.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div>
+    <div><table class="pt">${row(commun)}</table></div></div>
+    <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Vantaux</th><th>Largeur</th><th>Hauteur</th><th>Allège</th><th>Sens (vue int.)</th><th>Feuillure l × p · côtés</th><th>Cintre</th><th>Espagnolette</th><th>Options</th></tr>
+    ${v.lignes.map((l,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.qte)}</td><td>${esc(l.vantaux)}</td><td><b>${esc(l.L)}</b></td><td><b>${esc(l.H)}</b></td><td>${esc(l.allege)}</td><td>${[l.sens_g&&"Gauche",l.sens_d&&"Droite"].filter(Boolean).join(" + ")}</td>
+      <td>${[l.f_l||l.f_p?`${l.f_l||"?"} × ${l.f_p||"?"}`:"",l.f_cotes].filter(Boolean).join(" · ")}</td><td>${l.cintre_f?`flèche ${esc(l.cintre_f)}${l.cintre_n?" / naiss. "+esc(l.cintre_n):""}`:""}</td><td>${esc(l.espagnolette)}</td><td>${esc((l.options||[]).join(", "))}</td></tr>`).join("")}</table>
+    ${c.E.length||c.W.length?`<div class="pwarn">À vérifier : ${esc([...c.E,...c.W].join(" · "))}</div>`:`<div class="pok">Contrôle OK</div>`}</div>`;
+  v.lignes.forEach((l,i)=>{ const pre=n(l,i)+" : ", msg=[...c.E,...c.W].filter(x=>x.startsWith(pre)).map(x=>x.slice(pre.length));
+    const g=l.g||{}, aG=["A","B","C","D","R"].some(x=>g[x+"_g"]||g[x+"_d"]);
+    h+=`<div class="pg">${head(`${i+1}. ${l.repere||"Volet battant"} – ${d.client.nom||""}`)}<div class="p3"><div class="pdim">
+      <div class="pposetitre">VOLET BATTANT – ${esc((v.pose||"pose à préciser").toUpperCase())}</div>
+      <div class="pdt2"><table class="pt pdt"><tr class="pdir"><th colspan="2">TABLEAU</th></tr>
+          <tr><th>Largeur</th><td>${esc(l.L)}</td></tr><tr><th>Hauteur</th><td>${esc(l.H)}</td></tr><tr><th>Allège</th><td>${esc(l.allege)}</td></tr>
+          <tr class="pfabr"><th>${esc(v.type_dim===VB_TYPE_DIM[1]?"FOND DE FEUILLURE":"TABLEAU")}</th><td>${esc(l.L)} × ${esc(l.H)}</td></tr></table>
+        <table class="pt pdt"><tr class="pdir"><th colspan="2">FEUILLURE / CINTRE</th></tr>
+          <tr><th>Largeur feuillure</th><td>${esc(l.f_l)}</td></tr><tr><th>Profondeur</th><td>${esc(l.f_p)}</td></tr><tr><th>Côtés</th><td>${esc(l.f_cotes)}</td></tr>
+          <tr><th>Naissance cintre</th><td>${esc(l.cintre_n)}</td></tr><tr><th>Flèche</th><td>${esc(l.cintre_f)}</td></tr></table></div>
+      ${ge||aG?`<div class="pst" style="margin-top:6px">GONDS EXISTANTS <small>– vus de l'intérieur</small></div>
+        <div style="display:grid;grid-template-columns:1.3fr repeat(5,1fr);font-size:8pt;margin-top:2px">${["","A","B","C","D / Dp","R / Db"].map(x=>`<div style="border:1px solid #c9d1e3;padding:2px 3px;text-align:center;background:#e8edf7;font-weight:700;color:#1b2f5e">${x}</div>`).join("")}
+        ${["g","d"].map(sd=>`<div style="border:1px solid #c9d1e3;padding:2px 3px;text-align:center;font-weight:700;text-align:left">${sd==="g"?"Gauche":"Droite"}</div>${["A","B","C","D","R"].map(x=>`<div style="border:1px solid #c9d1e3;padding:2px 3px;text-align:center">${esc(g[x+"_"+sd]||"")||"&nbsp;"}</div>`).join("")}`).join("")}</div>
+        ${g.gond||g.obs?`<div class="pelarg">${esc([g.gond,g.obs].filter(Boolean).join(" – "))}</div>`:""}
+        <div style="display:flex;gap:4px;justify-content:center;margin-top:4px"><img src="img/vb-gonds-formes.jpg" style="width:auto;max-width:49%;max-height:34mm"><img src="img/vb-gonds-deport.jpg" style="width:auto;max-width:49%;max-height:34mm"></div>`:""}
+      </div><div>
+      <table class="pt">${row([["Quantité",l.qte],["Vantaux",l.vantaux],["Sens (vue intérieure)",[l.sens_g&&"Gauche",l.sens_d&&"Droite"].filter(Boolean).join(" + ")],["Espagnolette",l.espagnolette],["Options",(l.options||[]).join(", ")],...commun,["Observation",l.obs]])}</table>
+      </div><div>
+      <div class="pst">DESSIN <small>– vue de l'intérieur</small></div>${dessinVB(v,l)}
+      </div><div class="pbas">${msg.length?`<div class="pwarn">À vérifier : ${esc(msg.join(" · "))}</div>`:""}</div></div></div>`; });
+  const ph=(v.photos||[]).filter(x=>x.img);
+  for(let i=0;i<ph.length;i+=4) h+=`<div class="pg">${head(`Volets battants – Photos${ph.length>4?` (${i/4+1})`:""} – ${d.client.nom||""}`)}
+    <div class="pphotos">${ph.slice(i,i+4).map((x,j)=>`<figure><img src="${x.img}"><figcaption><b>Photo ${j+i+1}</b>${x.txt?" – "+esc(x.txt):""}</figcaption></figure>`).join("")}</div></div>`;
   return h;
 }
 
@@ -2866,7 +2912,7 @@ function construireImpression(d){
       <div>${tp&&SCHEMAS[tp.img]?`<img src="${SCHEMAS[tp.img]}" style="max-width:100%;border:1px solid #9aa3b5"><div style="text-align:center;font-weight:700">${esc(tp.nom)}</div>`:""}</div></div></div>`;
   }
   h+=pagesPT(d);
-  h+=pagesVB(d); h+=pagesPP(d, head, row);
+  h+=pagesVB(d, head, row); h+=pagesPP(d, head, row);
   h+=pagesClim(d);
   return h;
 }

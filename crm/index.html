@@ -3723,7 +3723,7 @@ function mailText(list){
   if (S.length) parts.push((parts.length + 1) + ") SAV à reporter dans le dossier SUIVI SAV (" + n(S) + ") :\n\n" + S.map(savBlock).join("\n\n"));
   if (T.length) parts.push((parts.length + 1) + ") Tâches pour toi (" + n(T) + ") :\n\n" + T.map(savBlock).join("\n\n"));
   if (Pp.length) parts.push((parts.length + 1) + ") Relances paiement (" + n(Pp) + ") :\n\n" + Pp.map(payBlock).join("\n\n"));
-  const Wc = typeof wfAll === "function" ? wfAll().filter(x => x.a.who === "clemence") : [];
+  const Wc = []; // Nicolas ne veut plus envoyer à Clémence la liste « Devis en attente chez toi »
   if (Wc.length) parts.push((parts.length + 1) + ") Devis en attente chez toi (" + n(Wc) + ") :\n\n" + Wc.map(({ r, a }) => "■ " + r.client + (r.tel ? " – " + r.tel : "") + "\n   📄 " + a.todo + " – en attente depuis " + a.late + " jours").join("\n\n"));
   if (parts.length === 1) parts[0] = parts[0].replace(/^1\) /, "").replace(/^Mises à jour/, "Voici les mises à jour").replace(/^SAV à reporter/, "Voici les SAV à reporter").replace(/^Tâches pour toi/, "Voici les tâches pour toi").replace(/^Relances paiement/, "Voici les relances paiement").replace(/^Devis en attente chez toi/, "Voici les devis en attente chez toi");
   const subject = !F.length && !S.length && !Pp.length && Wc.length ? "Devis en attente – dossiers Nicolas" + per : (F.length && S.length ? "Mise à jour ANALYSE FIC et SUIVI SAV" : S.length && !F.length ? "Mise à jour SUIVI SAV" : !F.length && Pp.length ? "Relances paiement" : "Mise à jour ANALYSE FIC") + (Pp.length && (F.length || S.length) ? " + relances paiement" : "") + " – dossiers Nicolas" + per;

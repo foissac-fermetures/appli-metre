@@ -3428,7 +3428,10 @@ async function afficherAgenda(forcer){
   const dejaFait=e=>{ const i=infosRdv(e), n=normNom(i.nom); return ds.find(d=>(d.agenda&&d.agenda.id===e.id) || (normNom(d.client.nom)===n && d.client.date_rdv===i.date)); };
   const jour=dt=>{ const x=new Date(dt), t=new Date(); t.setHours(0,0,0,0); const k=Math.round((new Date(x.getFullYear(),x.getMonth(),x.getDate())-t)/86400e3);
     return k===0?"Aujourd'hui":k===1?"Demain":x.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"short"}); };
-  const L=data?data.rdv:[];
+  /* RDV passés sans métré (17/11/2026) : retirés de la liste à partir de 19 h le jour même (et les jours d'avant).
+     L'agenda Google n'est jamais modifié (lecture seule) ; « afficher » les remet le temps de la visite. */
+  const passe=e=>{ const n=new Date(), x=new Date(e.debut), j=new Date(x.getFullYear(),x.getMonth(),x.getDate()), t=new Date(n.getFullYear(),n.getMonth(),n.getDate()); return j<t || (+j===+t && n.getHours()>=19); };
+  const tous=data?data.rdv:[], masques=tous.filter(e=>passe(e)&&!dejaFait(e)), L=S.agTous?tous:tous.filter(e=>!masques.includes(e));
   z2.innerHTML=`<div class="row" style="margin-bottom:8px"><h2 style="margin:0">Mes rendez-vous</h2><span class="spacer"></span>
       <span class="hint">${data?"Agenda lu à "+new Date(data.le).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}):""}</span>
       <button class="btn small" id="agMaj">${data?"Actualiser":"Afficher mes rendez-vous"}</button></div>
@@ -3438,7 +3441,9 @@ async function afficherAgenda(forcer){
         <div class="t">${esc(i.nom)}</div><div class="s">${esc(i.projet||"")}</div><div class="s">${esc(e.lieu)}</div>
         <div class="row" style="gap:6px;margin-top:6px">${f?`<button class="btn small" data-agouv="${f.id}">Ouvrir le métré</button>`:`<button class="btn small primary" data-agnew="${k}">+ Créer le métré</button>`}
         ${e.lieu?`<button class="btn small" data-agnav="${k}">Itinéraire</button>`:""}${i.tel?`<a class="btn small" href="tel:${esc(i.tel.replace(/[^\d+]/g,""))}">Appeler</a>`:""}</div></div>`; }).join("")}</div>`
-      : data?`<p class="hint">Aucun rendez-vous client dans les 8 prochains jours.</p>`:`<p class="hint">Touche « Afficher mes rendez-vous » pour lire ton agenda Google.</p>`}`;
+      : data?`<p class="hint">Aucun rendez-vous client à venir dans les 8 prochains jours.</p>`:`<p class="hint">Touche « Afficher mes rendez-vous » pour lire ton agenda Google.</p>`}
+    ${masques.length?`<p class="hint" style="margin:8px 0 0">${S.agTous?`${masques.length} rendez-vous passé(s) sans métré affiché(s) · <a href="#" id="agTous">les masquer</a>`:`${masques.length} rendez-vous passé(s) sans métré masqué(s) · <a href="#" id="agTous">afficher</a>`}</p>`:""}`;
+  if($("#agTous")) $("#agTous").onclick=ev=>{ ev.preventDefault(); S.agTous=!S.agTous; afficherAgenda(false); };
   $("#agMaj").onclick=()=>{ $("#agMaj").textContent="Lecture…"; afficherAgenda(true); };
   $$("[data-agnew]").forEach(b=>b.onclick=async()=>{ b.textContent="Création…"; const base=await metreDepuisRdv(L[+b.dataset.agnew]); b.textContent="+ Créer le métré";
     const d=await nouveauRendezVous({nom:base.client.nom, base, crm:false}); if(d) toast("Métré créé depuis l'agenda"+(d.crm?" et le CRM":"")); });

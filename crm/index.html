@@ -710,6 +710,18 @@ html.resa-open{overflow:hidden}
 /* ---- onglet SAV ---- */
 #v-sav:not([hidden]){display:grid;gap:16px}
 #v-mail:not([hidden]){display:grid;gap:16px}
+#v-cli:not([hidden]){display:grid;gap:16px}
+.cvq{width:100%;box-sizing:border-box;font:inherit;font-size:1.15rem;padding:12px 16px;border:2px solid var(--line);border-radius:12px;background:var(--panel);color:inherit}.cvq:focus{outline:none;border-color:#22d3ee}
+.cvres{display:grid;gap:6px}.cvres button{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;text-align:left;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:inherit;font:inherit;cursor:pointer}
+.cvres button:hover,.cvres button.on{border-color:#22d3ee;background:color-mix(in srgb,#22d3ee 8%,var(--panel))}.cvres b{font-size:1rem}.cvres .sub{grid-column:1}
+.cv-head{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;padding:18px 20px;border-radius:14px;background:linear-gradient(135deg,color-mix(in srgb,#22d3ee 16%,var(--panel)),var(--panel));border:1px solid var(--line)}
+.cv-head h2{margin:0;font-size:1.7rem;line-height:1.1}.cv-head .cv-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.cv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;align-items:start}
+.cv-card{background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--cc,#22d3ee);border-radius:12px;padding:12px 14px 14px;display:grid;gap:8px;min-width:0}
+.cv-card h3{margin:0;font:800 .76rem/1.2 var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--cc,#0891b2)}
+.cv-li{display:grid;gap:2px;padding:6px 0;border-top:1px dashed var(--line)}.cv-li:first-of-type{border-top:0}.cv-li b{font-weight:600}.cv-li .sub{font-size:.84rem}
+.cv-kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:6px 10px;font-size:.95rem}.cv-kv dt{color:var(--muted);font-size:.82rem}.cv-kv dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.cv-tl{display:grid;gap:0}.cv-tl div{display:grid;grid-template-columns:62px minmax(0,1fr);gap:8px;padding:5px 0;border-top:1px dashed var(--line);font-size:.9rem}.cv-tl div:first-child{border-top:0}.cv-tl span{color:var(--muted);font-variant-numeric:tabular-nums}
 .mrecap{padding:12px 16px 16px;display:grid;gap:10px}
 .mstat{display:flex;flex-wrap:wrap;gap:8px}.mstat span{display:inline-flex;gap:6px;align-items:center;padding:5px 12px;border-radius:999px;background:color-mix(in srgb,var(--mc,#60a5fa) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--mc,#60a5fa) 35%,var(--line));font-weight:600;font-size:.9rem}
 .mstat b{font-size:1.05rem}
@@ -893,6 +905,7 @@ h2{text-transform:none;letter-spacing:0;font-weight:800;font-size:1.12rem}
     <button class="tab" id="t-taches" aria-selected="false" style="--dc:#a3e635"><i></i><span>Tâches</span><span class="tab-n" id="ttask-n"></span></button>
     <button class="tab" id="t-pose" aria-selected="false" style="--dc:#f472b6"><i></i><span>Pose</span><span class="tab-n" id="tpose-n"></span></button>
     <button class="tab" id="t-sav" aria-selected="false" style="--dc:#f87171"><i></i><span>SAV</span><span class="tab-n" id="tsav-n"></span></button>
+    <button class="tab" id="t-cli" aria-selected="false" style="--dc:#22d3ee"><i></i><span>Fiche client</span></button>
     <button class="tab" id="t-mail" aria-selected="false" style="--dc:#60a5fa"><i></i><span>Mails</span><span class="tab-n" id="tmail-n"></span></button>
     <button class="tab" id="t-four" aria-selected="false" style="--dc:#34d399"><i></i><span>Fournisseurs</span><span class="tab-n" id="tfour-n"></span></button>
     <button class="tab" id="t-tour" hidden aria-selected="false" style="--dc:#94a3b8"><i></i><span>Tournées</span><span class="tab-n" id="ttour-n"></span></button>
@@ -1014,6 +1027,11 @@ h2{text-transform:none;letter-spacing:0;font-weight:800;font-size:1.12rem}
   <div id="v-pay" hidden>
     <section class="strip" id="paystrip" aria-label="Paiements en attente"></section>
     <section class="panel"><div class="hd"><h2 id="payTitle">Paiements à relancer</h2><span class="sub">clique un client pour noter ta relance : appel, message, SMS ou mail</span></div><div id="paylist"><div class="empty">Chargement…</div></div></section>
+  </div>
+  <div id="v-cli" hidden>
+    <section class="panel cv-search"><div class="hd"><h2>Tout sur un client</h2><span class="sub">tape un nom, un téléphone, un mail ou une commune</span></div>
+      <div style="padding:14px 16px 16px;display:grid;gap:10px"><input type="search" id="cvq" class="cvq" placeholder="Ex. : Maily, 06 87…, Gourdon…" autocomplete="off" aria-label="Chercher un client"><div id="cvres" class="cvres"></div></div></section>
+    <div id="cvbody"></div>
   </div>
   <div id="v-mail" hidden>
     <section class="panel"><div class="hd"><h2>Mes mails</h2><div class="filters"><label class="sub">depuis <select id="mper"><option value="2">2 jours</option><option value="7" selected>7 jours</option><option value="14">14 jours</option><option value="30">30 jours</option></select></label><button class="btn pri" id="mref" type="button">🔄 Actualiser</button></div></div>
@@ -2681,7 +2699,7 @@ function needMetre(r){ const vd = venteD(r); if (!vd) return false;
   return true; }
 function fixStages(){ for (const r of rows) { const V = r.vente || []; if (!V.length) continue; let need = null;
     for (const v of V) { if (v.et0 == null) v.et0 = v.et; if (v.et0 === "commande") { if (need == null) need = needMetre(r); v.et = need ? "metre" : "commande"; } else v.et = v.et0; } } }
-function renderAll(){ try { fixStages(); } catch(e){ console.warn(e); } try { renderMails(); } catch(e){ console.warn(e); } renderPay(); renderTaches(); renderPose(); renderSav(); renderDash(); renderTours(); renderStrip(); renderList(); renderQueue(); renderChantiers(); renderRdv(); renderMailCount(); if (openId) renderDrawer(); }
+function renderAll(){ try { fixStages(); } catch(e){ console.warn(e); } try { renderMails(); } catch(e){ console.warn(e); } try { if (cvSel) renderCv(); } catch(e){ console.warn(e); } renderPay(); renderTaches(); renderPose(); renderSav(); renderDash(); renderTours(); renderStrip(); renderList(); renderQueue(); renderChantiers(); renderRdv(); renderMailCount(); if (openId) renderDrawer(); }
 
 /* ---------- chantiers signés ---------- */
 function chantiers(){ return rows.flatMap(r => (r.vente||[]).map((v,i) => ({r, v, i}))); }
@@ -4025,6 +4043,47 @@ async function exportData(){ const b = $("#expBtn"); if (!db) return; b.textCont
   catch(e){ toast(e && e.code === "declined" ? "Export annulé" : "Export impossible : " + String((e && e.message) || e).slice(0, 80)); }
   b.textContent = "⇩ Exporter mes données"; }
 (async () => { try { const dl = await claude.use("downloads"); if (dl) { const b = $("#expBtn"); b.hidden = false; b.onclick = exportData; } } catch(_){} })();
+/* ===== Onglet « Fiche client » : je tape un nom, j'ai tout sur le client ===== */
+let cvSel = null;
+function cvFind(q){ const Q = sansAcc(q).trim(); if (Q.length < 2) return []; const D = Q.replace(/\D/g, "");
+  return rows.filter(r => { const hay = sansAcc([r.client, aliasOf ? aliasOf(r) : "", r.lieu, adrOf(r), adrChantier(r), mailOf(r), r.proj, ctOf(r).map(c => c.nom + " " + c.lien).join(" ")].join(" "));
+      if (Q.split(/\s+/).every(w => hay.includes(w))) return true; if (D.length >= 4) { const T = [r.tel, ...ctOf(r).map(c => c.tel)].join(" ").replace(/\D/g, ""); if (T.includes(D)) return true; } return false; })
+    .sort((a, b) => String(b.fic || venteD(b) || "").localeCompare(String(a.fic || venteD(a) || ""))).slice(0, 12); }
+function cvRelated(r){ const t = String(r.tel || "").replace(/\D/g, "").slice(-9), ml = (mailOf(r) || "").toLowerCase(), C = upAscii(r.client);
+  return rows.filter(x => x.id !== r.id && ((t.length === 9 && String(x.tel || "").replace(/\D/g, "").slice(-9) === t) || (ml && (mailOf(x) || "").toLowerCase() === ml) || upAscii(x.client) === C)); }
+function renderCvRes(){ const el = $("#cvres"); if (!el) return; const q = ($("#cvq") || {}).value || ""; const L = cvFind(q);
+  el.innerHTML = q.trim().length < 2 ? "" : L.length ? L.map(r => `<button type="button" data-cv="${esc(r.id)}" class="${cvSel === r.id ? "on" : ""}"><b>${esc(r.client)}</b><span>${nextPill(r).replace('class="nxp ', 'class="nxp nxp-sm ') || `<span class="pill ${ST[status(r)].c}">${ST[status(r)].l}</span>`}</span><span class="sub">${esc([r.lieu, r.tel, r.fic ? "FIC du " + fd(r.fic) + "/" + yOf(r) : venteD(r) ? "vente du " + fd(venteD(r)) : ""].filter(Boolean).join(" · "))}</span></button>`).join("") : `<div class="sub">Aucun client ne correspond à « ${esc(q)} ».</div>`;
+  el.querySelectorAll("[data-cv]").forEach(b => b.onclick = () => { cvSel = b.dataset.cv; renderCvRes(); renderCv(); $("#cvbody").scrollIntoView({ block: "start", behavior: "smooth" }); }); }
+function renderCv(){ const el = $("#cvbody"); if (!el) return; const r = cvSel && rows.find(x => x.id === cvSel); if (!r) { el.innerHTML = ""; return; }
+  const s = suivi[r.id] || {}, st = status(r), V = (r.vente || []).filter(v => !v.ann), rv = rdvCur(r) || myRdv(r), T = tOf(r).sort((a, b) => String(a.done ? "z" : a.due).localeCompare(String(b.done ? "z" : b.due)));
+  const SV = Object.entries(csav).filter(([, v]) => v && v.rid === r.id).map(([id, v]) => Object.assign({ id }, v)).sort((a, b) => String(b.d).localeCompare(String(a.d)));
+  const N = cnNotes(r), REL = cvRelated(r), C = ctOf(r), ml = (mailOf(r) || "").toLowerCase(), nom = upAscii(r.client).split(/[^A-Z]+/).find(x => x.length >= 4) || "";
+  const MAILS = (mailsList || []).filter(m => { const a = mailAddr(m.from).a; return (ml && (a === ml || String(m.to).toLowerCase().includes(ml))) || (nom && new RegExp("\\b" + nom + "\\b").test(upAscii(m.subject))); }).slice(0, 8);
+  const tl = (s.log || []).map(x => ({ d: x.d, t: x.t })).concat((s.relances || []).map(x => ({ d: x.d, t: "Relance par " + modeTxt(x.mode) + (x.note ? " : " + x.note : "") }))).concat(N.map(n => ({ d: n.d, t: "📞 Note d'appel" + (n.dur ? " (" + n.dur + ")" : "") }))).sort((a, b) => String(b.d).localeCompare(String(a.d))).slice(0, 25);
+  const tl2 = (u, l) => u ? `<a class="btn sm pri" href="${esc(telLink(u))}">📞 ${esc(l || "Appeler")}</a>` : "";
+  const docs = [].concat((r.pdf_devis || []).map(p => ["Devis", p]), (r.pdf_metres || []).map(p => ["Métré", p]), (r.pdf_cde || []).map(p => ["Signé / commande", p]), (r.pdf_mdef || []).map(p => ["Métré définitif", p])).sort((a, b) => String(b[1][2] || "").localeCompare(String(a[1][2] || ""))).slice(0, 12);
+  el.innerHTML = `<div class="cv-head"><div style="min-width:0"><span class="eyebrow">${esc(r.lieu || "")}${r.fic ? " · premier contact le " + fd(r.fic) + "/" + yOf(r) : ""}${r.src ? " · " + esc(r.src) : ""}</span><h2>${esc(r.client)}</h2>
+      <div class="cv-pills"><span class="pill ${ST[st].c}">${ST[st].l}</span>${nextPill(r)}</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${tl2(r.tel)}${mailOf(r) ? `<a class="btn sm" href="${esc(outlookHref([mailOf(r)], [], "", "Bonjour,\n\n\n" + SIGN))}">✉ Écrire</a>` : ""}<button class="btn sm" type="button" data-id="${esc(r.id)}">Ouvrir la fiche complète</button></div></div>
+    <div class="cv-grid">
+      <section class="cv-card" style="--cc:#2563eb"><h3>Coordonnées</h3><dl class="cv-kv"><dt>Téléphone</dt><dd>${esc(r.tel || "—")}</dd><dt>Mail</dt><dd>${esc(mailOf(r) || "—")}</dd><dt>Domicile</dt><dd>${esc(adrOf(r) || "—")}</dd><dt>Chantier</dt><dd>${esc(adrChantier(r) || "même adresse")}</dd>${trajet(r) ? `<dt>Trajet</dt><dd>≈ ${esc(trajet(r).t)} · ${trajet(r).km} km</dd>` : ""}</dl>
+        ${C.length ? `<div><span class="eyebrow">Autres contacts</span>${C.map(c => `<div class="cv-li"><b>${esc(c.lien || "Contact")}${c.nom ? " · " + esc(c.nom) : ""}${c.rdv ? " · 📐 pour le RDV" : ""}</b><span class="sub">${esc(c.tel || "")}${c.note ? " · " + esc(c.note.slice(0, 90)) : ""}</span>${c.tel ? `<div>${tl2(c.tel)}</div>` : ""}</div>`).join("")}</div>` : ""}</section>
+      <section class="cv-card" style="--cc:#7c3aed"><h3>Le projet</h3>${projHtml(r.proj)}${rv ? `<div class="cv-li"><b>📅 RDV ${rv.d >= iso(today()) ? "prévu" : "du"} ${esc(fd(rv.d))}${rv.h ? " à " + esc(rv.h.replace(":", "h")) : ""}</b>${rv.t ? `<span class="sub">${esc(rv.t)}</span>` : ""}</div>` : ""}${r.conc ? `<div class="cv-li"><b>Concurrence</b><span class="sub">${esc(r.conc)}</span></div>` : ""}</section>
+      <section class="cv-card" style="--cc:#16a34a"><h3>Devis et ventes</h3>${(r.mt || []).length ? `<div class="cv-li"><b>Devis proposé${r.mt.length > 1 ? "s" : ""}</b><span class="sub">${r.mt.map(a => eur(typeof a === "object" ? a.t : a)).join(" · ")} TTC${r.remise ? " · remis le " + fd(r.remise) : ""}</span></div>` : ""}
+        ${V.map(v => `<div class="cv-li"><b>✍️ Signé le ${esc(fd(v.d))}${v.ht != null ? " · " + esc(eur(v.ht)) + " HT" : ""}</b><span class="sub">${esc((v.it || []).join(" + ").slice(0, 200))}</span></div>`).join("") || (!(r.mt || []).length ? `<span class="sub">Pas encore de devis.</span>` : "")}
+        ${docs.length ? `<div><span class="eyebrow">Documents du Drive</span>${docs.map(([k, p]) => `<div class="cv-li"><a href="https://drive.google.com/file/d/${esc(p[1])}/view" target="_blank" rel="noopener"><b>📄 ${esc(p[0])}</b></a><span class="sub">${esc(k)}${p[2] ? " · " + esc(fd(p[2])) : ""}</span></div>`).join("")}</div>` : ""}</section>
+      <section class="cv-card" style="--cc:#84cc16"><h3>Tâches${T.filter(x => !x.done).length ? " · " + T.filter(x => !x.done).length + " à faire" : ""}</h3>${T.length ? T.slice(0, 10).map(x => `<div class="cv-li"><b>${x.done ? "✅ " : "⬜ "}${esc(tLabel(x))}</b><span class="sub">${x.done ? "faite le " + esc(fd(x.done.d)) : "pour le " + esc(fd(x.due))}${x.note && x.note !== tLabel(x) ? " · " + esc(x.note.slice(0, 120)) : ""}</span></div>`).join("") : `<span class="sub">Aucune tâche.</span>`}</section>
+      <section class="cv-card" style="--cc:#dc2626"><h3>SAV${SV.length ? " · " + SV.length : ""}</h3>${SV.length ? SV.map(v => `<div class="cv-li"><b>🔧 ${esc(v.produit || "SAV")} · ${esc(csStatus(v.st).l)}</b><span class="sub">ouvert le ${esc(fd(v.d))}${v.pb ? " · " + esc(v.pb.slice(0, 140)) : ""}</span></div>`).join("") : `<span class="sub">Aucun SAV.</span>`}</section>
+      <section class="cv-card" style="--cc:#8b5cf6"><h3>Notes d'appel${N.length ? " · " + N.length : ""}</h3>${N.length ? N.slice(0, 5).map(n => `<div class="cv-li"><b>📞 ${esc(fd(n.d))}${n.dur ? " · " + esc(n.dur) : ""}</b><span class="sub">${esc(((n.pts || []).join(" · ") || n.txt || "").replace(/\d\d:\d\d — /g, "").slice(0, 220))}</span></div>`).join("") : `<span class="sub">Pas encore de note d'appel.</span>`}</section>
+      <section class="cv-card" style="--cc:#60a5fa"><h3>Mails récents</h3>${MAILS.length ? MAILS.map(m => `<div class="cv-li"><a href="${esc(gmLink(m))}" target="_blank" rel="noopener"><b>${esc(m.subject || "(sans objet)")}</b></a><span class="sub">${esc(mailAddr(m.from).n)} · ${esc(fd(iso(new Date(m.date))))}</span></div>`).join("") : `<span class="sub">${mailsList.length ? "Aucun mail de ce client dans les mails chargés." : "Actualise l'onglet Mails pour voir ses mails ici."}</span>`}</section>
+      <section class="cv-card" style="--cc:#f59e0b"><h3>Historique</h3>${tl.length ? `<div class="cv-tl">${tl.map(x => `<div><span>${esc(fd(x.d))}</span>${esc(x.t)}</div>`).join("")}</div>` : `<span class="sub">Rien de noté pour l'instant.</span>`}${r.notes ? `<div class="cv-li"><b>Suivi noté dans le tableau Drive</b><span class="sub" style="white-space:pre-wrap">${esc(r.notes)}</span></div>` : ""}</section>
+      ${REL.length ? `<section class="cv-card" style="--cc:#64748b"><h3>Autres dossiers de ce client</h3>${REL.map(x => `<div class="cv-li"><button class="lnk" type="button" data-cvgo="${esc(x.id)}"><b>${esc(x.client)}</b></button><span class="sub">${x.fic ? "FIC du " + esc(fd(x.fic)) + "/" + yOf(x) : ""}${venteD(x) ? " · vente du " + esc(fd(venteD(x))) : ""} · ${esc(ST[status(x)].l)}</span></div>`).join("")}</section>` : ""}
+    </div>`;
+  el.querySelectorAll("[data-id]").forEach(b => b.onclick = () => openDossier(b.dataset.id));
+  el.querySelectorAll("[data-cvgo]").forEach(b => b.onclick = () => { cvSel = b.dataset.cvgo; renderCvRes(); renderCv(); }); }
+(() => { const q = $("#cvq"); if (!q) return; q.oninput = () => { renderCvRes(); const L = cvFind(q.value); if (L.length === 1 && cvSel !== L[0].id) { cvSel = L[0].id; renderCvRes(); renderCv(); } };
+  q.onkeydown = e => { if (e.key === "Enter") { const L = cvFind(q.value); if (L[0]) { cvSel = L[0].id; renderCvRes(); renderCv(); } } };
+  const t = $("#t-cli"); if (t) t.addEventListener("click", () => setTimeout(() => q.focus(), 50)); })();
 /* ===== Onglet Mails : lecture Gmail (lecture seule), tri par client / fournisseur, récap, réponses types, « À classer » ===== */
 let mailsList = [], gmMeta = { s: {} }, mailBusy = false, mailErr = "", mailRep = null, mailAt = null;
 try { const c = JSON.parse(localStorage.getItem("crm-mails") || "null"); if (c && c.L) { mailsList = c.L; mailAt = c.at; } } catch(_){}
@@ -4524,9 +4583,9 @@ $("#tdep").onchange = e => { depart = e.target.value; AGENCE = DEPARTS[depart]; 
 $("#told").onchange = e => { tourOld = e.target.checked; renderTours(); };
 
 /* ---------- vues ---------- */
-const VIEWS = { pay: ["#v-pay", "#t-pay", "#relance-paiement"], taches: ["#v-taches", "#t-taches", "#taches"], sav: ["#v-sav", "#t-sav", "#sav"], pose: ["#v-pose", "#t-pose", "#pose"], tour: ["#v-tour", "#t-tour", "#tournees"], dash: ["#v-dash", "#t-dash", "#tableau-de-bord"], pros: ["#v-pros", "#t-pros", "#prospection"], chantiers: ["#v-chan", "#t-chan", "#chantiers"], rdv: ["#v-rdv", "#t-rdv", "#rendez-vous"], four: ["#v-four", "#t-four", "#fournisseurs"], mail: ["#v-mail", "#t-mail", "#mails"] };
-function viewFromHash(){ return location.hash === "#relance-paiement" ? "pay" : location.hash === "#chantiers" ? "chantiers" : location.hash === "#rendez-vous" ? "rdv" : location.hash === "#prospection" ? "pros" : location.hash === "#tournees" ? "rdv" : location.hash === "#pose" ? "pose" : location.hash === "#sav" ? "sav" : location.hash === "#taches" ? "taches" : location.hash === "#fournisseurs" ? "four" : location.hash === "#mails" ? "mail" : "dash"; }
-const VTITLE = { pay: "Relance paiement", taches: "Tâches", sav: "SAV", pose: "Pose", dash: "Tableau de bord", pros: "Relances et devis", chantiers: "Chantiers signés", rdv: "Rendez-vous à prendre", tour: "Tournées", four: "Fournisseurs", mail: "Mails" };
+const VIEWS = { pay: ["#v-pay", "#t-pay", "#relance-paiement"], taches: ["#v-taches", "#t-taches", "#taches"], sav: ["#v-sav", "#t-sav", "#sav"], pose: ["#v-pose", "#t-pose", "#pose"], tour: ["#v-tour", "#t-tour", "#tournees"], dash: ["#v-dash", "#t-dash", "#tableau-de-bord"], pros: ["#v-pros", "#t-pros", "#prospection"], chantiers: ["#v-chan", "#t-chan", "#chantiers"], rdv: ["#v-rdv", "#t-rdv", "#rendez-vous"], four: ["#v-four", "#t-four", "#fournisseurs"], mail: ["#v-mail", "#t-mail", "#mails"], cli: ["#v-cli", "#t-cli", "#client"] };
+function viewFromHash(){ return location.hash === "#relance-paiement" ? "pay" : location.hash === "#chantiers" ? "chantiers" : location.hash === "#rendez-vous" ? "rdv" : location.hash === "#prospection" ? "pros" : location.hash === "#tournees" ? "rdv" : location.hash === "#pose" ? "pose" : location.hash === "#sav" ? "sav" : location.hash === "#taches" ? "taches" : location.hash === "#fournisseurs" ? "four" : location.hash === "#mails" ? "mail" : location.hash === "#client" ? "cli" : "dash"; }
+const VTITLE = { pay: "Relance paiement", taches: "Tâches", sav: "SAV", pose: "Pose", dash: "Tableau de bord", pros: "Relances et devis", chantiers: "Chantiers signés", rdv: "Rendez-vous à prendre", tour: "Tournées", four: "Fournisseurs", mail: "Mails", cli: "Fiche client" };
 function showView(v){
   Object.entries(VIEWS).forEach(([k, [sec, tab]]) => { $(sec).hidden = k !== v; $(tab).setAttribute("aria-selected", k === v); });
   const vt = $("#vtitle"); if (vt) vt.textContent = VTITLE[v] || "Mes dossiers Gourdon";
@@ -4534,9 +4593,11 @@ function showView(v){
 Object.entries(VIEWS).forEach(([k, [, tab, hash]]) => { $(tab).onclick = () => { showView(k); try { history.replaceState(null, "", hash); } catch(e){} }; });
 window.addEventListener("hashchange", () => showView(viewFromHash()));
 /* ordre des onglets choisi par Nicolas (meta/onglets) : bouton « Ranger les onglets », flèches ▲ ▼ */
-const TAB_DEFAULT = ["t-dash", "t-mail", "t-rdv", "t-taches", "t-pros", "t-chan", "t-pose", "t-pay", "t-sav", "t-four", "t-tour"];
+const TAB_DEFAULT = ["t-dash", "t-cli", "t-mail", "t-rdv", "t-taches", "t-pros", "t-chan", "t-pose", "t-pay", "t-sav", "t-four", "t-tour"];
 let tabEdit = false;
-function applyTabOrder(order){ const nav = $(".snav"); if (!nav) return; const ids = (order || TAB_DEFAULT).concat(TAB_DEFAULT).filter((x, i, a) => a.indexOf(x) === i); ids.forEach(id => { const b = $("#" + id); if (b) nav.append(b); }); }
+function applyTabOrder(order){ const nav = $(".snav"); if (!nav) return; let ids = (order || TAB_DEFAULT).slice();
+  TAB_DEFAULT.forEach((t, i) => { if (ids.includes(t)) return; const prev = TAB_DEFAULT.slice(0, i).reverse().find(x => ids.includes(x)); ids.splice(prev ? ids.indexOf(prev) + 1 : ids.length, 0, t); }); // un nouvel onglet arrive à sa place, même avec un ordre enregistré
+  ids = ids.filter((x, i, a) => a.indexOf(x) === i); ids.forEach(id => { const b = $("#" + id); if (b) nav.append(b); }); }
 function tabOrderNow(){ return [...document.querySelectorAll(".snav > .tab")].map(b => b.id); }
 function tabEditUI(){
   document.querySelectorAll(".snav > .tab").forEach(b => { b.querySelectorAll(".tmv").forEach(x => x.remove());

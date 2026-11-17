@@ -513,6 +513,55 @@ function ajouterMicros(racine=document){
 }
 new MutationObserver(()=>{ ajouterMicros(); if(dicteeEnCours && !document.contains(dicteeEnCours.ta)) arreterDictee(); }).observe(document.getElementById("app")||document.body,{childList:true,subtree:true});
 
+/* ---------- Plusieurs devis pour un même client (gîtes, maison, « mettez-moi ça dans un autre devis ») ----------
+   Chaque devis est un métré à part, avec un NOM DE DEVIS (d.devis_nom : « Maison », « Gîte 4 », « Gîte 4 chambre »…) :
+   même client, même dossier Drive, PDF « NOM ME PVC GITE 4 », envoyé séparément à Clémence. */
+const NOMS_DEVIS = ["Maison","Gîtes","Gîte 1","Gîte 2","Gîte 3","Gîte 4","Gîte 5","Appartement 1","Appartement 2","Garage","Atelier","Dépendance"];
+function demanderTexte(msg, defaut="", oui="Valider", sugg=NOMS_DEVIS){ return new Promise(ok=>{
+  const m=document.createElement("div"); m.className="modal open";
+  m.innerHTML=`<div class="box"><h2 style="text-transform:none;letter-spacing:0;font-size:18px;white-space:pre-line">${esc(msg)}</h2>
+    <input id="dtTxt" list="dtList" value="${esc(defaut)}" style="width:100%;font-size:17px;padding:10px;margin-top:8px"><datalist id="dtList">${sugg.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
+    <div class="row" style="margin-top:18px"><button class="btn" id="dtNon">Annuler</button><span class="spacer"></span><button class="btn primary" id="dtOui">${esc(oui)}</button></div></div>`;
+  document.body.appendChild(m); const i=m.querySelector("#dtTxt"); setTimeout(()=>{ i.focus(); i.select(); },50);
+  const fin=v=>{ m.remove(); ok(v); }; m.querySelector("#dtNon").onclick=()=>fin(null); m.querySelector("#dtOui").onclick=()=>fin(i.value.trim()||null);
+  i.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); fin(i.value.trim()||null); } }; }); }
+const CHAMPS_CLIENT = ["client","logement","budget","concurrents","notes_client","adresse_chantier","metreur","type_document","tva","jours_pose","equipe_pose","gamme_defaut","crm"];
+function copierClient(src, c){ CHAMPS_CLIENT.forEach(k=>{ if(src[k]!==undefined) c[k]=JSON.parse(JSON.stringify(src[k])); }); return c; }
+/* crée un autre devis pour le même client ; ids = ouvertures à DÉPLACER (avec leur volet roulant) */
+async function nouveauDevisClient(src, nom, ids=[]){
+  const c=copierClient(src, nouveauDossier()); c.devis_nom=nom; c.variante=src.variante||"V1";
+  const L=src.ouvertures.filter(o=>ids.includes(o.id));
+  L.forEach(o=>{ const lv=vrLie(src,o); c.ouvertures.push(o); if(lv){ c.vr.lignes.push(lv); src.vr.lignes=src.vr.lignes.filter(x=>x!==lv); } });
+  if(L.length){ c.vr=Object.assign(JSON.parse(JSON.stringify(src.vr)),{lignes:c.vr.lignes}); src.ouvertures=src.ouvertures.filter(o=>!ids.includes(o.id)); }
+  if(src.drive&&src.drive.dossier) c.drive={dossier:src.drive.dossier};   // même dossier client dans le Drive
+  await DB.put(src); await DB.put(c); return c;
+}
+const libDevis = d => d.devis_nom ? d.devis_nom : "";
+async function separerSelection(d){
+  const ids=[...(S.sepSel||[])]; if(!ids.length){ toast("Coche d'abord les menuiseries à mettre dans l'autre devis"); return; }
+  const nom=await demanderTexte(`Nom du nouveau devis pour ${d.client.nom||"ce client"} (${ids.length} menuiserie${ids.length>1?"s":""}) :`,"","Créer le devis"); if(!nom) return;
+  const c=await nouveauDevisClient(d, nom, ids); S.sepMode=false; S.sepSel=new Set();
+  toast(`Devis « ${nom} » créé avec ${ids.length} menuiserie(s) – retiré(es) de ce devis`); renderDossier();
+}
+async function unDevisParLogement(d){
+  const G={}; d.ouvertures.forEach(o=>{ const l=repDecoupe(o.repere).log; if(l) (G[l]=G[l]||[]).push(o.id); });
+  const K=Object.keys(G).sort((a,b)=>a.localeCompare(b,"fr",{numeric:true}));
+  if(K.length<2){ toast("Il faut des repères avec le logement (Gîte 1 · …, Gîte 2 · …) pour séparer par logement"); return; }
+  if(!await demander(`Faire un devis par logement ?\n\n${K.map(k=>`• ${k} : ${G[k].length} menuiserie(s)`).join("\n")}\n\nLe premier (${K[0]}) reste dans ce devis, les autres partent chacun dans leur propre devis.`,"Séparer")) return;
+  d.devis_nom=d.devis_nom||K[0]; for(const k of K.slice(1)) await nouveauDevisClient(d, k, G[k]);
+  await DB.put(d); S.sepMode=false; renderDossier(); toast(`${K.length} devis : ${K.join(", ")}`);
+}
+async function rattacherClient(d){
+  const autres=[...new Set((await DB.all()).filter(x=>x.id!==d.id && x.client.nom && x.client.nom!==d.client.nom).map(x=>x.client.nom))].sort();
+  const cible=await demanderTexte(`Rattacher ce métré à quel client ?\n(il prendra son nom, son adresse et ses infos)`,"","Suivant",autres); if(!cible) return;
+  const src=(await DB.all()).filter(x=>x.client.nom===cible).sort((a,b)=>String(b.modifie||"").localeCompare(String(a.modifie||"")))[0];
+  if(!src){ toast("Client introuvable : choisis un nom dans la liste"); return; }
+  const nom=await demanderTexte(`Nom de ce devis chez ${cible} ?`, d.devis_nom||"Maison","Rattacher"); if(!nom) return;
+  if(d.drive&&d.drive.dossier){ d.drive_ancien={dossier:d.drive.dossier, base:d.drive.base||nomMetre(d)}; }
+  copierClient(src, d); d.devis_nom=nom; d.drive=src.drive&&src.drive.dossier?{dossier:src.drive.dossier}:null; if(!d.drive) delete d.drive;
+  await DB.put(d); renderDossier(); toast(`Rattaché à ${cible} – devis « ${nom} ». L'ancien PDF du Drive sera retiré au prochain enregistrement.`);
+}
+
 /* ---------- Clé et cylindre : s'entrouvrant (même clé sur plusieurs portes) et bouton molette ---------- */
 const CLE_GROUPES = ["A","B","C","D"];
 const CLE_VIDE = () => ({ entrouvrant:false, groupe:"A", molette:false });
@@ -1039,7 +1088,7 @@ function refreshLive(k){
 
 /* ======================= ÉCRANS ======================= */
 function setBar(title, back){ $("#barTitle").textContent=title||""; $("#btnBack").classList.toggle("hide",!back); }
-function majTitre(){ if(S.dossier) setBar(`${S.dossier.client.nom||"Nouveau client"} · ${S.dossier.variante}`, true); }
+function majTitre(){ if(S.dossier) setBar(`${S.dossier.client.nom||"Nouveau client"}${S.dossier.devis_nom?" – "+S.dossier.devis_nom:""} · ${S.dossier.variante}`, true); }
 
 /* ---------- Accueil ---------- */
 async function renderHome(){
@@ -1056,13 +1105,13 @@ async function renderHome(){
     <button class="btn" id="hPP">+ Portes palières</button>
     <button class="btn" id="hClim">+ Métré clim</button>
     <button class="btn primary" id="hNew">+ Nouveau métré</button></div>
-  <p class="hint">Chaque métré s'enregistre tout seul quand tu reviens à cette liste, dans <b>Mon Drive › Appli métré – Dossiers › Devis</b> (ou <b>› Métrés définitif</b> pour un métré définitif). Une fois recontrôlé, déplace son dossier dans le <b>2026</b> de ce même dossier : la copie part toute seule chez Clémence (DEVIS A FAIRE ou METRES DEFINITIF). Les métrés faits sur tes autres appareils apparaissent ici tout seuls (ou avec « ☁ Actualiser »).</p>
+  <p class="hint">Chaque métré s'enregistre tout seul quand tu reviens à cette liste, dans <b>Mon Drive › Appli métré – Dossiers › Devis</b> (ou <b>› Métrés définitif</b> pour un métré définitif). Pour l'envoyer à Clémence : bouton <b>📨 Envoyer à Clémence</b> en haut du métré. Plusieurs devis pour un même client (gîtes, maison…) : « + Autre devis pour ce client » dans la fiche client, ou « ✂ Séparer en plusieurs devis » dans les ouvertures. Les métrés faits sur tes autres appareils apparaissent ici tout seuls (ou avec « ☁ Actualiser »).</p>
   <div class="card" id="hAgenda" style="margin-bottom:16px"><p class="hint">Chargement des rendez-vous…</p></div>
   <div class="row" style="margin:6px 0 10px"><h2 style="margin:0">Mes métrés</h2><span class="spacer"></span>
     ${ds.length?(S.selMode?`<button class="btn small" id="hSelTout">Tout cocher</button><button class="btn small danger" id="hSelDel">Supprimer la sélection</button><button class="btn small" id="hSelFin">Annuler</button>`:`<button class="btn small" id="hSel">Supprimer plusieurs…</button>`):""}</div>
   <div class="list">${ds.map(d=>{ normaliser(d); const n=nbErreurs(d);
     return `<div class="item${S.selMode&&S.sel.has(d.id)?" sel":""}" data-id="${d.id}">
-      <div class="row">${S.selMode?`<input type="checkbox" class="hchk" ${S.sel.has(d.id)?"checked":""} aria-label="Sélectionner">`:""}<span class="t">${esc(d.client.nom||"Sans nom")}</span><span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span>${S.selMode?"":`<button class="btn small danger" data-hdel="${d.id}" title="Supprimer ce métré" aria-label="Supprimer ce métré">🗑</button>`}</div>
+      <div class="row">${S.selMode?`<input type="checkbox" class="hchk" ${S.sel.has(d.id)?"checked":""} aria-label="Sélectionner">`:""}<span class="t">${esc(d.client.nom||"Sans nom")}</span>${d.devis_nom?`<span class="badge b-warn" style="margin-left:6px">${esc(d.devis_nom)}</span>`:""}<span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span>${S.selMode?"":`<button class="btn small danger" data-hdel="${d.id}" title="Supprimer ce métré" aria-label="Supprimer ce métré">🗑</button>`}</div>
       <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.length} ouverture(s)${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}${aPT(d)?` · ${d.pt.elements.length} portail / portillon`:""}${aVB(d)?` · ${d.vb.lignes.length} volet(s) battant(s)`:""}${aPP(d)?` · ${d.pp.lignes.length} porte(s) palière(s)`:""}${aClim(d)?` · clim ${d.clim.lignes.length} pièce(s)`:""}</div>
       <div class="s">${esc(d.gamme_defaut||"")}</div>
       <div>${n?`<span class="badge b-err">${n} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} <span class="badge ${estDefinitif(d)?"b-err":"b-n"}">${estDefinitif(d)?"Métré définitif":"Devis"}</span> ${d.drive_attente?`<span class="badge b-n">☁ envoi en attente</span>`:d.drive?`<span class="badge b-ok">☁ dans le Drive</span>`:""} ${envoisClemence(d).length?`<span class="badge b-ok">📨 Clémence ${new Date(envoisClemence(d).slice(-1)[0].le).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</span>`:""}</div>
@@ -1147,6 +1196,8 @@ function renderDossier(){
         ${F.text("client.nom","Nom du client",d.client.nom)}${F.date("client.date_rdv","Date du RDV",d.client.date_rdv)}
         ${F.text("client.telephone","Téléphone",d.client.telephone,'inputmode="tel"')}${F.text("client.email","E-mail",d.client.email,'inputmode="email"')}
         ${F.text("metreur","Métreur",d.metreur)}${F.text("variante","Variante",d.variante)}
+        <label class="f">Nom de ce devis <small>(si plusieurs devis pour ce client : Maison, Gîte 4…)</small><input data-k="devis_nom" list="dlNomsDevis" value="${esc(d.devis_nom||"")}" placeholder="un seul devis : laisser vide"></label><datalist id="dlNomsDevis">${NOMS_DEVIS.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
+        <div class="row" style="align-self:end;gap:8px;flex-wrap:wrap"><button class="btn small" id="cAutreDevis">+ Autre devis pour ce client</button><button class="btn small" id="cRattacher">Rattacher à un autre client…</button></div>
       </div></div>
       <div class="card"><h2><span class="num">2</span>Le chantier</h2>
         ${F.area("adresse_chantier","Adresse du chantier",d.adresse_chantier)}
@@ -1191,6 +1242,10 @@ function renderDossier(){
     </details>`;
     $("#comDet").addEventListener("toggle",e=>{ S.comOpen=e.target.open; });
     $("#cCRM").onclick=()=>ouvrirCRM("remplir");
+    $("#cAutreDevis").onclick=async()=>{ const nom=await demanderTexte(`Nom du nouveau devis pour ${d.client.nom||"ce client"} ?\n(il sera vide, avec les mêmes infos client)`,"","Créer"); if(!nom) return;
+      if(!d.devis_nom){ const n0=await demanderTexte("Et le nom de CE devis-ci ?",d.ouvertures.length?"Gîtes":"","Valider"); if(n0) d.devis_nom=n0; }
+      const c=await nouveauDevisClient(d, nom, []); S.dossier=c; S.tab="client"; renderDossier(); toast(`Devis « ${nom} » créé pour ${c.client.nom}`); };
+    $("#cRattacher").onclick=()=>rattacherClient(d);
     if($("#cDevis")) $("#cDevis").onclick=ouvrirDevisSigne;
     $$('[data-k^="concurrents."]').forEach(inp=>inp.addEventListener("change",()=>{ const n=concurrentsConnus().length; memoriserConcurrents(d.concurrents); if(concurrentsConnus().length!==n){ const dl=$("#dlConc"); if(dl) dl.innerHTML=concurrentsConnus().map(x=>`<option value="${esc(x)}">`).join(""); } }));
     $$("[data-concdel]").forEach(b=>b.onclick=e=>{ e.preventDefault(); oublierConcurrent(b.dataset.concdel); S.comOpen=true; renderDossier(); });
@@ -1199,10 +1254,12 @@ function renderDossier(){
     $("#cTel").onclick=()=>{ const t=String(d.client.telephone||"").replace(/[^\d+]/g,""); if(t) location.href="tel:"+t; else toast("Pas de téléphone"); };
   }
   if(S.tab==="ouvertures"){
-    t.innerHTML=`<div class="row" style="margin-bottom:12px"><span class="hint">Une fiche par ouverture (repère). Appuie sur une fiche pour la remplir.</span><span class="spacer"></span>${d.ouvertures.length>1?`<button class="btn" id="oTriN">Trier par niveau</button><button class="btn" id="oTri">Trier par N° poseur</button>`:""}${d.ouvertures.length?`<button class="btn" id="oComme" title="Nouvelle ouverture avec les mêmes caractéristiques que la dernière ouverte">⧉ Comme la précédente</button>`:""}<button class="btn primary" id="oAdd">+ Ajouter une ouverture</button></div>
+    t.innerHTML=`<div class="row" style="margin-bottom:12px"><span class="hint">Une fiche par ouverture (repère). Appuie sur une fiche pour la remplir.</span><span class="spacer"></span>${d.ouvertures.length>1?`<button class="btn" id="oSep">${S.sepMode?"✕ Annuler la séparation":"✂ Séparer en plusieurs devis"}</button><button class="btn" id="oTriN">Trier par niveau</button><button class="btn" id="oTri">Trier par N° poseur</button>`:""}${d.ouvertures.length?`<button class="btn" id="oComme" title="Nouvelle ouverture avec les mêmes caractéristiques que la dernière ouverte">⧉ Comme la précédente</button>`:""}<button class="btn primary" id="oAdd">+ Ajouter une ouverture</button></div>
+    ${S.sepMode?`<div class="card" style="border:2px solid var(--red,#d3232f)"><b>Séparer en plusieurs devis</b> – coche les menuiseries qui doivent partir dans un autre devis (même client).
+      <div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap"><button class="btn primary" id="oSepGo">Mettre la sélection (${(S.sepSel||new Set()).size}) dans un nouveau devis…</button><button class="btn" id="oSepLog">Un devis par logement (Gîte 1, Gîte 2…)</button></div></div>`:""}
     <div class="list">${d.ouvertures.map((o,i)=>{ const c=controleOuverture(o), f=calcFab(o);
-      return `<div class="item" data-o="${o.id}">
-        <div class="row"><span class="badge b-err" style="font-size:15px">${esc(numP(o)||"N° ?")}</span><span class="t">${esc(o.repere||"Sans repère")}</span><span class="spacer"></span><span class="s">× ${esc(o.quantite)}</span></div>
+      return `<div class="item${S.sepMode&&(S.sepSel||new Set()).has(o.id)?" sel":""}" data-o="${o.id}">
+        <div class="row">${S.sepMode?`<input type="checkbox" class="hchk" ${(S.sepSel||new Set()).has(o.id)?"checked":""} aria-label="Choisir pour l'autre devis">`:""}<span class="badge b-err" style="font-size:15px">${esc(numP(o)||"N° ?")}</span><span class="t">${esc(o.repere||"Sans repère")}</span><span class="spacer"></span><span class="s">× ${esc(o.quantite)}</span></div>
         ${o.photos&&o.photos.length?`<div class="s">📷 ${o.photos.length} photo(s)</div>`:""}
         <div class="s">${esc(libellePose(o))}${vrLie(d,o)?` <span class="badge b-n">+ Volet roulant</span>`:""}</div>
         <div class="s">${esc(o.gamme||"Gamme ?")}${modeleDe(o)?` · ${esc(modeleDe(o).nom)}`:""}</div>
@@ -1216,7 +1273,12 @@ function renderDossier(){
       if(await demander("Ouvertures rangées par niveau (rez-de-chaussée, étage 1, étage 2…). Renuméroter aussi les N° poseur dans cet ordre ?","Renuméroter")) d.ouvertures.forEach((o,i)=>o.num_poseur=String(i+1));
       syncVR(d); save(); renderDossier(); };
     if($("#oTri")) $("#oTri").onclick=()=>{ d.ouvertures.sort((a,b)=>(parseInt(a.num_poseur)||9999)-(parseInt(b.num_poseur)||9999)); syncVR(d); save(); renderDossier(); toast("Ouvertures rangées par N° poseur"); };
-    $$("[data-o]").forEach(el=>el.onclick=e=>{ if(e.target.closest("button")) return; S.ouv=d.ouvertures.find(o=>o.id===el.dataset.o); renderOuverture(); });
+    if($("#oSep")) $("#oSep").onclick=()=>{ S.sepMode=!S.sepMode; S.sepSel=new Set(); renderDossier(); };
+    if($("#oSepGo")) $("#oSepGo").onclick=()=>separerSelection(d);
+    if($("#oSepLog")) $("#oSepLog").onclick=()=>unDevisParLogement(d);
+    $$("[data-o]").forEach(el=>el.onclick=e=>{ if(e.target.closest("button")) return;
+      if(S.sepMode){ S.sepSel=S.sepSel||new Set(); const id=el.dataset.o; S.sepSel.has(id)?S.sepSel.delete(id):S.sepSel.add(id); const y=scrollY; renderDossier(); scrollTo(0,y); return; }
+      S.ouv=d.ouvertures.find(o=>o.id===el.dataset.o); renderOuverture(); });
     $$("[data-dup]").forEach(b=>b.onclick=()=>{ const o=d.ouvertures.find(x=>x.id===b.dataset.dup); const c=JSON.parse(JSON.stringify(o)); c.id=uid(); c.repere=o.repere||""; c.num_poseur=numSuivant(d); c.photos=[]; d.ouvertures.splice(d.ouvertures.indexOf(o)+1,0,c);
       const lv=vrLie(d,o); if(lv){ const nl=ajouterVRLie(d,c); Object.assign(nl, JSON.parse(JSON.stringify(lv)), {id:nl.id, ouv_id:c.id}); syncVR(d); } save(); renderDossier(); });
     $$("[data-del]").forEach(b=>b.onclick=async()=>{ const lv=d.vr.lignes.find(l=>l.ouv_id===b.dataset.del);
@@ -2535,11 +2597,12 @@ async function nouveauMetreClimClient(copie){
   const src=S.dossier, c=nouveauDossier();
   ["client","logement","budget","concurrents","notes_client","adresse_chantier","metreur","type_document","tva"].forEach(k=>{ if(src[k]!==undefined) c[k]=JSON.parse(JSON.stringify(src[k])); });
   c.client.date_rdv=src.client.date_rdv||today();
-  const n=1+Math.max(1,...(await DB.all()).filter(x=>x.client.nom===src.client.nom).map(x=>parseInt(String(x.variante).replace(/\D/g,""))||1));
-  c.variante=`V${n} – Clim`;
+  const nomD=await demanderTexte(`Nom de ce nouveau devis clim pour ${src.client.nom||"ce client"} ?`, "Maison", "Créer"); if(!nomD) return;
+  if(!src.devis_nom){ const n0=await demanderTexte("Et le nom du devis clim actuel ?", "Gîtes", "Valider"); if(n0){ src.devis_nom=n0; await DB.put(src); } }
+  c.devis_nom=nomD; c.variante=src.variante||"V1"; if(src.drive&&src.drive.dossier) c.drive={dossier:src.drive.dossier};
   c.clim=copie&&src.clim?JSON.parse(JSON.stringify(src.clim)):nouvelleClim();
   if(copie) c.clim.lignes.forEach(l=>l.id=uid()); else c.clim.lignes.push(nouvelleLigneClim());
-  await DB.put(c); S.dossier=c; S.tab="clim"; renderDossier(); scrollTo(0,0); toast(`Métré clim ${c.variante} créé pour ${c.client.nom||"ce client"}`);
+  await DB.put(c); S.dossier=c; S.tab="clim"; renderDossier(); scrollTo(0,0); toast(`Devis clim « ${c.devis_nom} » créé pour ${c.client.nom||"ce client"}`);
 }
 
 /* ---------- Nouvelle ouverture ---------- */
@@ -2770,7 +2833,8 @@ function nomMetre(d){
   if(typeof aVB==="function" && aVB(d)) mat.push("VB");
   if(typeof aPP==="function" && aPP(d)) mat.push("PORTES PALIERES");
   if(typeof aClim==="function" && aClim(d)) mat.push("CLIM");
-  return `${nom} ME ${mat.length?mat.join(" ET "):(d.vr.lignes.length?"VR":"")}${n>1?" V"+n:""}`.replace(/\s+/g," ").trim();
+  const lab=(d.devis_nom||"").trim().toUpperCase().replace(/[\\/:*?"<>|]+/g," ");
+  return `${nom} ME ${mat.length?mat.join(" ET "):(d.vr.lignes.length?"VR":"")}${lab?" "+lab:""}${n>1?" V"+n:""}`.replace(/\s+/g," ").trim();
 }
 /* Empreinte du contenu, pour savoir s'il a changé depuis le dernier envoi */
 function empreinte(d){ const {drive,drive_attente,modifie,...r}=d; const t=JSON.stringify(r); let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))|0; return String(h); }
@@ -2816,6 +2880,13 @@ async function envoyerDossierDrive(d){
     try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – PORTES PALIÈRES – ${(p.txt||"photo").replace(/[\\/:*?"<>|\n]+/g," ").slice(0,60)} – ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
   for(const [k,p] of ((d.clim&&d.clim.photos)||[]).entries()){ if(p.drive || !p.img) continue;
     try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – CLIM – ${(p.txt||"photo").replace(/[\\/:*?"<>|\n]+/g," ").slice(0,60)} – ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
+  // métré rattaché à un autre client : on retire l'ancien PDF / JSON de l'ancien dossier (sinon doublon dans le Drive)
+  if(d.drive_ancien && d.drive_ancien.dossier && d.drive_ancien.dossier!==sous){ for(const ext of [".json",".pdf"]){ try{
+      const q=`name='${q_(d.drive_ancien.base+ext)}' and trashed=false and '${d.drive_ancien.dossier}' in parents`;
+      const ex=(await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id)&q="+encodeURIComponent(q))).files[0];
+      if(ex) await gdrive(`https://www.googleapis.com/drive/v3/files/${ex.id}?fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:true})});
+    }catch(e){} } }
+  delete d.drive_ancien;
   d.drive={le:new Date().toISOString(), dossier:sous, lien:f.webViewLink||"", base, sig:empreinte(d)}; delete d.drive_attente;
   await DB.put(d);
   return f;

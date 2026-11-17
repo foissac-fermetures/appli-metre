@@ -2571,6 +2571,14 @@ async function genererPDF(d){
   try{
     const doc=fr.contentDocument; doc.open(); doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>${css}\nbody{margin:0;width:1047px;background:#fff}</style></head><body><div id="print">${html}</div></body></html>`); doc.close();
     await new Promise(r=>setTimeout(r,300));
+    /* html2canvas recadre mal les dessins SVG réduits par le CSS (max-height) : la droite du dessin était coupée.
+       On remplace chaque SVG par une image de la taille exacte affichée, le dessin entier mis à l'échelle dedans. */
+    [...doc.querySelectorAll("#print svg")].forEach(svg=>{ const r=svg.getBoundingClientRect(); if(!r.width||!r.height) return;
+      const cl=svg.cloneNode(true); if(!cl.getAttribute("viewBox")){ const w0=parseFloat(svg.getAttribute("width"))||r.width, h0=parseFloat(svg.getAttribute("height"))||r.height; cl.setAttribute("viewBox",`0 0 ${w0} ${h0}`); }
+      cl.setAttribute("width",r.width); cl.setAttribute("height",r.height); cl.setAttribute("preserveAspectRatio","xMidYMid meet"); cl.setAttribute("xmlns","http://www.w3.org/2000/svg"); cl.removeAttribute("style");
+      const im=doc.createElement("img"); im.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(new XMLSerializer().serializeToString(cl));
+      im.className=svg.getAttribute("class")||""; im.style.cssText=`width:${r.width}px;height:${r.height}px;max-width:none;max-height:none;display:${getComputedStyle(svg).display==="inline"?"inline-block":getComputedStyle(svg).display}`;
+      svg.replaceWith(im); });
     await Promise.all([...doc.images].map(i=>i.complete?0:new Promise(r=>{ i.onload=i.onerror=r; })));
     const pdf=new jspdf.jsPDF({orientation:"landscape", unit:"mm", format:"a4"}), W=277, Hmax=190;
     const pages=[...doc.querySelectorAll(".pg")];

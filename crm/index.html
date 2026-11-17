@@ -711,6 +711,7 @@ html.resa-open{overflow:hidden}
 #v-sav:not([hidden]){display:grid;gap:16px}
 #v-mail:not([hidden]){display:grid;gap:16px}
 #v-cli:not([hidden]){display:grid;gap:16px}
+.cv-search.picked>.hd{display:none}.cv-search.picked>div{padding:10px 12px!important}.cv-search.picked .cvq{font-size:1rem;padding:9px 14px}
 .cvq{width:100%;box-sizing:border-box;font:inherit;font-size:1.15rem;padding:12px 16px;border:2px solid var(--line);border-radius:12px;background:var(--panel);color:inherit}.cvq:focus{outline:none;border-color:#22d3ee}
 .cvres{display:grid;gap:6px}.cvres button{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;text-align:left;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:inherit;font:inherit;cursor:pointer}
 .cvres button:hover,.cvres button.on{border-color:#22d3ee;background:color-mix(in srgb,#22d3ee 8%,var(--panel))}.cvres b{font-size:1rem}.cvres .sub{grid-column:1}
@@ -4070,16 +4071,17 @@ function cvChantier(r){ let C = []; try { C = chantiers().filter(c => c.r.id ===
           ${x ? `<div><dt>Paiement</dt><dd>${esc(x.wait ? "retenue en attente du SAV" : x.days + " j sans paiement")}${payNote(x) ? " · " + esc(payNote(x)) : ""}</dd></div>` : ""}</dl>
         ${(c.v.it || []).length ? `<div class="sub">${(c.v.it || []).map(esc).join(" · ")}</div>` : ""}</section>`; }).join("")}</div>`; }
 /* ===== Onglet « Fiche client » : je tape un nom, j'ai tout sur le client ===== */
-let cvSel = null;
+let cvSel = null, cvPicked = false;
+function cvPick(id){ cvSel = id; cvPicked = true; const r = rows.find(x => x.id === id), q = $("#cvq"); if (q && r) q.value = r.client; const sec = document.querySelector(".cv-search"); if (sec) sec.classList.add("picked"); renderCvRes(); renderCv(); window.scrollTo({ top: 0, behavior: "smooth" }); }
 function cvFind(q){ const Q = sansAcc(q).trim(); if (Q.length < 2) return []; const D = Q.replace(/\D/g, "");
   return rows.filter(r => { const hay = sansAcc([r.client, aliasOf ? aliasOf(r) : "", r.lieu, adrOf(r), adrChantier(r), mailOf(r), r.proj, ctOf(r).map(c => c.nom + " " + c.lien).join(" ")].join(" "));
       if (Q.split(/\s+/).every(w => hay.includes(w))) return true; if (D.length >= 4) { const T = [r.tel, ...ctOf(r).map(c => c.tel)].join(" ").replace(/\D/g, ""); if (T.includes(D)) return true; } return false; })
     .sort((a, b) => String(b.fic || venteD(b) || "").localeCompare(String(a.fic || venteD(a) || ""))).slice(0, 12); }
 function cvRelated(r){ const t = String(r.tel || "").replace(/\D/g, "").slice(-9), ml = (mailOf(r) || "").toLowerCase(), C = upAscii(r.client);
   return rows.filter(x => x.id !== r.id && ((t.length === 9 && String(x.tel || "").replace(/\D/g, "").slice(-9) === t) || (ml && (mailOf(x) || "").toLowerCase() === ml) || upAscii(x.client) === C)); }
-function renderCvRes(){ const el = $("#cvres"); if (!el) return; const q = ($("#cvq") || {}).value || ""; const L = cvFind(q);
+function renderCvRes(){ const el = $("#cvres"); if (!el) return; if (cvPicked) { el.innerHTML = ""; return; } const q = ($("#cvq") || {}).value || ""; const L = cvFind(q);
   el.innerHTML = q.trim().length < 2 ? "" : L.length ? L.map(r => `<button type="button" data-cv="${esc(r.id)}" class="${cvSel === r.id ? "on" : ""}"><b>${esc(r.client)}</b><span>${nextPill(r).replace('class="nxp ', 'class="nxp nxp-sm ') || `<span class="pill ${ST[status(r)].c}">${ST[status(r)].l}</span>`}</span><span class="sub">${esc([r.lieu, r.tel, r.fic ? "FIC du " + fd(r.fic) + "/" + yOf(r) : venteD(r) ? "vente du " + fd(venteD(r)) : ""].filter(Boolean).join(" · "))}</span></button>`).join("") : `<div class="sub">Aucun client ne correspond à « ${esc(q)} ».</div>`;
-  el.querySelectorAll("[data-cv]").forEach(b => b.onclick = () => { cvSel = b.dataset.cv; renderCvRes(); renderCv(); $("#cvbody").scrollIntoView({ block: "start", behavior: "smooth" }); }); }
+  el.querySelectorAll("[data-cv]").forEach(b => b.onclick = () => cvPick(b.dataset.cv)); }
 function renderCv(){ const el = $("#cvbody"); if (!el) return; const r = cvSel && rows.find(x => x.id === cvSel); if (!r) { el.innerHTML = ""; return; }
   const s = suivi[r.id] || {}, st = status(r), V = (r.vente || []).filter(v => !v.ann), rv = rdvCur(r) || myRdv(r), T = tOf(r).sort((a, b) => String(a.done ? "z" : a.due).localeCompare(String(b.done ? "z" : b.due)));
   const SV = Object.entries(csav).filter(([, v]) => v && v.rid === r.id).map(([id, v]) => Object.assign({ id }, v)).sort((a, b) => String(b.d).localeCompare(String(a.d)));
@@ -4108,11 +4110,14 @@ function renderCv(){ const el = $("#cvbody"); if (!el) return; const r = cvSel &
       ${REL.length ? `<section class="cv-card" style="--cc:#64748b"><h3>Autres dossiers de ce client</h3>${REL.map(x => `<div class="cv-li"><button class="lnk" type="button" data-cvgo="${esc(x.id)}"><b>${esc(x.client)}</b></button><span class="sub">${x.fic ? "FIC du " + esc(fd(x.fic)) + "/" + yOf(x) : ""}${venteD(x) ? " · vente du " + esc(fd(venteD(x))) : ""} · ${esc(ST[status(x)].l)}</span></div>`).join("")}</section>` : ""}
     </div>`;
   el.querySelectorAll("[data-id]").forEach(b => b.onclick = () => openDossier(b.dataset.id));
-  el.querySelectorAll("[data-cvgo]").forEach(b => b.onclick = () => { cvSel = b.dataset.cvgo; renderCvRes(); renderCv(); });
+  el.querySelectorAll("[data-cvgo]").forEach(b => b.onclick = () => cvPick(b.dataset.cvgo));
   try { wireCvMails(r); } catch(e){ console.warn(e); }
   if (!cvMails[r.id]) cvLoadMails(r, false); }
-(() => { const q = $("#cvq"); if (!q) return; q.oninput = () => { renderCvRes(); const L = cvFind(q.value); if (L.length === 1 && cvSel !== L[0].id) { cvSel = L[0].id; renderCvRes(); renderCv(); } };
-  q.onkeydown = e => { if (e.key === "Enter") { const L = cvFind(q.value); if (L[0]) { cvSel = L[0].id; renderCvRes(); renderCv(); } } };
+(() => { const q = $("#cvq"); if (!q) return;
+  const unpick = () => { if (!cvPicked) return; cvPicked = false; const sec = document.querySelector(".cv-search"); if (sec) sec.classList.remove("picked"); };
+  q.oninput = () => { unpick(); renderCvRes(); };
+  q.onfocus = () => { if (cvPicked) { q.select(); } };
+  q.onkeydown = e => { if (e.key === "Enter") { const L = cvFind(q.value); if (L[0]) cvPick(L[0].id); } else if (e.key === "Escape" && cvSel) { cvPick(cvSel); } };
   const t = $("#t-cli"); if (t) t.addEventListener("click", () => setTimeout(() => q.focus(), 50)); })();
 /* ses mails à lui : recherche Gmail dédiée (lecture seule) + ce qu'on y repère */
 const cvMails = {};

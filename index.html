@@ -904,6 +904,7 @@ function controleDossier(d){
   if(!d.adresse_chantier) W.push("Adresse du chantier manquante");
   if(d.ouvertures.length && !d.jours_pose) W.push("Jours de pose estimés non renseignés");
   if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aClim(d) && !aVB(d) && !aPT(d) && !aPP(d)) E.push("Aucune ouverture, volet, portail ni climatisation saisi");
+  if(aClim(d) && aAutreQueClim(d)) E.push("Clim et menuiseries / volets / portail dans le même devis : la clim doit être un devis à part (onglet Climatisation › « Sortir la clim »)");
   comparerDevisDossier(d, E, W);
   return {E,W};
 }
@@ -1303,11 +1304,15 @@ function renderDossier(){
       if(!await demander(lv?"Supprimer cette ouverture et son volet roulant ?":"Supprimer cette ouverture ?","Supprimer")) return;
       d.ouvertures=d.ouvertures.filter(x=>x.id!==b.dataset.del); if(lv) d.vr.lignes=d.vr.lignes.filter(l=>l!==lv); save(); renderDossier(); });
   }
+  const climAPart = (S.tab==="clim" && aAutreQueClim(d)) || (["ouvertures","vr","pt","vb","pp"].includes(S.tab) && aClim(d) && !aAutreQueClim(d));
+  if(climAPart){ carteDevisAPart(d, t); }
+  else {
   if(S.tab==="vr") renderVR(t);
   if(S.tab==="clim") renderClim(t);
   if(S.tab==="vb") renderVB(t);
   if(S.tab==="pp") renderPP(t);
   if(S.tab==="pt") renderPT(t);
+  }
   if(S.tab==="controle"){
     const cd=controleDossier(d);
     const bloc=(titre,c)=>`<div class="card"><h2>${esc(titre)}</h2>${!c.E.length&&!c.W.length?`<span class="badge b-ok">Rien à signaler</span>`:
@@ -2011,6 +2016,28 @@ const CLIM_NOMS_SCH = ["Schéma rez-de-chaussée","Schéma étage","Schéma éta
 const CLIM_SCH_DEF = {schema_etage:"Schéma étage", schema_bas:"Schéma bas"};
 const climSchemas = c => ["schema_etage","schema_bas",...(c.sch_extra||[])].filter(k=>!(c.sch_retires||[]).includes(k));
 const nomSchema = (c,k) => (c.sch_noms&&c.sch_noms[k]) || CLIM_SCH_DEF[k] || `Schéma ${climSchemas(c).indexOf(k)+1}`;
+/* ---------- La clim est TOUJOURS un devis à part (Nicolas, 17/11/2026) : jamais avec menuiseries, volets, portail… ---------- */
+const aAutreQueClim = d => !!(d.ouvertures.length || (d.vr&&d.vr.lignes.length) || (typeof aPT==="function"&&aPT(d)) || (typeof aVB==="function"&&aVB(d)) || (typeof aPP==="function"&&aPP(d)));
+async function sortirClim(d){
+  const nom=await demanderTexte(`La clim part dans un devis à part pour ${d.client.nom||"ce client"}.\nNom de ce devis clim :`, d.devis_nom?d.devis_nom+" clim":"Clim", "Créer le devis clim"); if(!nom) return;
+  const c=copierClient(d, nouveauDossier()); c.devis_nom=nom; c.variante=d.variante||"V1"; c.clim=d.clim; if(d.drive&&d.drive.dossier) c.drive={dossier:d.drive.dossier};
+  delete d.clim; await DB.put(d); await DB.put(c); S.dossier=c; S.tab="clim"; renderDossier(); toast(`Clim sortie dans le devis « ${nom} » – le devis menuiseries ne contient plus de clim`);
+}
+async function devisAPart(d, type){
+  const clim=type==="clim", nom=await demanderTexte(clim?`Nom du devis clim pour ${d.client.nom||"ce client"} :`:`Nom du devis (menuiseries, volets…) pour ${d.client.nom||"ce client"} :`, clim?"Clim":"Menuiseries", "Créer");
+  if(!nom) return; const c=copierClient(d, nouveauDossier()); c.devis_nom=nom; c.variante=d.variante||"V1"; if(d.drive&&d.drive.dossier) c.drive={dossier:d.drive.dossier};
+  if(clim){ c.clim=nouvelleClim(); c.clim.lignes.push(nouvelleLigneClim()); }
+  await DB.put(c); S.dossier=c; S.tab=clim?"clim":"ouvertures"; renderDossier(); toast(`Devis « ${nom} » créé pour ${c.client.nom||"ce client"}`);
+}
+function carteDevisAPart(d, t){
+  const versClim=S.tab==="clim", mixte=aClim(d)&&aAutreQueClim(d);
+  t.innerHTML=`<div class="card" style="border:2px solid #e07b00"><h2 style="text-transform:none;letter-spacing:0">${versClim?"La climatisation se fait toujours dans un devis à part":"Ce devis est un devis climatisation"}</h2>
+    <p>${versClim?(mixte?"Ce métré contient à la fois de la clim et des menuiseries / volets / portail. Sors la clim dans son propre devis (même client, même dossier) : rien n'est perdu.":"Ce métré contient déjà des menuiseries, volets ou un portail. La clim va dans un autre devis du même client."):"Les menuiseries, volets roulants, volets battants, portail et portes palières vont dans un autre devis du même client."}</p>
+    <div class="row" style="gap:8px;flex-wrap:wrap">${versClim&&mixte?`<button class="btn primary" id="dapSortir">Sortir la clim dans un devis à part</button>`:`<button class="btn primary" id="dapNew">${versClim?"+ Créer le devis clim de ce client":"+ Créer le devis menuiseries de ce client"}</button>`}</div></div>`;
+  if($("#dapSortir")) $("#dapSortir").onclick=()=>sortirClim(d);
+  if($("#dapNew")) $("#dapNew").onclick=()=>devisAPart(d, versClim?"clim":"autre");
+}
+
 /* ---------- Clim : séparer en plusieurs devis (un par gîte / par groupe extérieur, ou une sélection de pièces) ---------- */
 function decouperClim(c, ids){   // renvoie une copie de la clim avec seulement ces pièces, groupes renumérotés 1, 2…
   const n=JSON.parse(JSON.stringify(c)); n.lignes=n.lignes.filter(l=>ids.includes(l.id));
@@ -2892,7 +2919,8 @@ function nomMetre(d){
   if(typeof aPP==="function" && aPP(d)) mat.push("PORTES PALIERES");
   if(typeof aClim==="function" && aClim(d)) mat.push("CLIM");
   const lab=(d.devis_nom||"").trim().toUpperCase().replace(/[\\/:*?"<>|]+/g," ");
-  return `${nom} ME ${mat.length?mat.join(" ET "):(d.vr.lignes.length?"VR":"")}${lab?" "+lab:""}${n>1?" V"+n:""}`.replace(/\s+/g," ").trim();
+  const motsMat=new Set(mat.join(" ").split(/\s+/)); const labS=lab.split(/\s+/).filter(w=>w && !motsMat.has(w)).join(" ");
+  return `${nom} ME ${mat.length?mat.join(" ET "):(d.vr.lignes.length?"VR":"")}${labS?" "+labS:""}${n>1?" V"+n:""}`.replace(/\s+/g," ").trim();
 }
 /* Empreinte du contenu, pour savoir s'il a changé depuis le dernier envoi */
 function empreinte(d){ const {drive,drive_attente,modifie,...r}=d; const t=JSON.stringify(r); let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))|0; return String(h); }

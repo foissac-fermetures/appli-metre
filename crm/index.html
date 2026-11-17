@@ -561,6 +561,27 @@ details.relblk:not([open]){gap:0}
 .fcard .three{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
 .fcard .rel-row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
 @media (max-width:760px){.fc{grid-template-columns:1fr}.fcl{position:static;max-height:none;height:auto;border-right:0;border-bottom:1px solid var(--c-contact-line)}}
+/* ---- fiche client agrandie (v111) : plus large, colonne de gauche plus lisible ---- */
+.drawer.wide{width:min(1320px,100%)}
+@media (min-width:1100px){.drawer.wide{width:min(1320px,94vw)}}
+.fc{grid-template-columns:clamp(340px,31%,430px) minmax(0,1fr)}
+.fcl{padding:24px 22px 28px;gap:16px}
+.kvg{padding:14px 16px 16px;gap:12px;border-radius:14px}
+.kvgt{font-size:.74rem}
+.kvi{grid-template-columns:34px minmax(0,1fr);gap:12px}
+.kvico svg{width:18px;height:18px}
+.fcl .kvb dt{font-size:.72rem!important}
+.fcl .kvb dd{font-size:1rem;line-height:1.45}
+.kvg-infos .kvi:has(dd:not(:empty)) dd{font-size:.98rem}
+.kvi-tel .num{font-size:1.5rem!important}
+.fcl .kvb .btn{padding:7px 13px;font-size:.9rem}
+.fcl .kvb .sub{font-size:.86rem}
+.fcl .eyebrow{font-size:.78rem}
+.fcl .pill{font-size:.9rem;padding:4px 12px}
+.fcl-ft{font-size:.84rem}
+.fcr{padding:22px 24px 36px;gap:16px}
+.ct-i .ct-n b{font-size:1rem}.ct-i .ct-n span{font-size:.86rem}
+@media (max-width:760px){.fc{grid-template-columns:1fr}.fcl{padding:18px 16px 20px}.kvi-tel .num{font-size:1.35rem!important}}
 /* ---- plan de réservation ---- */
 .resa{position:fixed;inset:0;z-index:40;background:color-mix(in srgb,#0f172a 55%,transparent);display:grid;place-items:center;padding:max(12px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
 html.resa-open{overflow:hidden}

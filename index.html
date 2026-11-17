@@ -486,6 +486,9 @@ function prevoirAuto(d){ const L=[], n=x=>x>1?` (${x})`:"";
     if(ex.length) L.push(`Gonds existants à contrôler (gabarit) : ${ex.map(l=>l.repere||"?").join(", ")}`);
     if(v.arrets) L.push(`Arrêts de vent${v.arret_type?" "+v.arret_type:""} : perceuse + chevilles adaptées`);
     const cr=v.lignes.filter(l=>(l.options||[]).includes("Crochet crémaillère")); if(cr.length) L.push(`Crochet crémaillère à poser : ${cr.map(l=>l.repere||"?").join(", ")}`); }
+  if(aVT(d)){ const v=d.vt, lourds=v.lignes.filter(l=>(vtCalc(l).poids||0)>=40); if(lourds.length) L.push(`Ventouses + 2 personnes (vitrages lourds) : ${lourds.map(l=>`${l.repere||"?"} ≈ ${vtCalc(l).poids} kg`).join(", ")}`);
+    L.push("Cales de vitrage, joints / silicone, gants anti-coupure, protection des sols"); if(v.lignes.some(l=>/Mastic/.test(l.parclose||""))) L.push("Mastic à vitrer + pointes (menuiserie bois ancienne)");
+    if(v.lignes.some(l=>/Cassé|Fêlé/.test(l.degat||""))) L.push("Évacuation du verre cassé (caisse / bâche)"); if(v.provisoire==="À faire en urgence") L.push("⚠ Mise en sécurité provisoire à faire en urgence (contreplaqué / film)"); }
   return L; }
 const prevoirTout = d => [...prevoirAuto(d), ...(d.prevoir||[]).filter(x=>!prevoirAuto(d).some(y=>nrm(y).includes(nrm(x)))), ...String(d.prevoir_txt||"").split("\n").map(s=>s.trim()).filter(Boolean)];
 function migrerPose(d){
@@ -964,8 +967,8 @@ function controleDossier(d){
   if(!d.client.nom) E.push("Nom du client manquant");
   if(!d.client.date_rdv) W.push("Date du RDV manquante");
   if(!d.adresse_chantier) W.push("Adresse du chantier manquante");
-  if(d.equipe_pose!=="Sans pose" && (d.ouvertures.length||(d.vr&&d.vr.lignes.length)||aVB(d)||aPT(d)||aPP(d))){ if(!d.equipe_pose) W.push("Pose : nombre de personnes non choisi (onglet Client & chantier)"); if(!d.jours_pose) W.push("Pose : durée non choisie (onglet Client & chantier)"); }
-  if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aClim(d) && !aVB(d) && !aPT(d) && !aPP(d) && !aSAV(d)) E.push("Aucune ouverture, volet, portail ni climatisation saisi");
+  if(d.equipe_pose!=="Sans pose" && (d.ouvertures.length||(d.vr&&d.vr.lignes.length)||aVB(d)||aPT(d)||aPP(d)||aVT(d))){ if(!d.equipe_pose) W.push("Pose : nombre de personnes non choisi (onglet Client & chantier)"); if(!d.jours_pose) W.push("Pose : durée non choisie (onglet Client & chantier)"); }
+  if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aClim(d) && !aVB(d) && !aPT(d) && !aPP(d) && !aSAV(d) && !aVT(d)) E.push("Aucune ouverture, volet, portail ni climatisation saisi");
   if(aClim(d) && aAutreQueClim(d)) E.push("Clim et menuiseries / volets / portail dans le même devis : la clim doit être un devis à part (onglet Climatisation › « Sortir la clim »)");
   comparerDevisDossier(d, E, W);
   return {E,W};
@@ -1012,11 +1015,11 @@ function listeErreurs(d){ normaliser(d); const L=[], add=(ou,E,go)=>E.forEach(e=
   add("Client",controleDossier(d).E,{tab:"client"});
   d.ouvertures.forEach((o,i)=>add(`${o.num_poseur?"N°"+o.num_poseur+" ":""}${o.repere||"Ouverture "+(i+1)}`,controleOuverture(o,d).E,{ouv:o.id}));
   add("Volets roulants",controleVREntete(d.vr).E,{tab:"vr"}); d.vr.lignes.forEach((l,i)=>add(`Volet ${l.repere||i+1}`,controleLigneVR(l,d.vr).E,{tab:"vr"}));
-  if(aClim(d)) add("Clim",controleClim(d).E,{tab:"clim"}); if(aVB(d)) add("Volets battants",controleVB(d).E,{tab:"vb"}); if(aPT(d)) add("Portail",controlePT(d).E,{tab:"pt"}); if(aPP(d)) add("Portes palières",controlePP(d).E,{tab:"pp"}); if(aSAV(d)) add("Fiche SAV",controleSAV(d).E,{tab:"sav"});
+  if(aClim(d)) add("Clim",controleClim(d).E,{tab:"clim"}); if(aVB(d)) add("Volets battants",controleVB(d).E,{tab:"vb"}); if(aPT(d)) add("Portail",controlePT(d).E,{tab:"pt"}); if(aPP(d)) add("Portes palières",controlePP(d).E,{tab:"pp"}); if(aSAV(d)) add("Fiche SAV",controleSAV(d).E,{tab:"sav"}); if(aVT(d)) add("Vitrages",controleVT(d).E,{tab:"vt"});
   return L; }
 function allerErreur(go){ if(!go) return; if(go.ouv){ const o=S.dossier.ouvertures.find(x=>x.id===go.ouv); if(o){ S.ouv=o; renderOuverture(); scrollTo(0,0); return; } } S.tab=go.tab||"client"; renderDossier(); scrollTo(0,0); }
 function nbErreurs(d){ normaliser(d); return controleDossier(d).E.length + d.ouvertures.reduce((a,o)=>a+controleOuverture(o,d).E.length,0)
-  + controleVREntete(d.vr).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0) + (aClim(d)?controleClim(d).E.length:0) + (aVB(d)?controleVB(d).E.length:0) + (aPT(d)?controlePT(d).E.length:0) + (aPP(d)?controlePP(d).E.length:0) + (aSAV(d)?controleSAV(d).E.length:0); }
+  + controleVREntete(d.vr).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0) + (aClim(d)?controleClim(d).E.length:0) + (aVB(d)?controleVB(d).E.length:0) + (aPT(d)?controlePT(d).E.length:0) + (aPP(d)?controlePP(d).E.length:0) + (aSAV(d)?controleSAV(d).E.length:0) + (aVT(d)?controleVT(d).E.length:0); }
 
 /* ---------- Catalogue : aides ---------- */
 const GAMME_COULEUR = { "PVC - REHAU PORTEO":"REHAU", "PVC - FENSTAR FLAT (droit)":"FENSTAR", "PVC - FENSTAR NEW (arrondie)":"FENSTAR",
@@ -1161,7 +1164,7 @@ function majTitre(){ if(S.dossier) setBar(`${S.dossier.client.nom||"Nouveau clie
 const cleClient = d => (d.client.nom||"").trim().toUpperCase().replace(/\s+/g," ") || ("#"+d.id);
 function groupesClients(ds){ const M=new Map(); ds.forEach(d=>{ const k=cleClient(d); if(!M.has(k)) M.set(k,{cle:k, nom:d.client.nom||"Sans nom", L:[]}); M.get(k).L.push(d); });
   return [...M.values()].map(G=>{ G.L.sort((x,y)=>String(x.devis_nom||x.variante).localeCompare(String(y.devis_nom||y.variante),"fr",{numeric:true})); return G; }); }
-const contenuDevis = d => [d.ouvertures.length&&"Menuiseries", d.vr&&d.vr.lignes.length&&"Volets roulants", aPT(d)&&"Portail", aVB(d)&&"Volets battants", aPP(d)&&"Portes palières", aClim(d)&&"Clim", aSAV(d)&&"🔧 SAV"].filter(Boolean).join(" + ")||"Devis vide";
+const contenuDevis = d => [d.ouvertures.length&&"Menuiseries", d.vr&&d.vr.lignes.length&&"Volets roulants", aPT(d)&&"Portail", aVB(d)&&"Volets battants", aPP(d)&&"Portes palières", aVT(d)&&"Vitrages", aClim(d)&&"Clim", aSAV(d)&&"🔧 SAV"].filter(Boolean).join(" + ")||"Devis vide";
 function carteMetre(d, sous=false){ normaliser(d); const n=nbErreurs(d);
   return `<div class="item${S.selMode&&S.sel.has(d.id)?" sel":""}" data-id="${d.id}">
       <div class="row">${S.selMode?`<input type="checkbox" class="hchk" ${S.sel.has(d.id)?"checked":""} aria-label="Sélectionner">`:""}${sous?`<span class="t">${d.devis_nom?esc(d.devis_nom):`<i style="font-weight:600;color:#6b7385">${esc(contenuDevis(d))}</i>`}</span><button class="btn small" data-hren="${d.id}" title="Renommer ce devis" aria-label="Renommer ce devis" style="margin-left:6px">✏️</button>`:`<span class="t">${esc(d.client.nom||"Sans nom")}</span>${d.devis_nom?`<span class="badge b-warn" style="margin-left:6px">${esc(d.devis_nom)}</span>`:""}`}<span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span>${S.selMode?"":`<button class="btn small danger" data-hdel="${d.id}" title="Supprimer ce métré" aria-label="Supprimer ce métré">🗑</button>`}</div>
@@ -1241,7 +1244,7 @@ function renderDossier(){
   S.view="dossier"; S.ouv=null; const d=normaliser(S.dossier); syncVR(d); majTitre();
   if(S.tab==="chantier") S.tab="client";
   if(!ongletsVisibles(d).includes(S.tab)) S.tab=ongletsVisibles(d)[0];
-  const T=[["client","Client & chantier"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["pt",`Portail${d.pt&&d.pt.elements.length?` (${d.pt.elements.length})`:""}`],["vb",`Volets battants${d.vb&&d.vb.lignes.length?` (${d.vb.lignes.length})`:""}`],["pp",`Portes palières${d.pp&&d.pp.lignes.length?` (${d.pp.lignes.length})`:""}`],["clim",`Climatisation${d.clim&&d.clim.lignes.length?` (${d.clim.lignes.length})`:""}`],["sav","🔧 Fiche SAV"],["controle","Contrôle"]];
+  const T=[["client","Client & chantier"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["pt",`Portail${d.pt&&d.pt.elements.length?` (${d.pt.elements.length})`:""}`],["vb",`Volets battants${d.vb&&d.vb.lignes.length?` (${d.vb.lignes.length})`:""}`],["pp",`Portes palières${d.pp&&d.pp.lignes.length?` (${d.pp.lignes.length})`:""}`],["vt",`Vitrages${d.vt&&d.vt.lignes.length?` (${d.vt.lignes.length})`:""}`],["clim",`Climatisation${d.clim&&d.clim.lignes.length?` (${d.clim.lignes.length})`:""}`],["sav","🔧 Fiche SAV"],["controle","Contrôle"]];
   const def=estDefinitif(d);
   $("#app").innerHTML=`
   <div class="circuit" role="group" aria-label="Type de métré">
@@ -1376,7 +1379,7 @@ function renderDossier(){
       if(!await demander(lv?"Supprimer cette ouverture et son volet roulant ?":"Supprimer cette ouverture ?","Supprimer")) return;
       d.ouvertures=d.ouvertures.filter(x=>x.id!==b.dataset.del); if(lv) d.vr.lignes=d.vr.lignes.filter(l=>l!==lv); save(); renderDossier(); });
   }
-  const climAPart = (S.tab==="clim" && aAutreQueClim(d)) || (["ouvertures","vr","pt","vb","pp"].includes(S.tab) && aClim(d) && !aAutreQueClim(d));
+  const climAPart = (S.tab==="clim" && aAutreQueClim(d)) || (["ouvertures","vr","pt","vb","pp","vt"].includes(S.tab) && aClim(d) && !aAutreQueClim(d));
   if(climAPart){ carteDevisAPart(d, t); }
   else {
   if(S.tab==="vr") renderVR(t);
@@ -1384,6 +1387,7 @@ function renderDossier(){
   if(S.tab==="vb") renderVB(t);
   if(S.tab==="pp") renderPP(t);
   if(S.tab==="sav") renderSAV(t);
+  if(S.tab==="vt") renderVT(t);
   if(S.tab==="pt") renderPT(t);
   }
   if(S.tab==="controle"){
@@ -1395,6 +1399,7 @@ function renderDossier(){
       +(aVB(d)?bloc("Volets battants",controleVB(d)):"")
       +(aPP(d)?bloc("Portes palières HUET",controlePP(d)):"")
       +(aSAV(d)?bloc("Fiche SAV",controleSAV(d)):"")
+      +(aVT(d)?bloc("Remplacement de vitrage",controleVT(d)):"")
       +(aClim(d)?bloc("Climatisation",controleClim(d)):"")
       +(d.vr.lignes.length?bloc("Volets roulants – en-tête",controleVREntete(d.vr))+d.vr.lignes.map((l,i)=>bloc(`VR ${i+1}. ${l.repere||"Sans repère"}`,controleLigneVR(l,d.vr))).join(""):"");
   }
@@ -2131,15 +2136,16 @@ const climSchemas = c => ["schema_etage","schema_bas",...(c.sch_extra||[])].filt
 const nomSchema = (c,k) => (c.sch_noms&&c.sch_noms[k]) || CLIM_SCH_DEF[k] || `Schéma ${climSchemas(c).indexOf(k)+1}`;
 /* ---------- Nouveau rendez-vous : un seul bouton, « Qu'est-ce qu'on mesure ? » (17/11/2026) ----------
    Crée le bon dossier client avec les bons devis : menuiseries / VR / portail / VB / portes palières ensemble, la clim TOUJOURS à part. */
-const TYPES_RDV = [["menuiseries","🪟 Menuiseries"],["vr","Volets roulants"],["pt","Portail / portillon"],["vb","Volets battants"],["pp","Portes palières (HUET)"],["clim","❄️ Climatisation (devis à part)"],["sav","🔧 SAV (fiche à part)"]];
+const TYPES_RDV = [["menuiseries","🪟 Menuiseries"],["vr","Volets roulants"],["pt","Portail / portillon"],["vb","Volets battants"],["pp","Portes palières (HUET)"],["vt","🪟 Remplacement de vitrage"],["clim","❄️ Climatisation (devis à part)"],["sav","🔧 SAV (fiche à part)"]];
 function initTypes(d, types){
   d.types=[...new Set([...(d.types||[]), ...types.filter(t=>t!=="clim"&&t!=="sav")])];
   if(types.includes("pt") && !aPT(d)){ d.pt=d.pt||nouveauPT(); if(!d.pt.elements.length) d.pt.elements.push(nouvelElementPT("BATTANT")); }
   if(types.includes("vb") && !aVB(d)){ d.vb=d.vb||nouveauVB(); if(!d.vb.lignes.length) d.vb.lignes.push(nouvelleLigneVB()); }
+  if(types.includes("vt") && !aVT(d)){ d.vt=d.vt||nouveauVT(); if(!d.vt.lignes.length) d.vt.lignes.push(nouvelleLigneVT()); }
   if(types.includes("pp") && !aPP(d)){ d.pp=d.pp||nouveauPP(); if(!d.pp.lignes.length) d.pp.lignes.push(nouvelleLignePP()); }
   return d;
 }
-function premierOnglet(d){ if(aSAV(d)) return "sav"; return (d.types||[]).find(t=>["menuiseries","vr","pt","vb","pp"].includes(t))?.replace("menuiseries","ouvertures") || (aClim(d)?"clim":"ouvertures"); }
+function premierOnglet(d){ if(aSAV(d)) return "sav"; return (d.types||[]).find(t=>["menuiseries","vr","pt","vb","pp","vt"].includes(t))?.replace("menuiseries","ouvertures") || (aClim(d)?"clim":"ouvertures"); }
 async function nouveauRendezVous(pre={}){
   const clients=[...new Set((await DB.all()).map(x=>x.client.nom).filter(Boolean))].sort();
   return new Promise(ok=>{
@@ -2202,10 +2208,10 @@ async function ajouterAuMetre(d){
 function ongletsVisibles(d){
   if(aSAV(d)) return ["sav","controle"];   // fiche SAV : document à part
   const t=new Set(d.types||[]), v=["client"];
-  const rien=!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aPT(d) && !aVB(d) && !aPP(d) && !aClim(d) && !t.size;
+  const rien=!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aPT(d) && !aVB(d) && !aPP(d) && !aVT(d) && !aClim(d) && !t.size;
   if(rien || t.has("menuiseries") || d.ouvertures.length) v.push("ouvertures");
   if(t.has("vr") || (d.vr&&d.vr.lignes.length) || d.ouvertures.length) v.push("vr");
-  if(t.has("pt") || aPT(d)) v.push("pt"); if(t.has("vb") || aVB(d)) v.push("vb"); if(t.has("pp") || aPP(d)) v.push("pp");
+  if(t.has("pt") || aPT(d)) v.push("pt"); if(t.has("vb") || aVB(d)) v.push("vb"); if(t.has("pp") || aPP(d)) v.push("pp"); if(t.has("vt") || aVT(d)) v.push("vt");
   if(aClim(d)) v.push("clim");
   v.push("controle"); return v;
 }
@@ -2217,7 +2223,7 @@ function initBarreLogement(d, re){ const s=$("#logCourant"); if(!s) return; s.on
 function avecLogement(d, repere){ if(!d.logement_courant || !repere) return repere; const r=repDecoupe(repere); if(r.log) return repere; r.log=d.logement_courant; return repCompose(r)||repere; }
 
 /* ---------- La clim est TOUJOURS un devis à part (Nicolas, 17/11/2026) : jamais avec menuiseries, volets, portail… ---------- */
-const aAutreQueClim = d => !!(d.ouvertures.length || (d.vr&&d.vr.lignes.length) || (typeof aPT==="function"&&aPT(d)) || (typeof aVB==="function"&&aVB(d)) || (typeof aPP==="function"&&aPP(d)));
+const aAutreQueClim = d => !!(d.ouvertures.length || (typeof aVT==="function"&&aVT(d)) || (d.vr&&d.vr.lignes.length) || (typeof aPT==="function"&&aPT(d)) || (typeof aVB==="function"&&aVB(d)) || (typeof aPP==="function"&&aPP(d)));
 async function sortirClim(d){
   const nom=await demanderTexte(`La clim part dans un devis à part pour ${d.client.nom||"ce client"}.\nNom de ce devis clim :`, d.devis_nom?d.devis_nom+" clim":"Clim", "Créer le devis clim"); if(!nom) return;
   const c=copierClient(d, nouveauDossier()); c.devis_nom=nom; c.variante=d.variante||"V1"; c.clim=d.clim; if(d.drive&&d.drive.dossier) c.drive={dossier:d.drive.dossier};
@@ -2940,6 +2946,133 @@ function pagesSAV(d){
   for(let i=4;i<ph.length;i+=8) h+=`<div class="pg sv">${head(true)}<div class="sv-ph" style="border:0">${photos(ph.slice(i,i+8)).replace('class="sv-ph"','class="sv-ph sv-ph8"')}</div></div>`;
   return h;
 }
+/* ---------- Remplacement de vitrage (18/11/2026) : d'après la feuille Numbers « Remplacement de vitrage » + infos utiles à la commande ----------
+   Mêmes colonnes que la feuille (repère, type de vitrage, épaisseur, couleur intercalaire, largeur, hauteur, type de support, observation ;
+   en-tête : client, date, pose, assurance, kilomètres de Gourdon) + ce qu'il faut au fournisseur de vitrage. */
+const VT_COMPOSITIONS = ["4/20/4","4/16/4","442/16/4","44.2/16/4","44.2/16/44.2","10/14/4 phonique","442/10/442","SP10/14/4","SP10/10/442","4/12/4","4/6/4 (ancien)","Simple 4 mm","Simple 6 mm","Feuilleté 44.2 seul","Triple 4/16/4/16/4","Autre (préciser)"];
+const VT_VERRES = ["CLAIR","G200","DEPOLIE","ANTELIO ARGENT","ANTELIO DOREE","Imprimé (préciser)","Opale / laqué"];
+const VT_INTERCALAIRES = ["ALU","BLANC","NOIR","Warm edge noir","Warm edge gris"];
+const VT_SUPPORTS = ["BOIS","ALU","PVC","Acier"];
+const VT_MENUISERIES = ["Fenêtre","Porte-fenêtre","Baie coulissante","Fixe","Imposte","Porte d'entrée","Porte de service","Véranda","Verrière","Garde-corps","Cabine de douche / miroir"];
+const VT_POSITIONS = ["Vantail unique","Vantail gauche","Vantail droit","Vantail central","Fixe","Imposte haute","Soubassement","Partie haute","Partie basse"];
+const VT_COTES = ["Verre existant mesuré","Fond de feuillure (jeu à déduire)","Clair de vue (+ prise en feuillure)"];
+const VT_FORMES = ["Rectangle","Cintré","Trapèze","Triangle","Œil-de-bœuf / rond","Autre (gabarit)"];
+const VT_PARCLOSES = ["Clippées PVC","Clippées alu","Bois clouées / vissées","Mastic (ancien bois)","Joint sec / à pince","Collé (VEC)"];
+const VT_DEGATS = ["Cassé / brisé","Fêlé","Embué (perte d'étanchéité)","Rayé / impact","Changement volontaire (phonique, sécurité…)"];
+const VT_PETITS_BOIS = ["Non","Laiton incorporé","Blanc incorporé","Ton bois incorporé","Collés 2 faces (à reposer)"];
+const VT_ASSUREURS = ["Aviva","AXA ASSURANCE","Gan","GMF","MMA","Groupama","MAAF","MACIF","Matmut","Allianz","Crédit Agricole","Autre"];
+const VT_PROVISOIRE = ["Non","Contreplaqué posé","Film / bâche posé","À faire en urgence"];
+const nouveauVT = () => ({ assurance:"", assureur:"", sinistre:"", date_sinistre:"", km:"", provisoire:"", fe_argon:true, lignes:[], photos:[] });
+const nouvelleLigneVT = () => ({ id:uid(), repere:"", qte:"1", menuiserie:"", position:"", support:"", composition:"", epaisseur:"", verre:"CLAIR", intercalaire:"", cote:VT_COTES[0], L:"", H:"", forme:"Rectangle", fleche:"", petits_bois:"Non", pb_l:"", pb_h:"", parclose:"", degat:"", feuillete:"", obs:"" });
+const aVT = d => !!(d.vt && d.vt.lignes.length);
+/* Épaisseur et poids d'après la composition : 4/16/4 → 24 mm ; 44.2 = 2 × 4 mm + film (≈ 8,8 mm) ; verre ≈ 2,5 kg par m² et par mm */
+function vtCalc(l){ const c=String(l.composition||"").replace(/,/g,"."); const verres=[], m=c.match(/[\d.]+/g)||[];
+  if(/^simple/i.test(c)) verres.push(+m[0]); else if(/feuillet/i.test(c)) verres.push(8.8);
+  else { const parts=c.split("/"); parts.forEach((p,i)=>{ const v=(p.match(/[\d.]+/)||[])[0]; if(!v) return; const x=String(v); const vitre=i%2===0;
+      const ep = /^\d{3}$/.test(x)? (+x[0])+(+x[1])+0.8*(+x[2]>=2?1:0.5) : /^\d\d\.\d$/.test(x)? (+x[0])+(+x[1])+0.38*(+x[3]) : /^SP10/i.test(p)? 10.8 : +x;
+      if(vitre) verres.push(ep); }); }
+  const lames=c.split("/").filter((_,i)=>i%2===1).map(p=>+((p.match(/[\d.]+/)||[0])[0]));
+  const tot=Math.round(verres.reduce((a,b)=>a+b,0)+lames.reduce((a,b)=>a+b,0)); const verre=verres.reduce((a,b)=>a+b,0);
+  const s=(num(l.L)||0)*(num(l.H)||0)/1e6; return { epaisseur: c&&!/autre/i.test(c)?tot:null, surface:s, poids: s&&verre? Math.round(s*verre*2.5) : null }; }
+function controleVT(d){ const v=d.vt, E=[], W=[]; if(!v) return {E,W};
+  if(!v.assurance) W.push("Assurance : oui ou non ?"); if(v.assurance==="Oui"){ if(!v.assureur) W.push("Assurance : nom de l'assureur manquant"); if(!v.sinistre) W.push("Assurance : n° de sinistre à demander au client"); }
+  if(!v.km) W.push("Kilomètres depuis Gourdon non renseignés");
+  if(v.provisoire==="À faire en urgence") E.push("Mise en sécurité provisoire à faire en urgence");
+  v.lignes.forEach((l,i)=>{ const n=l.repere||`vitrage ${i+1}`, c=vtCalc(l);
+    if(num(l.L)==null) E.push(`${n} : largeur manquante`); if(num(l.H)==null) E.push(`${n} : hauteur manquante`);
+    if(!l.composition) E.push(`${n} : composition du vitrage (4/16/4…) manquante`); if(!l.support) W.push(`${n} : type de support (bois, alu, PVC) non choisi`);
+    if(!l.epaisseur) W.push(`${n} : épaisseur totale du vitrage en place non mesurée (pour la parclose)`);
+    else if(c.epaisseur && Math.abs(num(l.epaisseur)-c.epaisseur)>1.5) E.push(`${n} : épaisseur mesurée ${l.epaisseur} mm ≠ composition ${l.composition} (≈ ${c.epaisseur} mm) → vérifier la composition ou changer les parcloses`);
+    if(!l.intercalaire && !/^simple|feuillet/i.test(l.composition||"")) W.push(`${n} : couleur de l'intercalaire non choisie`);
+    if(!l.parclose) W.push(`${n} : type de parclose non choisi`);
+    if(l.forme && l.forme!=="Rectangle" && !l.obs && l.forme!=="Cintré") W.push(`${n} : forme ${l.forme} → faire un gabarit / noter les cotes en observation`);
+    if(l.forme==="Cintré" && !l.fleche) E.push(`${n} : vitrage cintré → flèche manquante`);
+    if(/fond de feuillure/i.test(l.cote)) W.push(`${n} : cote prise en fond de feuillure → le jeu sera déduit à la commande`);
+    if(/^(Fenêtre|Porte-fenêtre|Baie|Porte)/.test(l.menuiserie||"") && /Soubassement|Partie basse/.test(l.position||"") && !/44|SP10|feuillet/i.test(l.composition||"")) W.push(`${n} : vitrage bas de porte / soubassement → verre de sécurité (feuilleté 44.2) conseillé`);
+    if(c.poids && c.poids>=40) W.push(`${n} : vitrage d'environ ${c.poids} kg → 2 personnes et ventouses`); });
+  return {E,W}; }
+function dessinVT(l, cls="pdessin"){
+  const L=num(l.L), H=num(l.H), r=(L&&H)?Math.min(2.4,Math.max(0.42,H/L)):1.2, W=r>1.6?140:200, Hh=Math.round(W*r), X=30, Y=16, RED="#d3232f", NAVY="#1b2f5e";
+  const fl=l.forme==="Cintré"&&num(l.fleche)&&L?Math.min(Hh*0.4,num(l.fleche)*W/L):0, ic={"BLANC":"#ffffff","NOIR":"#222","Warm edge noir":"#222","Warm edge gris":"#777"}[l.intercalaire]||"#a7adb8";
+  const fond=/DEPOLIE|Opale/i.test(l.verre||"")?"#e7eaef":/G200|Imprimé/i.test(l.verre||"")?"#edf2f7":/ANTELIO DOREE/i.test(l.verre||"")?"#f1e2b8":/ANTELIO/i.test(l.verre||"")?"#d9dde3":"#dcecf7";
+  let path; if(l.forme==="Trapèze") path=`M${X},${Y+Hh} L${X},${Y+Hh*0.25} L${X+W},${Y} L${X+W},${Y+Hh} Z`;
+  else if(l.forme==="Triangle") path=`M${X},${Y+Hh} L${X+W/2},${Y} L${X+W},${Y+Hh} Z`;
+  else if(/rond/i.test(l.forme||"")) path=`M${X},${Y+Hh/2} A${W/2},${Hh/2} 0 1 1 ${X+W},${Y+Hh/2} A${W/2},${Hh/2} 0 1 1 ${X},${Y+Hh/2} Z`;
+  else path=`M${X},${Y+Hh} L${X},${Y+fl} ${fl?`Q${X+W/2},${Y-fl} ${X+W},${Y+fl}`:`L${X+W},${Y}`} L${X+W},${Y+Hh} Z`;
+  let s=`<defs><clipPath id="cvt${l.id}"><path d="${path}"/></clipPath><pattern id="hvt${l.id}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#b9c0cc" stroke-width="1"/></pattern></defs>`;
+  s+=`<path d="${path}" fill="${fond}" stroke="${ic}" stroke-width="7"/><path d="${path}" fill="${/DEPOLIE|G200|Imprimé|Opale/i.test(l.verre||"")?`url(#hvt${l.id})`:"none"}" stroke="${NAVY}" stroke-width="2"/>`;
+  if(!/DEPOLIE|G200|Imprimé|Opale/i.test(l.verre||"")) s+=`<g clip-path="url(#cvt${l.id})" stroke="#fff" stroke-width="3" opacity=".8"><line x1="${X+W*0.15}" y1="${Y+Hh*0.45}" x2="${X+W*0.45}" y2="${Y+Hh*0.15}"/><line x1="${X+W*0.25}" y1="${Y+Hh*0.55}" x2="${X+W*0.55}" y2="${Y+Hh*0.25}"/></g>`;
+  const nl=+l.pb_l||0, nh=+l.pb_h||0; if(l.petits_bois&&l.petits_bois!=="Non"){ const c=/Laiton/.test(l.petits_bois)?"#c9a227":/Blanc/.test(l.petits_bois)?"#fff":"#8a5a2b"; let g=`<g clip-path="url(#cvt${l.id})" stroke="${c}" stroke-width="3.5">`;
+    for(let k=1;k<=nl;k++) g+=`<line x1="${X+W*k/(nl+1)}" y1="${Y-fl}" x2="${X+W*k/(nl+1)}" y2="${Y+Hh}"/>`; for(let k=1;k<=nh;k++) g+=`<line x1="${X}" y1="${Y+Hh*k/(nh+1)}" x2="${X+W}" y2="${Y+Hh*k/(nh+1)}"/>`; s+=g+`</g>`; }
+  if(l.degat&&/Cassé|Fêlé/.test(l.degat)) s+=`<g clip-path="url(#cvt${l.id})" stroke="${RED}" stroke-width="1.4" fill="none"><path d="M${X+W*0.62},${Y+Hh*0.58} l18,-26 m-18,26 l26,8 m-26,-8 l-6,30 m6,-30 l-24,-10 m24,10 l10,24"/></g>`;
+  const pill=(x,y,t,vert)=>{ const n=String(t).length*8.4+14; return `<g><rect x="${vert?x-10:x-n/2}" y="${vert?y-n/2:y-10}" width="${vert?20:n}" height="${vert?n:20}" rx="10" fill="#fff" stroke="${RED}" stroke-width="1.5"/><text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="13" font-weight="700" fill="${RED}"${vert?` transform="rotate(-90 ${x} ${y})"`:""}>${esc(String(t))}</text></g>`; };
+  s+=`<line x1="${X}" y1="${Y+Hh+16}" x2="${X+W}" y2="${Y+Hh+16}" stroke="${RED}"/>${pill(X+W/2,Y+Hh+16,l.L||"L ?",false)}<line x1="${X+W+20}" y1="${Y}" x2="${X+W+20}" y2="${Y+Hh}" stroke="${RED}"/>${pill(X+W+20,Y+Hh/2,l.H||"H ?",true)}`;
+  s+=`<text x="${X+W/2}" y="${Y+Hh+42}" text-anchor="middle" font-family="Arial" font-size="11.5" font-weight="700" fill="${NAVY}">${esc([l.composition,l.verre&&l.verre!=="CLAIR"?l.verre:"",l.epaisseur?l.epaisseur+" mm":""].filter(Boolean).join(" · "))}</text>`;
+  if(fl) s+=`<text x="${X+W/2}" y="${Y-fl-4}" text-anchor="middle" font-family="Arial" font-size="11" fill="${RED}">flèche ${esc(l.fleche)}</text>`;
+  return `<svg class="${cls}" viewBox="0 0 ${W+70} ${Hh+Y+(fl?fl+4:0)+52}" xmlns="http://www.w3.org/2000/svg"><g transform="translate(0,${fl?fl+4:0})">${s}</g></svg>`;
+}
+function renderVT(t){
+  const d=S.dossier; if(!d.vt) d.vt=nouveauVT(); const v=d.vt; if(!v.lignes.length) v.lignes.push(nouvelleLigneVT());
+  const ligne=(l,i)=>{ const k=`vt.lignes.${i}.`, c=vtCalc(l);
+    return `<div class="card clim-l"><div class="row" style="margin-bottom:8px"><b>${esc(l.repere||"Nouveau vitrage")}</b>${c.poids?`<span class="badge ${c.poids>=40?"b-warn":"b-n"}" style="margin-left:8px">≈ ${c.poids} kg · ${c.surface.toFixed(2).replace(".",",")} m²</span>`:""}<span class="spacer"></span>
+      <button class="btn small" data-vtdup="${i}">⧉ Comme celui-ci</button><button class="btn small danger" data-vtdel="${i}" aria-label="Supprimer le vitrage">✕</button></div>
+      <div class="grid g4"><label class="f">Repère (pièce)<div class="rep-in"><input data-k="${k}repere" value="${esc(l.repere)}" list="dlPiecesVT">${boutonRep(k+"repere")}</div></label>${F.numb(k+"qte","Quantité",l.qte)}
+        ${F.sel(k+"menuiserie","Menuiserie",VT_MENUISERIES,l.menuiserie)}${F.sel(k+"position","Où (vantail, fixe…)",VT_POSITIONS,l.position)}
+        ${F.sel(k+"support","Type de support",VT_SUPPORTS,l.support)}${F.sel(k+"parclose","Parcloses",VT_PARCLOSES,l.parclose)}${F.sel(k+"degat","Problème",VT_DEGATS,l.degat)}${F.sel(k+"forme","Forme",VT_FORMES,l.forme)}</div>
+      <div class="hint" style="margin:10px 0 4px;font-weight:700;color:#1b2f5e">Vitrage</div>
+      <div class="grid g4">${F.sel(k+"composition","Type de vitrage (composition)",VT_COMPOSITIONS,l.composition)}
+        <label class="f">Épaisseur totale mesurée (mm)<input data-k="${k}epaisseur" inputmode="decimal" value="${esc(l.epaisseur)}" placeholder="${c.epaisseur?"≈ "+c.epaisseur+" d'après la composition":""}"></label>
+        ${F.sel(k+"verre","Verre",VT_VERRES,l.verre)}${F.sel(k+"intercalaire","Couleur intercalaires",VT_INTERCALAIRES,l.intercalaire)}
+        ${F.sel(k+"feuillete","Face feuilletée / décor côté",["","Extérieur","Intérieur","Les deux"],l.feuillete)}${F.sel(k+"petits_bois","Petits bois",VT_PETITS_BOIS,l.petits_bois)}
+        ${l.petits_bois&&l.petits_bois!=="Non"?`${F.numb(k+"pb_l","Petits bois verticaux (nombre)",l.pb_l)}${F.numb(k+"pb_h","Petits bois horizontaux (nombre)",l.pb_h)}`:""}</div>
+      <div class="hint" style="margin:10px 0 4px;font-weight:700;color:#1b2f5e">Cotes du vitrage</div>
+      <div class="grid g4">${F.sel(k+"cote","Cote prise",VT_COTES,l.cote)}${F.numb(k+"L","Largeur (mm)",l.L)}${F.numb(k+"H","Hauteur (mm)",l.H)}${l.forme==="Cintré"?F.numb(k+"fleche","Flèche du cintre (mm)",l.fleche):""}</div>
+      <div style="margin-top:8px">${F.text(k+"obs","Observation",l.obs)}</div>
+      <div class="vb-dessin" id="vtD${i}">${dessinVT(l,"vbsvg")}</div></div>`; };
+  t.innerHTML=`<datalist id="dlPiecesVT">${listePiecesDL()}</datalist>
+  <div class="card"><h2><span class="num">1</span>Remplacement de vitrage</h2><div class="grid g4">
+    ${F.sel("vt.assurance","Assurance (bris de glace)",["Oui","Non"],v.assurance)}
+    ${v.assurance==="Oui"?`${F.sel("vt.assureur","Assureur",VT_ASSUREURS,v.assureur)}${F.text("vt.sinistre","N° de sinistre",v.sinistre)}<label class="f">Date du sinistre<input type="date" data-k="vt.date_sinistre" value="${esc(v.date_sinistre)}"></label>`:""}
+    ${F.numb("vt.km","Kilomètres depuis Gourdon",v.km)}${F.sel("vt.provisoire","Mise en sécurité provisoire",VT_PROVISOIRE,v.provisoire)}
+    <div class="checks" style="align-self:end">${F.chk("vt.fe_argon","Vitrages isolants FE + argon (standard)",v.fe_argon)}</div></div>
+    <p class="hint">Mesurer le verre existant au mm (ou le fond de feuillure, le jeu sera déduit) et l'épaisseur totale du vitrage en place : le nouveau doit avoir la même épaisseur, sinon il faut changer les parcloses. Nombre de personnes et durée : onglet Client & chantier, rubrique Pose.</p></div>
+  <div class="row" style="margin:14px 0 8px"><h2 style="margin:0"><span class="num">2</span> Vitrages</h2><span class="spacer"></span><button class="btn primary" id="vtAdd">+ Ajouter un vitrage</button></div>
+  ${v.lignes.map(ligne).join("")}
+  <div class="card"><h2><span class="num">3</span>Photos <small style="font-weight:400;text-transform:none">– le vitrage cassé, l'étiquette / le marquage dans l'intercalaire, la parclose</small></h2>
+    <div class="photos">${v.photos.map((ph,k)=>`<figure class="photo"><img src="${ph.img}" alt="Photo ${k+1}" data-phedit="${k}">
+      <textarea data-k="vt.photos.${k}.txt" rows="2" placeholder="Repère et remarque">${esc(ph.txt||"")}</textarea>
+      <div class="row"><button class="btn small" data-phedit="${k}">✏️ Annoter</button><span class="spacer"></span><button class="btn small danger" data-phdel="${k}" aria-label="Supprimer la photo ${k+1}">✕</button></div></figure>`).join("")}
+    <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple id="phAdd" class="hide"></label></div></div>`;
+  const re=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); };
+  $("#vtAdd").onclick=()=>{ v.lignes.push(nouvelleLigneVT()); save(); re(); };
+  $$("[data-vtdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer ce vitrage ?","Supprimer")) return; v.lignes.splice(+b.dataset.vtdel,1); save(); re(); });
+  $$("[data-vtdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.vtdup, s=v.lignes[i], n=Object.assign(JSON.parse(JSON.stringify(s)),{id:uid(), repere:"", L:"", H:"", degat:s.degat, obs:""}); v.lignes.splice(i+1,0,n); save(); re(); toast("Même vitrage : il reste le repère et les cotes"); });
+  const maj=()=>v.lignes.forEach((l,i)=>{ const z=$("#vtD"+i); if(z) z.innerHTML=dessinVT(l,"vbsvg"); });
+  t.addEventListener("input",e=>{ if(/^vt\./.test(e.target.dataset?.k||"")) setTimeout(maj,0); });
+  t.addEventListener("change",e=>{ const k=e.target.dataset?.k||""; if(/^vt\.(assurance|lignes\.\d+\.(petits_bois|forme|composition|L|H))$/.test(k)) setTimeout(re,0); else if(/^vt\./.test(k)) setTimeout(maj,0); });
+  initPhotos(v, re);
+}
+/* PDF : récap (comme la feuille Numbers) + 3 vitrages par page avec le dessin */
+function pagesVT(d, head, row){
+  const v=d.vt; if(!aVT(d)) return ""; const c=controleVT(d), n=(l,i)=>l.repere||`vitrage ${i+1}`;
+  let h=`<div class="pg">${head(`Remplacement de vitrage – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
+    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Pose",textePose(d)],["Kilomètres depuis Gourdon",v.km]])}</table></div>
+    <div><table class="pt">${row([["Assurance",v.assurance],["Assureur",v.assureur],["N° de sinistre",v.sinistre],["Date du sinistre",v.date_sinistre?new Date(v.date_sinistre+"T12:00").toLocaleDateString("fr-FR"):""],["Mise en sécurité provisoire",v.provisoire],["Vitrages isolants",v.fe_argon?"FE + argon":""]])}</table></div></div>
+    <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Menuiserie / où</th><th>Type vitrage</th><th>Épaisseur</th><th>Verre</th><th>Couleur intercalaires</th><th>Largeur</th><th>Hauteur</th><th>Cote prise</th><th>Type de support</th><th>Observation</th></tr>
+    ${v.lignes.map((l,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.qte)}</td><td>${esc([l.menuiserie,l.position].filter(Boolean).join(" – "))}</td><td><b>${esc(l.composition)}</b></td><td>${esc(l.epaisseur?l.epaisseur+" mm":"")}</td><td>${esc(l.verre)}</td><td>${esc(l.intercalaire)}</td><td><b>${esc(l.L)}</b></td><td><b>${esc(l.H)}</b></td><td>${esc((l.cote||"").replace(/ \(.*\)/,""))}</td><td>${esc(l.support)}</td><td>${esc([l.forme&&l.forme!=="Rectangle"?l.forme+(l.fleche?" flèche "+l.fleche:""):"",l.petits_bois&&l.petits_bois!=="Non"?"petits bois "+l.petits_bois.toLowerCase():"",l.obs].filter(Boolean).join(" · "))}</td></tr>`).join("")}</table>
+    ${c.E.length||c.W.length?`<div class="pwarn">À vérifier : ${esc([...c.E,...c.W].join(" · "))}</div>`:`<div class="pok">Contrôle OK</div>`}</div>`;
+  const bloc=(l,i)=>{ const k=vtCalc(l), pre=n(l,i)+" : ", msg=[...c.E,...c.W].filter(x=>x.startsWith(pre)).map(x=>x.slice(pre.length));
+    return `<div class="vbbloc"><div class="pdim"><div class="pposetitre">${i+1}. ${esc(l.repere||"Vitrage")} <small style="font-weight:400">– qté ${esc(l.qte||"1")}${l.degat?" · "+esc(l.degat):""}</small></div>
+      <table class="pt pdt"><tr class="pdir"><th colspan="2">COTES DU VITRAGE</th></tr><tr><th>Largeur</th><td>${esc(l.L)}</td></tr><tr><th>Hauteur</th><td>${esc(l.H)}</td></tr>${l.fleche?`<tr><th>Flèche</th><td>${esc(l.fleche)}</td></tr>`:""}
+        <tr class="pfabr"><th>${esc((l.cote||"").replace(/ \(.*\)/,"").toUpperCase())}</th><td>${esc(l.L)} × ${esc(l.H)}</td></tr></table>
+      ${msg.length?`<div class="pwarn" style="margin-top:4px;font-size:8pt">À vérifier : ${esc(msg.join(" · "))}</div>`:""}</div><div>
+      <table class="pt">${row([["Menuiserie",[l.menuiserie,l.position].filter(Boolean).join(" – ")],["Type de support",l.support],["Type vitrage",l.composition+(v.fe_argon&&!/^simple|feuillet/i.test(l.composition||"")?" FE argon":"")],["Épaisseur mesurée",l.epaisseur?l.epaisseur+" mm"+(k.epaisseur?` (composition ≈ ${k.epaisseur} mm)`:""):""],["Verre",l.verre],["Face feuilletée / décor",l.feuillete],["Couleur intercalaires",l.intercalaire],["Petits bois",l.petits_bois!=="Non"?`${l.petits_bois} (${+l.pb_l||0} vert. × ${+l.pb_h||0} horiz.)`:""],["Parcloses",l.parclose],["Forme",l.forme!=="Rectangle"?l.forme:""],["Poids estimé",k.poids?`≈ ${k.poids} kg (${k.surface.toFixed(2).replace(".",",")} m²)`:""],["Observation",l.obs]])}</table></div>
+      <div class="vbdes">${dessinVT(l)}</div></div>`; };
+  for(let i=0;i<v.lignes.length;i+=3){ const fin=Math.min(i+3,v.lignes.length); h+=`<div class="pg">${head(`Vitrages ${v.lignes.length>3?`${i+1} à ${fin} sur ${v.lignes.length}`:"– détail"} – ${d.client.nom||""}`)}${v.lignes.slice(i,fin).map((l,j)=>bloc(l,i+j)).join("")}</div>`; }
+  const ph=(v.photos||[]).filter(x=>x.img);
+  for(let i=0;i<ph.length;i+=4) h+=`<div class="pg">${head(`Vitrages – Photos${ph.length>4?` (${i/4+1})`:""} – ${d.client.nom||""}`)}<div class="pphotos">${ph.slice(i,i+4).map((x,j)=>`<figure><img src="${x.img}"><figcaption><b>Photo ${j+i+1}</b>${x.txt?" – "+esc(x.txt):""}</figcaption></figure>`).join("")}</div></div>`;
+  return h;
+}
 const aPT = d => !!(d.pt && d.pt.elements.length);
 function fabPT(e){ const L=num(e.L); if(L==null) return null; return e.dim==="ENTRE PILE" ? L-PT_DEDUCTION : L; }
 function controlePT(d){
@@ -3188,7 +3321,7 @@ function construireImpression(d){
       <div>${tp&&SCHEMAS[tp.img]?`<img src="${SCHEMAS[tp.img]}" style="max-width:100%;border:1px solid #9aa3b5"><div style="text-align:center;font-weight:700">${esc(tp.nom)}</div>`:""}</div></div></div>`;
   }
   h+=pagesPT(d);
-  h+=pagesVB(d, head, row); h+=pagesPP(d, head, row);
+  h+=pagesVB(d, head, row); h+=pagesPP(d, head, row); h+=pagesVT(d, head, row);
   h+=pagesClim(d);
   return h;
 }
@@ -3319,6 +3452,7 @@ function nomMetre(d){
   if(typeof aPT==="function" && aPT(d)) mat.push("PORTAIL");
   if(typeof aVB==="function" && aVB(d)) mat.push("VB");
   if(typeof aPP==="function" && aPP(d)) mat.push("PORTES PALIERES");
+  if(typeof aVT==="function" && aVT(d)) mat.push("VITRAGE");
   if(typeof aClim==="function" && aClim(d)) mat.push("CLIM");
   const lab=(d.devis_nom||"").trim().toUpperCase().replace(/[\\/:*?"<>|]+/g," ");
   const motsMat=new Set(mat.join(" ").split(/\s+/)); const labS=lab.split(/\s+/).filter(w=>w && !motsMat.has(w)).join(" ");
@@ -3388,7 +3522,7 @@ const CLEMENCE = {
   clim:      {id:"1WIbVWzbxaK36L_GEyLvmMwf5T8PAjlKZ", nom:"DEVIS CLIM"},
   sav:       {id:"1d2oPqltHreO90yeAChWczD1jsVHO-vXM", nom:"SAV"}
 };
-const climSeul = d => typeof aClim==="function" && aClim(d) && !d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !(typeof aPT==="function"&&aPT(d)) && !(typeof aVB==="function"&&aVB(d)) && !(typeof aPP==="function"&&aPP(d));
+const climSeul = d => typeof aClim==="function" && aClim(d) && !d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !(typeof aPT==="function"&&aPT(d)) && !(typeof aVT==="function"&&aVT(d)) && !(typeof aVB==="function"&&aVB(d)) && !(typeof aPP==="function"&&aPP(d));
 const cibleClemence = d => (typeof aSAV==="function"&&aSAV(d)) ? CLEMENCE.sav : climSeul(d) ? CLEMENCE.clim : estDefinitif(d) ? CLEMENCE.definitif : CLEMENCE.devis;
 const envoisClemence = d => (d.clemence && d.clemence.envois) || [];
 function nomEnvoiClemence(d){ const n=envoisClemence(d).length, base=nomMetre(d); return n ? `${base} modif${n>1?" "+n:""}.pdf` : `${base}.pdf`; }

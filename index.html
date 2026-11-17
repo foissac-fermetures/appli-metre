@@ -109,6 +109,7 @@ input:focus,select:focus,textarea:focus{outline:3px solid #c9d6f3;border-color:v
 .rdv-types{display:grid;grid-template-columns:1fr 1fr;gap:8px}.rdv-t{padding:12px;font-size:16px}.rdv-t.on{background:#1b2f5e;border-color:#1b2f5e;color:#fff !important}.rdv-add{padding:14px;font-size:16px}
 .tab-add{border:2px dashed #b9c2d6 !important;background:transparent !important;color:var(--navy,#1b2f5e) !important}
 .log-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#eef1f7;border-radius:10px;padding:8px 12px;margin-bottom:12px;font-weight:600}.log-bar select{font-size:16px;padding:6px 8px}
+.pose-ch .chip{font-size:16px;padding:10px 14px} .pose-total{margin-top:10px;padding:8px 12px;border-radius:10px;background:#eef3fa;color:#1b2f5e;display:inline-block}
 .vb-dessin{max-width:330px;margin:10px auto 0}.vb-dessin svg{width:100%;height:auto;max-height:360px}
 .sketch-wrap{position:relative;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;touch-action:none}
 canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background:
@@ -445,7 +446,22 @@ const ERP_SENS = ["Extérieure (sens de la sortie)","Intérieure"];
 const ERP_AP = ["Barre anti-panique (NF EN 1125)","Poignée / béquille d'urgence (NF EN 179)"];
 const ERP_GROOM = ["Ferme-porte à bras compas","Ferme-porte à glissière","Ferme-porte avec arrêt (bloqueur)","Ferme-porte intégré (caché)"];
 const GC_VIDE = () => ({type:"", modele:"", L:"", H:"", finition:"", fixation:"", losange:false, etage:false, appui_h:"", zsp:false, zsp_h:"", epais:false});
-function normaliser(d){ if(!d.vr) d.vr=nouveauVR(); d.ouvertures.forEach(migrerObs); d.ouvertures.forEach(o=>{ if(o.semi_fixe && modeleDe(o) && !aSemiFixe(o)) o.semi_fixe=""; }); d.ouvertures.forEach(o=>{ o.comp=Object.assign(COMP_VIDE(), o.comp||{}); }); if(d.clim && !d.clim.tableau) d.clim.tableau={img:"",txt:"",place:""}; d.ouvertures.forEach(o=>{ o.gc=Object.assign(GC_VIDE(), o.gc||{}); o.erp=Object.assign(ERP_VIDE(), o.erp||{}); }); d.ouvertures.forEach((o,i)=>{ if(o.num_poseur===undefined) o.num_poseur=String(i+1); if(!Array.isArray(o.photos)) o.photos=[]; }); if(!d.equipe_pose && d.vr.equipe) d.equipe_pose={"Seul":"Tout seul"}[d.vr.equipe]||d.vr.equipe; d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
+/* ---------- Pose : équipe + durée, une seule fois pour tout le métré (17/11/2026) ---------- */
+const EQUIPES_POSE = ["Sans pose","1 personne","2 personnes","3 personnes","4 personnes"];
+const DUREES_POSE = ["1 h","2 h","3 h","4 h – ½ journée","5 h","6 h","7 h","8 h – 1 journée","1 jour ½","2 jours","2 jours ½","3 jours","3 jours ½","4 jours","4 jours ½","1 semaine"];
+const heuresPose = t => { const s=String(t||""); let m=s.match(/^(\d+) h/); if(m) return +m[1]; if(/semaine/.test(s)) return 40; m=s.match(/^(\d+) jours?( ½)?/); return m? (+m[1]+(m[2]?0.5:0))*8 : 0; };
+const nbPoseurs = e => +(String(e||"").match(/^(\d)/)||[])[1]||0;
+const textePose = d => d.equipe_pose==="Sans pose" ? "Sans pose" : [d.equipe_pose, d.jours_pose, d.pose_pas_vu?"⚠ chantier pas vu":""].filter(Boolean).join(" · ");
+function migrerPose(d){
+  const E={"Tout seul":"1 personne","Seul":"1 personne","A 2":"2 personnes","A 3":"3 personnes","A 4":"4 personnes"};
+  if(d.equipe_pose==="Attention pas vu le chantier"){ d.equipe_pose=""; d.pose_pas_vu=true; }
+  if(E[d.equipe_pose]) d.equipe_pose=E[d.equipe_pose];
+  const J={"1/2 JOURS":"4 h – ½ journée","1 JOURS":"8 h – 1 journée","1 JOURS 1/2":"1 jour ½","2 JOURS":"2 jours","2 JOURS 1/2":"2 jours ½","3 JOURS":"3 jours","3 JOURS 1/2":"3 jours ½","4 JOURS":"4 jours","4 JOURS 1/2":"4 jours ½","1 SEMAINE":"1 semaine"};
+  if(d.jours_pose==="Sans pose"){ d.jours_pose=""; d.equipe_pose="Sans pose"; } else if(J[d.jours_pose]) d.jours_pose=J[d.jours_pose];
+  const V={"1/2 h":"1 h","1 h":"1 h","1 h 1/2":"2 h","2 h":"2 h","2 h 1/2":"3 h","3 h":"3 h","3 h 1/2":"4 h – ½ journée","1/2 jour":"4 h – ½ journée","1 jour":"8 h – 1 journée"};
+  if(d.vr && d.vr.duree){ if(d.vr.duree==="Sans pose"){ if(!d.equipe_pose) d.equipe_pose="Sans pose"; } else if(!d.jours_pose && V[d.vr.duree]) d.jours_pose=V[d.vr.duree]; d.vr.duree_ancienne=d.vr.duree; d.vr.duree=""; }
+}
+function normaliser(d){ migrerPose(d); if(!d.vr) d.vr=nouveauVR(); d.ouvertures.forEach(migrerObs); d.ouvertures.forEach(o=>{ if(o.semi_fixe && modeleDe(o) && !aSemiFixe(o)) o.semi_fixe=""; }); d.ouvertures.forEach(o=>{ o.comp=Object.assign(COMP_VIDE(), o.comp||{}); }); if(d.clim && !d.clim.tableau) d.clim.tableau={img:"",txt:"",place:""}; d.ouvertures.forEach(o=>{ o.gc=Object.assign(GC_VIDE(), o.gc||{}); o.erp=Object.assign(ERP_VIDE(), o.erp||{}); }); d.ouvertures.forEach((o,i)=>{ if(o.num_poseur===undefined) o.num_poseur=String(i+1); if(!Array.isArray(o.photos)) o.photos=[]; }); if(!d.equipe_pose && d.vr.equipe) d.equipe_pose={"Seul":"Tout seul"}[d.vr.equipe]||d.vr.equipe; d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
 /* Volet roulant lié à une ouverture : repère, quantité et cotes tableau suivent la fiche ouverture */
 /* Volets roulants vendus avec la menuiserie (fabriqués avec elle) */
 const GAMME_MODELES = { "ALU - LALOI":"modeles_laloi", "PVC - REHAU PORTEO":"modeles_porteo" };
@@ -536,7 +552,7 @@ function demanderTexte(msg, defaut="", oui="Valider", sugg=NOMS_DEVIS){ return n
   document.body.appendChild(m); const i=m.querySelector("#dtTxt"); setTimeout(()=>{ i.focus(); i.select(); },50);
   const fin=v=>{ m.remove(); ok(v); }; m.querySelector("#dtNon").onclick=()=>fin(null); m.querySelector("#dtOui").onclick=()=>fin(i.value.trim()||null);
   i.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); fin(i.value.trim()||null); } }; }); }
-const CHAMPS_CLIENT = ["client","logement","budget","concurrents","notes_client","adresse_chantier","metreur","type_document","tva","jours_pose","equipe_pose","gamme_defaut","crm"];
+const CHAMPS_CLIENT = ["client","logement","budget","concurrents","notes_client","adresse_chantier","metreur","type_document","tva","jours_pose","equipe_pose","pose_pas_vu","gamme_defaut","crm"];
 function copierClient(src, c){ CHAMPS_CLIENT.forEach(k=>{ if(src[k]!==undefined) c[k]=JSON.parse(JSON.stringify(src[k])); }); return c; }
 /* crée un autre devis pour le même client ; ids = ouvertures à DÉPLACER (avec leur volet roulant) */
 async function nouveauDevisClient(src, nom, ids=[]){
@@ -912,7 +928,7 @@ function controleDossier(d){
   if(!d.client.nom) E.push("Nom du client manquant");
   if(!d.client.date_rdv) W.push("Date du RDV manquante");
   if(!d.adresse_chantier) W.push("Adresse du chantier manquante");
-  if(d.ouvertures.length && !d.jours_pose) W.push("Jours de pose estimés non renseignés");
+  if(d.equipe_pose!=="Sans pose" && (d.ouvertures.length||(d.vr&&d.vr.lignes.length)||aVB(d)||aPT(d)||aPP(d))){ if(!d.equipe_pose) W.push("Pose : nombre de personnes non choisi (onglet Client & chantier)"); if(!d.jours_pose) W.push("Pose : durée non choisie (onglet Client & chantier)"); }
   if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aClim(d) && !aVB(d) && !aPT(d) && !aPP(d)) E.push("Aucune ouverture, volet, portail ni climatisation saisi");
   if(aClim(d) && aAutreQueClim(d)) E.push("Clim et menuiseries / volets / portail dans le même devis : la clim doit être un devis à part (onglet Climatisation › « Sortir la clim »)");
   comparerDevisDossier(d, E, W);
@@ -934,7 +950,6 @@ function controleVREntete(v){
   if(!v.coffre) W.push("Type de coffre non choisi");
   if(!v.motorisation) E.push("Motorisation non choisie");
   if(!v.couleur_coffre && !v.couleur_coulisses && !v.couleur_tablier) W.push("Couleurs coffre / coulisses / tablier non renseignées");
-  if(!v.duree) W.push("Durée de pose non renseignée");
   if(!v.manutention) W.push("Manutention (échelle, nacelle…) non renseignée");
   return {E,W};
 }
@@ -1239,10 +1254,15 @@ function renderDossier(){
           :`<p class="hint">Reprend les menuiseries du devis signé (repère, produit, couleurs, vitrage, sens, volet, pose…), sauf les cotes, et les volets battants en entier (cotes à confirmer), puis compare automatiquement.</p>`}
         <div class="row" style="gap:8px"><button class="btn ${d.devis_signe?"":"primary"}" id="cDevis">${d.devis_signe?"Changer de devis / relire":"Partir du devis signé"}</button>
         ${d.devis_signe?`<button class="btn small" id="cDevisOff">Détacher le devis</button>`:""}</div></div>`:""}
-      <div class="card" style="grid-column:1/-1"><h2><span class="num">3</span>Pose</h2><div class="grid g4">
-        ${F.sel("jours_pose","Jours de pose (menuiseries)",CAT.jours_pose,d.jours_pose)}${F.sel("equipe_pose","Équipe de pose",CAT.equipe_pose,d.equipe_pose)}
-        ${F.sel("vr.duree","Durée de pose des volets roulants",CAT.vr.duree,d.vr.duree)}${F.sel("vr.manutention","Manutention (échelle, nacelle…)",CAT.vr.manutention,d.vr.manutention)}
-      </div></div>
+      <div class="card" style="grid-column:1/-1"><h2><span class="num">3</span>Pose <small style="font-weight:400;text-transform:none">– pour tout le chantier</small></h2>
+        <div class="hint" style="margin:2px 0 6px">Combien de personnes ?</div>
+        <div class="checks pose-ch">${EQUIPES_POSE.map(x=>`<button type="button" class="chip${d.equipe_pose===x?" on":""}" data-poseq="${esc(x)}">${x==="Sans pose"?"🚫 ":"👷".repeat(nbPoseurs(x))+" "}${esc(x)}</button>`).join("")}</div>
+        ${d.equipe_pose!=="Sans pose"?`<div class="hint" style="margin:12px 0 6px">Combien de temps ?</div>
+        <div class="checks pose-ch">${DUREES_POSE.map(x=>`<button type="button" class="chip${d.jours_pose===x?" on":""}" data-posed="${esc(x)}">${esc(x)}</button>`).join("")}</div>
+        ${nbPoseurs(d.equipe_pose)&&heuresPose(d.jours_pose)?`<div class="pose-total">⏱ ${nbPoseurs(d.equipe_pose)} × ${heuresPose(d.jours_pose)} h = <b>${nbPoseurs(d.equipe_pose)*heuresPose(d.jours_pose)} heures</b> de main-d'œuvre</div>`:""}`:""}
+        <div class="checks" style="margin-top:12px">${F.chk("pose_pas_vu","⚠ Je n'ai pas vu tout le chantier",d.pose_pas_vu)}</div>
+        ${d.vr&&d.vr.lignes.length?`<div class="grid g4" style="margin-top:10px">${F.sel("vr.manutention","Manutention volets roulants (échelle, nacelle…)",CAT.vr.manutention,d.vr.manutention)}</div>`:""}
+      </div>
     </div>
     <details class="card" id="comDet" ${S.comOpen?"open":""}><summary><h2 style="display:inline"><span class="num">4</span>Infos commerciales <small style="font-weight:400;text-transform:none">– origine, projet, budget, concurrence${nbCom?` (${nbCom} renseignée(s))`:""}</small></h2></summary>
       <div class="grid g2" style="margin-top:12px">
@@ -1274,6 +1294,9 @@ function renderDossier(){
       const c=await nouveauDevisClient(d, nom, []); S.dossier=c; S.tab="client"; renderDossier(); toast(`Devis « ${nom} » créé pour ${c.client.nom}`); };
     $("#cRattacher").onclick=()=>rattacherClient(d);
     if($("#cDevis")) $("#cDevis").onclick=ouvrirDevisSigne;
+    const rePose=()=>{ save(); const y=scrollY; renderDossier(); scrollTo(0,y); };
+    $$("[data-poseq]").forEach(b=>b.onclick=()=>{ const x=b.dataset.poseq; S.dossier.equipe_pose=S.dossier.equipe_pose===x?"":x; if(x==="Sans pose") S.dossier.jours_pose=""; rePose(); });
+    $$("[data-posed]").forEach(b=>b.onclick=()=>{ const x=b.dataset.posed; S.dossier.jours_pose=S.dossier.jours_pose===x?"":x; rePose(); });
     $$('[data-k^="concurrents."]').forEach(inp=>inp.addEventListener("change",()=>{ const n=concurrentsConnus().length; memoriserConcurrents(d.concurrents); if(concurrentsConnus().length!==n){ const dl=$("#dlConc"); if(dl) dl.innerHTML=concurrentsConnus().map(x=>`<option value="${esc(x)}">`).join(""); } }));
     $$("[data-concdel]").forEach(b=>b.onclick=e=>{ e.preventDefault(); oublierConcurrent(b.dataset.concdel); S.comOpen=true; renderDossier(); });
     if($("#cDevisOff")) $("#cDevisOff").onclick=async()=>{ if(!await demander("Détacher le devis signé ? La comparaison s'arrête (le métré reste tel quel).","Détacher")) return; delete d.devis_signe; d.ouvertures.forEach(o=>{ delete o.devis; delete o.devis_gc; }); save(); renderDossier(); };
@@ -1341,7 +1364,7 @@ function renderVR(t){
   const d=S.dossier, v=d.vr, C=CAT.vr;
   t.innerHTML=`
   <div class="card"><h2>Volet roulant – en-tête</h2>
-  <p class="hint">Équipe, durée de pose et manutention : onglet « Client & chantier », rubrique Pose.</p>
+  <p class="hint">Nombre de personnes, durée de pose et manutention : onglet « Client & chantier », rubrique Pose.</p>
   <div class="hint" style="margin:14px 0 6px">Type de pose</div>
   <div class="vrpose">${C.types_pose.map(p=>`<button data-vrpose="${p.id}" class="${v.type_pose===p.id?"on":""}"><img src="${SCHEMAS[p.img]||""}" alt=""><span>${esc(p.nom)}</span></button>`).join("")}</div>
   <div class="grid g4" style="margin-top:14px">
@@ -2672,7 +2695,7 @@ function pagesVB(d, head, row){
   const v=d.vb; if(!aVB(d)) return ""; const c=controleVB(d), n=(l,i)=>l.repere||`volet ${i+1}`, ge=gondsExistants(v)||v.lignes.some(l=>vbSurGonds(v,l)), mix=vbPosesMixtes(v);
   const commun=[["Matière",v.matiere],["Type",v.type],[v.matiere==="Bois"?"Finition":"Couleur",vbCouleurTexte(v)],["Essence",v.essence],["Lame",v.lame],["Barres et écharpes",v.barre],["Ferrage (pentures)",v.ferrage],["Gonds",v.gonds],["Couleur des ferrages",v.ferrage_couleur],["Pose",mix?"Variable selon le volet (voir le tableau)":vbPoseLigne(v,v.lignes[0])],["Type de dimensions",mix?"":vbTypeDim(v,v.lignes[0])],["Arrêts de vent",v.arrets?(v.arret_type||"Oui"):""],["Manutention",v.manutention]];
   let h=`<div class="pg">${head(`Volets battants Corrèze – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
-    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","Corrèze Fermetures"],["Nombre de volets",String(v.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div>
+    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","Corrèze Fermetures"],["Pose (équipe · durée)",textePose(d)],["Nombre de volets",String(v.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div>
     <div><table class="pt">${row(commun)}</table></div></div>
     <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Vantaux</th>${mix?"<th>Pose</th>":""}<th>Largeur</th><th>Hauteur</th><th>Allège</th><th>Espagn. sur ouvrant</th><th>Feuillure l × p · côtés</th><th>Cintre</th><th>Espagnolette</th><th>Options</th></tr>
     ${v.lignes.map((l,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.qte)}</td><td>${esc(l.vantaux)}</td>${mix?`<td>${esc(vbPoseLigne(v,l))}${vbTypeDim(v,l)===VB_TYPE_DIM[1]?" (fond de feuill.)":""}</td>`:""}<td><b>${esc(l.L)}</b></td><td><b>${esc(l.H)}</b></td><td>${esc(l.allege)}</td><td>${[l.sens_g&&"Gauche",l.sens_d&&"Droite"].filter(Boolean).join(" + ")}</td>
@@ -2933,7 +2956,7 @@ function construireImpression(d){
       <table class="pt">${row([["Maison",d.logement.maison],["Motivation 1",d.logement.motivation1],["Motivation 2",d.logement.motivation2],["Précisions",d.logement.precisions]])}</table></div>
     <div><table class="pt">${row([["Moyens financiers",d.budget.moyens],["Ressenti",d.budget.ressenti],["Projet",d.budget.projet],["Demande d'aide",d.budget.aide],["Laquelle",d.budget.aide_laquelle],["Précision",d.budget.precision]])}</table>
       <table class="pt">${row(d.concurrents.map((c,i)=>[`Concurrent ${i+1}`,c]))}</table>
-      <table class="pt">${row([["Jours de pose",d.jours_pose],["Équipe",d.equipe_pose],["Observations",d.observations],["Notes",d.notes_client]])}</table></div></div>
+      <table class="pt">${row([["Pose",textePose(d)],["Observations",d.observations],["Notes",d.notes_client]])}</table></div></div>
     ${!d.ouvertures.length?"":`<table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Pose</th><th>Gamme</th><th>Tableau L×H</th><th>Fabrication L×H</th><th>Vantaux</th></tr>
     ${d.ouvertures.map((o,i)=>{const f=calcFab(o);return `<tr><td><b>${esc(o.num_poseur||"")}</b></td><td>${esc(o.repere)}</td><td>${esc(o.quantite)}</td><td>${esc(libellePose(o))}</td><td>${esc(o.gamme)}</td><td>${esc(coteTab(o,"L"))} × ${esc(coteTab(o,"H"))}</td><td><b>${f.L??""} × ${f.H??""}</b></td><td>${esc([o.vantaux.G,o.vantaux.M,o.vantaux.D].filter(Boolean).join(" · "))}</td></tr>`;}).join("")}</table>`}</div>`;
   d.ouvertures.forEach((o,i)=>{ const f=calcFab(o), P=CAT.poses[o.pose], c=controleOuverture(o,d);
@@ -2966,7 +2989,7 @@ function construireImpression(d){
     const errs=[...ch.E,...ch.W.map(x=>x)].map(x=>"En-tête : "+x).concat(v.lignes.flatMap((l,i)=>{const c=controleLigneVR(l,v); return [...c.E,...c.W].map(x=>`${i+1}. ${l.repere||"?"} : ${x}`);}));
     h+=`<div class="pg">${head(`Volet roulant – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
       <div class="pcols" style="grid-template-columns:3fr 1fr"><div>
-      <table class="pt">${row([["Client",d.client.nom],["Adresse",d.adresse_chantier],["Pose",[d.equipe_pose||v.equipe,v.duree].filter(Boolean).join(" – ")],["Type de pose",tp?.nom||""],["Manutention",v.manutention],["Assurance",v.assurance?"Oui":""]])}</table></div>
+      <table class="pt">${row([["Client",d.client.nom],["Adresse",d.adresse_chantier],["Pose",textePose(d)],["Type de pose",tp?.nom||""],["Manutention",v.manutention],["Assurance",v.assurance?"Oui":""]])}</table></div>
       <div><table class="pt">${row([["Coffre",v.coffre],["Couleur coffre",v.couleur_coffre],["Couleur coulisses",v.couleur_coulisses],["Couleur tablier",v.couleur_tablier],["Motorisation",v.motorisation],["Options",v.options_sup]])}</table></div></div>
       <div class="pcols" style="grid-template-columns:5fr 1fr;align-items:start"><div>
       <table class="pt vrt"><tr><th rowspan="2">Repère</th><th rowspan="2">Qté</th><th colspan="2">Tableau</th><th colspan="2">Fabrication</th><th colspan="2">Sortie de fil<br>vue int.</th><th colspan="2">Perçage<br>coulisse</th><th rowspan="2">Sortie de fil<br>coffre</th><th rowspan="2">Électricité</th><th rowspan="2">Dépose</th><th rowspan="2">Option</th></tr>
@@ -3739,7 +3762,7 @@ function fusionnerPremierVB(d, Lm, glob, source){
     l.premier=source; });
   if(glob){ if(glob.lame&&!v.lame){ const s=sansAcc(glob.lame).toLowerCase(); v.lame=/vertic/.test(s)?VB_LAMES[0]:/horiz/.test(s)?VB_LAMES[2]:/cadre/.test(s)?VB_LAMES[4]:/plein|panneau/.test(s)?VB_LAMES[3]:VB_LAMES.includes(glob.lame)?glob.lame:""; }
     if(glob.manutention&&!v.manutention) v.manutention=trouverDans(CAT.vr.manutention,glob.manutention)||"";
-    if(glob.pose&&!d.jours_pose) d.jours_pose=/matin|apr[eè]s|demi|1\/2/i.test(glob.pose)?"1/2 JOURS":trouverDans(CAT.jours_pose,glob.pose)||""; }
+    if(glob.pose){ if(!d.jours_pose) d.jours_pose=/matin|apr[eè]s|demi|1\/2/i.test(glob.pose)?"4 h – ½ journée":/journ/i.test(glob.pose)?"8 h – 1 journée":""; const n=(glob.pose.match(/à\s*(\d)/)||[])[1]; if(n&&!d.equipe_pose) d.equipe_pose=n==="1"?"1 personne":`${n} personnes`; migrerPose(d); } }
   const pj=new Set(A.map(x=>x[1])), absents=Lm.filter((m,j)=>!pj.has(j)).map(m=>m.repere||"sans repère");
   d.premier_metre={source, absents, le:new Date().toISOString()};
   return {pris:A.length, absents};

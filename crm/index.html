@@ -484,6 +484,15 @@ details.relblk:not([open]){gap:0}
 .nc-sms summary{cursor:pointer;display:grid;gap:4px;list-style:none}.nc-sms summary::-webkit-details-marker{display:none}
 .nc-sms[open] summary{margin-bottom:4px}.nc-sms textarea{width:100%;box-sizing:border-box;font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:inherit}
 .nc-sms{border-color:color-mix(in srgb,var(--c-contact) 45%,var(--line));background:color-mix(in srgb,var(--c-contact) 6%,var(--panel))}
+.cn-rec{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.cn-dot{width:12px;height:12px;border-radius:50%;background:#dc2626;animation:cnp 1.2s infinite}.cn-dot.pause{animation:none;background:#94a3b8}
+@keyframes cnp{0%,100%{opacity:1}50%{opacity:.25}}
+.cn-live{max-height:260px;overflow:auto;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,#8b5cf6 5%,var(--panel));font-size:.92rem;line-height:1.5;white-space:pre-wrap}
+.cn-live i{color:var(--muted)}
+.cn-ta{width:100%;box-sizing:border-box;font:inherit;line-height:1.5;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:inherit}
+.cn-acts{display:grid;gap:6px}.cn-act{display:grid;grid-template-columns:auto minmax(0,1fr) 150px 140px;gap:8px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:8px}
+.cn-act input[type=text],.cn-act select,.cn-act input[type=date]{width:100%;box-sizing:border-box;padding:5px 7px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:inherit;font:inherit;font-size:.86rem}
+@media (max-width:700px){.cn-act{grid-template-columns:auto minmax(0,1fr)}.cn-act select,.cn-act input[type=date]{grid-column:2}}
+.cn-pts{margin:0;padding-left:18px;display:grid;gap:3px}.cn-note{border:1px solid var(--line);border-radius:10px;padding:8px 12px}.cn-note summary{cursor:pointer;font-weight:600}.cn-note .cn-txt{white-space:pre-wrap;font-size:.9rem;line-height:1.5;margin-top:6px}
 .nc-known{display:grid;gap:8px;padding:12px;border:1px solid color-mix(in srgb,#f59e0b 55%,var(--line));border-radius:10px;background:color-mix(in srgb,#f59e0b 8%,var(--panel))}
 .nc-known .nck{display:grid;gap:4px;padding:8px 0}.nc-known .nck+.nck{border-top:1px dashed var(--line)}.nc-known .nck .sub{display:block}
 .nc-fill{outline:2px solid #3b82f6;outline-offset:1px;background:color-mix(in srgb,#3b82f6 10%,var(--panel))!important}
@@ -3903,7 +3912,7 @@ function renderDay(){ const el = $("#dday"); if (!el) return;
 /* mon planning de la semaine : comme celui des poseurs, matin / après-midi, avec mes rendez-vous (agendas Google + CRM) */
 let myWkOff = 0;
 /* export de toutes les données du CRM (pour la version en ligne sur GitHub) */
-const EXP_COLL = ["suivi", "taches", "sav", "clients", "dossiers", "meta", "fournisseurs"];
+const EXP_COLL = ["suivi", "taches", "sav", "clients", "dossiers", "meta", "fournisseurs", "notes_appel"];
 async function exportData(){ const b = $("#expBtn"); if (!db) return; b.textContent = "⇩ Export en cours…";
   try { const docs = {}; let n = 0;
     for (const c of EXP_COLL) { const sn = await db.collection(c).limit(1000).get(); sn.docs.forEach(d => { docs[c + "/" + d.id] = d.data(); n++; }); }
@@ -4532,6 +4541,109 @@ function smsParse(txt){
   if (out.prenom) out.prenom = out.prenom.toLowerCase().replace(/(^|[\s\-'])\p{L}/gu, c => c.toUpperCase());
   if (out.tel) { try { out.tel = telNorm(out.tel); } catch(_){} }
   return out; }
+/* ===== Notes d'appel : le PC / l'iPad écoute l'appel en haut-parleur, écrit, met au propre et propose les tâches ===== */
+let notesAppel = {}, callRec = null;
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const mmss = ms => { const t = Math.max(0, Math.round(ms / 1000)); return String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(t % 60).padStart(2, "0"); };
+function cnNotes(r){ return Object.entries(notesAppel).filter(([, n]) => n && n.rid === r.id).map(([id, n]) => Object.assign({ id }, n)).sort((a, b) => String(b.at).localeCompare(String(a.at))); }
+function cnSentence(t){ t = String(t || "").replace(/\s+/g, " ").trim(); if (!t) return ""; t = t.charAt(0).toUpperCase() + t.slice(1); return /[.!?…]$/.test(t) ? t : t + "."; }
+function cnText(seg){ // segments {t, ms} → paragraphes : nouveau paragraphe après un silence de plus de 4 s
+  const out = []; let cur = null;
+  seg.forEach(x => { if (!cur || x.ms - cur.end > 4000) { cur = { ms: x.ms, end: x.ms, p: [] }; out.push(cur); } cur.p.push(cnSentence(x.t)); cur.end = x.ms; });
+  return out.map(c => mmss(c.ms) + " — " + c.p.join(" ")).join("\n\n"); }
+const CN_JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"], MOISN = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre"];
+function cnDate(txt){ const a = sansAcc(txt), t0 = today(), T = iso(t0);
+  if (/apres[- ]demain/.test(a)) return addDays(T, 2); if (/\bdemain\b/.test(a)) return addDays(T, 1); if (/aujourd'?hui|ce soir|tout a l'heure/.test(a)) return T;
+  let m = a.match(/dans (\d+|un|une|deux|trois|quatre|quinze) (jours?|semaines?|mois)/); if (m) { const n = { un: 1, une: 1, deux: 2, trois: 3, quatre: 4, quinze: 15 }[m[1]] || +m[1]; return addDays(T, /semaine/.test(m[2]) ? n * 7 : /mois/.test(m[2]) ? n * 30 : n); }
+  m = a.match(/\b(\d{1,2})[\/.](\d{1,2})(?:[\/.](\d{2,4}))?\b/); if (m && +m[2] >= 1 && +m[2] <= 12) { let y = m[3] ? (+m[3] < 100 ? 2000 + +m[3] : +m[3]) : t0.getFullYear(); let d = new Date(y, +m[2] - 1, +m[1]); if (!m[3] && d < t0) d = new Date(y + 1, +m[2] - 1, +m[1]); return iso(d); }
+  m = a.match(/\b(?:le )?(\d{1,2}|1er) (janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\b/); if (m) { const dd = parseInt(m[1]) || 1; let d = new Date(t0.getFullYear(), MOISN.indexOf(m[2]), dd); if (d < t0) d = new Date(t0.getFullYear() + 1, MOISN.indexOf(m[2]), dd); return iso(d); }
+  m = a.match(/\b(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b/); if (m) { const g = CN_JOURS.indexOf(m[1]); let n = (g - t0.getDay() + 7) % 7 || 7; if (/prochain/.test(a) && n < 7 && /semaine prochaine/.test(a)) n += 7; return addDays(T, n); }
+  if (/semaine prochaine|la semaine qui vient/.test(a)) return addDays(T, ((8 - t0.getDay()) % 7) || 7);
+  if (/fin (du|de ce) mois/.test(a)) return iso(new Date(t0.getFullYear(), t0.getMonth() + 1, 0));
+  m = a.match(/\ble (\d{1,2})\b(?! ?(?:h|heures?|euros?|€|metres?|cm|mm|fenetres?|volets?|portes?))/); if (m && +m[1] >= 1 && +m[1] <= 31) { let d = new Date(t0.getFullYear(), t0.getMonth(), +m[1]); if (d < t0) d = new Date(t0.getFullYear(), t0.getMonth() + 1, +m[1]); return iso(d); }
+  return ""; }
+const CN_RULES = [
+  [/rappel|recontact|redonne(r)? (des )?nouvelles|je vous (re)?telephone|tenir au courant/, "relance", "Rappeler le client"],
+  [/rendez[- ]vous|\brdv\b|passer (le |vous )?voir|venir (voir|sur place)|je passe(rai)?\b|metre|prendre (les )?(mesures|cotes)/, "autre", "Rendez-vous / métré à caler"],
+  [/(refaire|modifier|faire|envoyer|chiffrer|preparer|revoir|nouveau|un autre) (le |un |du |son |votre |mon )?devis|devis (modifie|corrige|a refaire)|variante/, "devis", "Faire / modifier le devis"],
+  [/commande|commander|lancer la fabrication|bon pour accord|signe/, "commande", "Passer la commande"],
+  [/echantillon|nuancier|catalogue|documentation|brochure|photo|plan|fiche technique|envoyer (par|un) (mail|sms)/, "envoi", "Envoyer au client"],
+  [/acompte|cheque|virement|paiement|payer|facture|solde/, "autre", "Paiement / facture"],
+  [/sav|reparer|repar|garantie|probleme|ne (marche|fonctionne) (plus|pas)|casse|bloque/, "autre", "SAV à prévoir"] ];
+function cnAnalyse(txt){ const sents = String(txt || "").replace(/\b\d\d:\d\d — /g, "").split(/(?<=[.!?…])\s+|\n+/).map(x => x.trim()).filter(x => x.length > 3);
+  const acts = [], pts = [], seen = {};
+  sents.forEach(snt => { const a = sansAcc(snt);
+    let isAct = false;
+    for (const [re, type, l] of CN_RULES) if (re.test(a)) { isAct = true; const due = cnDate(snt); if (seen[l]) { seen[l].note += " " + snt; if (due && (!seen[l].due || due < seen[l].due)) seen[l].due = due; break; } const o = { on: true, type, l, note: snt, due }; seen[l] = o; acts.push(o); break; }
+    if (isAct && !/\b\d[\d\s.,]*\s?(?:€|euros?)\b/i.test(snt)) return;
+    const mt = snt.match(/\b\d[\d\s.,]*\s?(?:€|euros?)\b/gi); if (mt) pts.push("💶 " + snt);
+    else if (cnDate(snt) && !acts.some(x => x.note.includes(snt))) pts.push("📅 " + snt + " (" + fd(cnDate(snt)) + ")");
+    else if (/\b(budget|prix|tarif|delai|couleur|coloris|blanc|gris|anthracite|alu|pvc|bois|volet|fenetre|porte|portail|baie|moustiquaire|pergola|store|garage)\b/.test(a) && snt.length < 220) pts.push(snt); });
+  return { acts: acts.slice(0, 8), pts: pts.slice(0, 12) }; }
+function callCard(r){
+  const N = cnNotes(r), C = callRec && callRec.rid === r.id ? callRec : null;
+  let body = "";
+  if (C && C.phase === "rec") { const fin = cnText(C.seg);
+    body = `<div class="cn-rec"><span class="cn-dot ${C.on ? "" : "pause"}"></span><b id="cntime">${mmss((C.on ? Date.now() - C.t0 : C.pauseAt - C.t0) - C.paused)}</b><span class="sub">${C.on ? "J'écoute… parle normalement, le client en haut-parleur près du micro" : "En pause"}</span>
+      <span style="flex:1"></span><button class="btn sm" type="button" id="cnpause">${C.on ? "⏸ Pause" : "▶ Reprendre"}</button><button class="btn sm pri" type="button" id="cnstop">■ Terminer</button></div>
+      <div class="cn-live" id="cnlive">${esc(fin)}${C.interim ? ` <i>${esc(C.interim)}</i>` : ""}${!fin && !C.interim ? `<i>Le texte va s'afficher ici au fur et à mesure…</i>` : ""}</div>
+      ${C.err ? `<div class="sub" style="color:var(--s-lost)">${esc(C.err)}</div>` : ""}`; }
+  else if (C && C.phase === "review") {
+    body = `<span class="eyebrow">Le texte de l'appel (tu peux corriger)</span><textarea class="cn-ta" id="cnta" rows="8">${esc(C.txt)}</textarea>
+      ${C.pts.length ? `<div><span class="eyebrow">À retenir</span><ul class="cn-pts">${C.pts.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+      <div><span class="eyebrow">Ce qu'il y a à faire ${C.acts.length ? "(décoche ce qui ne sert pas)" : ""}</span><div class="cn-acts" id="cnacts">${C.acts.map((a, i) => `<div class="cn-act" data-i="${i}"><input type="checkbox" data-k="on" ${a.on ? "checked" : ""}><input type="text" data-k="note" value="${esc(a.l + " — " + a.note)}"><select data-k="type">${ttAll().map(([k, t]) => `<option value="${esc(k)}" ${k === a.type ? "selected" : ""}>${esc(t.l)}</option>`).join("")}</select><input type="date" data-k="due" value="${esc(a.due || workDays(iso(today()), 2))}"></div>`).join("") || `<span class="sub">Je n'ai pas repéré d'action. Ajoute-en une si besoin.</span>`}</div>
+      <button class="btn sm" type="button" id="cnaddact" style="justify-self:start;margin-top:6px">+ une tâche</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" type="button" id="cnsave">Enregistrer la note${C.acts.length ? " et créer les tâches" : ""}</button><button class="btn" type="button" id="cnredo">↻ Ré-analyser le texte</button><span style="flex:1"></span><button class="btn lose sm" type="button" id="cntrash">Jeter</button></div>`; }
+  else body = `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn pri" type="button" id="cnstart" ${SR ? "" : "disabled"}>🎙 Démarrer la prise de notes</button><button class="btn" type="button" id="cnpastebtn">Coller / dicter un texte</button></div>
+      <span class="sub">${SR ? "Mets ton téléphone en <b>haut-parleur</b> à côté du PC ou de l'iPad, puis démarre. Pense à prévenir le client : « je prends des notes de notre échange, ça ne vous dérange pas ? »" : "La prise de notes en direct n'est pas disponible dans ce navigateur (utilise Google Chrome sur le PC). Tu peux coller un texte, ou dicter avec la touche micro 🎤 du clavier de l'iPad."}</span>
+      <div id="cnpastebox" hidden style="display:grid;gap:6px"><textarea class="cn-ta" id="cnpaste" rows="5" placeholder="Colle ici le texte de l'appel (ou dicte avec la touche 🎤 du clavier)"></textarea><button class="btn sm pri" type="button" id="cnpastego" style="justify-self:start">Mettre au propre</button></div>`;
+  const hist = N.length ? `<div style="display:grid;gap:6px"><span class="eyebrow">Appels notés (${N.length})</span>${N.map((n, i) => `<details class="cn-note" ${i === 0 && !C ? "open" : ""}><summary>📞 ${esc(fd(n.d))} à ${esc(String(n.at || "").slice(11, 16).replace(":", "h"))}${n.dur ? " · " + esc(n.dur) : ""}${(n.acts || []).length ? " · " + n.acts.length + " tâche" + (n.acts.length > 1 ? "s" : "") : ""}</summary>
+      ${(n.pts || []).length ? `<ul class="cn-pts" style="margin-top:6px">${n.pts.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}${(n.acts || []).length ? `<div class="sub" style="margin-top:6px">Tâches créées : ${n.acts.map(a => esc(a.l) + (a.due ? " (" + esc(fd(a.due)) + ")" : "")).join(" · ")}</div>` : ""}
+      <div class="cn-txt">${esc(n.txt || "")}</div><div style="margin-top:6px"><button class="btn sm lose" type="button" data-cndel="${esc(n.id)}">Supprimer cette note</button></div></details>`).join("")}</div>` : "";
+  return `<section class="fcard" style="--fc:#8b5cf6" id="cncard"><span class="fct">Notes d'appel${N.length ? " · " + N.length : ""}</span>${body}${hist}</section>`; }
+function cnLive(){ const C = callRec; if (!C || C.rid !== openId) return; const el = $("#cnlive"); if (!el) return renderDrawer();
+  const fin = cnText(C.seg); el.innerHTML = esc(fin) + (C.interim ? ` <i>${esc(C.interim)}</i>` : "") + (!fin && !C.interim ? `<i>Le texte va s'afficher ici au fur et à mesure…</i>` : ""); el.scrollTop = el.scrollHeight; }
+function cnStartRec(r){
+  if (!SR) return toast("Prise de notes impossible dans ce navigateur : utilise Google Chrome");
+  if (callRec && callRec.on) cnStopRec(true);
+  const C = callRec = { rid: r.id, client: r.client, phase: "rec", on: true, t0: Date.now(), paused: 0, seg: [], interim: "", err: "" };
+  const rec = new SR(); rec.lang = "fr-FR"; rec.continuous = true; rec.interimResults = true; C.rec = rec;
+  rec.onresult = e => { let im = ""; for (let i = e.resultIndex; i < e.results.length; i++) { const x = e.results[i]; if (x.isFinal) { const t = x[0].transcript.trim(); if (t) C.seg.push({ t, ms: Date.now() - C.t0 - C.paused }); } else im += x[0].transcript; } C.interim = im; cnLive(); };
+  rec.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed") { C.err = "Le micro est refusé : autorise le micro pour ce site (icône 🔒 à gauche de l'adresse), puis recommence."; C.on = false; C.pauseAt = Date.now(); renderDrawer(); } else if (e.error === "audio-capture") { C.err = "Aucun micro trouvé sur cet appareil."; C.on = false; C.pauseAt = Date.now(); renderDrawer(); } };
+  rec.onend = () => { if (callRec === C && C.on) { try { rec.start(); } catch(_){ setTimeout(() => { try { if (callRec === C && C.on) rec.start(); } catch(_){} }, 400); } } };
+  try { rec.start(); } catch(e){ C.err = "Impossible de démarrer le micro : " + e.message; }
+  C.tick = setInterval(() => { const el = $("#cntime"); if (el && C.on) el.textContent = mmss(Date.now() - C.t0 - C.paused); }, 1000);
+  renderDrawer(); }
+function cnPause(){ const C = callRec; if (!C) return; if (C.on) { C.on = false; C.pauseAt = Date.now(); try { C.rec.stop(); } catch(_){} } else { C.paused += Date.now() - C.pauseAt; C.on = true; C.err = ""; try { C.rec.start(); } catch(_){} } renderDrawer(); }
+function cnStopRec(silent){ const C = callRec; if (!C) return; const end = C.on ? Date.now() : C.pauseAt; C.on = false; clearInterval(C.tick); try { C.rec.stop(); } catch(_){}
+  if (C.interim) { C.seg.push({ t: C.interim, ms: end - C.t0 - C.paused }); C.interim = ""; }
+  if (silent) { callRec = null; return; }
+  C.dur = mmss(end - C.t0 - C.paused); C.txt = cnText(C.seg); const A = cnAnalyse(C.txt); C.acts = A.acts; C.pts = A.pts; C.phase = "review";
+  if (!C.txt) toast("Je n'ai rien entendu : vérifie le haut-parleur et le micro"); renderDrawer(); }
+function cnReadActs(){ const C = callRec; if (!C) return; document.querySelectorAll("#cnacts .cn-act").forEach(row => { const a = C.acts[+row.dataset.i]; if (!a) return;
+  row.querySelectorAll("[data-k]").forEach(el => { const k = el.dataset.k; if (k === "on") a.on = el.checked; else if (k === "note") { a.full = el.value; } else a[k] = el.value; }); }); const ta = $("#cnta"); if (ta) C.txt = ta.value; }
+async function cnSave(r){ const C = callRec; if (!C || !db || !canWrite) return toast("Enregistrement impossible dans cette vue"); cnReadActs();
+  const now = new Date(), acts = []; for (const a of C.acts.filter(a => a.on)) { const full = a.full || (a.l + " — " + a.note); const id = await tAdd({ rid: r.id, client: r.client, type: a.type, note: full, due: a.due || workDays(iso(today()), 2), from: "appel" }); if (id) acts.push({ l: full.slice(0, 120), due: a.due, type: a.type, tid: id }); }
+  const id = "na" + now.getTime().toString(36); const v = { rid: r.id, client: r.client, d: iso(today()), at: now.toISOString(), dur: C.dur || "", txt: C.txt || "", pts: C.pts || [], acts };
+  try { await db.collection("notes_appel").doc(id).set(v); notesAppel[id] = v; callRec = null; toast("Note d'appel enregistrée" + (acts.length ? " · " + acts.length + " tâche" + (acts.length > 1 ? "s" : "") + " créée" + (acts.length > 1 ? "s" : "") : "")); renderAll(); renderDrawer(); }
+  catch(e){ toast("Pas enregistré, réessaie"); } }
+function wireCall(r){ const $c = s => document.querySelector("#cncard " + s); if (!$c("") && !document.querySelector("#cncard")) return;
+  const on = (sel, f) => { const el = $c(sel); if (el) el.onclick = f; };
+  on("#cnstart", () => cnStartRec(r)); on("#cnpause", cnPause); on("#cnstop", () => cnStopRec(false));
+  on("#cnpastebtn", () => { const b = $c("#cnpastebox"); b.hidden = !b.hidden; if (!b.hidden) $c("#cnpaste").focus(); });
+  on("#cnpastego", () => { const t = $c("#cnpaste").value.trim(); if (!t) return toast("Colle ou dicte d'abord le texte");
+    const segs = t.split(/\n+|(?<=[.!?])\s+/).map(x => x.trim()).filter(Boolean).map((x, i) => ({ t: x.replace(/[.!?…]+$/, ""), ms: i * 1000 }));
+    callRec = { rid: r.id, client: r.client, phase: "review", on: false, seg: segs, dur: "", txt: segs.map(x => cnSentence(x.t)).join(" ").replace(/([.!?])\s+(?=[A-ZÀ-Ý])/g, "$1 ") }; const A = cnAnalyse(callRec.txt); callRec.acts = A.acts; callRec.pts = A.pts; renderDrawer(); });
+  const ta = $c("#cnta"); if (ta) ta.oninput = () => { callRec.txt = ta.value; };
+  document.querySelectorAll("#cnacts [data-k]").forEach(el => el.onchange = cnReadActs);
+  on("#cnaddact", () => { cnReadActs(); callRec.acts.push({ on: true, type: "autre", l: "À faire", note: "", due: workDays(iso(today()), 2) }); renderDrawer(); });
+  on("#cnredo", () => { cnReadActs(); const A = cnAnalyse(callRec.txt); callRec.acts = A.acts; callRec.pts = A.pts; renderDrawer(); });
+  on("#cnsave", () => cnSave(r));
+  const tr = $c("#cntrash"); if (tr) tr.onclick = () => { if (!tr.classList.contains("armed")) { tr.classList.add("armed"); tr.textContent = "Sûr ? Re-clique"; return; } callRec = null; renderDrawer(); };
+  document.querySelectorAll("#cncard [data-cndel]").forEach(b => b.onclick = async () => { if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = "Sûr ? Re-clique pour supprimer"; return; }
+    try { await db.collection("notes_appel").doc(b.dataset.cndel).delete(); delete notesAppel[b.dataset.cndel]; toast("Note supprimée"); renderDrawer(); } catch(_){ toast("Pas supprimée, réessaie"); } });
+  if (callRec && callRec.rid === r.id && callRec.phase === "rec") { const el = $("#cnlive"); if (el) el.scrollTop = el.scrollHeight; } }
+window.addEventListener("beforeunload", e => { if (callRec && (callRec.phase === "rec" || callRec.phase === "review")) { e.preventDefault(); e.returnValue = ""; } });
 /* ---- déjà client chez nous ? même téléphone, même mail, ou même nom (+ prénom) ---- */
 function knownMatches(p){
   const d9 = x => String(x || "").replace(/\D/g, "").slice(-9), t = d9(p.tel), ml = String(p.mail || "").toLowerCase().trim();
@@ -4642,6 +4754,7 @@ function renderDrawer(){
     <div class="fcr">
       ${smsFor===r.id?smsBox(r):""}
       ${cmFor===r.id?cmBox(r):""}
+      ${callCard(r)}
       <section class="fcard" style="--fc:var(--c-devis)"><span class="fct">${r.vente && r.vente.some(v => !v.ann) ? "Devis et vente" : "Devis"}</span>
         ${(r.pdf_devis || []).length ? `<div><button class="btn" type="button" data-resa="${esc(r.id)}">Préparer le plan de réservation</button></div>` : ""}
         <div class="sec"><span class="eyebrow">Avancement</span>
@@ -4773,6 +4886,7 @@ function renderDrawer(){
     </div>
     </div>`;
   applyCards(r); kvStyle();
+  try { wireCall(r); } catch(e){ console.warn(e); }
   $("#dx").onclick = closeDossier;
   $("#drawer").querySelectorAll(".pdf-more").forEach(b => b.onclick = () => { b.previousElementSibling.hidden = false; b.remove(); });
   const cp = $("#cp"); if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText(r.tel); toast("Numéro copié"); } catch(e){ const rg = document.createRange(); rg.selectNodeContents($("#telv")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(rg); toast("Numéro sélectionné, faites Ctrl+C"); } };
@@ -5079,6 +5193,7 @@ function rebuild(){
   db.doc("meta/rattach").onSnapshot(sn => { rattach = Object.assign({ f: {}, v: {} }, sn.exists ? sn.data() : {}); rebuild(); }, () => {});
   db.doc("meta/onglets").onSnapshot(sn => { if (!tabEdit) applyTabOrder(sn.exists ? (sn.data() || {}).order : null); }, () => {});
   db.doc("meta/listes").onSnapshot(sn => { const v = sn.exists ? sn.data() : {}; const j = JSON.stringify(v); if (j === listCfgJson) return; listCfg = v; listCfgJson = j; renderAll(); }, () => {});
+  db.collection("notes_appel").onSnapshot(snap => { notesAppel = {}; snap.docs.forEach(d => notesAppel[d.id] = d.data()); if (openId && !(callRec && callRec.rid === openId && callRec.on)) renderDrawer(); }, () => {});
   db.collection("fournisseurs").onSnapshot(snap => { fourn = {}; snap.docs.forEach(d => fourn[d.id] = d.data()); fournOk = true; renderFour(); }, () => { fournOk = true; renderFour(); });
   db.collection("sav").onSnapshot(snap => { csav = {}; snap.docs.forEach(d => csav[d.id] = d.data()); renderAll(); }, () => {});
   db.collection("taches").onSnapshot(snap => { taches = {}; snap.docs.forEach(d => taches[d.id] = d.data()); tachesOk = true; renderAll(); autoTasks(); }, () => { tachesOk = true; });

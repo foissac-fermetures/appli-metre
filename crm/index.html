@@ -721,7 +721,17 @@ html.resa-open{overflow:hidden}
 .cv-card h3{margin:0;font:800 .76rem/1.2 var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--cc,#0891b2)}
 .cv-li{display:grid;gap:2px;padding:6px 0;border-top:1px dashed var(--line)}.cv-li:first-of-type{border-top:0}.cv-li b{font-weight:600}.cv-li .sub{font-size:.84rem}
 .cv-kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:6px 10px;font-size:.95rem}.cv-kv dt{color:var(--muted);font-size:.82rem}.cv-kv dd{margin:0;font-weight:600;overflow-wrap:anywhere}
-.cv-recap .fcard{border-radius:12px}.cv-wide{grid-column:1/-1}
+.cv-recap .fcard{border-radius:12px}
+.cv-chan{display:grid;gap:12px}.cv-ch{background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--cc);border-radius:12px;padding:14px 16px;display:grid;gap:12px}
+.cv-ch h3{margin:0;font:800 .76rem/1.2 var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--cc)}
+.cv-fr{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;position:relative}
+.cv-fr .st{display:grid;justify-items:center;gap:6px;text-align:center;position:relative}
+.cv-fr .st .cvd{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;background:var(--line);font-size:.95rem;line-height:1;box-sizing:border-box;position:relative;z-index:2}
+.cv-fr .st:not(.ok):not(.cur) .cvd{color:var(--muted)}.cv-fr .st.ok .cvd{background:var(--sc)}.cv-fr .st.cur .cvd{background:var(--panel);color:var(--sc);border:3px solid var(--sc);box-shadow:0 0 0 4px color-mix(in srgb,var(--sc) 20%,transparent)}
+.cv-fr .st span{font-size:.82rem;font-weight:600;color:var(--muted)}.cv-fr .st.cur span{color:var(--ink);font-weight:800}
+.cv-fr .st::before{content:"";position:absolute;top:14px;left:-50%;width:100%;height:3px;background:var(--lc,var(--line));z-index:0}.cv-fr .st:first-child::before{display:none}
+.cv-chi{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.cv-chi div{display:grid;gap:2px}.cv-chi dt{font-size:.78rem;color:var(--muted)}.cv-chi dd{margin:0;font-weight:700}
+.cv-next{padding:8px 12px;border-radius:10px;font-weight:700;background:color-mix(in srgb,var(--cc) 10%,var(--panel));color:color-mix(in srgb,var(--cc) 75%,var(--ink));border:1px solid color-mix(in srgb,var(--cc) 30%,var(--line))}.cv-wide{grid-column:1/-1}
 .cv-info{display:flex;flex-wrap:wrap;gap:6px}.cv-info span{font-size:.84rem;padding:3px 10px;border-radius:999px;background:color-mix(in srgb,#60a5fa 10%,var(--panel));border:1px solid color-mix(in srgb,#60a5fa 30%,var(--line))}
 .cv-ml{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:8px 0;border-top:1px dashed var(--line)}.cv-ml:first-of-type{border-top:0}.cv-ml .msn{-webkit-line-clamp:2}
 .cv-tl{display:grid;gap:0}.cv-tl div{display:grid;grid-template-columns:62px minmax(0,1fr);gap:8px;padding:5px 0;border-top:1px dashed var(--line);font-size:.9rem}.cv-tl div:first-child{border-top:0}.cv-tl span{color:var(--muted);font-variant-numeric:tabular-nums}
@@ -2726,6 +2736,18 @@ function unpaidReason(c){
   return null;
 }
 let chanFilter = "";
+/* avancement d'un chantier (partagé entre l'onglet Chantiers et la Fiche client) */
+function chanNext(c){
+    const k = c.v.et, a = attenteOf(c.r);
+    if (k === "metre" && planOf(c.r)) return planOf(c.r).recu ? "Plan signé reçu · passer commande" : "Attente du plan signé";
+    if (k === "metre") return a ? "En attente : " + a.motif.replace(/^[^:]+:\s*/, "") : (myRdv(c.r) && myRdv(c.r).d >= iso(today()) ? "Métré le " + fd(myRdv(c.r).d) : "Caler le métré");
+    if (k === "commande") return "Passer commande";
+    if (k === "livraison") { const w = weekOf(c.v); return w != null ? "Livraison " + weekLabel(w) : "Attendre la livraison"; }
+    if (k === "pose") { const np = nextPose(c.r), lp = !np && lastPose(c.r); if (lp) return "Au planning le " + fd(lp.d) + " · vérifier"; return np ? "Pose " + JOURS[pd(np.d).getDay()] + " " + fd(np.d) + " · " + np.worker.charAt(0) + np.worker.slice(1).toLowerCase() : "Planifier la pose"; }
+    if (k === "solde") { const x = payLine(c.r, c.v); return !x ? "Relancer le paiement" : x.wait ? "Retenue : faire le SAV" : x.ret && x.ret.savDone ? "SAV fait · relancer le reste" : "Impayé depuis " + x.days + " j"; }
+    return "";
+}
+function chanFrise(k){ const STEPN = { metre: 1, commande: 2, livraison: 3, pose: 4, solde: 5 }, order = ["metre","commande","livraison","pose","solde"]; const n = STEPN[k]; return `<span class="frise" role="img" aria-label="Étape ${n} sur 5 : ${esc(ET[k].l)}">${order.map((s2, i) => `${i ? `<span class="fl" style="background:${i < n ? ET[s2].col : "var(--line)"}"></span>` : ""}<span class="fd ${i + 1 === n ? "cur" : ""}" style="background:${i < n ? ET[s2].col : "var(--line)"}">${i + 1 === n ? n : ""}</span>`).join("")}</span>`; }
 function renderChantiers(){
   renderCtrl();
   const q = $("#q").value.trim().toLowerCase();
@@ -2740,17 +2762,7 @@ function renderChantiers(){
   $("#cstrip").innerHTML = order.map(k => `<button class="kpi" type="button" data-ck="${k}" aria-pressed="${chanFilter === k}" style="--kc:${ET[k].col}"><span class="eyebrow" style="color:${ET[k].col}">${STEPN[k]} · ${STEPL[k]}</span><span class="v num">${cnt[k]}</span><span class="s">${eur(sum[k])} HT</span></button>`).join("")
     + `<div class="kpi" style="cursor:default;--kc:${ET.termine.col}"><span class="eyebrow">Terminés et soldés</span><span class="v num">${cnt.termine}</span><span class="s">${eur(sum.termine)} HT</span></div>`;
   $("#cstrip").querySelectorAll("[data-ck]").forEach(b => b.onclick = () => { chanFilter = chanFilter === b.dataset.ck ? "" : b.dataset.ck; renderChantiers(); });
-  const nextAction = c => {
-    const k = c.v.et, a = attenteOf(c.r);
-    if (k === "metre" && planOf(c.r)) return planOf(c.r).recu ? "Plan signé reçu · passer commande" : "Attente du plan signé";
-    if (k === "metre") return a ? "En attente : " + a.motif.replace(/^[^:]+:\s*/, "") : (myRdv(c.r) && myRdv(c.r).d >= iso(today()) ? "Métré le " + fd(myRdv(c.r).d) : "Caler le métré");
-    if (k === "commande") return "Passer commande";
-    if (k === "livraison") { const w = weekOf(c.v); return w != null ? "Livraison " + weekLabel(w) : "Attendre la livraison"; }
-    if (k === "pose") { const np = nextPose(c.r), lp = !np && lastPose(c.r); if (lp) return "Au planning le " + fd(lp.d) + " · vérifier"; return np ? "Pose " + JOURS[pd(np.d).getDay()] + " " + fd(np.d) + " · " + np.worker.charAt(0) + np.worker.slice(1).toLowerCase() : "Planifier la pose"; }
-    if (k === "solde") { const x = payLine(c.r, c.v); return !x ? "Relancer le paiement" : x.wait ? "Retenue : faire le SAV" : x.ret && x.ret.savDone ? "SAV fait · relancer le reste" : "Impayé depuis " + x.days + " j"; }
-    return "";
-  };
-  const frise = k => { const n = STEPN[k]; return `<span class="frise" role="img" aria-label="Étape ${n} sur 5 : ${esc(ET[k].l)}">${order.map((s2, i) => `${i ? `<span class="fl" style="background:${i < n ? ET[s2].col : "var(--line)"}"></span>` : ""}<span class="fd ${i + 1 === n ? "cur" : ""}" style="background:${i < n ? ET[s2].col : "var(--line)"}">${i + 1 === n ? n : ""}</span>`).join("")}</span>`; };
+  const nextAction = chanNext, frise = chanFrise;
   let list = open.filter(c => order.includes(c.v.et) && (!chanFilter || c.v.et === chanFilter) && matchQ(c, q));
   list.sort((a, b) => STEPN[a.v.et] - STEPN[b.v.et] || (a.v.et === "livraison" ? (weekOf(a.v) ?? 99) - (weekOf(b.v) ?? 99) : (a.v.d || "").localeCompare(b.v.d || "")));
   $("#board").innerHTML = list.length ? `<div class="ftab"><div class="frow fhead"><span>Chantier</span><span>Montant</span><span>Avancement</span><span>Prochaine action</span></div>${list.map(c => {
@@ -4046,6 +4058,17 @@ async function exportData(){ const b = $("#expBtn"); if (!db) return; b.textCont
   catch(e){ toast(e && e.code === "declined" ? "Export annulé" : "Export impossible : " + String((e && e.message) || e).slice(0, 80)); }
   b.textContent = "⇩ Exporter mes données"; }
 (async () => { try { const dl = await claude.use("downloads"); if (dl) { const b = $("#expBtn"); b.hidden = false; b.onclick = exportData; } } catch(_){} })();
+function cvChantier(r){ let C = []; try { C = chantiers().filter(c => c.r.id === r.id); } catch(_){ return ""; } if (!C.length) return "";
+  const order = ["metre", "commande", "livraison", "pose", "solde"], LBL = { metre: "Métré", commande: "Commande", livraison: "Livraison", pose: "Pose", solde: "Solde" };
+  return `<div class="cv-chan">${C.map(c => { const k = c.v.et || "termine", n = order.indexOf(k), done = k === "termine", col = (ET[k] || ET.termine).col;
+      const np = typeof nextPose === "function" ? nextPose(r) : null, lp = typeof lastPoseAny === "function" ? lastPoseAny(r) : null, w = weekOf(c.v), unpaid = !done && k !== "solde" && unpaidReason(c), x = (k === "solde" || unpaid) ? payLine(r, c.v) : null;
+      return `<section class="cv-ch" style="--cc:${col}"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline"><h3>Avancement du chantier${C.length > 1 ? " · vente du " + esc(fd(c.v.d)) : ""}</h3><span class="pill ${(ET[k] || {}).c || ""}">${esc((ET[k] || ET.termine).l)}</span></div>
+        <div class="cv-fr">${order.map((s2, i) => `<div class="st ${done || i < n ? "ok" : i === n ? "cur" : ""}" style="--sc:${ET[s2].col};--lc:${done || i <= n ? ET[order[Math.max(0, i - 1)]].col : "var(--line)"}"><b class="cvd">${done || i < n ? "✓" : i + 1}</b><span>${LBL[s2]}</span></div>`).join("")}</div>
+        ${done ? `<div class="cv-next">✅ Chantier terminé et soldé</div>` : `<div class="cv-next">➡️ ${esc(chanNext(c))}${unpaid ? " · " + esc(unpaid.split(" · ")[0]) : ""}</div>`}
+        <dl class="cv-chi"><div><dt>Montant</dt><dd>${esc(eur(c.v.ht))} HT</dd></div><div><dt>Signé le</dt><dd>${esc(fd(c.v.d))}</dd></div>${c.v.ac ? `<div><dt>Acompte versé</dt><dd>${esc(eur(c.v.ac))} TTC</dd></div>` : ""}
+          ${w != null && n <= 2 && !done ? `<div><dt>Livraison</dt><dd>${esc(weekLabel(w))}</dd></div>` : ""}${np ? `<div><dt>Pose prévue</dt><dd>${esc(JOURS[pd(np.d).getDay()] + " " + fd(np.d))}${np.worker ? " · " + esc(np.worker.charAt(0) + np.worker.slice(1).toLowerCase()) : ""}</dd></div>` : lp ? `<div><dt>Posé le</dt><dd>${esc(fd(lp.d))}</dd></div>` : ""}
+          ${x ? `<div><dt>Paiement</dt><dd>${esc(x.wait ? "retenue en attente du SAV" : x.days + " j sans paiement")}${payNote(x) ? " · " + esc(payNote(x)) : ""}</dd></div>` : ""}</dl>
+        ${(c.v.it || []).length ? `<div class="sub">${(c.v.it || []).map(esc).join(" · ")}</div>` : ""}</section>`; }).join("")}</div>`; }
 /* ===== Onglet « Fiche client » : je tape un nom, j'ai tout sur le client ===== */
 let cvSel = null;
 function cvFind(q){ const Q = sansAcc(q).trim(); if (Q.length < 2) return []; const D = Q.replace(/\D/g, "");
@@ -4069,6 +4092,7 @@ function renderCv(){ const el = $("#cvbody"); if (!el) return; const r = cvSel &
       <div class="cv-pills"><span class="pill ${ST[st].c}">${ST[st].l}</span>${nextPill(r)}</div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">${tl2(r.tel)}${mailOf(r) ? `<a class="btn sm" href="${esc(outlookHref([mailOf(r)], [], "", "Bonjour,\n\n\n" + SIGN))}">✉ Écrire</a>` : ""}<button class="btn sm" type="button" data-id="${esc(r.id)}">Ouvrir la fiche complète</button></div></div>
     <div class="cv-recap">${recapBox(r)}</div>
+    ${cvChantier(r)}
     <div class="cv-grid">
       <section class="cv-card" style="--cc:#2563eb"><h3>Coordonnées</h3><dl class="cv-kv"><dt>Téléphone</dt><dd>${esc(r.tel || "—")}</dd><dt>Mail</dt><dd>${esc(mailOf(r) || "—")}</dd><dt>Domicile</dt><dd>${esc(adrOf(r) || "—")}</dd><dt>Chantier</dt><dd>${esc(adrChantier(r) || "même adresse")}</dd>${trajet(r) ? `<dt>Trajet</dt><dd>≈ ${esc(trajet(r).t)} · ${trajet(r).km} km</dd>` : ""}</dl>
         ${C.length ? `<div><span class="eyebrow">Autres contacts</span>${C.map(c => `<div class="cv-li"><b>${esc(c.lien || "Contact")}${c.nom ? " · " + esc(c.nom) : ""}${c.rdv ? " · 📐 pour le RDV" : ""}</b><span class="sub">${esc(c.tel || "")}${c.note ? " · " + esc(c.note.slice(0, 90)) : ""}</span>${c.tel ? `<div>${tl2(c.tel)}</div>` : ""}</div>`).join("")}</div>` : ""}</section>

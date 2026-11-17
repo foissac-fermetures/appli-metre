@@ -2536,10 +2536,13 @@ async function setNoRel(r, on, opt){ if (!db || !canWrite) { toast("Enregistreme
 function oldRel(r){ const s = suivi[r.id] || {}; if (s.norel || s.next || s.attente || s.chez_nous || s.relreprise) return false; const st = status(r);
   if (!["relancer", "rappeler"].includes(st)) return false; const lr = lastRel(r); if (lr && lr.d >= RELANCE_DEPART) return false;
   const ref = relRef(r); return !!ref && ref < RELANCE_DEPART; }
+function rdvAVenir(r){ const t = iso(today()), m = myRdv(r); if (m && m.d >= t) return m; try { const e = agendaFor(r); if (e.length) return { d: e[0].d, h: e[0].h }; } catch(_){} return r.r1 && r.r1 >= t ? { d: r.r1 } : null; }
 function due(r){
   const s = suivi[r.id] || {};
   if (s.norel) return s.norel.rappel || null;   // « ne pas relancer » / « le client nous rappellera » (point éventuel à la date choisie)   // « ne pas relancer » choisi dans la fiche
   if (oldRel(r)) return null;   // ancien devis mis de côté (nouveau départ)
+  if (rdvAVenir(r)) return null;   // un rendez-vous est déjà pris (métré, métré définitif…) : on ne relance pas le devis
+  { const ref = r.remise || r.devis || ""; if (signedDocs(r).some(x => !ref || !x[2] || x[2] >= ref)) return null; }   // devis signé déposé dans le Drive : c'est accepté
   if (pubWait(r) && !s.next) return null;   // mairie / administration : ils nous recontactent après délibération
   if (s.attente) return s.attente.rappel || null;   // en attente : on refait le point à la date choisie
   if (s.chez_nous) return null;   // c'est à nous de faire quelque chose : pas de relance

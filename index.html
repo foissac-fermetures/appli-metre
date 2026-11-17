@@ -136,6 +136,7 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .clim-tab-card.manque{border:2px solid var(--err,#d3232f)} [data-sktxt].on{outline:3px solid currentColor}
 .vb-gonds{margin-top:10px;border-top:1px solid #e3e7ef;padding-top:8px} .vb-gonds summary{cursor:pointer;min-height:34px}
 .vb-gt{border-collapse:collapse;width:100%;margin-top:6px} .vb-gt th,.vb-gt td{border:1px solid #d6dbe6;padding:3px;text-align:center;font-size:13px} .vb-gt input{width:100%;min-height:38px;text-align:center}
+.vb-fh input{background:#eef3fa!important;border-color:#9fb4d8!important} .vb-fv input{background:#fff4e5!important;border-color:#e8b46a!important} .vb-fh .vb-fl,.vb-fv .vb-fl{font-size:20px;vertical-align:-2px;margin:0 2px} .vb-fh input::placeholder,.vb-fv input::placeholder{font-size:20px;opacity:.45}
 .vb-gt .vb-h{background:#eef3fa} .vb-gt .vb-v{background:#fff4e5} .vb-fl{font-size:22px;line-height:1;font-weight:700} .vb-gt input::placeholder{font-size:20px;opacity:.45}
 .vb-img{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:10px} .vb-img img{width:100%;border:1px solid #d6dbe6;border-radius:8px;background:#fff}
 .pt-des{position:relative;max-width:760px;margin:0 auto} .pt-des img{width:100%;display:block;border:1px solid #d6dbe6;border-radius:8px;background:#fff}
@@ -2393,7 +2394,7 @@ function renderVB(t){
         <div style="grid-column:span 2">${F.sel(k+"vantaux","Nombre de vantaux",C.vantaux||[],l.vantaux)}</div>
         ${F.numb(k+"L","Tableau – largeur (mm)",l.L)}${F.numb(k+"H","Tableau – hauteur (mm)",l.H)}${F.numb(k+"allege","Hauteur d'allège (mm)",l.allege)}
         <div class="checks" style="align-self:end"><span class="hint" style="width:100%">Sens vue intérieure</span>${F.chk(k+"sens_g","Gauche",l.sens_g)}${F.chk(k+"sens_d","Droite",l.sens_d)}</div>
-        ${F.numb(k+"f_l","Feuillure – largeur (mm)",l.f_l)}${F.numb(k+"f_p","Feuillure – profondeur (mm)",l.f_p)}${F.sel(k+"f_cotes","Feuillure – côtés",l.f_cotes&&!VB_FEUILLURES.includes(l.f_cotes)?[l.f_cotes,...VB_FEUILLURES]:VB_FEUILLURES,l.f_cotes)}<div></div>
+        <label class="f vb-fh"><span>Feuillure – largeur <span class="vb-fl">⟷</span> (mm)</span><input data-k="${k}f_l" inputmode="decimal" value="${esc(l.f_l)}" placeholder="⟷"></label><label class="f vb-fv"><span>Feuillure – profondeur <span class="vb-fl">↕</span> (mm)</span><input data-k="${k}f_p" inputmode="decimal" value="${esc(l.f_p)}" placeholder="↕"></label>${F.sel(k+"f_cotes","Feuillure – côtés",l.f_cotes&&!VB_FEUILLURES.includes(l.f_cotes)?[l.f_cotes,...VB_FEUILLURES]:VB_FEUILLURES,l.f_cotes)}<div></div>
         ${F.numb(k+"cintre_n","Naissance du cintre (mm)",l.cintre_n)}${F.numb(k+"cintre_f","Valeur de la flèche (mm)",l.cintre_f)}<div style="grid-column:span 2">${F.sel(k+"espagnolette","Espagnolette",C.espagnolette||[],l.espagnolette)}</div>
       </div>
       <div class="hint" style="margin:8px 0 4px">Options</div>${F.multi(k+"options",VB_OPTIONS,l.options)}
@@ -2630,7 +2631,7 @@ function pagesVB(d, head, row){
           <tr><th>Largeur</th><td>${esc(l.L)}</td></tr><tr><th>Hauteur</th><td>${esc(l.H)}</td></tr><tr><th>Allège</th><td>${esc(l.allege)}</td></tr>
           <tr class="pfabr"><th>${esc(v.type_dim===VB_TYPE_DIM[1]?"FOND DE FEUILLURE":"TABLEAU")}</th><td>${esc(l.L)} × ${esc(l.H)}</td></tr></table>
         <table class="pt pdt"><tr class="pdir"><th colspan="2">FEUILLURE / CINTRE</th></tr>
-          <tr><th>Largeur feuillure</th><td>${esc(l.f_l)}</td></tr><tr><th>Profondeur</th><td>${esc(l.f_p)}</td></tr><tr><th>Côtés</th><td>${esc(l.f_cotes)}</td></tr>
+          <tr><th>Largeur feuillure ⟷</th><td>${esc(l.f_l)}</td></tr><tr><th>Profondeur feuillure ↕</th><td>${esc(l.f_p)}</td></tr><tr><th>Côtés</th><td>${esc(l.f_cotes)}</td></tr>
           <tr><th>Naissance cintre</th><td>${esc(l.cintre_n)}</td></tr><tr><th>Flèche</th><td>${esc(l.cintre_f)}</td></tr></table></div>
       ${ge||aG?`<div class="pst" style="margin-top:6px">GONDS EXISTANTS <small>– vus de l'intérieur</small></div>
         <div style="display:grid;grid-template-columns:1.3fr repeat(5,1fr);font-size:8pt;margin-top:2px">${["","A","B","C","D / Dp","R / Db"].map(x=>`<div style="border:1px solid #c9d1e3;padding:2px 3px;text-align:center;background:#e8edf7;font-weight:700;color:#1b2f5e">${x}</div>`).join("")}

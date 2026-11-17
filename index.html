@@ -2009,7 +2009,7 @@ const CLIM_TABLEAU_PLACE = ["Oui, assez de place pour se rebrancher","Non, prév
 /* Schémas : 2 au départ (renommables : RDC, étage…), « + Schéma » jusqu'à 6 */
 const CLIM_NOMS_SCH = ["Schéma rez-de-chaussée","Schéma étage","Schéma étage 1","Schéma étage 2","Schéma sous-sol","Schéma combles","Schéma garage","Schéma extérieur","Schéma bas"];
 const CLIM_SCH_DEF = {schema_etage:"Schéma étage", schema_bas:"Schéma bas"};
-const climSchemas = c => ["schema_etage","schema_bas",...(c.sch_extra||[])];
+const climSchemas = c => ["schema_etage","schema_bas",...(c.sch_extra||[])].filter(k=>!(c.sch_retires||[]).includes(k));
 const nomSchema = (c,k) => (c.sch_noms&&c.sch_noms[k]) || CLIM_SCH_DEF[k] || `Schéma ${climSchemas(c).indexOf(k)+1}`;
 /* ---------- Clim : séparer en plusieurs devis (un par gîte / par groupe extérieur, ou une sélection de pièces) ---------- */
 function decouperClim(c, ids){   // renvoie une copie de la clim avec seulement ces pièces, groupes renumérotés 1, 2…
@@ -2081,7 +2081,7 @@ function controleClim(d){
 
 /* ---------- Écran ---------- */
 function renderClim(t){
-  const d=S.dossier; if(!d.clim) d.clim=nouvelleClim(); const c=d.clim; if(!climSchemas(c).includes(S.climSch)) S.climSch="schema_etage"; const schK=S.climSch;
+  const d=S.dossier; if(!d.clim) d.clim=nouvelleClim(); const c=d.clim; if(!climSchemas(c).includes(S.climSch)) S.climSch=climSchemas(c)[0]; const schK=S.climSch;
   const dl=(id,L)=>`<datalist id="${id}">${L.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>`;
   const txt=(k,lab,v,list,extra="")=>`<label class="f">${lab}<input data-k="${k}" value="${esc(v)}" ${list?`list="${list}"`:""} ${extra}></label>`;
   const ligne=(l)=>{ const i=c.lignes.indexOf(l), p=puissanceClim(l), k=`clim.lignes.${i}.`;
@@ -2125,7 +2125,7 @@ function renderClim(t){
     <div class="row" style="gap:8px;margin-bottom:10px;align-items:end;flex-wrap:wrap"><label class="f" style="flex:1;min-width:220px">Nom de ce schéma (imprimé sur le PDF)<input id="clSchNom" list="dlSchNom" value="${esc(nomSchema(c,schK))}"></label>
       <datalist id="dlSchNom">${CLIM_NOMS_SCH.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
       ${climSchemas(c).length<6?`<button class="btn small" id="clSchDup">⧉ Dupliquer ce schéma</button>`:""}
-      ${(c.sch_extra||[]).includes(schK)?`<button class="btn small danger" id="clSchDel">Supprimer ce schéma</button>`:""}</div>
+      ${climSchemas(c).length>1?`<button class="btn small danger" id="clSchDel">🗑 Supprimer ce schéma</button>`:""}</div>
     <div class="hint" style="margin-bottom:4px">Stylos (légende imprimée avec le schéma) :</div>
     <div class="toolbar">${CLIM_LEGENDE.map((x,i)=>`<button class="btn small${i===0?" on":""}" data-pen="${x.c}"><span class="dot" style="background:${x.c}"></span>${esc(x.l)}</button>`).join("")}</div>
     <div class="hint" style="margin:6px 0 4px">Outil : main levée ou formes (glisse le doigt / stylet d'un coin à l'autre) :</div>
@@ -2172,7 +2172,8 @@ function renderClim(t){
     c.sch_noms[k]=/rez|rdc|bas/i.test(n)&&!noms.includes("Schéma étage")?"Schéma étage":`${n} (copie)`;
     S.climSch=k; save(); re(); toast(`Copié dans « ${c.sch_noms[k]} » : renomme-le et modifie-le`); };
   const sd=$("#clSchDel"); if(sd) sd.onclick=async()=>{ if(c[schK] && !await demander(`Supprimer « ${nomSchema(c,schK)} » et son dessin ?`,"Supprimer")) return;
-    c.sch_extra=c.sch_extra.filter(x=>x!==schK); delete c[schK]; delete c[schK+"_vec"]; delete c[schK+"_fond"]; if(c.sch_noms) delete c.sch_noms[schK]; S.climSch="schema_etage"; save(); re(); };
+    if((c.sch_extra||[]).includes(schK)) c.sch_extra=c.sch_extra.filter(x=>x!==schK); else c.sch_retires=[...(c.sch_retires||[]),schK];
+    c[schK]=""; delete c[schK+"_vec"]; delete c[schK+"_fond"]; if(c.sch_noms) delete c.sch_noms[schK]; S.climSch=climSchemas(c)[0]; save(); re(); toast("Schéma supprimé"); };
   initSketch(c, schK);
   initPhotos(c, re);
   if(!c.tableau) c.tableau={img:"",txt:"",place:""};

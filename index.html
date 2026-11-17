@@ -1545,6 +1545,7 @@ function dessinMenuiserie(o, opt={}){
   if(fam==="fixe" || n===0){ fam="fixe"; n=1; }
   const f=calcFab(o), Lr=num(f.L)??num(coteTab(o,"L")), Hr=num(f.H)??num(coteTab(o,"H"));
   /* ERP / accessoires : barre anti-panique et ferme-porte dessinés sur la porte */
+  const sbMM = num(o.sb) ?? num(String(o.sb_type||"").match(/haut\s*(\d{3,4})\s*mm/i)?.[1]);
   const AP_COL="#2d6a4f", accTxt=(o.accessoires||[]).join(" | "), erpOn=typeof porteERP==="function"&&porteERP(o);
   const avecAP = (erpOn && o.erp.ap && (typeof ERP_AP==="undefined" || o.erp.ap_type!==ERP_AP[1])) || /anti.?panique/i.test(accTxt);
   const avecGroom = (erpOn && o.erp.groom) || /ferme-porte|groom/i.test(accTxt), groomType=(erpOn&&o.erp.groom_type)||accTxt;
@@ -1614,12 +1615,19 @@ function dessinMenuiserie(o, opt={}){
       else if(/mi-vitrée/.test(nom)){ s+=plein(gx,gy+gh/2,gw,gh/2); gh=gh/2; }
       else if(/service|entrée/.test(nom)){ s+=plein(gx,gy,gw,gh); }
     }
-    /* soubassement */
-    if((o.sb||o.sb_type) && fam!=="porte"){
-      const mm=num(o.sb); let sh = mm&&Hr ? hTot*mm/Hr : gh*0.3; sh=Math.min(gh*0.6,Math.max(gh*0.12,sh));
-      const py=gy+gh-sh; s+=line(gx,py,gx+gw,py,2); if(sbY==null) sbY=py;
-      if(!/vitr/i.test(o.sb_type||"")) s+=plein(gx,py+3,gw,sh-3);
-      gh=py-gy;
+    /* soubassement : traverse épaisse + panneau bien visible (plein = gris foncé hachuré, vitré = bleu clair) + libellé */
+    if(o.sb||o.sb_type){
+      const vitre=/vitr/i.test(o.sb_type||""), mm=sbMM;
+      let sh = mm&&Hr ? hTot*mm/Hr : gh*0.3; sh=Math.min(gh*0.6,Math.max(gh*0.14,sh));
+      const py=gy+gh-sh; if(sbY==null) sbY=py;
+      if(vitre){ s+=`<rect x="${gx}" y="${py}" width="${gw}" height="${sh}" fill="#d6ebfa" stroke="${NAVY}" stroke-width="1.4"/>`; }
+      else { s+=`<rect x="${gx}" y="${py}" width="${gw}" height="${sh}" fill="#a9b1c2" stroke="${NAVY}" stroke-width="1.4"/>`;
+        for(let k=-sh;k<gw;k+=9) s+=line(Math.max(gx,gx+k),k<0?py-k:py,Math.min(gx+gw,gx+k+sh),k+sh>gw?py+(gw-k):py+sh,0.8,"#6b7385"); }
+      s+=`<rect x="${gx-m+1}" y="${py-5}" width="${gw+2*m-2}" height="10" fill="${NAVY}"/>`;   // traverse
+      const t1="SOUBASSEMENT", t2=vitre?"VITRÉ":"PLEIN", fs=Math.max(8,Math.min(14,gw/9,sh/3.2)), bw=Math.min(gw-6,t1.length*fs*0.68+10);
+      s+=`<rect x="${gx+gw/2-bw/2}" y="${py+sh/2-fs*1.25}" width="${bw}" height="${fs*2.5}" rx="3" fill="#fff" fill-opacity="0.92" stroke="${NAVY}" stroke-width="0.8"/>`
+        +txt(gx+gw/2,py+sh/2-fs*0.55,t1,fs)+txt(gx+gw/2,py+sh/2+fs*0.65,t2,fs,vitre?"#1f6fb2":NAVY);
+      gh=py-gy-5;
     }
     if(fam!=="porte" || /habitat|lourde/.test(nom)) s+=petitsBois(gx,gy,gw,gh);
     const hh=yB-yT-2*m;
@@ -1673,7 +1681,7 @@ function dessinMenuiserie(o, opt={}){
   const fabL=num(f.L), fabH=num(f.H), estFab=fabL!=null||fabH!=null;
   const vL = fabL ?? Lr, vH = fabH ?? Hr;
   const hC = coffre ? (num(String(vr.coffre_hauteur||"").match(/(\d{2,4})\s*mm/)?.[1]) ?? 195) : null;
-  const sbCote = sbY!=null && num(o.sb)!=null;
+  const sbCote = sbY!=null && sbMM!=null;
   const enc = typeof seuilEncastre==="function" && seuilEncastre(o) && vH!=null;
   const ML = (coffre||sbCote ? 50 : 8)+(enc ? (coffre||sbCote ? 44 : 50) : 0), MR = (coffre ? 96 : 50)+(enc ? 46 : 0)+(o.comp&&o.comp.type&&num(o.comp.h)!=null ? 48 : 0), erpTxt0 = typeof porteERP==="function" && porteERP(o) ? [o.erp.sens===ERP_SENS[0]&&"OUVERTURE EXT.", o.erp.ap&&"anti-panique", o.erp.groom&&"groom"].filter(Boolean).join(" · ") : "", erpTxt = erpTxt0, ch = typeof compH==="function" ? compH(o) : null, cCompris = ch!=null && compCompris(o), hCp = ch!=null && vH ? Math.max(14, Math.round((Y1-Y0)*ch/vH)) : 0, exB = ch!=null && !cCompris ? hCp : 0, MB = 58 + (erpTxt?18:0) + exB;
   const tete=(x,y,dx,dy)=>{ const L=7,l=3.5, ux=dx, uy=dy, px=-uy, py=ux; return `<path d="M${x} ${y} L${x-ux*L+px*l} ${y-uy*L+py*l} L${x-ux*L-px*l} ${y-uy*L-py*l}Z" fill="${COT}"/>`; };
@@ -1702,7 +1710,7 @@ function dessinMenuiserie(o, opt={}){
     if(vH!=null){ const tot = cCompris ? vH : vH+ch;
       c+= line(X1+3,yC+hCp,xC+6,yC+hCp,0.7,COT) + line(X1+3,Y0,xC+6,Y0,0.7,COT)
         + (cCompris ? cote(xC,Y0,xC,yC,`${vH-ch} sans compensateur`) : cote(xC,Y0,xC,yC+hCp,`${tot} avec compensateur`)); } }
-  if(sbCote){ const x=X0-26; c+=line(X0-3,sbY,x-6,sbY,0.7,COT)+line(X0-3,Y1,x-6,Y1,0.7,COT)+cote(x,sbY,x,Y1,String(num(o.sb))); }
+  if(sbCote){ const x=X0-26; c+=line(X0-3,sbY,x-6,sbY,0.7,COT)+line(X0-3,Y1,x-6,Y1,0.7,COT)+cote(x,sbY,x,Y1,String(sbMM)); }
   if(coffre){ const x=X0-26; c+=line(X0-3,P,x-6,P,0.7,COT)+line(X0-3,P+CH,x-6,P+CH,0.7,COT)+cote(x,P,x,P+CH,hC!=null?String(hC):"?"); }
   const leg = vL!=null||vH!=null ? (estFab?"Cotes de fabrication":"Cotes tableau (fabrication non calculée)")+(o.pose==="neuf"?" · ENDUIT COMPRIS":"")+(typeof aileRecouvrement==="function"&&aileRecouvrement(o)?` · ailes de recouvrement ${largeurAile(o)} mm`:"")+(coffre&&vH!=null&&hC!=null?` · hauteur totale = ${vH} + coffre ${hC}`:"")+(enc?` · seuil encastré ${SEUIL_ENC} mm compris`:"")+(ch!=null?` · compensateur ${ch} mm ${cCompris?"compris":"NON compris"}`:"") : "";
   if(erpTxt) c+=`<text x="${W/2}" y="${H+MB-4}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#b3202a">${erpTxt}</text>`;

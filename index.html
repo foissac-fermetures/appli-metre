@@ -109,6 +109,7 @@ input:focus,select:focus,textarea:focus{outline:3px solid #c9d6f3;border-color:v
 .rdv-types{display:grid;grid-template-columns:1fr 1fr;gap:8px}.rdv-t{padding:12px;font-size:16px}.rdv-t.on{background:#1b2f5e;border-color:#1b2f5e;color:#fff !important}.rdv-add{padding:14px;font-size:16px}
 .tab-add{border:2px dashed #b9c2d6 !important;background:transparent !important;color:var(--navy,#1b2f5e) !important}
 .log-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#eef1f7;border-radius:10px;padding:8px 12px;margin-bottom:12px;font-weight:600}.log-bar select{font-size:16px;padding:6px 8px}
+.prev-auto{margin:0 0 4px;padding-left:20px;color:#1b2f5e} .prev-auto li{margin:2px 0}
 .pose-ch .chip{font-size:16px;padding:10px 14px} .pose-total{margin-top:10px;padding:8px 12px;border-radius:10px;background:#eef3fa;color:#1b2f5e;display:inline-block}
 .vb-dessin{max-width:330px;margin:10px auto 0}.vb-dessin svg{width:100%;height:auto;max-height:360px}
 .sketch-wrap{position:relative;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;touch-action:none}
@@ -300,6 +301,7 @@ input:disabled{background:#eef1f7;color:#4a5368}
   .pdc{display:grid;grid-template-columns:1fr 1fr;gap:4mm;margin-top:6px;align-items:start}
   .pdc .pdessin,.p3 .pdc .pimg{max-height:52mm}
   .pdessin.pdpetit,.p3 .pimg.pcroq{max-height:58mm}
+  .pprev{border:1.5px solid #1b2f5e;border-radius:6px;padding:6px 10px;margin-top:4px} .pprev .pst{margin:0 0 4px} .pprev-i{display:flex;gap:8px;align-items:flex-start;font-size:10pt;margin:3px 0} .pcase{flex:0 0 11px;height:11px;border:1.5px solid #1b2f5e;border-radius:2px;margin-top:2px}
   .vbbloc{display:grid;grid-template-columns:33% 1fr 25%;gap:8px;align-items:start;border-top:1.5px solid #1b2f5e;padding:6px 0 4px;margin-top:4px;break-inside:avoid}
   .vbbloc .pdim{grid-row:auto} .vbdes svg{display:block;margin:0 auto;max-width:100%;max-height:50mm;width:auto;height:auto}
   .vbsous{font-size:9pt;color:#5b6478;margin:-2px 0 2px}
@@ -452,6 +454,22 @@ const DUREES_POSE = ["1 h","2 h","3 h","4 h – ½ journée","5 h","6 h","7 h","
 const heuresPose = t => { const s=String(t||""); let m=s.match(/^(\d+) h/); if(m) return +m[1]; if(/semaine/.test(s)) return 40; m=s.match(/^(\d+) jours?( ½)?/); return m? (+m[1]+(m[2]?0.5:0))*8 : 0; };
 const nbPoseurs = e => +(String(e||"").match(/^(\d)/)||[])[1]||0;
 const textePose = d => d.equipe_pose==="Sans pose" ? "Sans pose" : [d.equipe_pose, d.jours_pose, d.pose_pas_vu?"⚠ chantier pas vu":""].filter(Boolean).join(" · ");
+/* ---------- À prévoir pour les poseurs (17/11/2026) : proposé d'après le métré + cases + texte libre ---------- */
+const PREVOIR_CHOIX = ["Scellement chimique","Échafaudage","Nacelle","Échelle plateau","Ventouses","Benne / évacuation","Protection des sols","Bâche / protection des meubles","Rallonge / électricité","Prévenir le client la veille","Accès difficile / stationnement"];
+function prevoirAuto(d){ const L=[], n=x=>x>1?` (${x})`:"";
+  if(d.pose_pas_vu) L.push("⚠ Chantier pas vu entièrement : vérifier sur place avant de commencer");
+  const man=[d.vr&&d.vr.lignes.length&&d.vr.manutention, aVB(d)&&d.vb.manutention].filter(Boolean); [...new Set(man)].forEach(m=>L.push(`Matériel d'accès : ${m}`));
+  if(d.ouvertures.length){ const dep=d.ouvertures.filter(o=>o.depose_totale||o.pose==="neuf_depose").length; if(dep) L.push(`Dépose et évacuation des anciennes menuiseries${n(dep)}`);
+    const gros=d.ouvertures.filter(o=>(num(coteTab(o,"L"))||0)*(num(coteTab(o,"H"))||0)>=3e6).length; if(gros) L.push(`Grand châssis : prévoir ventouses / 2 personnes${n(gros)}`);
+    L.push("Mousse PU, silicone, compribande, cales, visserie"); }
+  if(d.vr&&d.vr.lignes.length&&/moteur|radio|filaire|solaire|électr/i.test(d.vr.motorisation||"")) L.push("Volets motorisés : alimentation électrique à vérifier / électricien");
+  if(aVB(d)){ const v=d.vb, sc=v.lignes.filter(l=>!vbSurGonds(v,l)&&/sceller/i.test(v.gonds||"")), ex=v.lignes.filter(l=>vbSurGonds(v,l));
+    if(sc.length) L.push(`Scellement chimique + gonds à sceller : ${sc.map(l=>l.repere||"?").join(", ")}`);
+    if(ex.length) L.push(`Gonds existants à contrôler (gabarit) : ${ex.map(l=>l.repere||"?").join(", ")}`);
+    if(v.arrets) L.push(`Arrêts de vent${v.arret_type?" "+v.arret_type:""} : perceuse + chevilles adaptées`);
+    const cr=v.lignes.filter(l=>(l.options||[]).includes("Crochet crémaillère")); if(cr.length) L.push(`Crochet crémaillère à poser : ${cr.map(l=>l.repere||"?").join(", ")}`); }
+  return L; }
+const prevoirTout = d => [...prevoirAuto(d), ...(d.prevoir||[]).filter(x=>!prevoirAuto(d).some(y=>nrm(y).includes(nrm(x)))), ...String(d.prevoir_txt||"").split("\n").map(s=>s.trim()).filter(Boolean)];
 function migrerPose(d){
   const E={"Tout seul":"1 personne","Seul":"1 personne","A 2":"2 personnes","A 3":"3 personnes","A 4":"4 personnes"};
   if(d.equipe_pose==="Attention pas vu le chantier"){ d.equipe_pose=""; d.pose_pas_vu=true; }
@@ -552,7 +570,7 @@ function demanderTexte(msg, defaut="", oui="Valider", sugg=NOMS_DEVIS){ return n
   document.body.appendChild(m); const i=m.querySelector("#dtTxt"); setTimeout(()=>{ i.focus(); i.select(); },50);
   const fin=v=>{ m.remove(); ok(v); }; m.querySelector("#dtNon").onclick=()=>fin(null); m.querySelector("#dtOui").onclick=()=>fin(i.value.trim()||null);
   i.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); fin(i.value.trim()||null); } }; }); }
-const CHAMPS_CLIENT = ["client","logement","budget","concurrents","notes_client","adresse_chantier","metreur","type_document","tva","jours_pose","equipe_pose","pose_pas_vu","gamme_defaut","crm"];
+const CHAMPS_CLIENT = ["client","logement","budget","concurrents","notes_client","adresse_chantier","metreur","type_document","tva","jours_pose","equipe_pose","pose_pas_vu","prevoir","prevoir_txt","gamme_defaut","crm"];
 function copierClient(src, c){ CHAMPS_CLIENT.forEach(k=>{ if(src[k]!==undefined) c[k]=JSON.parse(JSON.stringify(src[k])); }); return c; }
 /* crée un autre devis pour le même client ; ids = ouvertures à DÉPLACER (avec leur volet roulant) */
 async function nouveauDevisClient(src, nom, ids=[]){
@@ -1261,6 +1279,10 @@ function renderDossier(){
         <div class="checks pose-ch">${DUREES_POSE.map(x=>`<button type="button" class="chip${d.jours_pose===x?" on":""}" data-posed="${esc(x)}">${esc(x)}</button>`).join("")}</div>
         ${nbPoseurs(d.equipe_pose)&&heuresPose(d.jours_pose)?`<div class="pose-total">⏱ ${nbPoseurs(d.equipe_pose)} × ${heuresPose(d.jours_pose)} h = <b>${nbPoseurs(d.equipe_pose)*heuresPose(d.jours_pose)} heures</b> de main-d'œuvre</div>`:""}`:""}
         <div class="checks" style="margin-top:12px">${F.chk("pose_pas_vu","⚠ Je n'ai pas vu tout le chantier",d.pose_pas_vu)}</div>
+        <div class="hint" style="margin:14px 0 6px;font-weight:700;color:#1b2f5e">À prévoir pour les poseurs <span style="font-weight:400">– imprimé en liste à cocher sur le PDF</span></div>
+        ${prevoirAuto(d).length?`<ul class="prev-auto">${prevoirAuto(d).map(x=>`<li>${esc(x)}</li>`).join("")}</ul><div class="hint" style="margin:-2px 0 6px">↑ proposé tout seul d'après le métré</div>`:""}
+        ${F.multi("prevoir",PREVOIR_CHOIX,d.prevoir||[])}
+        <div style="margin-top:8px">${F.area("prevoir_txt","Autre chose à prévoir (une ligne par point)",d.prevoir_txt||"")}</div>
         ${d.vr&&d.vr.lignes.length?`<div class="grid g4" style="margin-top:10px">${F.sel("vr.manutention","Manutention volets roulants (échelle, nacelle…)",CAT.vr.manutention,d.vr.manutention)}</div>`:""}
       </div>
     </div>
@@ -2951,13 +2973,19 @@ async function imprimer(){
 function construireImpression(d){
   const row=(a)=>a.filter(x=>x[1]!==""&&x[1]!=null&&!(Array.isArray(x[1])&&!x[1].length)).map(([k,v])=>`<tr><th>${esc(k)}</th><td>${esc(Array.isArray(v)?v.join(", "):v)}</td></tr>`).join("");
   const head=t=>`<div class="ph"><img src="${LOGO}"><div class="tt">${esc(t)}</div><div>${esc(d.type_document)} · ${esc(d.variante)}<br>${fmtDate(d.client.date_rdv)} · Métreur : ${esc(d.metreur)}</div></div>`;
-  let h=`<div class="pg">${head("Fiche d'identité client – "+(d.client.nom||""))}
+  const PV=prevoirTout(d), boitePrev=PV.length?`<div class="pprev"><div class="pst">À PRÉVOIR POUR LA POSE</div>${PV.map(x=>`<div class="pprev-i"><span class="pcase"></span>${esc(x)}</div>`).join("")}</div>`:"";
+  let h=(estDefinitif(d)
+   ? `<div class="pg">${head("Métré définitif – "+(d.client.nom||""))}
+    <div class="pcols"><div><table class="pt">${row([["Nom",d.client.nom],["Téléphone",d.client.telephone],["Adresse chantier",d.adresse_chantier],["Pose",textePose(d)],["Observations",d.observations]])}</table></div>
+    <div>${boitePrev}</div></div>
+`
+   : `<div class="pg">${head("Fiche d'identité client – "+(d.client.nom||""))}
     <div class="pcols"><div><table class="pt">${row([["Nom",d.client.nom],["Téléphone",d.client.telephone],["E-mail",d.client.email],["Origine",d.client.origine],["Situation",d.client.situation],["Travail",d.client.travail],["Adresse chantier",d.adresse_chantier]])}</table>
       <table class="pt">${row([["Maison",d.logement.maison],["Motivation 1",d.logement.motivation1],["Motivation 2",d.logement.motivation2]])}</table></div>
     <div><table class="pt">${row([["Moyens financiers",d.budget.moyens],["Ressenti",d.budget.ressenti],["Projet",d.budget.projet],["Demande d'aide",d.budget.aide],["Laquelle",d.budget.aide_laquelle]])}</table>
       <table class="pt">${row(d.concurrents.map((c,i)=>[`Concurrent ${i+1}`,c]))}</table>
-      <table class="pt">${row([["Pose",textePose(d)],["Observations",d.observations]])}</table></div></div>
-    ${!d.ouvertures.length?"":`<table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Pose</th><th>Gamme</th><th>Tableau L×H</th><th>Fabrication L×H</th><th>Vantaux</th></tr>
+      <table class="pt">${row([["Pose",textePose(d)],["Observations",d.observations]])}</table>${boitePrev}</div></div>
+`) + `    ${!d.ouvertures.length?"":`<table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Pose</th><th>Gamme</th><th>Tableau L×H</th><th>Fabrication L×H</th><th>Vantaux</th></tr>
     ${d.ouvertures.map((o,i)=>{const f=calcFab(o);return `<tr><td><b>${esc(o.num_poseur||"")}</b></td><td>${esc(o.repere)}</td><td>${esc(o.quantite)}</td><td>${esc(libellePose(o))}</td><td>${esc(o.gamme)}</td><td>${esc(coteTab(o,"L"))} × ${esc(coteTab(o,"H"))}</td><td><b>${f.L??""} × ${f.H??""}</b></td><td>${esc([o.vantaux.G,o.vantaux.M,o.vantaux.D].filter(Boolean).join(" · "))}</td></tr>`;}).join("")}</table>`}</div>`;
   d.ouvertures.forEach((o,i)=>{ const f=calcFab(o), P=CAT.poses[o.pose], c=controleOuverture(o,d);
     h+=`<div class="pg">${head(`${numP(o)||(i+1)+"."} ${o.repere||"Ouverture"} – ${d.client.nom||""}`)}<div class="p3"><div class="pdim">

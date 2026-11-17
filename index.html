@@ -112,6 +112,14 @@ input:focus,select:focus,textarea:focus{outline:3px solid #c9d6f3;border-color:v
 .prev-auto{margin:0 0 4px;padding-left:20px;color:#1b2f5e} .prev-auto li{margin:2px 0}
 .pose-ch .chip{font-size:16px;padding:10px 14px} .pose-total{margin-top:10px;padding:8px 12px;border-radius:10px;background:#eef3fa;color:#1b2f5e;display:inline-block}
 .vb-dessin{max-width:330px;margin:10px auto 0}.vb-dessin svg{width:100%;height:auto;max-height:360px}
+.sig-box{border:1px dashed #8a93a6;border-radius:10px;padding:8px 10px;background:#fff} .sig-cv{width:100%;height:150px;border:1px solid #c9d1e3;border-radius:8px;touch-action:none;background:#fff;display:block}
+.sk-ipad{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:6px 0 8px;padding:8px 10px;background:#f4f6fa;border-radius:12px}
+.sk-grp{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.sk-c{width:30px;height:30px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #c9d1e3;cursor:pointer;padding:0;position:relative}
+.sk-c.on{box-shadow:0 0 0 3px #1b2f5e} .sk-perso{background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);overflow:hidden} .sk-perso input{opacity:0;width:100%;height:100%;cursor:pointer}
+.sk-ep{width:34px;height:30px;border:1px solid #c9d1e3;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;padding:0 6px} .sk-ep i{display:block;width:100%;background:#1b2f5e;border-radius:3px} .sk-ep.on{outline:2px solid #1b2f5e}
+#skTexteMain.on{background:#1b2f5e;color:#fff}
+.sk-txtmain{position:absolute;z-index:5;width:260px;font-size:22px;padding:8px 10px;border:2px solid #0a84ff;border-radius:10px;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 .sketch-wrap{position:relative;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;touch-action:none}
 canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background:
   linear-gradient(#eef1f7 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,#eef1f7 1px,transparent 1px) 0 0/24px 24px}
@@ -308,7 +316,7 @@ input:disabled{background:#eef1f7;color:#4a5368}
   .sv-cl{width:100%;border-collapse:collapse;font-size:10pt} .sv-cl th{text-align:left;font-weight:400;width:30%;padding:3px 0} .sv-cl td{border-bottom:1px solid #8a93a6;padding:3px 0}
   .sv-txt{font-size:10pt;line-height:1.45} .sv-txt p{margin:0 0 6px} .sv-cons{background:#eef0f4;border-radius:5px;padding:6px 8px;font-size:10pt;margin:4px 0}
   .sv-fo{display:flex;gap:7px;align-items:flex-start;font-size:10pt;margin:3px 0} .sv-int{border:1.5px solid #1b3a7a;border-radius:7px;padding:8px 10px;margin-top:10px}
-  .sv-il{font-size:10pt;display:flex;gap:10px} .sv-il span{flex:1;border-bottom:1px solid #8a93a6} .sv-sig{display:grid;grid-template-columns:1.8fr 1fr;gap:10px;margin-top:8px} .sv-sig>div{border:1px dashed #8a93a6;border-radius:5px;padding:5px 8px;height:24mm;font-size:9.5pt} .sv-sig i{display:block;font-size:8.5pt;color:#5b6478}
+  .sv-il{font-size:10pt;display:flex;gap:10px} .sv-il span{flex:1;border-bottom:1px solid #8a93a6} .sv-sig{display:grid;grid-template-columns:1.8fr 1fr;gap:10px;margin-top:8px} .sv-sig>div{border:1px dashed #8a93a6;border-radius:5px;padding:5px 8px;height:24mm;font-size:9.5pt} .sv-sig i{display:block;font-size:8.5pt;color:#5b6478} .sv-sig>div{overflow:hidden;position:relative;height:30mm!important} .sv-sigimg{position:absolute;left:6px;bottom:3px;height:14mm;width:auto;max-width:calc(100% - 12px);object-fit:contain;object-position:left bottom} .sv-sigle{position:absolute;right:6px;top:4px;font-size:8pt;color:#5b6478}
   .sv-tab{width:100%;border-collapse:collapse;font-size:9.5pt} .sv-tab th{text-align:left;color:#5b6478;font-weight:700;padding:5px;border-bottom:1.5px solid #1d2433} .sv-tab td{padding:5px;border-bottom:1px solid #d3d8e2;vertical-align:middle} .sv-tab tr:nth-child(odd) td{background:#f6f7fa} .sv-f{text-align:center} .sv-f .pcase{display:inline-block;width:12px;height:12px;flex:none}
   .sv-ph{border:1px solid #c9ced8;border-radius:7px;padding:6px 8px;margin-top:10px} .sv-pht{font-size:9.5pt;font-weight:700;color:#5b6478;letter-spacing:1px;margin-bottom:5px} .sv-phg{display:grid;grid-template-columns:repeat(4,1fr);gap:7px} .sv-ph8 .sv-phg{grid-template-columns:repeat(4,1fr)}
   .sv-phg figure{margin:0} .sv-phg img{width:100%;height:36mm;object-fit:cover;border-radius:4px;display:block} .sv-ph8 .sv-phg img{height:70mm} .sv-phg figcaption{font-size:8pt;color:#5b6478;margin-top:2px}
@@ -1589,17 +1597,9 @@ function renderOuverture(){
   </div>
 
   <details class="card skdet" id="skDet" ${o.croquis?"open":""}><summary><h2 style="display:inline"><span class="num">12</span>Croquis à main levée <small style="font-weight:400;text-transform:none">– pour les cas particuliers</small></h2></summary>
-    <div class="toolbar">
-      <button class="btn small on" data-pen="#1b2f5e"><span class="dot" style="background:#1b2f5e"></span>Bleu</button>
-      <button class="btn small" data-pen="#d3232f"><span class="dot" style="background:#d3232f"></span>Rouge</button>
-      <button class="btn small" data-pen="#111"><span class="dot" style="background:#111"></span>Noir</button>
-      <button class="btn small" data-pen="erase">Gomme</button>
-      <button class="btn small" id="skUndo">Annuler</button>
-      <button class="btn small danger" id="skClear">Effacer tout</button>
-      <label class="chip" id="skPenOnly"><input type="checkbox">Stylet seulement</label>
-    </div>
+    ${barreOutils(true)}
     <div class="sketch-wrap"><canvas class="sketch" id="sketch"></canvas></div>
-    <div class="hint" style="margin-top:6px">Dessine au stylet (Apple Pencil), au doigt ou à la souris. « Stylet seulement » évite les traits de la paume.</div></details>
+    <div class="hint" style="margin-top:6px">Dessine au stylet (Apple Pencil), au doigt ou à la souris. Avec l'Apple Pencil, « Stylet seulement » s'active tout seul : tu peux poser la main. « ✍︎ Texte au stylet » : touche le dessin et écris, l'iPad le transforme en texte.</div></details>
 
   <div class="controls"><div class="ctl" id="ctl"></div></div>`;
   $$("[data-finadd]").forEach(b=>b.onclick=()=>{ o.finitions[b.dataset.finadd+"_l"].push({t:"",c:""}); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
@@ -1887,9 +1887,26 @@ function dessinMenuiserie(o, opt={}){
 }
 
 /* ---------- Croquis au stylet ---------- */
+/* ---------- Outils de dessin façon iPad (18/11/2026) : couleurs, style de crayon, épaisseur, gomme, texte manuscrit → texte tapé ---------- */
+const SK_COULEURS = [["#1b2f5e","Bleu marine"],["#111111","Noir"],["#d3232f","Rouge"],["#1f7a3a","Vert"],["#e07b00","Orange"],["#7b2fbe","Violet"],["#0a84ff","Bleu"],["#8a5a2b","Marron"]];
+const SK_STYLES = [["stylo","🖊 Stylo",2.2,1],["crayon","✏️ Crayon",1.5,0.7],["feutre","🖍 Feutre",6,1],["surligneur","🖌 Surligneur",20,0.32]];
+function barreOutils(avecCouleurs=true){
+  const st=S.skStyle||"stylo", ep=S.skEp||2;
+  return `<div class="sk-ipad">
+    ${avecCouleurs?`<div class="sk-grp">${SK_COULEURS.map(([c,n],i)=>`<button class="sk-c${i===0?" on":""}" data-pen="${c}" title="${n}" aria-label="${n}" style="background:${c}"></button>`).join("")}<label class="sk-c sk-perso" title="Autre couleur"><input type="color" id="skPerso" value="#1b2f5e"></label></div>`:""}
+    <div class="sk-grp">${SK_STYLES.map(([k,l])=>`<button class="btn small${st===k?" on":""}" data-skstyle="${k}">${l}</button>`).join("")}</div>
+    <div class="sk-grp"><span class="hint">Épaisseur</span>${[1,2,3,4].map(n=>`<button class="sk-ep${ep===n?" on":""}" data-skep="${n}" aria-label="Épaisseur ${n}"><i style="height:${n*2+1}px"></i></button>`).join("")}</div>
+    <div class="sk-grp"><button class="btn small" data-pen="eraseObj" title="Efface le trait entier touché">🧽 Gomme trait</button><button class="btn small" data-pen="erase" title="Efface comme une gomme">◻ Gomme</button>
+      <button class="btn small" id="skTexteMain" title="Touche le dessin puis écris au stylet : l'iPad transforme ton écriture en texte">✍︎ Texte au stylet</button>
+      <button class="btn small" id="skUndo">↶</button><button class="btn small" id="skRedo">↷</button><button class="btn small danger" id="skClear">Effacer tout</button>
+      <label class="chip" id="skPenOnly"><input type="checkbox">Stylet seulement</label></div></div>`;
+}
+/* iPad + Apple Pencil : sans ceci, Safari (« Griffonner ») prend le stylet pour du défilement / de l'écriture et les traits s'arrêtent */
+function bloquerGestesTactiles(cv){ if(cv._tb) return; cv._tb=1; const stop=e=>{ if(e.cancelable) e.preventDefault(); }; ["touchstart","touchmove","touchend"].forEach(t=>cv.addEventListener(t,stop,{passive:false})); }
 function initSketch(o=S.ouv, cle="croquis"){
   const cv=$("#sketch"); if(!cv||!o) return;
-  const ctx=cv.getContext("2d"); let strokes=[], cur=null, pen=$("[data-pen].on")?.dataset.pen||"#1b2f5e", penOnly=false, ratio=1, texte=null;
+  const ctx=cv.getContext("2d"); let strokes=[], cur=null, pen=$("[data-pen].on")?.dataset.pen||"#1b2f5e", penOnly=!!S.skPenOnly, ratio=1, texte=null, refaire=[], texteMain=false;
+  bloquerGestesTactiles(cv);
   const W=1600;
   /* Mode vectoriel (schémas clim) : les traits, formes et étiquettes sont gardés tels quels → on peut les reprendre (déplacer, agrandir, supprimer) plus tard */
   const V=!!$("[data-forme]"), vk=cle+"_vec", bk=cle+"_fond";
@@ -1905,7 +1922,10 @@ function initSketch(o=S.ouv, cle="croquis"){
       else { ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); if(s.f==="fleche"){ const an=Math.atan2(y2-y1,x2-x1), L=22*ratio/1.2; ctx.moveTo(x2,y2); ctx.lineTo(x2-L*Math.cos(an-0.45),y2-L*Math.sin(an-0.45)); ctx.moveTo(x2,y2); ctx.lineTo(x2-L*Math.cos(an+0.45),y2-L*Math.sin(an+0.45)); } }
       ctx.stroke(); return; }
     if(s.pts.length<1) return; ctx.globalCompositeOperation=s.c==="erase"?"destination-out":"source-over"; ctx.strokeStyle=s.c==="erase"?"#000":s.c; ctx.lineCap=ctx.lineJoin="round";
-    for(let i=1;i<s.pts.length;i++){ const a=s.pts[i-1], b=s.pts[i]; ctx.lineWidth=(s.c==="erase"?30:(1.5+b[2]*4))*ratio/1.2; ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); }
+    const k=ratio/1.2;
+    if(s.w && (s.o||1)<1){   // surligneur / crayon : un seul tracé transparent (pas de raccords plus foncés)
+      ctx.globalAlpha=s.o; ctx.lineWidth=s.w*k; ctx.beginPath(); s.pts.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); if(s.pts.length===1) ctx.lineTo(s.pts[0][0]+0.1,s.pts[0][1]); ctx.stroke(); ctx.globalAlpha=1; }
+    else for(let i=1;i<s.pts.length;i++){ const a=s.pts[i-1], b=s.pts[i]; ctx.lineWidth=(s.c==="erase"?(s.w||30):s.w?s.w*(0.55+(b[2]||0.5)*0.9):(1.5+b[2]*4))*k; ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); }
     ctx.globalCompositeOperation="source-over"; }
   /* poignées de la forme sélectionnée */
   function poignees(s){ if(s.t) return []; const [x1,y1]=s.a,[x2,y2]=s.b; return (s.f==="ligne"||s.f==="fleche") ? [[x1,y1],[x2,y2]] : [[x1,y1],[x2,y1],[x1,y2],[x2,y2]]; }
@@ -1920,8 +1940,10 @@ function initSketch(o=S.ouv, cle="croquis"){
   let base=null;
   function redraw(avecSel=true){ ctx.clearRect(0,0,cv.width,cv.height); if(base) ctx.drawImage(base,0,0,cv.width,cv.height); strokes.forEach(drawStroke); if(avecSel) drawSel(); }
   const arr=v=>Math.round(v*10)/10;
-  function commit(){ redraw(false); o[cle]=strokes.length||base?cv.toDataURL("image/png"):"";
-    if(V){ o[vk]=strokes.map(s=>s.pts?{c:s.c,pts:s.pts.map(p=>[arr(p[0]),arr(p[1]),Math.round((p[2]||0.5)*100)/100])}:JSON.parse(JSON.stringify(s))); o[bk]=base?base.src:""; }
+  /* Annuler / Refaire : un instantané par modification (traits, gomme, déplacement, texte…) */
+  let hist=[], restaure=false; const snap=()=>JSON.stringify(strokes);
+  function commit(){ if(!restaure){ const sn=snap(); if(hist[hist.length-1]!==sn){ hist.push(sn); if(hist.length>60) hist.shift(); refaire=[]; } } restaure=false; redraw(false); o[cle]=strokes.length||base?cv.toDataURL("image/png"):"";
+    if(V){ o[vk]=strokes.map(s=>s.pts?{c:s.c,w:s.w,o:s.o,pts:s.pts.map(p=>[arr(p[0]),arr(p[1]),Math.round((p[2]||0.5)*100)/100])}:JSON.parse(JSON.stringify(s))); o[bk]=base?base.src:""; }
     save(); redraw(); majBoutonSel(); }
   if(V && Array.isArray(o[vk])){ strokes=JSON.parse(JSON.stringify(o[vk])).filter(s=>s.f!=="sym"); if(strokes.length<o[vk].length) setTimeout(commit,300); if(o[bk]){ base=new Image(); base.onload=()=>redraw(); base.src=o[bk]; } }
   else if(o[cle]){ base=new Image(); base.onload=()=>redraw(); base.src=o[cle]; }
@@ -1949,9 +1971,26 @@ function initSketch(o=S.ouv, cle="croquis"){
       if(hit){ if(S.skMulti){ const k=sels.indexOf(hit); if(k>=0) sels.splice(k,1); else sels.push(hit); } else if(!sels.includes(hit)) sels=[hit]; act=sels.includes(hit)?{m:[px,py]}:null; }
       else { if(!S.skMulti) sels=[]; lasso={a:[px,py],b:[px,py]}; }
       redraw(); majBoutonSel(); const ti=$("#skTxtLibre"), s=one(); if(ti){ ti.value=s&&s.t?s.t:""; ti.placeholder=s&&s.t?"":"Écrire un texte (ex. Chambre 1, 3,20 m, passage combles…)"; } return; }
-    if(fo && fo!=="edit" && pen!=="erase" && V){ cur={f:fo,c:pen,a:[px,py],b:[px,py]}; strokes.push(cur); e.preventDefault(); return; }
-    cur={c:pen,pts:[pt(e)]}; strokes.push(cur); e.preventDefault(); };
+    if(texteMain){ e.preventDefault(); ouvrirTexteMain(e, px, py); return; }
+    if(pen==="eraseObj"){ e.preventDefault(); gommeObj=true; gommer(px,py); return; }
+    if(fo && fo!=="edit" && pen!=="erase" && V){ cur={f:fo,c:pen,a:[px,py],b:[px,py]}; strokes.push(cur); refaire=[]; e.preventDefault(); return; }
+    const sty=SK_STYLES.find(x=>x[0]===(S.skStyle||"stylo"))||SK_STYLES[0], m=[0,0.6,1,1.6,2.4][S.skEp||2];
+    cur=pen==="erase"?{c:"erase",w:16+14*m,pts:[pt(e)]}:{c:pen,w:Math.round(sty[2]*m*10)/10,o:sty[3],pts:[pt(e)]}; strokes.push(cur); refaire=[]; e.preventDefault(); };
+  let gommeObj=false;
+  function gommer(x,y){ const h=toucher(x,y); if(h){ strokes=strokes.filter(s=>s!==h); sels=sels.filter(s=>s!==h); redraw(); gommeObj="modifie"; } }
+  /* Texte au stylet : une case s'ouvre à l'endroit touché ; on y écrit à l'Apple Pencil et l'iPad (Griffonner) le transforme en texte tapé */
+  function ouvrirTexteMain(e, px, py){
+    const wrap=cv.parentElement; if(getComputedStyle(wrap).position==="static") wrap.style.position="relative";
+    const r=cv.getBoundingClientRect(), wr=wrap.getBoundingClientRect(), inp=document.createElement("input");
+    inp.className="sk-txtmain"; inp.placeholder="Écris ici au stylet…"; inp.setAttribute("autocomplete","off");
+    inp.style.left=Math.max(0,Math.min(r.width-260,(e.clientX-r.left)-20)+(r.left-wr.left))+"px"; inp.style.top=Math.max(0,(e.clientY-r.top)-24+(r.top-wr.top))+"px";
+    wrap.appendChild(inp); setTimeout(()=>inp.focus(),30);
+    let fait=false; const fin=ok=>{ if(fait) return; fait=true; const v=inp.value.trim(); inp.remove(); if(ok&&v){ strokes.push({t:v, c:pen.startsWith("erase")?"#111111":pen, x:px+Math.min(240*ratio, v.length*9*ratio), y:py}); refaire=[]; commit(); } };
+    inp.onkeydown=ev=>{ if(ev.key==="Enter"){ ev.preventDefault(); fin(true); } if(ev.key==="Escape") fin(false); };
+    inp.onblur=()=>setTimeout(()=>fin(true),150);
+  }
   cv.onpointermove=e=>{
+    if(gommeObj){ const [x,y]=pt(e); gommer(x,y); e.preventDefault(); return; }
     if(lasso){ lasso.b=pt(e).slice(0,2); redraw(); e.preventDefault(); return; }
     const sel=act&&act.m?null:one();
     if(act&&act.m){ const [x,y]=pt(e), dx=x-act.m[0], dy=y-act.m[1]; act.m=[x,y];
@@ -1969,6 +2008,7 @@ function initSketch(o=S.ouv, cle="croquis"){
       cur.b=[x,y]; redraw(); e.preventDefault(); return; }
     const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e]; for(const ev of evs) cur.pts.push(pt(ev)); redraw(); e.preventDefault(); };
   const end=()=>{
+    if(gommeObj){ const m=gommeObj==="modifie"; gommeObj=false; if(m) commit(); return; }
     if(lasso){ const x1=Math.min(lasso.a[0],lasso.b[0]), x2=Math.max(lasso.a[0],lasso.b[0]), y1=Math.min(lasso.a[1],lasso.b[1]), y2=Math.max(lasso.a[1],lasso.b[1]); lasso=null;
       if(x2-x1>10||y2-y1>10) strokes.forEach(s=>{ if(s.pts&&s.c==="erase") return; const [a,b,c,d]=bbox(s); if(a>=x1&&c<=x2&&b>=y1&&d<=y2 && !sels.includes(s)) sels.push(s); });
       redraw(); majBoutonSel(); if(sels.length>1) toast(`${sels.length} éléments sélectionnés`); return; }
@@ -1976,26 +2016,33 @@ function initSketch(o=S.ouv, cle="croquis"){
     if(!cur) return; if(cur.f ? Math.hypot(cur.b[0]-cur.a[0],cur.b[1]-cur.a[1])<8 : cur.pts.length<2) strokes.pop(); cur=null; commit(); };
   cv.onpointerup=end; cv.onpointercancel=end; cv.onpointerleave=end;
   const quitterEdit=()=>{ if(sels.length){ sels=[]; redraw(); majBoutonSel(); } };
-  $$("[data-pen]").forEach(b=>b.onclick=()=>{ pen=b.dataset.pen; texte=null; $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); $$("[data-pen]").forEach(x=>x.classList.toggle("on",x===b));
-    if(sels.length && pen!=="erase"){ sels.forEach(s=>s.c=pen); commit(); return; }   // en mode Modifier : changer la couleur de la sélection
+  const choisirPen=(b)=>{ pen=b.dataset.pen; texte=null; texteMain=false; $("#skTexteMain")?.classList.remove("on"); $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); $$("[data-pen]").forEach(x=>x.classList.toggle("on",x===b)); };
+  $$("[data-skstyle]").forEach(b=>b.onclick=()=>{ S.skStyle=b.dataset.skstyle; $$("[data-skstyle]").forEach(x=>x.classList.toggle("on",x===b)); if(pen.startsWith("erase")){ const p1=$("[data-pen]:not([data-pen^='erase'])"); if(p1) choisirPen(p1); } });
+  $$("[data-skep]").forEach(b=>b.onclick=()=>{ S.skEp=+b.dataset.skep; $$("[data-skep]").forEach(x=>x.classList.toggle("on",x===b)); });
+  const cp=$("#skPerso"); if(cp) cp.oninput=()=>{ cp.parentElement.dataset.pen=cp.value; cp.parentElement.style.background=cp.value; choisirPen(cp.parentElement); if(sels.length){ sels.forEach(s=>s.c=cp.value); commit(); } };
+  const tm=$("#skTexteMain"); if(tm) tm.onclick=()=>{ texteMain=!texteMain; tm.classList.toggle("on",texteMain); if(texteMain){ texte=null; toast("Touche le dessin à l'endroit voulu, puis écris au stylet dans la case"); } };
+  const rd=$("#skRedo"); if(rd) rd.onclick=()=>{ if(!refaire.length) return; const sn=refaire.pop(); hist.push(sn); strokes=JSON.parse(sn); sels=[]; restaure=true; commit(); };
+  $$("[data-pen]").forEach(b=>b.onclick=()=>{ choisirPen(b);
+    if(sels.length && !pen.startsWith("erase")){ sels.forEach(s=>s.c=pen); commit(); return; }   // en mode Modifier : changer la couleur de la sélection
     if(S.skForme==="edit"){ S.skForme=""; $$("[data-forme]").forEach(x=>x.classList.toggle("on",x.dataset.forme==="")); quitterEdit(); } });
   $$("[data-forme]").forEach(b=>b.onclick=()=>{ S.skForme=b.dataset.forme; texte=null; $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); $$("[data-forme]").forEach(x=>x.classList.toggle("on",x===b));
     if(S.skForme!=="edit") quitterEdit(); else toast("Touche un objet (ou entoure-en plusieurs en glissant sur une zone vide) : glisse pour déplacer, 🗑 pour supprimer");
-    if(pen==="erase" && S.skForme!=="edit"){ const p1=$("[data-pen]:not([data-pen='erase'])"); if(p1) p1.click(); } });
+    if(pen.startsWith("erase") && S.skForme!=="edit"){ const p1=$("[data-pen]:not([data-pen^='erase'])"); if(p1) p1.click(); } });
   const sq=$("#skCarre input"); if(sq){ sq.checked=!!S.skCarre; $("#skCarre").classList.toggle("on",!!S.skCarre); sq.onchange=()=>{ S.skCarre=sq.checked; $("#skCarre").classList.toggle("on",sq.checked); }; }
   const tl=$("#skTxtLibre"), tg=$("#skTxtGo");
   if(tg) tg.onclick=()=>{ const v=tl.value.trim(); if(!v){ tl.focus(); toast("Écris d'abord le texte"); return; }
     const s1=one(); if(s1&&s1.t){ s1.t=v; commit(); return; }
-    texte={t:v, c:pen==="erase"?"#111111":pen}; $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); toast("Touche le schéma à l'endroit voulu"); };
+    texte={t:v, c:pen.startsWith("erase")?"#111111":pen}; $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); toast("Touche le schéma à l'endroit voulu"); };
   if(tl) tl.oninput=()=>{ const sel=one(); if(sel&&sel.t&&tl.value.trim()){ sel.t=tl.value.trim(); redraw(); clearTimeout(tl._t); tl._t=setTimeout(commit,600); } };
   const fd=$("#skFond"); if(fd){ fd.classList.toggle("hide",!base); fd.onclick=async()=>{ if(!await demander("Effacer l'ancien dessin (image figée) ? Les formes et textes ajoutés depuis restent.","Effacer")) return; base=null; fd.classList.add("hide"); commit(); }; }
   const ds=$("#skDelSel"); if(ds){ ds.disabled=true; ds.onclick=()=>{ if(!sels.length) return; strokes=strokes.filter(s=>!sels.includes(s)); sels=[]; commit(); }; }
   const mu=$("#skMulti input"); if(mu){ mu.checked=!!S.skMulti; $("#skMulti").classList.toggle("on",!!S.skMulti); mu.onchange=()=>{ S.skMulti=mu.checked; $("#skMulti").classList.toggle("on",mu.checked); }; }
   $$("[data-sktxt]").forEach(b=>b.onclick=()=>{ const on=!b.classList.contains("on"); $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); texte=on?{t:b.dataset.sktxt, c:b.dataset.c||pen}:null; b.classList.toggle("on",on); if(on) toast("Touche le schéma à l'endroit voulu"); });
-  $("#skUndo").onclick=()=>{ strokes.pop(); commit(); };
+  $("#skUndo").onclick=()=>{ if(hist.length<2){ if(hist.length===1&&strokes.length){ refaire.push(hist.pop()); hist=[ "[]" ]; strokes=[]; sels=[]; restaure=true; commit(); } return; } refaire.push(hist.pop()); strokes=JSON.parse(hist[hist.length-1]); sels=[]; restaure=true; commit(); };
   $("#skClear").onclick=async()=>{ if(!await demander("Effacer tout le croquis ?","Effacer")) return; strokes=[]; base=null; sels=[]; commit(); o[cle]=""; save(); };
-  const po=$("#skPenOnly input"); po.onchange=()=>{ penOnly=po.checked; $("#skPenOnly").classList.toggle("on",penOnly); };
-  size(); window.onresize=()=>{ if(!$("#sketch")) return; if(V){ size(); return; }
+  const po=$("#skPenOnly input"); po.checked=penOnly; $("#skPenOnly").classList.toggle("on",penOnly); po.onchange=()=>{ penOnly=S.skPenOnly=po.checked; $("#skPenOnly").classList.toggle("on",penOnly); };
+  cv.addEventListener("pointerdown",e=>{ if(e.pointerType==="pen" && !S.skPenOnly && !S.skPenVu){ S.skPenVu=1; penOnly=S.skPenOnly=true; po.checked=true; $("#skPenOnly").classList.add("on"); toast("Apple Pencil détecté : « Stylet seulement » activé (la main peut se poser sur l'écran)"); } },true);
+  hist=[snap()]; size(); window.onresize=()=>{ if(!$("#sketch")) return; if(V){ size(); return; }
     if(strokes.length||base) { o[cle]=cv.toDataURL("image/png"); base=new Image(); base.onload=()=>{ strokes=[]; size(); }; base.src=o[cle]; } };
 }
 
@@ -2033,7 +2080,7 @@ function initPhotos(o=S.ouv, rendu=renderOuverture){
   $$("[data-phedit]").forEach(b=>b.onclick=()=>annoterPhoto(+b.dataset.phedit, o, rendu));
 }
 function annoterPhoto(k, o=S.ouv, rendu=renderOuverture){
-  const p=o.photos[k], m=$("#mPhoto"), cv=$("#phCanvas"), ctx=cv.getContext("2d"); let strokes=[], cur=null, pen="#d3232f", im=new Image();
+  const p=o.photos[k], m=$("#mPhoto"), cv=$("#phCanvas"), ctx=cv.getContext("2d"); bloquerGestesTactiles(cv); let strokes=[], cur=null, pen="#d3232f", im=new Image();
   im.onload=()=>{ cv.width=im.width; cv.height=im.height; redraw(); m.classList.add("open"); };
   im.src=p.img;
   function redraw(){ ctx.drawImage(im,0,0); ctx.lineCap=ctx.lineJoin="round"; for(const s of strokes){ ctx.strokeStyle=s.c; ctx.lineWidth=Math.max(8,cv.width/110); ctx.beginPath(); s.pts.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); ctx.stroke(); } }
@@ -2315,9 +2362,8 @@ function renderClim(t){
       <button class="btn small" id="skTxtGo">✍ Placer le texte</button></div>
     <div class="hint" style="margin:6px 0 4px">Étiquettes : touche un mot puis l'endroit du schéma :</div>
     <div class="toolbar">${[...CLIM_ETIQUETTES.slice(0,3),...climUnites(c).map(u=>[u,"#d3232f"]),...CLIM_ETIQUETTES.slice(3)].map(([t,co])=>`<button class="btn small" data-sktxt="${esc(t)}" data-c="${co}" style="color:${co}">${esc(t)}</button>`).join("")}</div>
-    <div class="toolbar"><button class="btn small" data-pen="erase">Gomme</button><button class="btn small" id="skUndo">Annuler</button><button class="btn small danger" id="skClear">Effacer tout</button>
-      <label class="chip" id="skPenOnly"><input type="checkbox">Stylet seulement</label></div>
-    <canvas id="sketch" class="sketch clim-sketch"></canvas>
+    ${barreOutils(false)}
+    <div class="sketch-wrap" style="border:0"><canvas id="sketch" class="sketch clim-sketch"></canvas></div>
     <div class="hint">Dessine les pièces, l'emplacement des unités intérieures / extérieures et le passage des liaisons.</div></div>
   <div class="card clim-tab-card${c.tableau.img?"":" manque"}"><h2><span class="num">6</span>Tableau électrique <small style="font-weight:400;text-transform:none">– photo OBLIGATOIRE : y a-t-il la place pour se rebrancher ?</small></h2>
     <div class="grid g2"><div>${c.tableau.img?`<figure class="photo"><img src="${c.tableau.img}" alt="Tableau électrique" data-tabedit="1">
@@ -2816,6 +2862,22 @@ function controleSAV(d){ const s=d.sav, E=[], W=[]; if(!s) return {E,W};
   s.desordres.forEach((x,i)=>{ if((x.piece||x.menuiserie)&&!String(x.defaut||"").trim()) E.push(`Désordre ${i+1} (${x.piece||x.menuiserie}) : défaut à reprendre non décrit`); if(x.defaut&&!x.piece&&!x.menuiserie) W.push(`Désordre ${i+1} : pièce ou menuiserie à préciser`); });
   if(!s.photos.length) W.push("Pas de photo : en prendre au moins une par défaut si possible");
   return {E,W}; }
+/* Case de signature (Apple Pencil, mine fine) */
+function padSignature(obj, key){
+  const cv=$("#sig_"+key); if(!cv) return; bloquerGestesTactiles(cv); const ctx=cv.getContext("2d"); let pts=null, dessine=false;
+  const taille=()=>{ const r=cv.getBoundingClientRect(); cv.width=Math.round(r.width*2); cv.height=Math.round(r.height*2); ctx.fillStyle="#fff"; ctx.fillRect(0,0,cv.width,cv.height);
+    if(obj[key]){ const im=new Image(); im.onload=()=>ctx.drawImage(im,0,0,cv.width,cv.height); im.src=obj[key]; } };
+  const pt=e=>{ const r=cv.getBoundingClientRect(); return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height,e.pressure||0.5]; };
+  cv.onpointerdown=e=>{ try{ cv.setPointerCapture(e.pointerId); }catch(_){} pts=[pt(e)]; dessine=true; e.preventDefault(); };
+  cv.onpointermove=e=>{ if(!pts) return; const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e];
+    for(const ev of evs){ const q=pt(ev), a=pts[pts.length-1]; ctx.strokeStyle="#0b1f4d"; ctx.lineCap=ctx.lineJoin="round"; ctx.lineWidth=1.6+q[2]*2.6; ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(q[0],q[1]); ctx.stroke(); pts.push(q); } e.preventDefault(); };
+  const fin=()=>{ if(!pts) return; pts=null; if(dessine){ obj[key]=cv.toDataURL("image/png"); obj[key+"_le"]=new Date().toISOString(); save(); const z=$(`[data-sigle="${key}"]`); if(z) z.textContent="Signé le "+new Date().toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"}); } };
+  cv.onpointerup=fin; cv.onpointercancel=fin; cv.onpointerleave=fin;
+  const b=$(`[data-sigclr="${key}"]`); if(b) b.onclick=()=>{ obj[key]=""; obj[key+"_le"]=""; save(); taille(); const z=$(`[data-sigle="${key}"]`); if(z) z.textContent=""; };
+  taille();
+}
+const caseSignature = (obj,key,titre,sous) => `<div class="sig-box"><div class="row" style="margin-bottom:4px"><b>${titre}</b><span class="spacer"></span><button class="btn small" data-sigclr="${key}">Effacer</button></div>
+  ${sous?`<div class="hint" style="margin:-2px 0 4px">${sous}</div>`:""}<canvas id="sig_${key}" class="sig-cv"></canvas><div class="hint" data-sigle="${key}">${obj[key+"_le"]?"Signé le "+new Date(obj[key+"_le"]).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"}):""}</div></div>`;
 function renderSAV(t){
   const d=S.dossier; if(!d.sav) d.sav=nouveauSAV(); const s=d.sav;
   const ligne=(x,i)=>{ const k=`sav.desordres.${i}.`;
@@ -2845,14 +2907,15 @@ function renderSAV(t){
       <div class="row"><button class="btn small" data-phedit="${k}">✏️ Annoter</button><span class="spacer"></span><button class="btn small danger" data-phdel="${k}" aria-label="Supprimer la photo ${k+1}">✕</button></div></figure>`).join("")}
     <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple id="phAdd" class="hide"></label></div></div>
   <div class="card"><h2><span class="num">6</span>Intervention</h2><div class="grid g4"><label class="f">Intervention prévue le (facultatif)<input type="date" data-k="sav.intervention_le" value="${esc(s.intervention_le)}"></label></div>
-    <p class="hint">La fiche imprimée garde les cases « Fait », la signature du client (« Bon pour accord ») et « Pour Foissac Fermetures » à remplir lors de l'intervention.</p></div>`;
+    <div class="grid g2" style="margin-top:10px">${caseSignature(s,"sig_client","Signature du client","Travaux réalisés, précédée de « Bon pour accord » – signer au stylet")}${caseSignature(s,"sig_foissac","Pour Foissac Fermetures","")}</div>
+    <p class="hint">Les signatures sont imprimées dans les cases de la fiche. Laisse vide pour signer sur papier.</p></div>`;
   const re=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); };
   $("#savAdd").onclick=()=>{ s.desordres.push(nouveauDesordre()); save(); re(); };
   $$("[data-savdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer ce désordre ?","Supprimer")) return; s.desordres.splice(+b.dataset.savdel,1); save(); re(); });
   $$("[data-savdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.savdup, x=s.desordres[i]; s.desordres.splice(i+1,0,Object.assign(nouveauDesordre(),{piece:x.piece, menuiserie:x.menuiserie})); save(); re(); });
   $("#savFAdd").onclick=()=>{ s.fournitures.push({id:uid(),txt:""}); save(); re(); setTimeout(()=>{ const z=$$("[data-k^='sav.fournitures.']"); if(z.length) z[z.length-1].focus(); },50); };
   $$("[data-savfdel]").forEach(b=>b.onclick=()=>{ s.fournitures.splice(+b.dataset.savfdel,1); save(); re(); });
-  initPhotos(s, re);
+  initPhotos(s, re); padSignature(s,"sig_client"); padSignature(s,"sig_foissac");
 }
 /* PDF : reprise fidèle de « Fiche SAV - Souladier Alain - 2026-11-05.pdf » */
 function pagesSAV(d){
@@ -2871,7 +2934,7 @@ function pagesSAV(d){
     <div class="sv-cons"><b>Constat sur place :</b> ${esc(s.constat||(s.constat_le?`passage chez le client le ${dateLongue(s.constat_le)}, désordres relevés ci-contre.`:"désordres relevés ci-contre."))}</div>
     ${F.length?`<div class="sv-sec">3 · FOURNITURES À PRÉVOIR</div>${F.map(f=>`<div class="sv-fo"><span class="pcase"></span>${esc(f.txt)}</div>`).join("")}`:""}
     <div class="sv-int"><div class="sv-il">Intervention le <span>${s.intervention_le?esc(dateLongue(s.intervention_le)):""}</span></div>
-      <div class="sv-sig"><div><b>Signature du client</b><i>Travaux réalisés, précédée de « Bon pour accord »</i></div><div><b>Pour Foissac Fermetures</b></div></div></div>
+      <div class="sv-sig"><div><b>Signature du client</b><i>Travaux réalisés, précédée de « Bon pour accord »</i>${s.sig_client?`<img src="${s.sig_client}" class="sv-sigimg">${s.sig_client_le?`<span class="sv-sigle">le ${new Date(s.sig_client_le).toLocaleDateString("fr-FR")}</span>`:""}`:""}</div><div><b>Pour Foissac Fermetures</b>${s.sig_foissac?`<img src="${s.sig_foissac}" class="sv-sigimg">`:""}</div></div></div>
   </div><div class="sv-d"><div class="sv-sec">${F.length?4:3} · DÉSORDRES RELEVÉS</div>${table(L.slice(0,N))}${photos(ph.slice(0,4))}</div></div></div>`;
   for(let i=N;i<L.length;i+=14) h+=`<div class="pg sv">${head(true)}<div class="sv-sec">DÉSORDRES RELEVÉS (suite)</div>${table(L.slice(i,i+14))}</div>`;
   for(let i=4;i<ph.length;i+=8) h+=`<div class="pg sv">${head(true)}<div class="sv-ph" style="border:0">${photos(ph.slice(i,i+8)).replace('class="sv-ph"','class="sv-ph sv-ph8"')}</div></div>`;

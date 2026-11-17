@@ -493,6 +493,13 @@ details.relblk:not([open]){gap:0}
 .cn-act input[type=text],.cn-act select,.cn-act input[type=date]{width:100%;box-sizing:border-box;padding:5px 7px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:inherit;font:inherit;font-size:.86rem}
 @media (max-width:700px){.cn-act{grid-template-columns:auto minmax(0,1fr)}.cn-act select,.cn-act input[type=date]{grid-column:2}}
 .cn-pts{margin:0;padding-left:18px;display:grid;gap:3px}.cn-note{border:1px solid var(--line);border-radius:10px;padding:8px 12px}.cn-note summary{cursor:pointer;font-weight:600}.cn-note .cn-txt{white-space:pre-wrap;font-size:.9rem;line-height:1.5;margin-top:6px}
+.ct-l{display:grid;gap:6px}.ct-i{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.ct-i.rdv{border-color:#14b8a6;background:color-mix(in srgb,#14b8a6 8%,var(--panel))}.ct-i .ct-n{flex:1 1 140px;min-width:0}.ct-i .ct-n b{display:block}.ct-i .ct-n span{font-size:.8rem;color:var(--muted);display:block}
+.ct-chip{font-size:.72rem;font-weight:700;color:#0f766e;background:color-mix(in srgb,#14b8a6 18%,transparent);border-radius:999px;padding:2px 8px;border:0;cursor:pointer}
+.ct-chip.off{color:var(--muted);background:transparent;border:1px dashed var(--line)}
+.ct-f{display:grid;gap:6px;padding:8px;border:1px dashed var(--line);border-radius:8px;margin-top:6px}.ct-f input,.ct-f textarea,.ct-f select{width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:inherit;font:inherit;font-size:.88rem}
+.ct-f .two{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ctrdv{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:6px 10px;border-radius:8px;background:color-mix(in srgb,#14b8a6 12%,var(--panel));border:1px solid color-mix(in srgb,#14b8a6 45%,var(--line));font-size:.88rem}
 .nc-known{display:grid;gap:8px;padding:12px;border:1px solid color-mix(in srgb,#f59e0b 55%,var(--line));border-radius:10px;background:color-mix(in srgb,#f59e0b 8%,var(--panel))}
 .nc-known .nck{display:grid;gap:4px;padding:8px 0}.nc-known .nck+.nck{border-top:1px dashed var(--line)}.nc-known .nck .sub{display:block}
 .nc-fill{outline:2px solid #3b82f6;outline-offset:1px;background:color-mix(in srgb,#3b82f6 10%,var(--panel))!important}
@@ -2965,6 +2972,7 @@ function rdvItem(x){
     <div style="min-width:0"><span class="nm" data-id="${esc(r.id)}" role="button" tabindex="0">${esc(r.client)}</span><div class="sub">${esc(adrRdv(r) || r.lieu || "—")}${trajet(r) ? " · <b>" + esc(trajetTxt(r)) + "</b>" : ""} · ${esc(what)}${x.kind === "metre" ? " · " + eur(x.v.ht) + " HT" : ""}</div>${attenteOf(r) ? "" : todoChip(r)}${appChip(r)}</div>
     <span class="wait ${n != null && n > 30 ? "old" : ""}">${n != null ? (x.kind === "metre" ? "signé il y a " : "attend depuis ") + n + " j" : ""}<span class="sub" style="display:block;font-family:var(--body);font-weight:400">${x.kind === "metre" ? "Signé le " : "FIC du "}${fd(x.since)}</span></span>
     ${t ? `<div class="tries">${esc(t.length > 220 ? t.slice(0, 220) + "…" : t)}</div>` : ""}
+    ${ctRdv(r) ? ctRdvLine(r) : ""}
     <div class="acts">${telOk ? `<span class="tel">${esc(r.tel)}</span><a class="btn" href="tel:${esc(r.tel.replace(/\s/g, ""))}" target="_blank" rel="noopener">Appeler</a><button class="btn mess" type="button" data-mess="${esc(r.id)}" title="Appel sans réponse : le noter et préparer le SMS">Messagerie</button><button class="btn smsgo" type="button" data-id="${esc(r.id)}">SMS</button>` : `<span class="sub">Pas de téléphone dans le tableau</span>`}${attenteOf(r) ? `<button class="btn pri" type="button" data-goon="${esc(r.id)}">C'est bon, on peut y aller</button>` : `<button class="btn pri rdvgo" type="button" data-id="${esc(r.id)}">Noter le RDV</button>${x.kind === "premier" ? `<button class="btn" type="button" data-sans="${esc(r.id)}">Devis sans RDV</button>` : ""}`}${appelsOf(r).length >= 3 ? "" : loseBtn(r)}${pdfBadge(r)}</div>${attenteOf(r) ? "" : app3(r)}${attenteOf(r) ? `<div class="attchip">En attente : ${esc(attenteOf(r).motif)} · depuis ${attDays(attenteOf(r))} j${attenteOf(r).rappel ? " · point le " + fd(attenteOf(r).rappel) : ""} · <button class="lnk attmod" type="button" data-id="${esc(r.id)}">modifier</button></div>` : ""}
   </div>`;
 }
@@ -4381,7 +4389,7 @@ function kvStyle(){
   const dl = document.querySelector("#drawer .fcl dl.kv"); if (!dl) return;
   const kids = [...dl.children], pairs = [];
   for (let i = 0; i < kids.length; i++) if (kids[i].tagName === "DT") pairs.push([kids[i], kids[i + 1] && kids[i + 1].tagName === "DD" ? kids[i + 1] : null]);
-  const key = t => /T[ée]l[ée]phone/i.test(t) ? "tel" : /^Mail/i.test(t) ? "mail" : /domicile/i.test(t) ? "dom" : /chantier/i.test(t) ? "ch" : /Trajet/i.test(t) ? "car" : "info";
+  const key = t => /T[ée]l[ée]phone|contacts/i.test(t) ? "tel" : /^Mail/i.test(t) ? "mail" : /domicile/i.test(t) ? "dom" : /chantier/i.test(t) ? "ch" : /Trajet/i.test(t) ? "car" : "info";
   const grp = { joindre: [], ou: [], infos: [] };
   pairs.forEach(([dt, dd]) => { const k = key(dt.textContent); const g = k === "tel" || k === "mail" ? "joindre" : k === "info" ? "infos" : "ou";
     const w = document.createElement("div"); w.className = "kvi kvi-" + k;
@@ -4541,6 +4549,56 @@ function smsParse(txt){
   if (out.prenom) out.prenom = out.prenom.toLowerCase().replace(/(^|[\s\-'])\p{L}/gu, c => c.toUpperCase());
   if (out.tel) { try { out.tel = telNorm(out.tel); } catch(_){} }
   return out; }
+/* ===== Autres contacts d'un dossier (père, voisin, locataire…) : à appeler pour le RDV / le métré ===== */
+let ctFormFor = null;
+const CT_LIENS = [["pere", "Père", /\b(mon|son|leur|votre|le)\s+p[eè]re\b|\bpapa\b|\bbeau[- ]p[eè]re\b/], ["mere", "Mère", /\b(ma|sa|leur|votre|la)\s+m[eè]re\b|\bmaman\b|\bbelle[- ]m[eè]re\b/], ["fils", "Fils", /\b(mon|son|leur|votre|le)\s+fils\b/], ["fille", "Fille", /\b(ma|sa|leur|votre|la)\s+fille\b/],
+  ["frere", "Frère", /\bfr[eè]re\b/], ["soeur", "Sœur", /\bs(oe|œ)ur\b/], ["mari", "Mari", /\b(mon|son)\s+(mari|conjoint|compagnon)\b/], ["femme", "Épouse", /\b(ma|sa)\s+(femme|[ée]pouse|conjointe|compagne)\b/], ["gendre", "Gendre", /\bgendre\b/],
+  ["voisin", "Voisin", /\bvoisin(e)?\b/], ["locataire", "Locataire", /\blocataire\b/], ["gardien", "Gardien", /\bgardien(ne)?\b/], ["macon", "Maçon", /\bma[cç]on\b/], ["artisan", "Artisan", /\b(artisan|plombier|[ée]lectricien|charpentier|menuisier)\b/],
+  ["archi", "Architecte", /\barchitecte|ma[iî]tre d'oeuvre\b/], ["agence", "Agence immobilière", /\bagence|agent immobilier\b/], ["notaire", "Notaire", /\bnotaire\b/], ["oncle", "Oncle", /\boncle\b/], ["tante", "Tante", /\btante\b/]];
+function ctOf(r){ return ((suivi[r.id] || {}).contacts || []).filter(Boolean); }
+function ctRdv(r){ return ctOf(r).find(c => c.rdv) || null; }
+const ctTel = t => { try { return telNorm(t); } catch(_){ return t; } };
+function ctRdvLine(r){ const c = ctRdv(r); if (!c) return ""; const tl = telLink(c.tel);
+  return `<div class="ctrdv">📐 <span>Pour le RDV, appeler <b>${esc(c.lien || "le contact")}${c.nom ? " · " + esc(c.nom) : ""}</b>${c.tel ? " : " + esc(ctTel(c.tel)) : ""}</span>${tl ? `<a class="btn sm pri" href="${esc(tl)}">📞 Appeler</a>` : ""}${c.note ? `<span class="sub" style="flex-basis:100%">${esc(c.note.length > 160 ? c.note.slice(0, 160) + "…" : c.note)}</span>` : ""}</div>`; }
+function ctParse(txt, r){ const raw = String(txt || ""), a = sansAcc(raw), own = String(r.tel || "").replace(/\D/g, "").slice(-9), o = {};
+  const tels = (raw.match(/(?:\+|00)\d[\d .\-]{8,16}\d|\b0[1-9](?:[ .\-]?\d{2}){4}\b/g) || []).filter(t => t.replace(/\D/g, "").slice(-9) !== own); if (tels.length) o.tel = ctTel(tels[0]);
+  const L = CT_LIENS.find(([, , re]) => re.test(a)); if (L) o.lien = /beau[- ]p/.test(a) && L[0] === "pere" ? "Beau-père" : /belle[- ]m/.test(a) && L[0] === "mere" ? "Belle-mère" : L[1];
+  let m = raw.match(/\b(?:M\.|Mr|Monsieur|Mme|Madame|Mlle)\s+([A-ZÀ-Ý][\wÀ-ÿ'\-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'\-]+)?)/) || raw.match(/s'appelle\s+([A-ZÀ-Ý][\wÀ-ÿ'\-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'\-]+)?)/i)
+    || raw.match(/\b(?:p[eè]re|m[eè]re|fils|fille|fr[eè]re|s(?:oe|œ)ur|voisin(?:e)?|mari|femme)\s*,?\s+([A-ZÀ-Ý][a-zà-ÿ'\-]+(?:\s+[A-ZÀ-Ý]{2,}[\wÀ-ÿ'\-]*)?)/);
+  if (m && !/^(Au|Le|La|Les|Pour|Merci|Bonjour|Il|Elle)$/.test(m[1])) o.nom = m[1];
+  o.rdv = /rendez|rdv|m[ée]tr|mesure|passer|dispo|sur place|ouvrir|cl[ée]s?\b|acc[eè]s|chantier|pose/.test(a);
+  o.note = raw.trim(); return o; }
+async function ctSave(r, list){ if (!db || !canWrite) return toast("Enregistrement impossible dans cette vue");
+  const cur = suivi[r.id] || {}, now = new Date().toISOString(); const next = Object.assign({}, cur, { client: r.client, contacts: list, updated: now });
+  try { await db.collection("suivi").doc(r.id).set(next); suivi[r.id] = next; return true; } catch(_){ toast("Pas enregistré, réessaie"); return false; } }
+function ctBox(r){ const L = ctOf(r), f = ctFormFor && ctFormFor.rid === r.id ? ctFormFor : null;
+  const items = L.map((c, i) => { const tl = telLink(c.tel); return `<div class="ct-i ${c.rdv ? "rdv" : ""}"><div class="ct-n"><b>${esc(c.lien || "Contact")}${c.nom ? " · " + esc(c.nom) : ""}</b>${c.tel ? `<span>${esc(ctTel(c.tel))}</span>` : ""}${c.note ? `<span title="${esc(c.note)}">${esc(c.note.length > 90 ? c.note.slice(0, 90) + "…" : c.note)}</span>` : ""}</div>
+      <button class="ct-chip ${c.rdv ? "" : "off"}" type="button" data-ctrdv="${i}" title="C'est cette personne qu'il faut appeler pour prendre le RDV / le métré">${c.rdv ? "📐 pour le RDV" : "pour le RDV ?"}</button>
+      ${tl ? `<a class="btn sm pri" href="${esc(tl)}">Appeler</a><a class="btn sm" href="${esc("sms:" + tl.slice(4))}">SMS</a>` : ""}<button class="btn sm" type="button" data-cted="${i}">Modifier</button></div>`; }).join("");
+  const form = f ? `<div class="ct-f" id="ctf"><label class="sub">Colle le SMS du client (je trouve le numéro, qui c'est et pourquoi)<textarea id="ctsms" rows="3" placeholder="Ex. : Bonjour, pour le métré merci d'appeler mon père au 06 12 34 56 78, c'est lui qui a les clés.">${esc(f.sms || "")}</textarea></label>
+      <div class="two"><label class="sub">Qui<input id="ctlien" list="ctliens" value="${esc(f.lien || "")}" placeholder="Père, voisin, locataire…"></label><label class="sub">Nom<input id="ctnom" value="${esc(f.nom || "")}" placeholder="facultatif"></label></div>
+      <datalist id="ctliens">${CT_LIENS.map(([, l]) => `<option value="${esc(l)}">`).join("")}</datalist>
+      <div class="two"><label class="sub">Téléphone<input id="cttel" inputmode="tel" value="${esc(f.tel || "")}"></label><label class="sub" style="display:flex;gap:6px;align-items:center;align-self:end;padding-bottom:6px"><input type="checkbox" id="ctrdvc" style="width:auto" ${f.rdv ? "checked" : ""}> c'est lui/elle qu'on appelle pour le RDV / métré</label></div>
+      <label class="sub">Note<input id="ctnote" value="${esc(f.note || "")}" placeholder="Ex. : a les clés, dispo le matin"></label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm pri" type="button" id="ctok">Enregistrer</button><button class="btn sm" type="button" id="ctno">Annuler</button>${f.i != null ? `<span style="flex:1"></span><button class="btn sm lose" type="button" id="ctdel">Supprimer</button>` : ""}</div></div>` : "";
+  return `<div class="ct-l">${items || (f ? "" : `<span class="sub">Personne d'autre pour l'instant (père, voisin, locataire, maçon…)</span>`)}${form}${f ? "" : `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" type="button" id="ctsmsb">📱 Ajouter depuis un SMS</button><button class="btn sm" type="button" id="ctadd">+ Ajouter</button></div>`}</div>`; }
+function wireCt(r){ const box = $("#ctbox"); if (!box) return; const L = ctOf(r).map(c => Object.assign({}, c));
+  const q = s => box.querySelector(s), on = (s, f) => { const el = q(s); if (el) el.onclick = f; };
+  on("#ctadd", () => { ctFormFor = { rid: r.id, rdv: !ctRdv(r) }; renderDrawer(); setTimeout(() => { const e = $("#ctlien"); if (e) e.focus(); }, 30); });
+  on("#ctsmsb", () => { ctFormFor = { rid: r.id }; renderDrawer(); setTimeout(() => { const e = $("#ctsms"); if (e) e.focus(); }, 30); });
+  box.querySelectorAll("[data-cted]").forEach(b => b.onclick = () => { const i = +b.dataset.cted; ctFormFor = Object.assign({ rid: r.id, i }, L[i]); renderDrawer(); });
+  box.querySelectorAll("[data-ctrdv]").forEach(b => b.onclick = async () => { const i = +b.dataset.ctrdv, v = !L[i].rdv; L.forEach((c, j) => c.rdv = j === i ? v : false); if (await ctSave(r, L)) { toast(v ? "Pour le RDV, on appellera " + (L[i].lien || "ce contact") : "Retiré du RDV"); renderAll(); } });
+  const sms = q("#ctsms"); if (sms) { const fill = () => { const o = ctParse(sms.value, r); ctFormFor.sms = sms.value;
+      [["#ctlien", o.lien], ["#ctnom", o.nom], ["#cttel", o.tel], ["#ctnote", o.note && o.note.length < 200 ? o.note : (o.note || "").slice(0, 200)]].forEach(([id, v]) => { const el = q(id); if (el && v && !el.value) { el.value = v; el.classList.add("nc-hit"); } });
+      if (o.rdv) q("#ctrdvc").checked = true; };
+    sms.addEventListener("paste", () => setTimeout(fill, 30)); sms.addEventListener("change", fill); }
+  on("#ctno", () => { ctFormFor = null; renderDrawer(); });
+  const del = q("#ctdel"); if (del) del.onclick = async () => { if (!del.classList.contains("armed")) { del.classList.add("armed"); del.textContent = "Sûr ?"; return; } L.splice(ctFormFor.i, 1); if (await ctSave(r, L)) { ctFormFor = null; toast("Contact supprimé"); renderAll(); } };
+  on("#ctok", async () => { const g = id => (q(id).value || "").trim(); const c = { lien: g("#ctlien"), nom: g("#ctnom"), tel: g("#cttel"), note: g("#ctnote"), rdv: q("#ctrdvc").checked, d: iso(today()) };
+    if (!c.tel && !c.nom && !c.lien) return toast("Indique au moins qui c'est ou son numéro");
+    if (c.tel) c.tel = ctTel(c.tel); if (c.rdv) L.forEach(x => x.rdv = false);
+    if (ctFormFor.i != null) L[ctFormFor.i] = c; else L.push(c);
+    if (await ctSave(r, L)) { ctFormFor = null; toast("Contact enregistré" + (c.rdv ? " · c'est lui qu'on appellera pour le RDV" : "")); renderAll(); } }); }
 /* ===== Notes d'appel : le PC / l'iPad écoute l'appel en haut-parleur, écrit, met au propre et propose les tâches ===== */
 let notesAppel = {}, callRec = null;
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -4736,6 +4794,7 @@ function renderDrawer(){
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="pill ${ST[st].c}">${ST[st].l}</span>${r.coul==="orange"?`<span class="coul"><i style="background:var(--s-call)"></i>Ligne orange dans le suivi des FIC : positif, à rappeler</span>`:r.coul==="rouge"?`<span class="coul"><i style="background:var(--s-dead)"></i>Ligne rouge dans le suivi des FIC : perdu${signed(r)!=null?" (une vente signée reste rattachée)":""}</span>`:""}${d?`<span class="sub ${whenLabel(d).late?"late":""}">Relance ${esc(whenLabel(d).t)} (${fd(d)})</span>`:""}</div>
       <dl class="kv">
           <dt>Téléphone</dt><dd><span class="tel"><span class="num" id="telv">${esc(r.tel||"—")}</span>${telPays(r.tel) ? `<span class="sub" style="display:block">numéro étranger · ${esc(telPays(r.tel))}</span>` : ""}${r.tel&&/\d{6}/.test(r.tel.replace(/\s/g,""))?`<button class="btn" id="cp">Copier</button><a class="btn" href="tel:${esc(r.tel.replace(/\s/g,""))}" target="_blank" rel="noopener">Appeler</a><button class="btn" id="smsb" type="button" aria-expanded="${smsFor===r.id}">SMS</button>`:""}</span></dd>
+          <dt>Autres contacts</dt><dd id="ctbox">${ctBox(r)}</dd>
           <dt>Adresse du domicile</dt><dd>${adrOf(r)?`<span id="adrv">${esc(adrOf(r))}</span> <span class="sub">· ${esc(adrSrc(r))}</span>${gpsBadge(adrOf(r), "dom")}<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><a class="btn" href="${esc(mapsUrl(adrOf(r)))}" target="_blank" rel="noopener">Itinéraire</a><button class="btn" id="adrcp" type="button">Copier</button><button class="btn" id="adred" type="button">Corriger</button></div>`:`<span>${esc(r.lieu||"—")}</span> <span class="sub">· adresse inconnue</span><div style="margin-top:6px"><button class="btn" id="adred" type="button">Ajouter l'adresse</button></div>`}
             <div id="adrform" hidden style="display:grid;gap:6px;margin-top:6px"><input type="text" id="adri" value="${esc(adrOf(r))}" placeholder="N° et rue, code postal, commune" style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);width:100%"><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn pri" id="adrsave" type="button" ${canWrite&&db?"":"disabled"}>Enregistrer l'adresse</button>${(suivi[r.id]||{}).adr?`<button class="btn" id="adrreset" type="button">Revenir à l'adresse du Drive</button>`:""}</div></div></dd>
           <dt>Adresse du chantier</dt><dd>${adrChantier(r)?`<span id="adrcv"><b>${esc(adrChantier(r))}</b></span> <span class="sub">· utilisée pour les RDV et les SMS</span>${gpsBadge(adrChantier(r), "ch")}<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><a class="btn" href="${esc(mapsUrl(adrChantier(r)))}" target="_blank" rel="noopener">Itinéraire</a><button class="btn" id="adrccp" type="button">Copier</button><button class="btn" id="adrced" type="button">Modifier</button><button class="btn" id="adrcdel" type="button" ${canWrite&&db?"":"disabled"} title="Même adresse que le domicile">Retirer</button></div>`:`<span class="sub">même adresse que le domicile</span><div style="margin-top:6px"><button class="btn" id="adrced" type="button">Ajouter l'adresse du chantier</button></div>`}
@@ -4886,6 +4945,7 @@ function renderDrawer(){
     </div>
     </div>`;
   applyCards(r); kvStyle();
+  try { wireCt(r); } catch(e){ console.warn(e); }
   try { wireCall(r); } catch(e){ console.warn(e); }
   $("#dx").onclick = closeDossier;
   $("#drawer").querySelectorAll(".pdf-more").forEach(b => b.onclick = () => { b.previousElementSibling.hidden = false; b.remove(); });

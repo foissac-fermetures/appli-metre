@@ -4075,6 +4075,13 @@ function cvChantier(r){ let C = []; try { C = chantiers().filter(c => c.r.id ===
           ${w != null && n <= 2 && !done ? `<div><dt>Livraison</dt><dd>${esc(weekLabel(w))}</dd></div>` : ""}${np ? `<div><dt>Pose prévue</dt><dd>${esc(JOURS[pd(np.d).getDay()] + " " + fd(np.d))}${np.worker ? " · " + esc(np.worker.charAt(0) + np.worker.slice(1).toLowerCase()) : ""}</dd></div>` : lp ? `<div><dt>Posé le</dt><dd>${esc(fd(lp.d))}</dd></div>` : ""}
           ${x ? `<div><dt>Paiement</dt><dd>${esc(x.wait ? "retenue en attente du SAV" : x.days + " j sans paiement")}${payNote(x) ? " · " + esc(payNote(x)) : ""}</dd></div>` : ""}</dl>
         ${(c.v.it || []).length ? `<div class="sub">${(c.v.it || []).map(esc).join(" · ")}</div>` : ""}</section>`; }).join("")}</div>`; }
+/* Les PDF et documents Google s'ouvrent dans une fenêtre à part : la fermer ne ferme pas le CRM */
+document.addEventListener("click", e => { if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  const a = e.target.closest && e.target.closest("a[href]"); if (!a) return; const u = a.href || "";
+  if (!/^https:\/\/(drive|docs)\.google\.com\//.test(u)) return;
+  const w = Math.min(1100, screen.availWidth - 80), h = screen.availHeight - 80, l = Math.max(0, screen.availWidth - w - 20);
+  const win = window.open(u, "crm_document", "popup=yes,width=" + w + ",height=" + h + ",left=" + l + ",top=20");
+  if (win) { e.preventDefault(); try { win.focus(); } catch(_){} } }, true);
 /* ===== Onglet « Fiche client » : je tape un nom, j'ai tout sur le client ===== */
 let cvSel = null, cvPicked = false, cvEdit = false, cvCfg = { order: null, hidden: [] };
 const CV_BLOCKS = [["chan", "Avancement du chantier"], ["recap", "Récapitulatif"], ["coord", "Coordonnées"], ["projet", "Le projet"], ["devis", "Devis et ventes"], ["taches", "Tâches"], ["sav", "SAV"], ["notes", "Notes d'appel"], ["mails", "Ses mails"], ["hist", "Historique"], ["autres", "Autres dossiers"]];

@@ -434,7 +434,7 @@ const ERP_SENS = ["Extérieure (sens de la sortie)","Intérieure"];
 const ERP_AP = ["Barre anti-panique (NF EN 1125)","Poignée / béquille d'urgence (NF EN 179)"];
 const ERP_GROOM = ["Ferme-porte à bras compas","Ferme-porte à glissière","Ferme-porte avec arrêt (bloqueur)","Ferme-porte intégré (caché)"];
 const GC_VIDE = () => ({type:"", modele:"", L:"", H:"", finition:"", fixation:"", losange:false, etage:false, appui_h:"", zsp:false, zsp_h:"", epais:false});
-function normaliser(d){ if(!d.vr) d.vr=nouveauVR(); d.ouvertures.forEach(migrerObs); d.ouvertures.forEach(o=>{ o.comp=Object.assign(COMP_VIDE(), o.comp||{}); }); if(d.clim && !d.clim.tableau) d.clim.tableau={img:"",txt:"",place:""}; d.ouvertures.forEach(o=>{ o.gc=Object.assign(GC_VIDE(), o.gc||{}); o.erp=Object.assign(ERP_VIDE(), o.erp||{}); }); d.ouvertures.forEach((o,i)=>{ if(o.num_poseur===undefined) o.num_poseur=String(i+1); if(!Array.isArray(o.photos)) o.photos=[]; }); if(!d.equipe_pose && d.vr.equipe) d.equipe_pose={"Seul":"Tout seul"}[d.vr.equipe]||d.vr.equipe; d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
+function normaliser(d){ if(!d.vr) d.vr=nouveauVR(); d.ouvertures.forEach(migrerObs); d.ouvertures.forEach(o=>{ if(o.semi_fixe && modeleDe(o) && !aSemiFixe(o)) o.semi_fixe=""; }); d.ouvertures.forEach(o=>{ o.comp=Object.assign(COMP_VIDE(), o.comp||{}); }); if(d.clim && !d.clim.tableau) d.clim.tableau={img:"",txt:"",place:""}; d.ouvertures.forEach(o=>{ o.gc=Object.assign(GC_VIDE(), o.gc||{}); o.erp=Object.assign(ERP_VIDE(), o.erp||{}); }); d.ouvertures.forEach((o,i)=>{ if(o.num_poseur===undefined) o.num_poseur=String(i+1); if(!Array.isArray(o.photos)) o.photos=[]; }); if(!d.equipe_pose && d.vr.equipe) d.equipe_pose={"Seul":"Tout seul"}[d.vr.equipe]||d.vr.equipe; d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
 /* Volet roulant lié à une ouverture : repère, quantité et cotes tableau suivent la fiche ouverture */
 /* Volets roulants vendus avec la menuiserie (fabriqués avec elle) */
 const GAMME_MODELES = { "ALU - LALOI":"modeles_laloi", "PVC - REHAU PORTEO":"modeles_porteo" };
@@ -832,7 +832,7 @@ function controleOuverture(o, d=S.dossier){
   if(o.gamme && (o.petits_bois||[]).some(x=>!listePetitsBois(o.gamme).includes(x))) W.push("Petits bois d'un autre fournisseur que la gamme choisie");
   if(o.elarg && Object.values(o.elarg).some(v=>v && !(listeElarg(o.gamme)||[]).includes(v))) W.push("Élargisseur non disponible dans la gamme choisie");
   if(aSemiFixe(o) && !o.semi_fixe) W.push("Fermeture de l'ouvrant secondaire (semi-fixe) non choisie");
-  if(o.semi_fixe && !aSemiFixe(o)) W.push("Fermeture semi-fixe renseignée alors qu'il n'y a pas d'ouvrant secondaire");
+  if(o.semi_fixe && !aSemiFixe(o) && modeleDe(o)) o.semi_fixe="";   // reste d'un ancien modèle (copie, devis…) : retiré tout seul, il n'y a pas d'ouvrant secondaire
   if(porte && listeCylindres(o.gamme) && !o.cylindre) W.push("Porte : cylindre (barillet) non choisi");
   if(o.cle && o.cle.entrouvrant && d && !memeCle(d,o).length) W.push(`Cylindre s'entrouvrant : aucune autre porte avec la même clé (groupe ${o.cle.groupe||"A"})`);
   if(o.cylindre && !(listeCylindres(o.gamme)||[]).includes(o.cylindre)) W.push("Cylindre non disponible dans la gamme choisie");

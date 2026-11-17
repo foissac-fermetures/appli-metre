@@ -2953,10 +2953,10 @@ function construireImpression(d){
   const head=t=>`<div class="ph"><img src="${LOGO}"><div class="tt">${esc(t)}</div><div>${esc(d.type_document)} · ${esc(d.variante)}<br>${fmtDate(d.client.date_rdv)} · Métreur : ${esc(d.metreur)}</div></div>`;
   let h=`<div class="pg">${head("Fiche d'identité client – "+(d.client.nom||""))}
     <div class="pcols"><div><table class="pt">${row([["Nom",d.client.nom],["Téléphone",d.client.telephone],["E-mail",d.client.email],["Origine",d.client.origine],["Situation",d.client.situation],["Travail",d.client.travail],["Adresse chantier",d.adresse_chantier]])}</table>
-      <table class="pt">${row([["Maison",d.logement.maison],["Motivation 1",d.logement.motivation1],["Motivation 2",d.logement.motivation2],["Précisions",d.logement.precisions]])}</table></div>
-    <div><table class="pt">${row([["Moyens financiers",d.budget.moyens],["Ressenti",d.budget.ressenti],["Projet",d.budget.projet],["Demande d'aide",d.budget.aide],["Laquelle",d.budget.aide_laquelle],["Précision",d.budget.precision]])}</table>
+      <table class="pt">${row([["Maison",d.logement.maison],["Motivation 1",d.logement.motivation1],["Motivation 2",d.logement.motivation2]])}</table></div>
+    <div><table class="pt">${row([["Moyens financiers",d.budget.moyens],["Ressenti",d.budget.ressenti],["Projet",d.budget.projet],["Demande d'aide",d.budget.aide],["Laquelle",d.budget.aide_laquelle]])}</table>
       <table class="pt">${row(d.concurrents.map((c,i)=>[`Concurrent ${i+1}`,c]))}</table>
-      <table class="pt">${row([["Pose",textePose(d)],["Observations",d.observations],["Notes",d.notes_client]])}</table></div></div>
+      <table class="pt">${row([["Pose",textePose(d)],["Observations",d.observations]])}</table></div></div>
     ${!d.ouvertures.length?"":`<table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Pose</th><th>Gamme</th><th>Tableau L×H</th><th>Fabrication L×H</th><th>Vantaux</th></tr>
     ${d.ouvertures.map((o,i)=>{const f=calcFab(o);return `<tr><td><b>${esc(o.num_poseur||"")}</b></td><td>${esc(o.repere)}</td><td>${esc(o.quantite)}</td><td>${esc(libellePose(o))}</td><td>${esc(o.gamme)}</td><td>${esc(coteTab(o,"L"))} × ${esc(coteTab(o,"H"))}</td><td><b>${f.L??""} × ${f.H??""}</b></td><td>${esc([o.vantaux.G,o.vantaux.M,o.vantaux.D].filter(Boolean).join(" · "))}</td></tr>`;}).join("")}</table>`}</div>`;
   d.ouvertures.forEach((o,i)=>{ const f=calcFab(o), P=CAT.poses[o.pose], c=controleOuverture(o,d);

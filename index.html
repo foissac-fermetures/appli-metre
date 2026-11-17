@@ -479,7 +479,7 @@ function listePiecesDL(){ return (CAT.pieces_groupes||[{groupe:"",items:CAT.piec
 const numSuivant = d => String(1+Math.max(0,...d.ouvertures.map(o=>parseInt(o.num_poseur)||0)));
 const numP = o => o.num_poseur ? "N°"+o.num_poseur : "";
 function nouvelleOuverture(pose, d){
-  return { id:uid(), pose, repere:"", num_poseur:numSuivant(d), photos:[], gc:GC_VIDE(), comp:COMP_VIDE(), erp:Object.assign(ERP_VIDE(),{actif:!!d.erp}), quantite:1, gamme:d.gamme_defaut||"",
+  return { id:uid(), pose, repere:"", num_poseur:numSuivant(d), photos:[], gc:GC_VIDE(), comp:COMP_VIDE(), erp:Object.assign(ERP_VIDE(),{actif:!!d.erp}), quantite:1, gamme:(d.ouvertures.length?d.ouvertures[d.ouvertures.length-1].gamme:"")||d.gamme_defaut||"",
     modele:"", couleur_int:"", couleur_ext:"", couleur_dormant:"",
     renovation:false, deligner:false, depose_totale:false, depose_seuil:false, applique_neuf:false,
     cotes:{ L:["","","",""], H:["","","",""] }, fab_force:{ L:"", H:"" },
@@ -1101,7 +1101,6 @@ function carteMetre(d, sous=false){ normaliser(d); const n=nbErreurs(d);
   return `<div class="item${S.selMode&&S.sel.has(d.id)?" sel":""}" data-id="${d.id}">
       <div class="row">${S.selMode?`<input type="checkbox" class="hchk" ${S.sel.has(d.id)?"checked":""} aria-label="Sélectionner">`:""}${sous?`<span class="t">${esc(d.devis_nom||"Devis sans nom")}</span>`:`<span class="t">${esc(d.client.nom||"Sans nom")}</span>${d.devis_nom?`<span class="badge b-warn" style="margin-left:6px">${esc(d.devis_nom)}</span>`:""}`}<span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span>${S.selMode?"":`<button class="btn small danger" data-hdel="${d.id}" title="Supprimer ce métré" aria-label="Supprimer ce métré">🗑</button>`}</div>
       <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.length} ouverture(s)${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}${aPT(d)?` · ${d.pt.elements.length} portail / portillon`:""}${aVB(d)?` · ${d.vb.lignes.length} volet(s) battant(s)`:""}${aPP(d)?` · ${d.pp.lignes.length} porte(s) palière(s)`:""}${aClim(d)?` · clim ${d.clim.lignes.length} pièce(s)`:""}</div>
-      <div class="s">${esc(d.gamme_defaut||"")}</div>
       <div>${n?`<span class="badge b-err">${n} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} <span class="badge ${estDefinitif(d)?"b-err":"b-n"}">${estDefinitif(d)?"Métré définitif":"Devis"}</span> ${d.drive_attente?`<span class="badge b-n">☁ envoi en attente</span>`:d.drive?`<span class="badge b-ok">☁ dans le Drive</span>`:""} ${envoisClemence(d).length?`<span class="badge b-ok">📨 Clémence ${new Date(envoisClemence(d).slice(-1)[0].le).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</span>`:""}</div>
     </div>`; }
 async function renderHome(){
@@ -1190,7 +1189,6 @@ function renderDossier(){
     <span class="circuit-lbl">Ce métré est un :</span>
     <button class="${def?"":"on"}" data-circuit="devis" aria-pressed="${!def}">Devis<small>Clémence : DEVIS A FAIRE</small></button>
     <button class="${def?"on":""}" data-circuit="definitif" aria-pressed="${def}">Métré définitif<small>Clémence : METRES DEFINITIF</small></button>
-    <label class="f circuit-gamme">Gamme (nouvelles ouvertures)<select data-k="gamme_defaut">${opts(CAT.gammes,d.gamme_defaut)}</select></label>
     <div class="clem-bloc">${(()=>{ const E=envoisClemence(d), der=E[E.length-1]; return `<button class="btn ${E.length?"":"primary"} clem-btn" id="dClem">📨 ${E.length?"Renvoyer à Clémence (modif)":"Envoyer à Clémence"}</button>
       <small class="clem-etat">${der?`✓ Envoyé le ${new Date(der.le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} → ${esc(der.dossier)}${E.length>1?` (${E.length} envois)`:""}`:`→ ECHANGES › ${esc(cibleClemence(d).nom)}`}</small>`; })()}</div>
   </div>
@@ -2013,6 +2011,39 @@ const CLIM_NOMS_SCH = ["Schéma rez-de-chaussée","Schéma étage","Schéma éta
 const CLIM_SCH_DEF = {schema_etage:"Schéma étage", schema_bas:"Schéma bas"};
 const climSchemas = c => ["schema_etage","schema_bas",...(c.sch_extra||[])];
 const nomSchema = (c,k) => (c.sch_noms&&c.sch_noms[k]) || CLIM_SCH_DEF[k] || `Schéma ${climSchemas(c).indexOf(k)+1}`;
+/* ---------- Clim : séparer en plusieurs devis (un par gîte / par groupe extérieur, ou une sélection de pièces) ---------- */
+function decouperClim(c, ids){   // renvoie une copie de la clim avec seulement ces pièces, groupes renumérotés 1, 2…
+  const n=JSON.parse(JSON.stringify(c)); n.lignes=n.lignes.filter(l=>ids.includes(l.id));
+  const vieux=[...new Set(n.lignes.map(l=>parseInt(String(l.unite||"").replace(/\D/g,""))||1))].sort((a,b)=>a-b);
+  const ue={}; vieux.forEach((u,i)=>{ ue[i+1]=JSON.parse(JSON.stringify(c["ue"+u]||{h_sol:"",cable:""})); });
+  for(let k=1;k<=CLIM_MAX_UE;k++) delete n["ue"+k]; Object.assign(n, Object.fromEntries(Object.entries(ue).map(([k,v])=>["ue"+k,v])));
+  if(!n.ue1) n.ue1={h_sol:"",cable:""}; if(!n.ue2) n.ue2={h_sol:"",cable:""};
+  n.lignes.forEach(l=>{ const u=parseInt(String(l.unite||"").replace(/\D/g,""))||1; l.unite=`Unité ${vieux.indexOf(u)+1}`; });
+  n.nb_ue=Math.max(2,vieux.length); return n;
+}
+async function devisClimDepuis(d, nom, ids){
+  const c=copierClient(d, nouveauDossier()); c.devis_nom=nom; c.variante=d.variante||"V1"; c.clim=decouperClim(d.clim, ids);
+  if(d.drive&&d.drive.dossier) c.drive={dossier:d.drive.dossier}; await DB.put(c); return c;
+}
+function resteClim(d, idsPartis){ const garde=d.clim.lignes.filter(l=>!idsPartis.includes(l.id)).map(l=>l.id); const r=decouperClim(d.clim, garde); d.clim=r; }
+async function separerClimSelection(d){
+  const ids=[...(S.climSel||[])]; if(!ids.length){ toast("Coche d'abord les pièces à mettre dans l'autre devis"); return; }
+  const nom=await demanderTexte(`Nom du nouveau devis clim (${ids.length} pièce${ids.length>1?"s":""}) :`,"","Créer le devis"); if(!nom) return;
+  await devisClimDepuis(d, nom, ids); resteClim(d, ids); await DB.put(d); S.climSep=false; S.climSel=new Set(); renderDossier(); toast(`Devis clim « ${nom} » créé – pièces retirées de ce devis`);
+}
+async function climUnDevisParGroupe(d){
+  const c=d.clim, U={}; c.lignes.forEach(l=>{ const u=parseInt(String(l.unite||"").replace(/\D/g,""))||1; (U[u]=U[u]||[]).push(l); });
+  const K=Object.keys(U).map(Number).sort((a,b)=>a-b); if(K.length<2){ toast("Toutes les pièces sont sur le même groupe extérieur : rien à séparer"); return; }
+  const noms={};
+  for(const u of K){ const log=U[u].map(l=>repDecoupe(l.piece).log).find(Boolean);
+    const n=await demanderTexte(`Groupe extérieur ${u} (${U[u].length} pièce${U[u].length>1?"s":""} : ${U[u].map(l=>l.piece||"?").join(", ")})\nNom de son devis :`, log||`Gîte ${u}`, u===K[K.length-1]?"Séparer":"Suivant");
+    if(!n) return; noms[u]=n; }
+  d.devis_nom=noms[K[0]];
+  for(const u of K.slice(1)) await devisClimDepuis(d, noms[u], U[u].map(l=>l.id));
+  resteClim(d, K.slice(1).flatMap(u=>U[u].map(l=>l.id))); await DB.put(d); S.climSep=false; renderDossier();
+  toast(`${K.length} devis clim : ${K.map(u=>noms[u]).join(", ")}`);
+}
+
 const legendeClimHTML = () => `<div class="clim-leg">${CLIM_LEGENDE.map(x=>`<span><i style="background:${x.c}"></i>${esc(x.l)}</span>`).join("")}</div>`;
 const nouvelleClim = () => ({ mono:false, multi:false, modele:"", option:"", annee:"", temps_pose:"",
   ue1:{h_sol:"", cable:""}, ue2:{h_sol:"", cable:""}, dalle:false, supports:false, ral_ext:"", ral_int:"",
@@ -2054,7 +2085,7 @@ function renderClim(t){
   const dl=(id,L)=>`<datalist id="${id}">${L.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>`;
   const txt=(k,lab,v,list,extra="")=>`<label class="f">${lab}<input data-k="${k}" value="${esc(v)}" ${list?`list="${list}"`:""} ${extra}></label>`;
   const ligne=(l)=>{ const i=c.lignes.indexOf(l), p=puissanceClim(l), k=`clim.lignes.${i}.`;
-    return `<div class="card clim-l${l.variante?" clim-var":""}"><div class="row" style="margin-bottom:8px"><b>${l.variante?"Variante – ":""}${esc(l.piece||"Nouvelle pièce")}</b><span class="hint" id="climP${i}">${p!=null?`≈ ${String(p).replace(".",",")} kW (indicatif)`:""}</span><span class="spacer"></span>
+    return `<div class="card clim-l${l.variante?" clim-var":""}${S.climSep&&(S.climSel||new Set()).has(l.id)?" sel":""}"><div class="row" style="margin-bottom:8px">${S.climSep?`<input type="checkbox" class="hchk" data-clsel="${l.id}" ${(S.climSel||new Set()).has(l.id)?"checked":""} aria-label="Choisir cette pièce">`:""}<b>${l.variante?"Variante – ":""}${esc(l.piece||"Nouvelle pièce")}</b><span class="hint" id="climP${i}">${p!=null?`≈ ${String(p).replace(".",",")} kW (indicatif)`:""}</span><span class="spacer"></span>
       <button class="btn small" data-clvar="${i}">${l.variante?"Passer en principal":"Passer en variante"}</button><button class="btn small" data-cldup="${i}">Dupliquer</button><button class="btn small danger" data-cldel="${i}" aria-label="Supprimer la pièce">✕</button></div>
       <div class="grid g4">
         <label class="f">Pièce<div class="rep-in"><input data-k="${k}piece" value="${esc(l.piece)}" list="dlPiecesClim">${boutonRep(k+"piece")}</div></label>
@@ -2068,7 +2099,9 @@ function renderClim(t){
   const P=climLignes(d), V=climVariantes(d), tot=climUnites(c).map(u=>{ const L=P.filter(l=>l.unite===u); return L.length?`${u} : ${L.length} unité(s) int.${L.some(l=>puissanceClim(l)!=null)?` · ≈ ${String(Math.round(L.reduce((a,l)=>a+(puissanceClim(l)||0),0)*10)/10).replace(".",",")} kW`:""}`:""; }).filter(Boolean).join(" — ");
   t.innerHTML=`${dl("dlClimMod",CLIM_MODELES)}${dl("dlClimOpt",CLIM_OPTIONS)}${dl("dlClimTps",CLIM_TEMPS)}${dl("dlClimH",CLIM_HAUTEUR)}${dl("dlClimRal",CLIM_RAL)}<datalist id="dlPiecesClim">${listePiecesDL()}</datalist>
   <div class="row" style="gap:8px;margin-bottom:12px;flex-wrap:wrap"><span class="hint">Autre devis clim pour ${esc(d.client.nom||"ce client")} (nouvelle version V2, V3… envoyée à part dans le Drive) :</span><span class="spacer"></span>
-    <button class="btn small" data-clneuf="copie">⧉ Copier ce métré clim</button><button class="btn small" data-clneuf="vierge">+ Nouveau métré clim vierge</button></div>
+    <button class="btn small" data-clneuf="copie">⧉ Copier ce métré clim</button><button class="btn small" data-clneuf="vierge">+ Nouveau métré clim vierge</button>${c.lignes.length>1?`<button class="btn small" id="clSep">${S.climSep?"✕ Annuler la séparation":"✂ Séparer en plusieurs devis"}</button>`:""}</div>
+  ${S.climSep?`<div class="card" style="border:2px solid var(--red,#d3232f)"><b>Séparer la clim en plusieurs devis</b> – un devis par gîte (un groupe extérieur par gîte), ou coche les pièces à mettre dans un autre devis.
+    <div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap"><button class="btn primary" id="clSepGrp">Un devis par groupe extérieur (Unité 1, Unité 2…)</button><button class="btn" id="clSepGo">Mettre la sélection (${(S.climSel||new Set()).size}) dans un nouveau devis…</button></div></div>`:""}
   <div class="grid g2">
     <div class="card"><h2><span class="num">1</span>Installation</h2>
       <div class="checks">${F.chk("clim.mono","Mono split",c.mono)}${F.chk("clim.multi","Multi split",c.multi)}</div>
@@ -2121,6 +2154,10 @@ function renderClim(t){
   const ua=$("#clUEAdd"); if(ua) ua.onclick=()=>{ const y=scrollY; c.nb_ue=climNbUE(c)+1; climUE(c,c.nb_ue); save(); re(); scrollTo(0,y); };
   const ud=$("#clUEDel"); if(ud) ud.onclick=()=>{ const y=scrollY, n=climNbUE(c); if(c.lignes.some(l=>l.unite===`Unité ${n}`)){ toast(`Une pièce est encore sur l'unité ${n}`); re(); return; } delete c["ue"+n]; c.nb_ue=n-1; save(); re(); scrollTo(0,y); };
   $$("[data-clneuf]").forEach(b=>b.onclick=()=>nouveauMetreClimClient(b.dataset.clneuf==="copie"));
+  if($("#clSep")) $("#clSep").onclick=()=>{ S.climSep=!S.climSep; S.climSel=new Set(); re(); };
+  if($("#clSepGrp")) $("#clSepGrp").onclick=()=>climUnDevisParGroupe(d);
+  if($("#clSepGo")) $("#clSepGo").onclick=()=>separerClimSelection(d);
+  $$("[data-clsel]").forEach(x=>x.onchange=()=>{ S.climSel=S.climSel||new Set(); x.checked?S.climSel.add(x.dataset.clsel):S.climSel.delete(x.dataset.clsel); re(); });
   $("#clAddVar").onclick=()=>{ c.lignes.push(nouvelleLigneClim(true)); save(); re(); };
   $$("[data-cldel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer cette pièce ?","Supprimer")) return; c.lignes.splice(+b.dataset.cldel,1); save(); re(); });
   $$("[data-cldup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.cldup, n=JSON.parse(JSON.stringify(c.lignes[i])); n.id=uid(); c.lignes.splice(i+1,0,n); save(); re(); });
@@ -2846,7 +2883,7 @@ async function genererPDF(d){
 const estDefinitif = d => /D[ÉE]FINITIF/i.test(d.type_document||"");
 /* Nom du PDF, comme d'habitude : « NOM ME PVC », « NOM ME PVC ET ALU », + « V2 »… pour les variantes */
 function nomMetre(d){
-  const mat=[...new Set((d.ouvertures.length?[d.gamme_defaut,...d.ouvertures.map(o=>o.gamme)]:[]).filter(Boolean).map(g=>g.split(" - ")[0].trim().toUpperCase()))];
+  const mat=[...new Set((d.ouvertures.length?(d.ouvertures.some(o=>o.gamme)?d.ouvertures.map(o=>o.gamme):[d.gamme_defaut]):[]).filter(Boolean).map(g=>g.split(" - ")[0].trim().toUpperCase()))];
   const n=parseInt(String(d.variante||"").replace(/^V(\d+).*/,"$1"))||1;
   const nom=(d.client.nom||"SANS NOM").trim().toUpperCase().replace(/[\\/:*?"<>|]+/g," ");
   if(typeof aPT==="function" && aPT(d)) mat.push("PORTAIL");

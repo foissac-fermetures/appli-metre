@@ -115,7 +115,7 @@ input:focus,select:focus,textarea:focus{outline:3px solid #c9d6f3;border-color:v
 .sig-box{border:1px dashed #8a93a6;border-radius:10px;padding:8px 10px;background:#fff} .sig-cv{width:100%;height:150px;border:1px solid #c9d1e3;border-radius:8px;touch-action:none;background:#fff;display:block}
 #tlmPastille{position:fixed;right:12px;bottom:12px;z-index:60;max-width:330px;background:#fff;border:2px solid #1b2f5e;border-radius:14px;padding:10px 12px;box-shadow:0 6px 20px rgba(0,0,0,.18);display:flex;flex-direction:column;gap:6px;font-size:14px}
 #tlmPastille span{color:#3b4458;line-height:1.35} #btnMesure.on{background:#fff;color:#1b2f5e}
-input.tlm-cible{outline:3px solid #0a84ff!important;outline-offset:1px} input.tlm-ok{background:#d9f7e3!important;transition:background .2s}
+input.tlm-cible{outline:3px solid #0a84ff!important;outline-offset:1px} input.tlm-metre{outline:3px dashed #e07b00!important;outline-offset:1px} input.tlm-ok{background:#d9f7e3!important;transition:background .2s}
 .sk-ipad{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:6px 0 8px;padding:8px 10px;background:#f4f6fa;border-radius:12px}
 .sk-grp{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .sk-c{width:30px;height:30px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #c9d1e3;cursor:pointer;padding:0;position:relative}
@@ -666,7 +666,18 @@ document.addEventListener("keydown", e=>{ const el=e.target; if(e.key!=="Enter" 
    Protocole relevé sur le GLM 120 C : service 02a6c0d0-0451-4000-b000-fb3210111989, caractéristique 02a6c0d1-… (indications) ;
    trame de mesure « C0 55 10 06 … » avec la distance en float 32 bits little-endian, en mètres, à l'octet 7 ; commande laser / mesure « C0 56 01 00 1E ». */
 const GLM_SVC="02a6c0d0-0451-4000-b000-fb3210111989", GLM_CAR="02a6c0d1-0451-4000-b000-fb3210111989";
-const TLM={ mode: (()=>{ try{ return localStorage.getItem("mode_mesure")||"manuel"; }catch(e){ return "manuel"; } })(), dev:null, car:null, cible:null, derniere:null, etat:"" };
+const TLM={ mode: (()=>{ try{ return localStorage.getItem("mode_mesure")||"manuel"; }catch(e){ return "manuel"; } })(), dev:null, car:null, cible:null, derniere:null, etat:"",
+  voix: (()=>{ try{ return localStorage.getItem("tlm_voix")!=="0"; }catch(e){ return true; } })(),
+  nb: (()=>{ try{ return +localStorage.getItem("tlm_nb")||1; }catch(e){ return 1; } })(),   // mesures par cote (1, 2 ou 3) : on garde la plus petite
+  serie:[], serieEl:null, suite:false };
+/* Cotes qui se prennent AU MÈTRE (trop petites / pas de mur en face) : le télémètre les saute, on les tape au clavier */
+const MANUEL_SEUL = /dormant|épaisseur|epaisseur|feuillure –|aile|élargisseur|elargisseur|forcer|flèche|fleche|ø|diam|recouvrement/i;
+function libelleCase(el){ const l=el.closest("label"); let t=""; if(l){ t=[...l.childNodes].filter(n=>n.nodeType===3||(n.nodeType===1&&!/INPUT|SELECT|TEXTAREA|BUTTON/.test(n.tagName)&&!n.querySelector("input"))).map(n=>n.textContent).join(" "); }
+  return (t||el.placeholder||"").replace(/\s+/g," ").replace(/\(.*?\)/g,"").trim(); }
+const auMetre = el => !!el && (MANUEL_SEUL.test(libelleCase(el)+" "+(el.placeholder||"")) || /\.g\.[A-Rd]/.test(el.dataset.k||"") || /^vt\.lignes\.\d+\.epaisseur$/.test(el.dataset.k||"") || /fab_force|elarg/.test(el.dataset.k||""));
+const casesTelemetre = el => [...document.querySelectorAll(estCoteMM(el)?'#app input[data-k^="cotes."]':'#app input[inputmode="decimal"],#app input[inputmode="numeric"]')].filter(x=>x.offsetParent && !x.disabled && !auMetre(x));
+function parler(t){ if(!TLM.voix || !window.speechSynthesis) return; try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang="fr-FR"; u.rate=1.1; speechSynthesis.speak(u); }catch(e){} }
+const vibrer = ms => { try{ navigator.vibrate&&navigator.vibrate(ms); }catch(e){} };
 const webBT = () => !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
 function glmDistance(dv){   // DataView d'une indication → mètres (ou null)
   if(dv.byteLength>=11 && dv.getUint8(0)===0xC0 && dv.getUint8(1)===0x55 && dv.getUint8(3)===0x06){ const m=dv.getFloat32(7,true); if(m>0.02 && m<200) return m; }
@@ -678,12 +689,20 @@ function majPastilleTLM(){
   z.innerHTML = !webBT()
     ? `<b>📏 Télémètre</b><span>Cet appareil (Safari sur iPad) ne peut pas se relier directement au Bluetooth.<br>• Avec <b>SerialMagic Keys</b> : touche la case, mesure, la valeur s'écrit toute seule.<br>• Ou ouvre l'appli dans le navigateur <b>Bluefy</b>.</span><button class="btn small" id="tlmManuel">Revenir au manuel</button>`
     : TLM.car
-      ? `<b>📏 ${esc(TLM.dev?.name||"GLM")}</b><span>${TLM.derniere!=null?`Dernière mesure : <b>${Math.round(TLM.derniere*1000)} mm</b>`:"Touche une case de cote, puis mesure."}${TLM.etat?"<br>"+esc(TLM.etat):""}</span><div class="row" style="gap:6px"><button class="btn small primary" id="tlmMesurer">Mesurer</button><button class="btn small" id="tlmDeco">Déconnecter</button></div>`
+      ? `<b>📏 ${esc(TLM.dev?.name||"GLM")}</b><span>${TLM.serie.length?`Mesure ${TLM.serie.length+1} sur ${TLM.nb} : <b>${TLM.serie.map(x=>Math.round(x*1000)).join(" · ")}</b>`:TLM.derniere!=null?`Dernière mesure : <b>${Math.round(TLM.derniere*1000)} mm</b>`:"Touche une case de cote, puis mesure."}${TLM.etat?"<br>"+esc(TLM.etat):""}</span>
+        ${TLM.suite?`<button class="btn primary" id="tlmSuite">➡ Fenêtre suivante (ou bouton du GLM)</button>`:""}
+        <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn small primary" id="tlmMesurer">Mesurer</button><button class="btn small" id="tlmVoix">${TLM.voix?"🔊 Voix":"🔇 Muet"}</button>
+          <button class="btn small" id="tlmNb" title="Nombre de mesures par cote (on garde la plus petite)">${TLM.nb}× par cote</button><button class="btn small" id="tlmDeco">Déconnecter</button></div>`
       : `<b>📏 Télémètre</b><span>${TLM.etat?esc(TLM.etat):"Allume le GLM 120 C et son Bluetooth, puis :"}</span><button class="btn small primary" id="tlmCo">Connecter le télémètre</button>`;
   $("#tlmCo")?.addEventListener("click", connecterGLM); $("#tlmDeco")?.addEventListener("click", ()=>{ try{ TLM.dev?.gatt?.disconnect(); }catch(e){} });
   $("#tlmMesurer")?.addEventListener("click", ()=>commandeGLM([0xC0,0x56,0x01,0x00,0x1E]));
   $("#tlmManuel")?.addEventListener("click", ()=>changerModeMesure("manuel"));
+  $("#tlmVoix")?.addEventListener("click", ()=>{ TLM.voix=!TLM.voix; try{ localStorage.setItem("tlm_voix",TLM.voix?"1":"0"); }catch(e){} majPastilleTLM(); parler("Voix activée"); });
+  $("#tlmNb")?.addEventListener("click", ()=>{ TLM.nb=TLM.nb>=3?1:TLM.nb+1; TLM.serie=[]; try{ localStorage.setItem("tlm_nb",TLM.nb); }catch(e){} majPastilleTLM();
+    toast(TLM.nb===1?"Une mesure par cote":`${TLM.nb} mesures par cote (ex. haut, milieu, bas) : l'appli garde la plus petite et alerte si l'écart dépasse 10 mm`); });
+  $("#tlmSuite")?.addEventListener("click", fenetreSuivanteTLM);
 }
+document.addEventListener("pointerdown", e=>{ if(TLM.suite && !e.target.closest("#tlmPastille")){ TLM.suite=false; setTimeout(majPastilleTLM,0); } }, true);
 function changerModeMesure(m){ TLM.mode=m; try{ localStorage.setItem("mode_mesure",m); }catch(e){} majPastilleTLM();
   toast(m==="telemetre"?"Mode télémètre : touche une case de cote puis mesure avec le GLM":"Mode manuel : saisie au clavier"); }
 async function commandeGLM(octets){ try{ if(TLM.car) await TLM.car.writeValue(new Uint8Array(octets)); }catch(e){ TLM.etat="Commande refusée : appuie sur le bouton du télémètre"; majPastilleTLM(); } }
@@ -699,14 +718,31 @@ async function connecterGLM(){
   }catch(e){ TLM.etat=/cancel|chosen/i.test(e.message)?"Aucun télémètre choisi":"Connexion impossible : "+e.message; majPastilleTLM(); }
 }
 const estCaseCote = el => el && el.matches && el.matches('#app input[inputmode="decimal"],#app input[inputmode="numeric"]') && !el.disabled;
-document.addEventListener("focusin", e=>{ if(estCaseCote(e.target)){ TLM.cible=e.target; if(TLM.mode==="telemetre") $$(".tlm-cible").forEach(x=>x.classList.remove("tlm-cible")), e.target.classList.add("tlm-cible"); } });
+document.addEventListener("focusin", e=>{ if(estCaseCote(e.target)){ if(TLM.serieEl!==e.target) TLM.serie=[]; TLM.cible=e.target; if(TLM.mode==="telemetre"){ $$(".tlm-cible").forEach(x=>x.classList.remove("tlm-cible")); e.target.classList.add(auMetre(e.target)?"tlm-metre":"tlm-cible"); if(auMetre(e.target)) toast("Cette cote se prend au mètre : tape-la au clavier"); } } });
+/* Fin des cotes d'une ouverture : le bouton du GLM (ou la pastille) crée la suivante, comme celle-ci */
+function fenetreSuivanteTLM(){ TLM.suite=false; if(S.view!=="ouverture"||!S.ouv||!S.dossier){ majPastilleTLM(); return; }
+  commePrecedente(S.dossier, S.ouv); setTimeout(()=>{ const L=casesTelemetre(document.querySelector('#app input[data-k^="cotes."]')||document.body); const f=L.find(x=>/^cotes\./.test(x.dataset.k||""))||L[0];
+    if(f){ TLM.cible=f; f.focus(); f.scrollIntoView({block:"center"}); parler("Nouvelle fenêtre. "+(libelleCase(f)||"Première cote")); } majPastilleTLM(); },350); }
 function recevoirMesure(m){
-  TLM.derniere=m; const mm=String(Math.round(m*1000)); let el=TLM.cible;
-  if(!el || !document.contains(el)){ majPastilleTLM(); toast(`Mesure ${mm} mm : touche d'abord la case à remplir`); return; }
+  TLM.derniere=m; vibrer(60); let alerte="";
+  if(TLM.suite){ fenetreSuivanteTLM(); return; }                 // appui sur le GLM après la dernière cote → fenêtre suivante
+  let el=TLM.cible;
+  if(!el || !document.contains(el)){ majPastilleTLM(); toast(`Mesure ${Math.round(m*1000)} mm : touche d'abord la case à remplir`); parler("Touche d'abord une case"); return; }
+  if(auMetre(el)){ const L=casesTelemetre(el).filter(x=>x.compareDocumentPosition(el)&Node.DOCUMENT_POSITION_PRECEDING); if(L[0]){ el=L[0]; TLM.cible=el; el.focus(); } else { parler("Cette cote se prend au mètre"); toast("Cette cote se prend au mètre"); majPastilleTLM(); return; } }
+  // plusieurs mesures par cote : on garde la plus petite
+  if(TLM.nb>1){ if(TLM.serieEl!==el){ TLM.serie=[]; TLM.serieEl=el; } TLM.serie.push(m);
+    if(TLM.serie.length<TLM.nb){ parler(`${Math.round(m*1000)}. ${["","Deuxième","Troisième"][TLM.serie.length]} mesure`); majPastilleTLM(); return; }
+    const mm=TLM.serie.map(x=>Math.round(x*1000)), ec=Math.max(...mm)-Math.min(...mm); m=Math.min(...TLM.serie)/1; TLM.serie=[];
+    if(ec>10){ const lib=libelleCase(el)||"cote"; toast(`⚠ Écart de ${ec} mm sur « ${lib} » (${mm.join(" / ")}) : pas d'équerre ou faux-aplomb – noté pour les poseurs`); alerte=`Attention, écart de ${ec} millimètres. `; vibrer([80,60,80]);
+      if(S.view==="ouverture" && S.ouv){ const n=`Écart ${ec} mm sur ${lib} ${/^cotes\.L/.test(el.dataset.k||"")?"largeur":/^cotes\.H/.test(el.dataset.k||"")?"hauteur":""} (${mm.join(" / ")}) : pas d'équerre / faux-aplomb`.replace(/\s+/g," "); S.ouv.obs_pose=[S.ouv.obs_pose,n].filter(Boolean).join("\n"); const ta=$('[data-k="obs_pose"]'); if(ta) ta.value=S.ouv.obs_pose; save(); } } }
+  const mm=String(Math.round(m*1000));
   el.value=mm; el.dispatchEvent(new Event("input",{bubbles:true})); el.dispatchEvent(new Event("change",{bubbles:true}));
   el.classList.add("tlm-ok"); setTimeout(()=>el.classList.remove("tlm-ok"),900);
-  const L=[...document.querySelectorAll(estCoteMM(el)?'#app input[data-k^="cotes."]':'#app input[inputmode="decimal"],#app input[inputmode="numeric"]')].filter(x=>x.offsetParent && !x.disabled), i=L.indexOf(el);
-  if(i>=0 && L[i+1]){ TLM.cible=L[i+1]; L[i+1].focus({preventScroll:false}); L[i+1].scrollIntoView({block:"center",behavior:"smooth"}); }
+  const L=casesTelemetre(el), i=L.indexOf(el), suiv=L.slice(i+1).find(x=>!x.value) || null;
+  if(suiv){ TLM.cible=suiv; suiv.focus({preventScroll:false}); suiv.scrollIntoView({block:"center",behavior:"smooth"}); parler(`${alerte}${mm}. ${libelleCase(suiv)||"Cote suivante"}`); }
+  else if(S.view==="ouverture" && /^cotes\./.test(el.dataset.k||"")){ TLM.suite=true; const manq=[...document.querySelectorAll('#app input[data-k^="cotes."]')].filter(x=>x.offsetParent&&!x.disabled&&auMetre(x)&&!x.value);
+    parler(`${alerte}${mm}. Dernière cote${manq.length?". Pense à "+manq.map(libelleCase).join(" et ")+" au mètre":""}. Appuie sur le télémètre pour la fenêtre suivante.`); el.blur(); }
+  else { parler(alerte+mm); }
   majPastilleTLM();
 }
 setTimeout(()=>{ const b=$("#btnMesure"); if(b) b.onclick=()=>changerModeMesure(TLM.mode==="telemetre"?"manuel":"telemetre"); majPastilleTLM(); },0);

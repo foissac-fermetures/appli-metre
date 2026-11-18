@@ -1375,6 +1375,7 @@ async function renderHome(){
     <button class="btn" id="hOpen">Ouvrir un fichier…</button>
     <button class="btn" id="hCRM">Depuis le CRM</button>
     <button class="btn" id="hTablette" title="Relier cet iPad au PC pour y dessiner">📲 Tablette de dessin</button>
+    <button class="btn" id="hDAO" title="Ouvrir la Mini DAO (dessin 2D, comme AutoCAD)">📐 Mini DAO</button>
     <button class="btn primary" id="hNew" style="font-size:17px;padding:12px 20px">+ Nouveau rendez-vous</button></div>
   <p class="hint">Chaque métré s'enregistre tout seul quand tu reviens à cette liste, dans <b>Mon Drive › Appli métré – Dossiers › Devis</b> (ou <b>› Métrés définitif</b> pour un métré définitif). Pour l'envoyer à Clémence : bouton <b>📨 Envoyer à Clémence</b> en haut du métré. Plusieurs devis pour un même client (gîtes, maison…) : « + Autre devis pour ce client » dans la fiche client, ou « ✂ Séparer en plusieurs devis » dans les ouvertures. Les métrés faits sur tes autres appareils apparaissent ici tout seuls (ou avec « ☁ Actualiser »).</p>
   <div class="card" id="hAgenda" style="margin-bottom:16px"><p class="hint">Chargement des rendez-vous…</p></div>
@@ -1388,7 +1389,7 @@ async function renderHome(){
         <div class="s">${G.L.map(d=>esc(d.devis_nom||d.variante)).join(" · ")}</div>
         <div>${nE?`<span class="badge b-err">${nE} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} ${nC?`<span class="badge b-ok">📨 ${nC}/${G.L.length} envoyé(s) à Clémence</span>`:""} ${nA?`<span class="badge b-n">☁ ${nA} pas encore dans le Drive</span>`:""}</div></div>
         ${ouvert?`<div class="dos-sous">${G.L.map(d=>carteMetre(d,true)).join("")}</div>`:""}`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau rendez-vous ».</div>`}</div>`;
-  $("#hNew").onclick=()=>nouveauRendezVous(); $("#hTablette").onclick=tabletteRejoindre;
+  $("#hNew").onclick=()=>nouveauRendezVous(); $("#hTablette").onclick=tabletteRejoindre; $("#hDAO").onclick=()=>{ location.href="dao/?retour=accueil"; };   // Mini DAO (voir CLAUDE.md du dépôt)
   $("#hOpen").onclick=()=>$("#fileOpen").click();
   $("#hSync").onclick=async()=>{ const b=$("#hSync"); b.disabled=true; b.textContent="☁ Actualisation…"; await synchroAccueil(true); const b2=$("#hSync"); if(b2){ b2.disabled=false; b2.textContent="☁ Actualiser"; } };
   { const z=document.createElement("div"); z.id="hSyncLe"; z.className="hint"; z.style.textAlign="right"; z.textContent=texteSyncLe(); $("#app .row").after(z); }
@@ -1462,7 +1463,7 @@ function renderDossier(){
       <small class="clem-etat">${der?`✓ Envoyé le ${new Date(der.le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} → ${esc(der.dossier)}${E.length>1?` (${E.length} envois)`:""}`:`→ ECHANGES › ${esc(cibleClemence(d).nom)}`}</small>`; })()}</div>
   </div>
   <div class="row" style="margin-bottom:12px">
-    <div class="tabs" style="margin:0">${T.filter(([k])=>ongletsVisibles(d).includes(k)).map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?"on":""}">${l}</button>`).join("")}<button id="tabAdd" class="tab-add" title="Ajouter un portail, des volets, une clim…">+ Ajouter…</button></div>
+    <div class="tabs" style="margin:0">${T.filter(([k])=>ongletsVisibles(d).includes(k)).map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?"on":""}">${l}</button>`).join("")}<button id="tabAdd" class="tab-add" title="Ajouter un portail, des volets, une clim…">+ Ajouter…</button><button id="tabDAO" class="tab-add" title="Dessiner le plan de ce client dans la Mini DAO (le PDF « Plan … » sera joint à ce métré)">📐 Dessiner le plan</button></div>
     <span class="spacer"></span>
     ${aSAV(d)?"":`<button class="btn small" id="dVar">Variante PVC / Alu / Bois</button>`}
     <button class="btn small" id="dPrint">Imprimer / PDF</button>
@@ -1471,6 +1472,7 @@ function renderDossier(){
   <div id="tab"></div>`;
   $$("[data-tab]").forEach(b=>b.onclick=()=>{ S.tab=b.dataset.tab; renderDossier(); });
   $("#tabAdd").onclick=()=>ajouterAuMetre(d);
+  $("#tabDAO").onclick=async()=>{ clearTimeout(S.saveT); await DB.put(d); location.href="dao/?client="+encodeURIComponent((d.client&&d.client.nom||"").trim())+"&retour="+encodeURIComponent(d.id); };   // Mini DAO (voir CLAUDE.md du dépôt)
   $$("[data-circuit]").forEach(b=>b.onclick=()=>choisirCircuit(b.dataset.circuit));
   $("#dClem").onclick=envoyerClemence; $("#dPrint").onclick=imprimer; $("#dSave").onclick=enregistrerDrive; if($("#dVar")) $("#dVar").onclick=ouvrirVariante;
   const t=$("#tab"), FIC=CAT.fic;
@@ -4866,7 +4868,11 @@ async function tabletteRejoindre(){
 /* ---------- Démarrage ---------- */
 $("#logo").src=LOGO;
 $("#btnBack").onclick=()=>{ if(S.view==="ouverture"){ S.tab="ouvertures"; renderDossier(); } else { const d=S.dossier; clearTimeout(S.saveT); if(d){ DB.put(d); enregistrerAuto(d).then(()=>{ if(S.view==="home") renderHome(); }); } S.chronoVu=null; renderHome(); } scrollTo(0,0); };
-DB.open().then(async()=>{ await normaliserTout(); renderHome(); });
+DB.open().then(async()=>{ await normaliserTout();
+  /* Retour de la Mini DAO (« ↩ Retour ») : ?ouvrir=<id du métré> rouvre ce métré – voir CLAUDE.md du dépôt */
+  let ouvrir=null; try{ ouvrir=new URLSearchParams(location.search).get("ouvrir"); if(ouvrir) history.replaceState(null,"",location.pathname); }catch(e){}
+  const d=ouvrir ? (await DB.all()).find(x=>x.id===ouvrir) : null;
+  if(d){ S.dossier=d; S.tab="client"; renderDossier(); } else renderHome(); });
 /* Mises à jour de l'appli : les anciens métrés sont convertis une fois sur l'appareil SANS être comptés comme « modifiés »
    (sinon un autre appareil verrait sa version écrasée par cette conversion) */
 async function normaliserTout(){ try{ for(const d of await DB.all()){ const avant=empreinte(d), synchro=d.drive&&d.drive.sig===avant; normaliser(d); const apres=empreinte(d);

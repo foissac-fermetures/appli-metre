@@ -4544,7 +4544,7 @@ function fermerDevis(msg){ $("#mDevis").classList.remove("open"); syncVR(S.dossi
    - un métré modifié sur un autre appareil (fichier du Drive plus récent que le dernier envoi de cet appareil) est mis à jour ;
    - si l'appareil a lui-même des modifications pas encore envoyées, on GARDE la version de l'appareil et on prévient (rien n'est écrasé) ;
    - un métré supprimé avec la poubelle sur cet appareil ne revient pas. */
-const SYNC_VUS="sync_vus", SYNC_SUPPR="metres_supprimes", SYNC_LE="sync_le";
+const SYNC_VUS="sync_vus", SYNC_SUPPR="metres_supprimes", SYNC_LE="sync_le", SYNC_IGN="sync_ignores";
 const lireLS=(k,def)=>{ try{ return JSON.parse(localStorage.getItem(k)||"null")??def; }catch(e){ return def; } };
 const ecrireLS=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
 function oublierMetresSupprimes(ids){ const s=new Set(lireLS(SYNC_SUPPR,[])); ids.forEach(i=>s.add(i)); ecrireLS(SYNC_SUPPR,[...s]); }
@@ -4556,16 +4556,19 @@ async function synchroniserMetres(manuel=false){
   try{
     if(manuel) await demanderJeton();
     const vus=lireLS(SYNC_VUS,{}), suppr=new Set(lireLS(SYNC_SUPPR,[])), locaux=new Map((await DB.all()).map(x=>[x.id,x]));
+    const ign=lireLS(SYNC_IGN,{}), bases=new Set([...locaux.values()].map(x=>x.drive&&x.drive.base).filter(Boolean));
     let files=[], page="";
     do{ const q="mimeType='application/json' and trashed=false and 'me' in owners";
       const r=await gdrive("https://www.googleapis.com/drive/v3/files?pageSize=200&orderBy=modifiedTime desc&fields=nextPageToken,files(id,name,modifiedTime,parents)&q="+encodeURIComponent(q)+(page?"&pageToken="+page:""));
       files.push(...r.files); page=r.nextPageToken||""; } while(page && files.length<1000);
     for(const f of files){
-      if(vus[f.id]===f.modifiedTime) continue;
+      if(vus[f.id]===f.modifiedTime && !(manuel && suppr.size && !ign[f.id] && !bases.has(f.name.replace(/\.json$/i,"")))) continue;   // actualisation à la main : on reclasse une fois les fichiers inconnus (métrés supprimés ici avant le 18/11)
       let R; try{ const rr=await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&supportsAllDrives=true`,{headers:{Authorization:"Bearer "+G_JETON}}); if(!rr.ok){ if(rr.status===401) throw new Error("connexion Google expirée"); res.echecs=(res.echecs||0)+1; continue; } R=await rr.json(); }
         catch(e){ if(/expirée/.test(e.message)) throw e; res.echecs=(res.echecs||0)+1; continue; }   // réseau coupé (tablette) : on réessaiera la prochaine fois
       vus[f.id]=f.modifiedTime;
-      if(!R || R.app!=="appli-metre" || !R.id || suppr.has(R.id)) continue;
+      if(!R || R.app!=="appli-metre" || !R.id){ ign[f.id]={non:true}; continue; }
+      if(suppr.has(R.id)){ ign[f.id]={id:R.id, nom:[R.client?.nom||"Sans nom", R.devis_nom].filter(Boolean).join(" – "), le:f.modifiedTime}; continue; }   // supprimé sur cet appareil : on le note pour pouvoir le récupérer
+      delete ign[f.id];
       const L=locaux.get(R.id), tF=new Date(f.modifiedTime).getTime();
       if(L){
         if(L.drive && L.drive.le && new Date(L.drive.le).getTime() >= tF-5000) continue;     // c'est notre propre envoi (ou plus ancien)
@@ -4579,7 +4582,8 @@ async function synchroniserMetres(manuel=false){
       R.modifie=f.modifiedTime; await DB.put(R,true); L?res.maj++:res.ajoutes++;
       if(S.dossier && S.dossier.id===R.id && S.view!=="home") S.dossier=R;
     }
-    ecrireLS(SYNC_VUS,vus); ecrireLS(SYNC_LE,new Date().toISOString());
+    ecrireLS(SYNC_VUS,vus); ecrireLS(SYNC_IGN,ign); ecrireLS(SYNC_LE,new Date().toISOString());
+    res.ignores=Object.entries(ign).filter(([,x])=>x.id&&suppr.has(x.id));
     return res;
   } finally { SYNC_EN_COURS=false; }
 }
@@ -4590,8 +4594,18 @@ async function synchroAccueil(manuel){
     else if(t || manuel) toast(t||"Tout est à jour");
     if((r.ajoutes||r.maj) && S.view==="home") renderHome(); else { const z=document.getElementById("hSyncLe"); if(z) z.textContent=texteSyncLe(); }
     envoyerEnAttente();   // et dans l'autre sens : ce qui est sur cet appareil part dans le Drive
+    if(manuel && r.ignores && r.ignores.length) await proposerRecuperation(r.ignores);
   }catch(e){ if(manuel) toast("Drive : "+e.message); }
 }
+/* Métrés présents dans le Drive mais supprimés (poubelle) sur CET appareil : on les signale à l'actualisation et on propose de les remettre (18/11/2026) */
+async function proposerRecuperation(L){
+  const noms=L.map(([,x])=>x.nom); 
+  if(!await demander(`${L.length>1?L.length+" métrés du Drive ne s'affichent pas":"Un métré du Drive ne s'affiche pas"} sur cet appareil parce ${L.length>1?"qu'ils y ont été supprimés":"qu'il y a été supprimé"} :\n${noms.join(", ")}\n\n${L.length>1?"Les":"Le"} remettre sur cet appareil ?`, L.length>1?"Les remettre":"Le remettre", "Non")) return;
+  const ids=new Set(L.map(([,x])=>x.id)), vus=lireLS(SYNC_VUS,{}), ign=lireLS(SYNC_IGN,{});
+  ecrireLS(SYNC_SUPPR, lireLS(SYNC_SUPPR,[]).filter(i=>!ids.has(i)));
+  L.forEach(([fid])=>{ delete vus[fid]; delete ign[fid]; }); ecrireLS(SYNC_VUS,vus); ecrireLS(SYNC_IGN,ign);
+  const r=await synchroniserMetres(false) || await synchroniserMetres(true);
+  toast(r&&r.ajoutes?`${r.ajoutes} métré(s) remis : ${noms.join(", ")}`:"Remis : appuie encore sur « ☁ Actualiser » si besoin"); if(S.view==="home") renderHome(); }
 function texteSyncLe(){ const t=lireLS(SYNC_LE,null); if(!t) return "Pas encore actualisé sur cet appareil"; const d=new Date(t);
   return `Actualisé ${d.toDateString()===new Date().toDateString()?"aujourd'hui":"le "+d.toLocaleDateString("fr-FR")} à ${d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}`; }
 

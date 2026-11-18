@@ -1120,6 +1120,8 @@ function couleurVRDepuis(o){ const c=o.couleur_ext||o.couleur_int||""; if(!c) re
   const ral=(c.match(/\b(\d{4})\b/)||[])[1]; let m=ral&&items.find(x=>String(x).includes(ral)); if(m) return m;
   m=items.find(x=>n(x)===n(c)) || items.find(x=>n(c).includes(n(x))||n(x).includes(n(c))) || (/blanc/i.test(c)&&"Blanc") || (/ch[eê]ne/i.test(c)&&items.find(x=>/ch[eê]ne/i.test(x)));
   return m||c; }
+/* Volets posés sur la menuiserie (monobloc…) : tout est sur la fiche de l'ouverture → pas d'onglet ni de page « Volets roulants » pour eux (18/11/2026) */
+const vrSeparees = v => ({...v, lignes:((v&&v.lignes)||[]).filter(l=>!vrUsine(l))});
 const VR_COUL = [["couleur_tablier","Couleur tablier"],["couleur_coulisses","Couleur coulisses"],["couleur_coffre","Couleur coffre"]];
 function fabVR(l, v){
   const auto = VR_SOUS_LINTEAU.includes(v.type_pose), tL=num(l.tab_l), tH=num(l.tab_h);
@@ -1583,7 +1585,7 @@ function renderDossier(){
       +(aSAV(d)?bloc("Fiche SAV",controleSAV(d)):"")
       +(aVT(d)?bloc("Remplacement de vitrage",controleVT(d)):"")
       +(aClim(d)?bloc("Climatisation",controleClim(d)):"")
-      +(d.vr.lignes.length?bloc("Volets roulants – en-tête",controleVREntete(d.vr))+d.vr.lignes.map((l,i)=>bloc(`VR ${i+1}. ${l.repere||"Sans repère"}`,controleLigneVR(l,d.vr))).join(""):"");
+      +(d.vr.lignes.length?(vrSeparees(d.vr).lignes.length?bloc("Volets roulants – en-tête",controleVREntete(vrSeparees(d.vr))):"")+d.vr.lignes.map((l,i)=>bloc(`VR ${i+1}. ${l.repere||"Sans repère"}${vrUsine(l)?" (sur la menuiserie)":""}`,controleLigneVR(l,d.vr))).join(""):"");
   }
   if(S.tab!=="ouvertures") majTitre();
 }
@@ -2548,7 +2550,7 @@ function ongletsVisibles(d){
   const t=new Set(d.types||[]), v=["client"];
   const rien=!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aPT(d) && !aVB(d) && !aPP(d) && !aVT(d) && !aClim(d) && !t.size;
   if(rien || t.has("menuiseries") || d.ouvertures.length) v.push("ouvertures");
-  if(t.has("vr") || (d.vr&&d.vr.lignes.length) || d.ouvertures.length) v.push("vr");
+  if(vrSeparees(d.vr).lignes.length || (t.has("vr") && !(d.vr&&d.vr.lignes.length))) v.push("vr");   // seulement s'il y a des volets à part (pas les monoblocs posés sur la menuiserie)
   if(t.has("pt") || aPT(d)) v.push("pt"); if(t.has("vb") || aVB(d)) v.push("vb"); if(t.has("pp") || aPP(d)) v.push("pp"); if(t.has("vt") || aVT(d)) v.push("vt");
   if(aClim(d)) v.push("clim");
   v.push("controle"); return v;
@@ -3647,14 +3649,15 @@ function construireImpression(d){
         ["Vantaux G·M·D",[o.vantaux.G,o.vantaux.M,o.vantaux.D].some(Boolean)?[o.vantaux.G,o.vantaux.M,o.vantaux.D].map(x=>x||"–").join(" · "):""],["Vitrage",[o.vitrage,o.teinte,o.clair_voulu&&"clair à la demande du client",o.intercalaire&&"intercalaire "+o.intercalaire].filter(Boolean).join(" – ")],["Petits bois",[...(o.petits_bois||[]),o.pb_motif?(o.pb_motif==="perso"?`${o.pb_c||"?"} × ${o.pb_r||"?"} carreaux`:PB_MOTIFS.find(m=>m.id===o.pb_motif)?.nom):""].filter(Boolean).join(" – ")],
         ["Appui bas",o.appui_bas===DORMANT_PERI?"Dormant en périphérique (sans appui)":o.appui_bas],["Seuil",[o.seuil_std&&"Alu standard",o.seuil_plat&&"Alu PLAT",seuilEncastre(o)&&"ENCASTRÉ 4 cm (+40 mm compris dans la hauteur de fabrication)"].filter(Boolean)],["Serrure à pêne",o.serrure],["Cylindre",o.cylindre],["Clé",texteCle(d,o)],["Fermeture semi-fixe",o.semi_fixe],["Soubassement",[o.sb&&o.sb+" mm",o.sb_type].filter(Boolean).join(" – ")],["Poignée",[o.poignee,o.poignee_modele].filter(Boolean).join(" – ")],["Fermeture",o.fermeture],["Oscillo-battant",o.ob_type],["Ferrage",o.ferrage],["Seuil fournisseur",o.seuil_type],["Modèle de porte",[o.modele_porte,o.sens_porte].filter(Boolean).join(" – ")],["GV",o.gv],["Allège",o.allege],["Imposte",[o.imposte,o.imposte_type].filter(Boolean).join(" – ")],["Accessoires",o.accessoires],["Garde-corps",texteGC(o)],["Accès public (ERP)",texteERP(o)],["Compensateur",texteComp(o)],["Appui",o.gc&&num(o.gc.appui_h)!=null?`${o.gc.appui_h} mm du sol${o.gc.etage?" · étage":""}${o.gc.zsp&&o.gc.zsp_h?` · radiateur/marche ${o.gc.zsp_h} mm`:""}`:""]])}</table></div><div>
       <table class="pt">${row([
-        ["Volet roulant",(()=>{const l=vrLie(d,o); return l?`Oui${l.avec_menuiserie?` – ${l.avec_menuiserie}, vendu avec la menuiserie${l.manoeuvre_menuis?" ("+l.manoeuvre_menuis+")":""}`:""}`:"";})()],
+        ["Volet roulant",(()=>{const l=vrLie(d,o); if(!l) return ""; const det=vrUsine(l)?[VR_COUL.filter(([c])=>l[c]).map(([c,lab])=>lab.replace("Couleur ","")+" "+l[c]).join(" · "), l.fil_coffre&&("sortie de fil "+l.fil_coffre.toLowerCase()), l.option].filter(Boolean).join(" – "):"";
+          return `Oui${l.avec_menuiserie?` – ${l.avec_menuiserie}, vendu avec la menuiserie${l.manoeuvre_menuis?" ("+l.manoeuvre_menuis+")":""}`:""}${det?" – "+det:""}`;})()],
         ["Finitions int.",texteFinitions(o,"int").join(" + ")],["Finitions ext.",texteFinitions(o,"ext").join(" + ")],["Chantier",o.observations],["Support",o.support],["Note devis",o.obs_libre],["Note poseurs",o.obs_pose]])}</table>
       <div class="pst" style="margin-top:6px">DESSIN <small>– vue de l'intérieur</small></div>${dessinMenuiserie(o,{cls:"pdessin"+(o.croquis?" pdpetit":"")})}
       ${o.croquis?`<div class="pst" style="margin-top:6px">CROQUIS</div><img class="pimg pcroq" src="${o.croquis}">`:""}
       </div><div class="pbas">
       ${c.E.length||c.W.length?`<div class="pwarn">À vérifier : ${esc([...c.E,...c.W].join(" · "))}</div>`:""}
 </div></div></div>`+pagesPhotos(d,o,head); });
-  const v=d.vr;
+  const v=vrSeparees(d.vr);   // les monoblocs posés sur la menuiserie sont sur la fiche de l'ouverture
   if(v && v.lignes.length){
     const tp=CAT.vr.types_pose.find(p=>p.id===v.type_pose), ck=b=>b?"✔":"", ch=controleVREntete(v);
     const errs=[...ch.E,...ch.W.map(x=>x)].map(x=>"En-tête : "+x).concat(v.lignes.flatMap((l,i)=>{const c=controleLigneVR(l,v); return [...c.E,...c.W].map(x=>`${i+1}. ${l.repere||"?"} : ${x}`);}));

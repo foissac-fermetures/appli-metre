@@ -870,6 +870,7 @@ function calcFab(o){
     const forced = num(o.fab_force[k]);
     if (forced!=null){ out[k]=forced; src="saisie manuelle"; }
     else if (ref!=null){ out[k]=ref-ded; out.auto[k]=true; src= ded ? `${src} − ${ded}` : `= ${src}`; }
+    if(typeof formeDe==="function" && formeDe(o)){ const fc=formeFab(o); out[k]=fc[k]; out.auto[k]=fc[k]!=null; out.src[k]="dessin de la forme"; continue; }   // fixe de forme : fabrication = cotes du dessin
     /* seuil encastré (coulissant / galandage) : + 40 mm sur la hauteur de fabrication (règle de Nicolas, 16/11/2026) */
     if (k==="H" && out.auto.H && seuilEncastre(o)){ out[k]+=SEUIL_ENC; src+=` + ${SEUIL_ENC} (seuil encastré)`; }
     out.src[k]=src;
@@ -1146,11 +1147,11 @@ function controleLigneVR(l, v){
   if(l.fil_droite&&l.fil_gauche) E.push("Sortie de fil cochée à droite ET à gauche ?");
   if(vrMotorise(l,v)&&!l.fil_droite&&!l.fil_gauche) W.push("Côté de sortie de fil non coché");
   if(l.percage_tableau&&l.percage_face) E.push("Perçage coulisse : tableau ET de face ?");
-  if(!l.percage_tableau&&!l.percage_face) W.push("Perçage coulisse non coché");
-  if(vrMotorise(l,v)&&!vrSolaire(l,v)&&!l.electricite) W.push("Électricité non renseignée (VR motorisé)");
+  if(!vrUsine(l)&&!l.percage_tableau&&!l.percage_face) W.push("Perçage coulisse non coché");
+  if(!vrUsine(l)&&vrMotorise(l,v)&&!vrSolaire(l,v)&&!l.electricite) W.push("Électricité non renseignée (VR motorisé)");
   if(l.avec_menuiserie && !l.manoeuvre_menuis) W.push("Manœuvre du volet (vendu avec la menuiserie) non choisie");
   if(l.avec_menuiserie && !l.coffre_hauteur) E.push("Préciser si le coffre (195 mm) est compris dans la hauteur");
-  if(!l.depose) W.push("Dépose à faire non renseignée");
+  if(!vrUsine(l)&&!l.depose) W.push("Dépose à faire non renseignée");
   return {E,W};
 }
 /* Liste lisible des erreurs (rouges) du dossier, avec l'endroit, pour la vérification avant envoi à Clémence */
@@ -1652,7 +1653,7 @@ function renderOuverture(){
   $("#app").innerHTML=`
   <div class="row" style="margin-bottom:12px"><span class="posebar">${esc(libellePose(o))}</span>
     <select id="chgPose" style="max-width:260px;min-height:38px;font-size:14px">${Object.entries(CAT.poses).map(([k,p])=>`<option value="${k}"${k===o.pose?" selected":""}>${esc(p.nom)}</option>`).join("")}</select>
-    <span class="spacer"></span><button class="btn small" id="oPrev">‹ Précédente</button><button class="btn small" id="oNext">Suivante ›</button><button class="btn small" id="oComme2" title="Nouvelle ouverture avec les mêmes caractéristiques">⧉ Comme celle-ci</button><button class="btn small navy" id="oDone">Terminer</button></div>
+    <span class="spacer"></span><button class="btn small" id="oPrev">‹ Précédente</button><button class="btn small" id="oNext">Suivante ›</button><button class="btn small danger" id="oSuppr" title="Supprimer cette menuiserie du métré">🗑 Supprimer la fiche</button><button class="btn small" id="oComme2" title="Nouvelle ouverture avec les mêmes caractéristiques">⧉ Comme celle-ci</button><button class="btn small navy" id="oDone">Terminer</button></div>
 
   ${o.devis?`<details class="card dv-det"><summary><b>Ligne du devis signé n° ${esc(o.devis.num||"")}</b> – ${esc(o.devis.repere?o.devis.repere+" : ":"")}${esc(o.devis.type)} · ${o.devis.L??"?"} × ${o.devis.H??"?"}${o.devis.qte>1?" · ×"+o.devis.qte:""}</summary>
     ${o.devis.sous?.length?`<p class="hint">${esc(o.devis.sous.map(x=>(x.repere?x.repere+" : ":"")+x.type+" "+x.L+" × "+x.H).join(" + "))}</p>`:""}
@@ -1686,7 +1687,7 @@ function renderOuverture(){
 
   <div class="card"><h2><span class="num">3</span>Dimensions (mm)</h2>
     ${o.pose==="neuf"?`<div class="enduit-banner">Pose en neuf : toutes les dimensions sont relevées <b>ENDUIT COMPRIS</b>.</div>`:""}
-    ${blocForme(o)}<div class="cotes">${cotesBox("L","Largeur – vue en plan",P.schemaL)}${cotesBox("H","Hauteur – vue en coupe",P.schemaH)}</div>
+    ${blocForme(o)}${formeDe(o)?`<div class="hint">Fixe de forme : la fabrication est celle du dessin ci-dessus (pas de cotes tableau ni hors tout).</div>`:`<div class="cotes">${cotesBox("L","Largeur – vue en plan",P.schemaL)}${cotesBox("H","Hauteur – vue en coupe",P.schemaH)}</div>`}
     ${listeElarg(o.gamme)?`<div style="margin-top:14px"><div class="hint" style="font-weight:700;color:var(--navy);margin-bottom:6px">ÉLARGISSEURS (vue de l'intérieur)</div><div class="grid g3">
       ${F.sel("elarg.gauche","À gauche",listeElarg(o.gamme),(o.elarg||{}).gauche)}${F.sel("elarg.haut","En haut",listeElarg(o.gamme),(o.elarg||{}).haut)}${F.sel("elarg.droite","À droite",listeElarg(o.gamme),(o.elarg||{}).droite)}
     </div></div>`:""}</div>
@@ -1802,6 +1803,10 @@ function renderOuverture(){
   const ce=$('[data-k="cle.entrouvrant"]'); if(ce) ce.addEventListener("change",()=>{ const y=scrollY; setTimeout(()=>{ renderOuverture(); scrollTo(0,y); },0); });
   $$("[data-clegr]").forEach(b=>b.onclick=()=>{ const y=scrollY; cleOuv(o).groupe=b.dataset.clegr; save(); renderOuverture(); scrollTo(0,y); });
   S.dernOuv=o.id; $("#oComme2").onclick=()=>commePrecedente(d,o);
+  $("#oSuppr").onclick=async()=>{ const lv=vrLie(d,o), i=d.ouvertures.indexOf(o);
+    if(!await demander(`Supprimer la fiche « ${o.repere||"n° "+(o.num_poseur||i+1)} »${lv?" et son volet roulant":""} ?`,"Supprimer")) return;
+    d.ouvertures=d.ouvertures.filter(x=>x!==o); if(lv) d.vr.lignes=d.vr.lignes.filter(l=>l!==lv); save();
+    const n=d.ouvertures[Math.min(i,d.ouvertures.length-1)]; if(n){ S.ouv=n; renderOuverture(); } else { S.tab="ouvertures"; renderDossier(); } scrollTo(0,0); toast("Fiche supprimée"); };
   $("#app").insertAdjacentHTML("beforeend",`<div class="row" style="justify-content:center;margin:18px 0 30px"><button class="btn primary" id="oComme3">⧉ Ouverture suivante, comme celle-ci</button></div>`); $("#oComme3").onclick=()=>commePrecedente(d,o);
   majFab(); majControle(); renderVRInline();
   initPhotos(); initGC();
@@ -1827,10 +1832,10 @@ function renderVRInline(){
       ${vrUsine(l)?`<div class="hint" style="grid-column:span 2;align-self:center">Fabrication : <b>cotes données par l'usine</b> (volet vendu avec la menuiserie), rien à saisir.</div>`:`<label class="f">Fabrication – largeur <span class="fabhint" id="vrInFl"></span><input data-k="${k}.fab_l" inputmode="decimal" value="${esc(l.fab_l)}"></label>
       <label class="f">Fabrication – hauteur <span class="fabhint" id="vrInFh"></span><input data-k="${k}.fab_h" inputmode="decimal" value="${esc(l.fab_h)}"></label>`}
       <div><div class="hint">Sortie de fil (vue int.)</div><div class="checks">${F.chk(`${k}.fil_gauche`,"Gauche",l.fil_gauche)}${F.chk(`${k}.fil_droite`,"Droite",l.fil_droite)}</div></div>
-      <div><div class="hint">Perçage coulisse</div><div class="checks">${F.chk(`${k}.percage_tableau`,"Tableau",l.percage_tableau)}${F.chk(`${k}.percage_face`,"De face",l.percage_face)}</div></div>
-      ${F.sel(`${k}.fil_coffre`,"Sortie de fil – coffre",C.sortie_fil_coffre,l.fil_coffre)}${F.sel(`${k}.electricite`,"Électricité",C.electricite,l.electricite)}
-      ${F.sel(`${k}.depose`,"Dépose à faire",C.depose,l.depose)}${F.sel(`${k}.option`,"Option",C.option,l.option)}
-    </div>`;
+      ${vrUsine(l)?"":`<div><div class="hint">Perçage coulisse</div><div class="checks">${F.chk(`${k}.percage_tableau`,"Tableau",l.percage_tableau)}${F.chk(`${k}.percage_face`,"De face",l.percage_face)}</div></div>`}
+      ${F.sel(`${k}.fil_coffre`,"Sortie de fil – coffre",C.sortie_fil_coffre,l.fil_coffre)}${vrUsine(l)?"":F.sel(`${k}.electricite`,"Électricité",C.electricite,l.electricite)}
+      ${vrUsine(l)?"":F.sel(`${k}.depose`,"Dépose à faire",C.depose,l.depose)}${F.sel(`${k}.option`,"Option",C.option,l.option)}
+    </div>${vrUsine(l)?`<div class="hint" style="margin-top:6px">Volet posé sur la menuiserie : perçage des coulisses et électricité faits par l'usine, pas de dépose.</div>`:""}`;
   box.innerHTML = html.replace(/data-k="/g,'data-dk="');
   $("#vrLieDel").onclick=async()=>{ if(!await demander("Retirer le volet roulant de cette ouverture ?","Retirer")) return; d.vr.lignes=d.vr.lignes.filter(x=>x!==l); save(); renderVRInline(); };
   $("#vrGoSheet").onclick=e=>{ e.preventDefault(); S.tab="vr"; renderDossier(); scrollTo(0,0); };
@@ -2139,10 +2144,12 @@ function formeGeo(F, v){
     if(Math.abs(a[0]-b[0])>0.5 && Math.abs(a[1]-b[1])>0.5) ram.push({a,b,len:Math.round(Math.hypot(b[0]-a[0],b[1]-a[1]))}); }
   return {pts, arc, Hmax, Lmax, ram}; }
 /* cotes utiles pour le contrôle / le PDF : prises et fabrication (même retrait que la menuiserie) */
-function formeCotes(o){ const F=formeDe(o); if(!F) return null; const s=o.forme||{}, f=calcFab(o);
-  const tL=num(coteTab(o,"L")), tH=num(coteTab(o,"H")), dL=(tL!=null&&f.L!=null)?tL-f.L:0, dH=(tH!=null&&f.H!=null)?tH-f.H:0;
-  const fab={}; F.ch.forEach(k=>{ const x=num(s[k]); if(x==null){ fab[k]=null; return; }
-    fab[k] = k==="L"||k==="D" ? x-dL : k==="P"||k==="d" ? x-dL/2 : x-dH; });
+/* 18/11/2026 : la fabrication EST le dessin (pas de retrait, pas de cotes tableau / hors tout) */
+function formeFab(o){ const F=formeDe(o); if(!F) return {L:null,H:null}; const s=o.forme||{};
+  const L=num(F.id==="rond"?s.D:s.L), hs=F.ch.filter(k=>/^H|^D/.test(k)).map(k=>num(s[k])).filter(x=>x!=null);
+  return {L, H: F.id==="rond"?num(s.D):(hs.length===F.ch.filter(k=>/^H|^D/.test(k)).length&&hs.length?Math.max(...hs):null)}; }
+function formeCotes(o){ const F=formeDe(o); if(!F) return null; const s=o.forme||{}, dL=0, dH=0;
+  const fab={}; F.ch.forEach(k=>{ fab[k]=num(s[k]); });
   const ok=F.ch.every(k=>num(s[k])!=null);
   const ramPris = ok ? formeGeo(F, formeVals(F,s)) : null, ramFab = ok&&F.ch.every(k=>fab[k]!=null) ? formeGeo(F, formeVals(F,fab)) : null;
   return {F, pris:s, fab, dL, dH, ok, gP:ramPris, gF:ramFab}; }
@@ -2194,7 +2201,7 @@ function blocForme(o){ if(!estFixe(o)) return ""; const F=formeDe(o), cur=(o.for
   if(!F) return `<div class="fo-bloc">${choix}</div>`;
   const e=dessinForme(o,{mode:"edit"});
   return `<div class="fo-bloc">${choix}
-    <div class="hint" style="margin:10px 0 4px">Touche une case sur le dessin et tape la cote (ou prends-la au télémètre). Largeur et plus grande hauteur sont recopiées dans les cotes tableau ci-dessous.</div>
+    <div class="hint" style="margin:10px 0 4px">Touche une case sur le dessin et tape la cote (ou prends-la au télémètre). Ces cotes sont les cotes de fabrication.</div>
     <div class="fo-wrap" id="foWrap"><div id="foSvg">${e.svg}</div>
       ${F.ch.map(k=>`<label class="fo-in" data-fopos="${k}" style="left:${e.pos[k][0].toFixed(2)}%;top:${e.pos[k][1].toFixed(2)}%"><span>${esc(FORME_LIB[k])}</span><input data-k="forme.${k}" inputmode="numeric" value="${esc((o.forme||{})[k]||"")}" placeholder="${FORME_COURT[k]}"></label>`).join("")}</div></div>`; }
 function majForme(o){ const w=$("#foWrap"); if(!w||!formeDe(o)) return; const e=dessinForme(o,{mode:"edit"}); $("#foSvg").innerHTML=e.svg;
@@ -2202,9 +2209,9 @@ function majForme(o){ const w=$("#foWrap"); if(!w||!formeDe(o)) return; const e=
 /* tableau PDF : cotes prises, fabrication, rampants */
 function tableForme(o){ const c=formeCotes(o); if(!c) return ""; const F=c.F;
   const ramTxt=g=>!g?"":F.id==="cintre"?`arc ${g.arc.dev} (rayon ${Math.round(g.arc.R)})`:g.ram.map(r=>r.len).join(" / ");
-  return `<table class="pt pdt pforme"><tr class="pdir"><th colspan="3">FORME : ${esc(F.nom.toUpperCase())}</th></tr><tr><th></th><th>Prise</th><th>Fabrication</th></tr>
-    ${F.ch.map(k=>`<tr><th>${esc(FORME_LIB[k])}</th><td>${esc(c.pris[k]||"")}</td><td><b>${c.fab[k]??""}</b></td></tr>`).join("")}
-    ${F.id!=="rond"&&(c.gP&&(c.gP.ram.length||F.id==="cintre"))?`<tr><th>${F.id==="cintre"?"Arc":"Rampant(s)"} calculé(s)</th><td>${ramTxt(c.gP)}</td><td><b>${ramTxt(c.gF)}</b></td></tr>`:""}</table>`; }
+  return `<div class="pst">${esc(F.nom.toUpperCase())} <small>– cotes de fabrication = dessin</small></div><table class="pt pdt pforme"><tr class="pdir"><th colspan="2">FABRICATION (FORME)</th></tr>
+    ${F.ch.map(k=>`<tr><th>${esc(FORME_LIB[k])}</th><td><b>${esc(c.pris[k]||"")}</b></td></tr>`).join("")}
+    ${F.id!=="rond"&&(c.gP&&(c.gP.ram.length||F.id==="cintre"))?`<tr><th>${F.id==="cintre"?"Arc":"Rampant(s)"} calculé(s)</th><td>${ramTxt(c.gP)}</td></tr>`:""}</table>`; }
 /* contrôle */
 function controleForme(o, E, W){ const F=formeDe(o); if(!F) return; const s=o.forme, n=k=>num(s[k]);
   F.ch.forEach(k=>{ if(n(k)==null) E.push(`Forme ${F.nom} : ${FORME_LIB[k].toLowerCase()} manquante`); });
@@ -3623,11 +3630,11 @@ function construireImpression(d){
   d.ouvertures.forEach((o,i)=>{ const f=calcFab(o), P=CAT.poses[o.pose], c=controleOuverture(o,d);
     h+=`<div class="pg">${head(`${numP(o)||(i+1)+"."} ${o.repere||"Ouverture"} – ${d.client.nom||""}`)}<div class="p3"><div class="pdim">
       <div class="pposetitre">${esc(libellePose(o).toUpperCase())}</div>
-      <div class="pst">LARGEUR <small>– vue en plan</small></div>${schemaHTML(o,"L","psch",true)||`<div class="hint">Pas de schéma</div>`}
+      ${formeDe(o)?tableForme(o):`<div class="pst">LARGEUR <small>– vue en plan</small></div>${schemaHTML(o,"L","psch",true)||`<div class="hint">Pas de schéma</div>`}
       <div class="pst">HAUTEUR <small>– vue en coupe</small></div>${schemaHTML(o,"H","psch",true)||`<div class="hint">Pas de schéma</div>`}
       <div class="pdt2">${["L","H"].map(k=>`<table class="pt pdt"><tr class="pdir"><th colspan="2">${k==="L"?"LARGEUR":"HAUTEUR"}</th></tr>`+
         P.cotes.map((_,j)=>!coteUtile(o,j,k)?"":`<tr><th><span class="pn">${numCote(o,k,j)}</span>${esc(libCote(o,k,j))}</th><td>${esc(o.cotes[k][j]??"")}</td></tr>`).join("")
-        +`<tr class="pfabr"><th>FABRICATION</th><td>${f[k]??""}</td></tr></table>`).join("")}</div>${tableForme(o)}
+        +`<tr class="pfabr"><th>FABRICATION</th><td>${f[k]??""}</td></tr></table>`).join("")}</div>`}
       ${texteElarg(o)?`<div class="pelarg">Élargisseurs : <b>${esc(texteElarg(o))}</b></div>`:""}
       ${(()=>{const l=vrLie(d,o); return l&&l.avec_menuiserie?`<div class="pelarg">${esc(l.avec_menuiserie)} : <b>${esc(l.coffre_hauteur||"coffre compris dans la hauteur ? À PRÉCISER")}</b></div>`:"";})()}
       </div><div>

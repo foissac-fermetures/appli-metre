@@ -778,17 +778,17 @@ function positionsLong(pos){ const n=pos.p.length, along=Array(n).fill(50), seui
   return along; }
 /* ---------- Tapées de persienne (18/11/2026) : dessinées contre le dormant, côté extérieur (2 en plan, 1 en haut en coupe) ----------
    Coordonnées en pixels de chaque image de schéma (taille réelle) ; les tapées ne croisent aucune flèche de cote. */
-const TAPEES = {
-  tableau_2_v3:  {w:520,h:135, r:[[117,66,66,12],[337,66,66,12]]},   // tunnel : 2× plus épaisses, dépassent du dormant (18/11)
-  embrasure_1_v3:{w:520,h:227, r:[[73,109,55,12],[392,109,55,12]]},   // embrasure : dans le mur, exactement à fleur du dormant aux deux bouts (18/11)
-  feuillure_1_v3:{w:520,h:173, r:[[146,47.5,44,4.5],[337,47.5,44,4.5]]},
-  depose_2:      {w:520,h:209, r:[[116,112.5,44,4.5],[359,112.5,44,4.5]]},
-  neuf_2:        {w:520,h:209, r:[[116,112.5,44,4.5],[359,112.5,44,4.5]]},
+const TAPEES = {   // positions placées par Nicolas (outil « Placer les tapées », 18/11/2026), régularisées : 2 côtés symétriques, même épaisseur et même longueur
+  tableau_2_v3:  {w:520,h:135, r:[[117,66,66,12],[337,66,66,12]]},
+  embrasure_1_v3:{w:520,h:227, r:[[72,107.5,68.5,12],[379.5,107.5,68.5,12]]},
+  feuillure_1_v3:{w:520,h:173, r:[[90,38,105,14],[325,38,105,14]]},
+  depose_2:      {w:520,h:209, r:[[116,98,86.5,16],[316.5,98,86.5,16]]},
+  neuf_2:        {w:520,h:209, r:[[116,98,86.5,16],[316.5,98,86.5,16]]},
   tableau_1_v2:  {w:170,h:520, r:[[61,103,12,62]]},
-  embrasure_2_v2:{w:196,h:520, r:[[89,71,12,50]]},
-  feuillure_2_v2:{w:250,h:520, r:[[130.5,121,4.5,44]]},
-  depose_1:      {w:337,h:520, r:[[187.5,107,4.5,44]]},
-  neuf_1:        {w:277,h:520, r:[[187.5,107,4.5,44]]} };
+  embrasure_2_v2:{w:196,h:520, r:[[85,70.5,12,77.5]]},
+  feuillure_2_v2:{w:250,h:520, r:[[119,61.5,14,111.5]]},
+  depose_1:      {w:337,h:520, r:[[174.5,108,16,89.5]]},
+  neuf_1:        {w:277,h:520, r:[[174.5,108,16,89.5]]} };
 function tapeesSVG(key){ const T=TAPEES[key]||TAPEES[key.replace(/_ds$/,"")]; if(!T) return "";
   return `<svg class="sch-tap" viewBox="0 0 ${T.w} ${T.h}" preserveAspectRatio="none" aria-hidden="true"><defs><pattern id="tph" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="3" stroke="#BA7517" stroke-width="0.9"/></pattern></defs>
     ${T.r.map(([x,y,w,h])=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#FAEEDA" stroke="#BA7517" stroke-width="1.3"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#tph)"/>`).join("")}</svg>`; }

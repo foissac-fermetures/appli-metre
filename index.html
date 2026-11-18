@@ -443,6 +443,7 @@ const DB = {
   async all(){ if(!this.db) return Object.values(this.mem); return new Promise(ok=>{ const r=this.tx("readonly").getAll(); r.onsuccess=()=>ok(r.result||[]); r.onerror=()=>ok([]); }); },
   /* « modifie » = date de la dernière VRAIE modification (sert à départager deux appareils) : on ne la change pas si le contenu est identique */
   async put(d, garderDate){ let e=null; try{ e=typeof empreinte==="function"?empreinte(d):null; }catch(_){}
+    if(!garderDate && e!=null && d._e && d._e!==e && typeof chronoModif==="function" && chronoModif(d)){ try{ e=empreinte(d); }catch(_){} }
     if(!garderDate && (e==null || d._e!==e || !d.modifie)) d.modifie=new Date().toISOString(); if(e!=null) d._e=e; if(!this.db){ this.mem[d.id]=d; return; } return new Promise(ok=>{ const r=this.tx("readwrite").put(JSON.parse(JSON.stringify(d))); r.onsuccess=ok; r.onerror=ok; }); },
   async del(id){ if(!this.db){ delete this.mem[id]; return; } return new Promise(ok=>{ const r=this.tx("readwrite").delete(id); r.onsuccess=ok; r.onerror=ok; }); }
 };
@@ -1360,8 +1361,18 @@ async function supprimerMetres(L){
   }catch(e){ toast("Supprimé de l'appli · Drive : "+e.message); }
 }
 /* ---------- Dossier ---------- */
+/* Chrono de prise de cotes : d.chrono = {debut, fin} (ISO). Ne compte que le jour du RDV (jour local).
+   debut = première ouverture ou première modification ce jour-là ; fin = dernière modification ce jour-là.
+   Les retouches d'un autre jour ne changent rien. Lu par le CRM pour les temps de métré. */
+function jourLocal(t){ const x=t?new Date(t):new Date(); return isNaN(x)?"":`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`; }
+function chronoJourRDV(d){ const r=d&&d.client&&d.client.date_rdv; if(!r || r!==jourLocal()) return false;
+  if(d.chrono && d.chrono.debut && jourLocal(d.chrono.debut)!==r) d.chrono=null;   // RDV déplacé : on repart de zéro
+  return true; }
+function chronoOuverture(d){ if(!chronoJourRDV(d) || (d.chrono&&d.chrono.debut)) return false; d.chrono={debut:new Date().toISOString(), fin:null}; return true; }
+function chronoModif(d){ if(!chronoJourRDV(d)) return false; const n=new Date().toISOString(); d.chrono=Object.assign({debut:n}, d.chrono||{}, {fin:n}); if(!d.chrono.debut) d.chrono.debut=n; return true; }
 function renderDossier(){
   S.view="dossier"; S.ouv=null; const d=normaliser(S.dossier); syncVR(d); majTitre();
+  if(S.chronoVu!==d.id){ S.chronoVu=d.id; if(chronoOuverture(d)) DB.put(d,true); }
   if(S.tab==="chantier") S.tab="client";
   if(!ongletsVisibles(d).includes(S.tab)) S.tab=ongletsVisibles(d)[0];
   const T=[["client","Client & chantier"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["pt",`Portail${d.pt&&d.pt.elements.length?` (${d.pt.elements.length})`:""}`],["vb",`Volets battants${d.vb&&d.vb.lignes.length?` (${d.vb.lignes.length})`:""}`],["pp",`Portes palières${d.pp&&d.pp.lignes.length?` (${d.pp.lignes.length})`:""}`],["vt",`Vitrages${d.vt&&d.vt.lignes.length?` (${d.vt.lignes.length})`:""}`],["clim",`Climatisation${d.clim&&d.clim.lignes.length?` (${d.clim.lignes.length})`:""}`],["sav","🔧 Fiche SAV"],["controle","Contrôle"]];
@@ -4521,7 +4532,7 @@ async function tabletteRejoindre(){
 
 /* ---------- Démarrage ---------- */
 $("#logo").src=LOGO;
-$("#btnBack").onclick=()=>{ if(S.view==="ouverture"){ S.tab="ouvertures"; renderDossier(); } else { const d=S.dossier; clearTimeout(S.saveT); if(d){ DB.put(d); enregistrerAuto(d).then(()=>{ if(S.view==="home") renderHome(); }); } renderHome(); } scrollTo(0,0); };
+$("#btnBack").onclick=()=>{ if(S.view==="ouverture"){ S.tab="ouvertures"; renderDossier(); } else { const d=S.dossier; clearTimeout(S.saveT); if(d){ DB.put(d); enregistrerAuto(d).then(()=>{ if(S.view==="home") renderHome(); }); } S.chronoVu=null; renderHome(); } scrollTo(0,0); };
 DB.open().then(async()=>{ await normaliserTout(); renderHome(); });
 /* Mises à jour de l'appli : les anciens métrés sont convertis une fois sur l'appareil SANS être comptés comme « modifiés »
    (sinon un autre appareil verrait sa version écrasée par cette conversion) */

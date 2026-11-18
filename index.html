@@ -3789,9 +3789,42 @@ async function genererPDF(d){
       if(i) pdf.addPage();
       pdf.addImage(c.toDataURL("image/jpeg",0.9),"JPEG",10+(W-w)/2,10,w,h);
     }
-    return pdf.output("blob");
+    let blob=pdf.output("blob");
+    try{ blob=await joindrePlans(d, blob); }catch(e){ console.warn("plans", e); }   // plans du dossier « 09 - Plan » ajoutés à la fin
+    return blob;
   } finally { fr.remove(); }
 }
+/* ---------- Plans du client joints au PDF (18/11/2026) ----------
+   Dossier Drive « 09 - Plan » (sinon « Plan » / « Plans ») : tout PDF dont le nom contient le nom du client
+   (ex. « BLOUIN façade.pdf » pour le métré BLOUIN ELIES) est ajouté à la fin du PDF du métré, pages d'origine intactes.
+   Seulement si la connexion Google est valable (jamais de fenêtre Google pendant la fabrication du PDF). Lecture seule. */
+const LIB_PDFLIB = "lib/pdf-lib.min.js";
+const CIVILITES = /^(m|mr|mme|mlle|monsieur|madame|mademoiselle|et|ou|les|sci|sarl|eurl|sas)$/;
+const sansAccents = x => String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+function nomPourPlans(d){ const m=sansAccents(d.client&&d.client.nom).replace(/[^a-z0-9]+/g," ").trim().split(" ").filter(w=>w.length>=3 && !CIVILITES.test(w)); return m[0]||""; }
+async function dossierPlans(){ const k="plans_dossier"; let id=lireLS(k,null); if(id) return id;
+  const q="mimeType='application/vnd.google-apps.folder' and trashed=false and (name='09 - Plan' or name='Plan' or name='Plans' or name='PLAN' or name='PLANS')";
+  const r=await gdrive("https://www.googleapis.com/drive/v3/files?pageSize=20&includeItemsFromAllDrives=true&fields=files(id,name)&q="+encodeURIComponent(q));
+  const f=(r.files||[]).sort((a,b)=>(b.name==="09 - Plan")-(a.name==="09 - Plan"))[0]; if(f){ ecrireLS(k,f.id); return f.id; } return null; }
+async function plansDuClient(d){
+  if(!driveDispo() || !navigator.onLine || !jetonValide() || (typeof aSAV==="function" && aSAV(d))) return [];
+  const mot=nomPourPlans(d); if(!mot) return [];
+  let id=await dossierPlans(); if(!id) return [];
+  let r; try{ r=await gdrive(`https://www.googleapis.com/drive/v3/files?pageSize=200&includeItemsFromAllDrives=true&fields=files(id,name,modifiedTime)&q=${encodeURIComponent(`'${id}' in parents and mimeType='application/pdf' and trashed=false`)}`); }
+  catch(e){ ecrireLS("plans_dossier",null); return []; }   // dossier déplacé / supprimé : on le recherchera la prochaine fois
+  const re=new RegExp(`(^|[^a-z0-9])${mot}([^a-z0-9]|$)`);
+  return (r.files||[]).filter(f=>re.test(sansAccents(f.name).replace(/\.pdf$/,""))).sort((a,b)=>a.name.localeCompare(b.name)); }
+async function joindrePlans(d, blob){
+  const plans=await plansDuClient(d); if(!plans.length) return blob;
+  await chargerScript(LIB_PDFLIB);
+  const out=await PDFLib.PDFDocument.load(await blob.arrayBuffer()), noms=[];
+  for(const f of plans){ try{
+      const rr=await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&supportsAllDrives=true`,{headers:{Authorization:"Bearer "+G_JETON}}); if(!rr.ok) continue;
+      const src=await PDFLib.PDFDocument.load(await rr.arrayBuffer(),{ignoreEncryption:true});
+      (await out.copyPages(src, src.getPageIndices())).forEach(p=>out.addPage(p)); noms.push(f.name); }catch(e){ console.warn("plan illisible", f.name, e); } }
+  if(!noms.length) return blob;
+  genererPDF.plansJoints=noms; if(typeof toast==="function") toast(`Plan${noms.length>1?"s":""} joint${noms.length>1?"s":""} au PDF : ${noms.join(", ")}`);
+  return new Blob([await out.save()],{type:"application/pdf"}); }
 
 /* ---------- Envoi d'un dossier ---------- */
 const estDefinitif = d => /D[ÉE]FINITIF/i.test(d.type_document||"");

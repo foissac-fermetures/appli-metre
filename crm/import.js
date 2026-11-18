@@ -14,3 +14,11 @@
   // première utilisation : rien dans le CRM → on propose l'import bien en vue
   CRM_ONLINE.store.load().then(() => { if (!Object.keys(CRM_ONLINE.store.docs).length) { b.textContent = "⇧ Importer mes données (première fois)"; b.style.fontWeight = "700"; } });
 })();
+/* Version en ligne : bouton « 📐 Mini DAO » (ouvre la Mini DAO, avec un bouton de retour au CRM). Ajouté le 18/11/2026.
+   Il est ici (et pas dans index.html) car index.html est régénéré depuis la version claude.ai du CRM. */
+(function () {
+  const after = document.getElementById("tabOrd"); if (!after || !/github\.io$/.test(location.hostname)) return;
+  const a = document.createElement("a"); a.className = "lnk tabord"; a.href = "../dao/?retour=crm"; a.textContent = "📐 Mini DAO";
+  a.title = "Ouvrir la Mini DAO (dessin 2D)"; a.style.textDecoration = "none";
+  after.after(a);
+})();

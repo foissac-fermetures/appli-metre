@@ -29,8 +29,7 @@ Adresse finale de la Mini DAO : **https://foissac-fermetures.github.io/appli-met
 4. Faire un commit (par exemple « Ajout de la Mini DAO 2D (dossier dao/) ») et un push sur la branche publiée.
 5. Attendre la publication de GitHub Pages (1 à 2 min), puis ouvrir l'adresse et vérifier :
    la page s'ouvre, l'icône apparaît, `L` puis un clic trace un trait, et le bouton 🖨 Imprimer ouvre bien l'impression.
-6. Demander à Nicolas s'il veut un lien vers la Mini DAO depuis l'appli de métré ou depuis le CRM.
-   Ne rien ajouter sans son accord.
+6. ✅ Lien vers la Mini DAO depuis l'appli de métré et depuis le CRM : demandé et fait le 18/11/2026 (§ 12).
 7. Lui envoyer la marche à suivre pour l'installer (§ 3).
 
 **À chaque mise à jour** de `dao/index.html`, augmenter le numéro de cache dans `dao/sw.js`
@@ -241,6 +240,7 @@ PROMPT-POUR-CLAUDE-PRO.md ← le message que Nicolas te donne
 | 18/11/2026 | dao-v1 | Mise en ligne dans `foissac-fermetures/appli-metre/dao/` (commit 02fc465). |
 | 18/11/2026 | dao-v2 | Artefact sur le compte Pro (sample + downloads) ; nouvelle adresse `claudeUrl`, l'ancienne est ignorée. |
 | 18/11/2026 | dao-v3 | Drive : « 09 - Plan » fixé par son identifiant (`DOSSIERS_DAO.plan`, à la racine de Mon Drive). « Métrés » n'existait pas : Nicolas a choisi de le créer dans Mon Drive ; son identifiant sera mis dans `DOSSIERS_DAO.metres` après le 1er essai. |
+| 18/11/2026 | dao-v4 + metre-v95 | Liens entre les applis (Nicolas a coché les 4 options) : voir § 12. |
 
 ## 11. Point de vigilance connu : le service worker de l'appli de métré
 
@@ -249,3 +249,21 @@ y compris `dao-v…` (les caches sont communs à toute l'adresse foissac-fermetu
 Conséquence : après une mise à jour de l'appli de métré, la Mini DAO perd sa copie hors ligne jusqu'à sa prochaine ouverture
 avec Internet (elle se recopie alors toute seule). Correction possible, **seulement avec l'accord de Nicolas** :
 dans `sw.js` racine, ne supprimer que les caches dont le nom commence par `metre-`.
+
+## 12. Liens avec l'appli de métré et le CRM (18/11/2026, demandé par Nicolas)
+
+Nicolas veut la Mini DAO **toute seule** (installée depuis `dao/`, sa propre icône) **et** dans l'appli de métré. C'est la même Mini DAO :
+dans l'appli de métré installée, `dao/` est dans la portée du manifeste du métré (`scope: ./`), donc elle s'ouvre dans la même fenêtre.
+
+| Où | Quoi | Code |
+|---|---|---|
+| Métré, accueil | Bouton **📐 Mini DAO** → `dao/?retour=accueil` | `index.html` racine, `#hDAO` (à côté de « 📲 Tablette de dessin ») |
+| Métré, dans un métré | Onglet-bouton **📐 Dessiner le plan** (après « + Ajouter… ») → enregistre le métré puis `dao/?client=<client.nom>&retour=<id>` | `#tabDAO` dans `renderDossier()` |
+| Métré, démarrage | `?ouvrir=<id>` rouvre ce métré (puis l'adresse est nettoyée) | fin de `index.html` racine, `DB.open().then(…)` |
+| CRM | Lien **📐 Mini DAO** → `../dao/?retour=crm`, à côté de « ⇅ Ranger les onglets » | **`crm/import.js`** (pas `crm/index.html`, qui est régénéré depuis claude.ai) |
+| Mini DAO | `?client=` : rouvre « Plan <client> » s'il existe dans Mes plans, sinon nouveau plan déjà nommé et client dans le cartouche. Le dessin en cours est d'abord rangé dans Mes plans (« Brouillon … » s'il n'avait pas de nom) : rien n'est perdu. | `ouvrirPlanClient()`, `garderDessinEnCours()` |
+| Mini DAO | Bouton **↩ Retour** (seulement si `?retour=`) : enregistre le plan (demande le nom la 1re fois), attend le rangement Google Drive (PDF dans 09 - Plan), puis revient. Si Drive échoue, on reste ; un 2e appui revient quand même. | `revenir()`, `rangerDrive()` renvoie `true/false` |
+
+Intérêt : le PDF « Plan <client>.pdf » est dans « 09 - Plan » avant le retour, donc l'appli de métré le joint au PDF du métré.
+Tests (Playwright, adresse github.io simulée + faux Drive) : accueil → DAO → retour ; métré → Dessiner → 💾 → retour au même métré ;
+2e passage = même plan rouvert, fichiers Drive remplacés (pas de doublon) ; CRM → DAO → retour CRM ; DAO seule = pas de bouton Retour.

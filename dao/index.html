@@ -161,6 +161,7 @@
 <body>
 <div id="app">
   <header>
+    <button class="hbtn primary" id="bRetour" style="display:none" title="Enregistrer le plan et revenir">↩ Retour</button>
     <h1>Mini DAO 2D <span id="planName" style="font-weight:400;color:var(--mut);font-size:13px"></span></h1>
     <button class="hbtn" id="bUndo" title="Annuler (Ctrl+Z)">↶</button>
     <button class="hbtn" id="bRedo" title="Rétablir (Ctrl+Y)">↷</button>
@@ -1722,12 +1723,12 @@ async function dossierMdao(){ const an=String(new Date().getFullYear()), k="mini
   const metres=(await dossierFixe(DOSSIERS_DAO.metres)) || await dossierDrive("Métrés","root"), plans=await dossierDrive("Plans",metres); id=await dossierDrive(an,plans); lsSet(k,id); return id; }
 let driveEnCours=false;
 async function rangerDrive(quoi){ quoi=quoi||{pdf:true,mdao:true};
-  if(driveEnCours) return; driveEnCours=true; const nom=(planNameTxt||"Plan").replace(/[\\/:*?"<>|]+/g,"-").trim(); const faits=[];
+  if(driveEnCours) return false; driveEnCours=true; const nom=(planNameTxt||"Plan").replace(/[\\/:*?"<>|]+/g,"-").trim(); const faits=[];
   try{
     if(quoi.mdao){ const id=await dossierMdao(); await deposerDrive(nom+".mdao", new Blob([JSON.stringify(planData())],{type:"application/json"}), id, "Plan Mini DAO 2D (modifiable)"); faits.push("Métrés › Plans › "+new Date().getFullYear()); }
     if(quoi.pdf){ toast("☁️ Création du PDF pour Google Drive…"); const blob=await makePDF(); const id=await dossierPlans(); await deposerDrive(nom+".pdf", new Blob([blob],{type:"application/pdf"}), id, "Plan Mini DAO 2D"); faits.push("09 - Plan"); }
-    toast("☁️ Rangé dans Google Drive : "+faits.join(" + ")); log(`Google Drive : « ${nom} » rangé dans ${faits.join(" et ")}`);
-  }catch(e){ toast("Google Drive : "+e.message); log("Google Drive : échec – "+e.message); }
+    toast("☁️ Rangé dans Google Drive : "+faits.join(" + ")); log(`Google Drive : « ${nom} » rangé dans ${faits.join(" et ")}`); return true;
+  }catch(e){ toast("Google Drive : "+e.message); log("Google Drive : échec – "+e.message); return false; }
   finally{ driveEnCours=false; }
 }
 /* Lancé depuis un clic (💾, Ctrl+S, boutons) : demande le jeton tout de suite, puis range. */
@@ -1861,9 +1862,9 @@ function quickSave(){
   $("mSave").classList.add("show"); setTimeout(()=>{ $("sClient").focus(); $("sClient").select(); },50);
 }
 function doSave(){ const cl=$("sClient").value.trim(); if(!cl){ $("sNote").textContent="Tapez le nom du client."; $("sClient").focus(); return; }
-  $("fName").value=withPlan(cl); if(!cart.client) cart.client=cl; storePlan(false); $("mSave").classList.remove("show"); toast(`💾 « ${planNameTxt} » enregistré`); if(driveAuto) rangerDriveClic(); }
+  $("fName").value=withPlan(cl); if(!cart.client) cart.client=cl; storePlan(false); $("mSave").classList.remove("show"); toast(`💾 « ${planNameTxt} » enregistré`); if(retourApresSave){ retourApresSave=false; revenir(); return; } if(driveAuto) rangerDriveClic(); }
 $("bSave").onclick=quickSave;
-$("sOk").onclick=doSave; $("sCancel").onclick=()=>$("mSave").classList.remove("show");
+$("sOk").onclick=doSave; $("sCancel").onclick=()=>{ retourApresSave=false; $("mSave").classList.remove("show"); };
 $("sClient").addEventListener("keydown",ev=>{ if(ev.key==="Enter"){ ev.preventDefault(); doSave(); } });
 $("fSave").onclick=()=>storePlan(false);
 $("fSaveAs").onclick=()=>storePlan(true);
@@ -1885,6 +1886,45 @@ $("kEsc").addEventListener("pointerdown",ev=>{ if(textEdit) ev.preventDefault();
 $("kEnter").addEventListener("pointerdown",ev=>{ if(textEdit) ev.preventDefault(); });
 $("kEsc").onclick=()=>{ const m=document.querySelector(".modal.show"); if(m) m.classList.remove("show"); else cancelAll(); };
 
+// ---------- Liens avec l'appli de métré et le CRM (18/11/2026) ----------
+/* dao/?client=NOM&retour=<id du métré>  : vient de « 📐 Dessiner le plan » d'un métré → plan de ce client, retour à ce métré.
+   dao/?retour=accueil | retour=crm      : vient de l'accueil du métré ou du CRM → bouton de retour.
+   Rien ne se perd : le dessin en cours est rangé dans « Mes plans » avant d'ouvrir celui du client. */
+const URLP = (()=>{ try{ return new URLSearchParams(location.search); }catch(e){ return new URLSearchParams(""); } })();
+const RETOUR = (URLP.get("retour")||"").trim();
+function retourUrl(){ if(!RETOUR) return null; if(RETOUR==="accueil") return "../"; if(RETOUR==="crm") return "../crm/"; return "../?ouvrir="+encodeURIComponent(RETOUR); }
+function garderDessinEnCours(){ // range le dessin actuel dans « Mes plans » (mise à jour s'il y est déjà, sinon « Brouillon … »)
+  if(!ents.length) return; const l=libGet(), data=planData(), p=planId && l.find(x=>x.id===planId);
+  if(p){ p.data=data; p.date=data.date; }
+  else { const n=planNameTxt||("Brouillon "+new Date().toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})); data.name=n; l.unshift({id:"p"+Date.now(),name:n,date:data.date,data}); }
+  libSet(l); }
+function ouvrirPlanClient(cl){
+  const nom=withPlan(cl); if(planNameTxt.toLowerCase()===nom.toLowerCase()) return;
+  const l=libGet(), ex=l.find(p=>(p.name||"").toLowerCase()===nom.toLowerCase());
+  if(ex && ex.id===planId) return;
+  garderDessinEnCours();
+  if(ex){ loadPlan(ex.data,ex.id); log(`Plan de ${cl} rouvert`); return; }
+  pushUndo(); ents=[]; selected.clear(); visuel=null; iaHist=[]; Object.assign(cart,{client:cl,chantier:"",titre:"",numero:"",indice:"A",obs:"",date:new Date().toLocaleDateString("fr-FR")});
+  layers=[{name:"Dessin",visible:true},{name:"Cotes",visible:true}]; curLayer="Dessin"; updLayerUI(); planId=null; planNameTxt=nom; updPlanName(); save();
+  log(`Nouveau plan pour ${cl} : dessinez, puis 💾 Enregistrer (le nom « ${nom} » est déjà prêt).`); }
+let retourForce=false;
+function partir(){ const u=retourUrl(); if(u) location.href=u; }
+async function attendreDrive(){ for(let i=0;i<600 && driveEnCours;i++) await new Promise(r=>setTimeout(r,200)); }
+async function revenir(){
+  if(retourForce || !ents.length){ partir(); return; }
+  const l=libGet();
+  if(!(planId && l.some(p=>p.id===planId))){ retourApresSave=true; quickSave(); return; }   // 1re fois : on demande le nom du client
+  $("fName").value=planNameTxt; storePlan(false);
+  if(driveAuto && driveDispo() && navigator.onLine){
+    $("bRetour").disabled=true; $("bRetour").textContent="⏳ Google Drive…";
+    let ok=false; try{ await attendreDrive(); await demanderJeton(); ok=await rangerDrive(); }catch(e){ toast("Google Drive : "+e.message); }
+    $("bRetour").disabled=false; $("bRetour").textContent="↩ Retour";
+    if(!ok){ retourForce=true; setTimeout(()=>toast("Plan enregistré sur l'appareil, mais pas dans Google Drive. Touchez encore ↩ Retour pour revenir quand même."),2300); return; }
+  }
+  partir(); }
+let retourApresSave=false;
+if(RETOUR){ const b=$("bRetour"); b.style.display="inline-block"; b.textContent="↩ Retour"; b.title = RETOUR==="crm" ? "Revenir au CRM" : RETOUR==="accueil" ? "Revenir à l'appli de métré" : "Enregistrer le plan et revenir au métré du client"; b.onclick=revenir; }
+
 // ---------- Installation (appli hors ligne) ----------
 if("serviceWorker" in navigator && location.protocol==="https:" && /github\.io$/.test(location.hostname)){
   navigator.serviceWorker.register("sw.js").catch(()=>{});
@@ -1892,6 +1932,7 @@ if("serviceWorker" in navigator && location.protocol==="https:" && /github\.io$/
 
 // ---------- Démarrage ----------
 load();
+{ const cl=(URLP.get("client")||"").trim(); if(cl){ ouvrirPlanClient(cl); try{ URLP.delete("client"); history.replaceState(null,"",location.pathname+(URLP.toString()?"?"+URLP:"")); }catch(e){} } }
 ensureLayers(); updLayerUI(); updRep(); updPlanName(); prechargerGoogle(); $("colDot").style.background=colors.trait;
 window.addEventListener("resize",renderAll);
 requestAnimationFrame(()=>{ zoomExtents(); cmdIn.focus(); });

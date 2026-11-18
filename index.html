@@ -1061,7 +1061,7 @@ function controleOuverture(o, d=S.dossier){
   if(tH!=null && f.H!=null && Math.abs(f.H-tH)>150) E.push("Hauteur : écart fabrication / tableau > 150 mm ?");
   if([tL,tH,f.L,f.H].some(x=>x!=null && x%5!==0)) W.push("Cote qui n'est pas un multiple de 5 ?");
   if(!sansOP && vt.length>=2 && !vt.some(x=>x.includes("OP"))) E.push("Plusieurs vantaux mais pas d'ouvrant principal (OP) ?");
-  if(o.appui_bas && aSeuil(o)) E.push("Appui bas ET seuil cochés ?");
+  if(o.appui_bas && seuilSansAppui(o)) E.push("Appui bas ET seuil cochés ?");
   controleGC(o, E, W);
   controleERP(o, E, W);
   if(aileRecouvrement(o)){ if(o.pose!=="tunnel") W.push("Ailes de recouvrement : prévues pour la pose en tunnel"); if(!o.delignage) W.push("Ailes de recouvrement : préciser le délignage (ou « sans délignage »)"); }
@@ -1214,6 +1214,7 @@ function nettoyerOuv(o){ const fam=modeleDe(o)?.famille;
   if(o.ob_type && ["coulissant","galandage","fixe"].includes(fam)) o.ob_type="";                      // jamais d'oscillo-battant sur un coulissant / fixe
   if(o.dormant_peri){ if(!o.appui_bas) o.appui_bas=DORMANT_PERI; delete o.dormant_peri; } }
 const aSeuil = o => !!(o.seuil_std || o.seuil_plat || o.seuil_type || (typeof seuilEncastre==="function" && seuilEncastre(o)));
+const seuilSansAppui = o => aSeuil(o) && !seuilEncastre(o);   // coulissant avec seuil alu encastré 40 mm : on peut AUSSI mettre un profil d'appui bas
 const sansAllege = o => aSeuil(o) || modeleDe(o)?.famille==="porte";
 const peutDormantPeri = o => !["porte","pf"].includes(modeleDe(o)?.famille);   // fenêtre, coulissant, fixe… : dormant en périphérique au lieu d'un appui
 function listeAppuis(g){ const fr=FRN(g).appuis, L=(fr ? [CAT.appui_bas[0],...fr] : listeFournisseur(CAT.appui_bas,GAMME_APPUI,g)).filter(gr=>!(typeof gr==="object" && gr.groupe==="" && (gr.items||[]).some(x=>["X","Large","STD"].includes(x))));
@@ -1692,7 +1693,7 @@ function renderOuverture(){
     ${FRN(o.gamme).poignees?F.sel("poignee_modele",`Poignée ${esc(FRN(o.gamme).fournisseur||"")}`,FRN(o.gamme).poignees,o.poignee_modele):F.sel("poignee","Poignée (position / type)",CAT.poignee,o.poignee)}${FRN(o.gamme).fermeture?F.sel("fermeture","Fermeture / serrure",FRN(o.gamme).fermeture,o.fermeture):""}
     ${FRN(o.gamme).seuils?F.sel("seuil_type","Seuil (fournisseur)",FRN(o.gamme).seuils,o.seuil_type):""}${(FRN(o.gamme).modeles_porte||FRN(o.gamme).panneaux)&&(modeleDe(o)?.famille==="porte")?F.sel("modele_porte","Modèle / panneau de porte",FRN(o.gamme).modeles_porte||FRN(o.gamme).panneaux,o.modele_porte):""}${FRN(o.gamme).sens_porte&&(modeleDe(o)?.famille==="porte")?F.sel("sens_porte","Sens d'ouverture (vue extérieure)",FRN(o.gamme).sens_porte,o.sens_porte):""}
   </div><div class="checks" style="margin-top:12px">${F.chk("seuil_std","Seuil alu standard",o.seuil_std)}${F.chk("seuil_plat","Seuil alu PLAT",o.seuil_plat)}${["coulissant","galandage"].includes(modeleDe(o)?.famille)?F.chk("seuil_encastre","Seuil encastré 4 cm (hauteur de fabrication + 40 mm)",o.seuil_encastre):""}</div>
-  ${aSeuil(o)&&!o.appui_bas?`<div class="hint" style="margin-top:8px">Seuil choisi : pas d'appui bas ni d'allège à remplir.</div>`:`<div class="grid g4" style="margin-top:12px"><div style="grid-column:span 2">${F.sel("appui_bas","Profil : appui bas"+(peutDormantPeri(o)?" (ou dormant en périphérique)":""),(()=>{ const la=listeAppuis(o.gamme); return o.appui_bas&&!dansListe(la,o.appui_bas)?[...la,{groupe:"Ancienne valeur",items:[o.appui_bas]}]:la; })(),o.appui_bas)}</div></div>`}
+  ${seuilSansAppui(o)&&!o.appui_bas?`<div class="hint" style="margin-top:8px">Seuil choisi : pas d'appui bas ni d'allège à remplir.</div>`:`<div class="grid g4" style="margin-top:12px"><div style="grid-column:span 2">${F.sel("appui_bas","Profil : appui bas"+(peutDormantPeri(o)?" (ou dormant en périphérique)":""),(()=>{ const la=listeAppuis(o.gamme); return o.appui_bas&&!dansListe(la,o.appui_bas)?[...la,{groupe:"Ancienne valeur",items:[o.appui_bas]}]:la; })(),o.appui_bas)}</div></div>`}
   <div class="grid g4" style="margin-top:12px">${F.sel("comp.type","Compensateur sous la menuiserie",COMP_TYPES,o.comp.type)}
     ${o.comp.type?F.numb("comp.h","Hauteur du compensateur (mm)",o.comp.h)+`<div style="grid-column:span 2">${F.sel("comp.compris","Dans la hauteur de fabrication ?",COMP_COMPRIS,o.comp.compris)}</div>`:`<div class="hint" style="grid-column:span 3;align-self:end">Regingot, ou sous une porte pour laisser la place au carrelage.</div>`}</div>
   <div class="q-porte" style="margin-top:12px">${listeCylindres(o.gamme)||aSemiFixe(o)?`<div class="grid g2" style="margin-bottom:12px">${listeCylindres(o.gamme)?F.sel("cylindre","Cylindre (barillet)",listeCylindres(o.gamme),o.cylindre):""}${aSemiFixe(o)?F.sel("semi_fixe","Fermeture de l'ouvrant secondaire (semi-fixe)",listeSemiFixe(o.gamme),o.semi_fixe):""}</div>`:""}

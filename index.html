@@ -214,6 +214,11 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .finrow select{flex:1;min-width:0}.finrow .fincote{flex:0 0 150px}
 .modfam{margin-bottom:8px}.modfam>span{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
 .modgrid{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.fo-bloc{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)} .fo-grid{display:flex;flex-wrap:wrap;gap:6px}
+.fo-grid button{border:2px solid var(--line);background:#fff;border-radius:10px;padding:5px;width:92px;min-height:76px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--navy)} .fo-grid button.on{border-color:var(--navy);background:#eef2fa} .fo-grid small{font-size:11px;line-height:1.15;text-align:center}
+.fo-wrap{position:relative;max-width:560px;margin:4px auto 0} .fo-wrap svg{width:100%;height:auto;display:block}
+.fo-in{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:1px;z-index:2} .fo-in span{font-size:10px;font-weight:700;color:#d3232f;background:rgba(255,255,255,.85);padding:0 3px;border-radius:3px;white-space:nowrap}
+.fo-in input{width:78px;min-height:34px;padding:3px 4px;text-align:center;font-weight:800;font-size:16px;color:#d3232f;border:2px solid #d3232f;border-radius:8px;background:#fff}
 .pbgrid{display:flex;flex-wrap:wrap;gap:6px}
 .modgrid svg.mini{width:auto;height:64px;max-width:90px}
 .pmod svg.mini{height:16mm;width:auto}
@@ -299,6 +304,7 @@ input:disabled{background:#eef1f7;color:#4a5368}
   .pdt th,.pdt td{text-align:center;font-size:9.5pt}
   .pdt th:first-child{text-align:left;white-space:normal;width:auto}
   .pdt{table-layout:fixed}
+  .pforme{margin-top:4px} .pforme td{text-align:center}
   .pdt2{display:grid;grid-template-columns:1fr 1fr;gap:4px;align-items:start}
   .pdt2 .pdt{margin:0}
   .pdt td{width:24%;text-align:center}
@@ -1042,6 +1048,7 @@ function controleOuverture(o, d=S.dossier){
   if(!o.couleur_int && !o.couleur_ext) E.push("Couleur non renseignée");
   const md=modeleDe(o), fam=md?.famille, sansOP=["coulissant","galandage","fixe"].includes(fam), porte=fam==="porte";
   if(listeModeles(o.gamme) && !md) E.push("Modèle de menuiserie non choisi");
+  controleForme(o, E, W);
   { const Lc=f.L??tL, Hc=f.H??tH; if(md?.lmax && Lc>md.lmax) E.push(`Largeur ${Lc} > maximum ${md.lmax} du fournisseur (${md.nom})`); if(md?.hmax && Hc>md.hmax) E.push(`Hauteur ${Hc} > maximum ${md.hmax} du fournisseur (${md.nom})`); }
   if(vt.length===0 && !sansOP) E.push("Répartition des vantaux non renseignée");
   if(md && (fam==="of"||fam==="pf") && md.vantaux<=3 && vt.length && vt.length!==md.vantaux) W.push(`Le modèle a ${md.vantaux} vantail(aux), la répartition en indique ${vt.length}`);
@@ -1266,6 +1273,7 @@ function refreshLive(k){
     if(k==="dormant_aile"||k==="delignage"){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(k==="comp.type"){ const c=S.ouv.comp; if(c.type && !c.h) c.h=String((c.type.match(/^(\d+)/)||[])[1]||""); if(c.type && !c.compris) c.compris=COMP_COMPRIS[1]; if(!c.type){ c.h=""; c.compris=""; } save(); const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(k==="volet.type"||k==="gc.zsp"){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
+    if(String(k).startsWith("forme.")){ const o=S.ouv; if(syncFormeCotes(o)){ save(); ["L","H"].forEach(K=>o.cotes[K].forEach((x,i)=>{ const el=$(`[data-k="cotes.${K}.${i}"]`); if(el&&el!==document.activeElement&&el.value!==String(x??"")) el.value=x??""; })); } majForme(o); }
     if(String(k).startsWith("gc.")) majGC();
     if(k==="gc.modele"){ const l=$(".gc-photo"); if(l){ l.href=lienPhotoGC(S.ouv); l.textContent="🔎 "+(S.ouv.gc.modele?"Voir ce modèle en photo":"Voir les modèles en photo"); } }
     if(String(k).endsWith(".avec_menuiserie")){ syncVR(S.dossier); renderVRInline(); }
@@ -1642,7 +1650,7 @@ function renderOuverture(){
 
   <div class="card"><h2><span class="num">3</span>Dimensions (mm)</h2>
     ${o.pose==="neuf"?`<div class="enduit-banner">Pose en neuf : toutes les dimensions sont relevées <b>ENDUIT COMPRIS</b>.</div>`:""}
-    <div class="cotes">${cotesBox("L","Largeur – vue en plan",P.schemaL)}${cotesBox("H","Hauteur – vue en coupe",P.schemaH)}</div>
+    ${blocForme(o)}<div class="cotes">${cotesBox("L","Largeur – vue en plan",P.schemaL)}${cotesBox("H","Hauteur – vue en coupe",P.schemaH)}</div>
     ${listeElarg(o.gamme)?`<div style="margin-top:14px"><div class="hint" style="font-weight:700;color:var(--navy);margin-bottom:6px">ÉLARGISSEURS (vue de l'intérieur)</div><div class="grid g3">
       ${F.sel("elarg.gauche","À gauche",listeElarg(o.gamme),(o.elarg||{}).gauche)}${F.sel("elarg.haut","En haut",listeElarg(o.gamme),(o.elarg||{}).haut)}${F.sel("elarg.droite","À droite",listeElarg(o.gamme),(o.elarg||{}).droite)}
     </div></div>`:""}</div>
@@ -1746,6 +1754,7 @@ function renderOuverture(){
   $$("[data-findel]").forEach(b=>b.onclick=()=>{ const [c,i]=b.dataset.findel.split(":"); o.finitions[c+"_l"].splice(+i,1); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $$("[data-modchg]").forEach(b=>b.onclick=()=>{ S.modOuvert=true; const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $$("[data-pbm]").forEach(b=>b.onclick=()=>{ o.pb_motif=b.dataset.pbm; save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
+  $$("[data-fotype]").forEach(b=>b.onclick=()=>{ o.forme=Object.assign(o.forme||{}, {type:b.dataset.fotype}); syncFormeCotes(o); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $$("[data-mod]").forEach(b=>b.onclick=()=>{ o.modele = o.modele===b.dataset.mod ? "" : b.dataset.mod; S.modOuvert=false; save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $("#chgPose").onchange=e=>{ o.pose=e.target.value; save(); renderOuverture(); };
   const idx=d.ouvertures.indexOf(o);
@@ -1845,6 +1854,7 @@ function miniPB(m){ const line=(a,b,c,d,w,col)=>`<line x1="${a}" y1="${b}" x2="$
   const mm = m.id==="perso" ? null : m;
   return `<svg viewBox="0 0 44 64" width="34" height="50"><rect x="2" y="2" width="40" height="60" fill="#fff" stroke="#1b2f5e" stroke-width="3"/>${mm&&mm.id?grillePB(mm,6,6,32,52,line,false):m.id==="perso"?`<text x="22" y="38" text-anchor="middle" font-size="20" font-weight="700" fill="#1b2f5e">?</text>`:""}</svg>`; }
 function dessinMenuiserie(o, opt={}){
+  if(typeof formeDe==="function" && formeDe(o)) return dessinForme(o,{mode:opt.mini?"mini":"vue",cls:opt.cls});
   const NAVY="#1b2f5e", RED="#d3232f", GREY="#c9cfdb";
   const md=modeleDe(o), nom=(md?.nom||"").toLowerCase();
   let fam=md?.famille||"of";
@@ -2025,6 +2035,128 @@ function dessinMenuiserie(o, opt={}){
   if(leg) c+=`<text x="${W/2}" y="${H+MB-(erpTxt?22:5)}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#5b6478">${leg}</text>`;
   return `<svg class="dessin${opt.cls?" "+opt.cls:""}" viewBox="${-ML} 0 ${W+ML+MR} ${H+MB}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dessin de la menuiserie">${s}${c}</svg>`;
 }
+
+/* ---------- Fixes de forme (18/11/2026) : triangle, trapèze, pignon, cintre, œil-de-bœuf…
+   Les cotes se saisissent directement sur le dessin. Rampants calculés (longueurs seulement, pas d'angles).
+   La largeur et la plus grande hauteur sont recopiées dans la cote tableau → la pose et la fabrication marchent comme d'habitude. */
+const FORMES = [
+  {id:"",nom:"Rectangle"},
+  {id:"tri",nom:"Triangle",ch:["L","H"]},
+  {id:"tri_rg",nom:"Triangle rectangle gauche",ch:["L","H"]},
+  {id:"tri_rd",nom:"Triangle rectangle droit",ch:["L","H"]},
+  {id:"tri_dec",nom:"Triangle décalé",ch:["L","H","d"]},
+  {id:"trap",nom:"Trapèze",ch:["L","Hg","Hd"]},
+  {id:"pente_plat",nom:"Pente puis plat",ch:["L","Hg","Hd","P"]},
+  {id:"plat_pente",nom:"Plat puis pente",ch:["L","Hg","Hd","P"]},
+  {id:"pignon",nom:"Pignon",ch:["L","Hg","Hd","H"]},
+  {id:"cintre",nom:"Plein cintre",ch:["L","Hm","H"]},
+  {id:"rond",nom:"Œil-de-bœuf",ch:["D"]} ];
+const FORME_LIB = {L:"Largeur",H:"Hauteur",Hg:"Hauteur gauche",Hd:"Hauteur droite",P:"Partie plate",d:"Gauche → pointe",Hm:"Hauteur des montants",D:"Diamètre"};
+const FORME_COURT = {L:"L",H:"H",Hg:"Hg",Hd:"Hd",P:"P",d:"d",Hm:"Hm",D:"Ø"};
+const estFixe = o => modeleDe(o)?.famille==="fixe";
+const formeDe = o => (estFixe(o) && o.forme && o.forme.type) ? FORMES.find(f=>f.id===o.forme.type)||null : null;
+/* valeurs pour dessiner : les cotes saisies, sinon des proportions par défaut */
+function formeVals(F, src){ const n=k=>{ const x=num(src&&src[k]); return x!=null&&x>0?x:null; };
+  const L=n("L")||1000, D=n("D")||800, H=n("H")||(F.id==="cintre"?(n("Hm")||500)+L/2:F.id==="pignon"?Math.max(n("Hg")||500,n("Hd")||500)*1.6:800);
+  const Hg=n("Hg")||(F.id==="plat_pente"?800:400), Hd=n("Hd")||(F.id==="plat_pente"?400:800);
+  return {L, H, Hg, Hd, D, Hm:n("Hm")||Math.max(50,H-L/2), P:n("P")||L*0.35, d:n("d")||L*0.3}; }
+/* géométrie en mm (y vers le haut) */
+function formeGeo(F, v){
+  const {L,H,Hg,Hd,P,d,Hm,D}=v; let pts=[], arc=null;
+  switch(F.id){
+    case "tri": pts=[[0,0],[L/2,H],[L,0]]; break;
+    case "tri_rg": pts=[[0,0],[0,H],[L,0]]; break;
+    case "tri_rd": pts=[[0,0],[L,H],[L,0]]; break;
+    case "tri_dec": pts=[[0,0],[Math.min(d,L),H],[L,0]]; break;
+    case "trap": pts=[[0,0],[0,Hg],[L,Hd],[L,0]]; break;
+    case "pente_plat": pts=[[0,0],[0,Hg],[Math.max(0,L-P),Hd],[L,Hd],[L,0]]; break;
+    case "plat_pente": pts=[[0,0],[0,Hg],[Math.min(P,L),Hg],[L,Hd],[L,0]]; break;
+    case "pignon": pts=[[0,0],[0,Hg],[L/2,H],[L,Hd],[L,0]]; break;
+    case "cintre": { const f=Math.max(1,H-Hm), R=(L*L/4+f*f)/(2*f), phi=f<=L/2?2*Math.asin(Math.min(1,L/(2*R))):2*Math.PI-2*Math.asin(Math.min(1,L/(2*R)));
+      pts=[[0,0],[0,Hm],[L,Hm],[L,0]]; arc={R, f, dev:Math.round(R*phi)}; break; }
+    case "rond": pts=[]; break; }
+  const Hmax = F.id==="rond" ? D : Math.max(...pts.map(p=>p[1]), F.id==="cintre"?H:0);
+  const Lmax = F.id==="rond" ? D : L;
+  /* rampants = côtés ni horizontaux ni verticaux */
+  const ram=[]; for(let i=0;i<pts.length;i++){ const a=pts[i], b=pts[(i+1)%pts.length]; if(F.id==="cintre"&&i===1) continue;
+    if(Math.abs(a[0]-b[0])>0.5 && Math.abs(a[1]-b[1])>0.5) ram.push({a,b,len:Math.round(Math.hypot(b[0]-a[0],b[1]-a[1]))}); }
+  return {pts, arc, Hmax, Lmax, ram}; }
+/* cotes utiles pour le contrôle / le PDF : prises et fabrication (même retrait que la menuiserie) */
+function formeCotes(o){ const F=formeDe(o); if(!F) return null; const s=o.forme||{}, f=calcFab(o);
+  const tL=num(coteTab(o,"L")), tH=num(coteTab(o,"H")), dL=(tL!=null&&f.L!=null)?tL-f.L:0, dH=(tH!=null&&f.H!=null)?tH-f.H:0;
+  const fab={}; F.ch.forEach(k=>{ const x=num(s[k]); if(x==null){ fab[k]=null; return; }
+    fab[k] = k==="L"||k==="D" ? x-dL : k==="P"||k==="d" ? x-dL/2 : x-dH; });
+  const ok=F.ch.every(k=>num(s[k])!=null);
+  const ramPris = ok ? formeGeo(F, formeVals(F,s)) : null, ramFab = ok&&F.ch.every(k=>fab[k]!=null) ? formeGeo(F, formeVals(F,fab)) : null;
+  return {F, pris:s, fab, dL, dH, ok, gP:ramPris, gF:ramFab}; }
+/* La largeur et la plus grande hauteur de la forme → cote tableau de la pose (pour la pose / fabrication / volets…) */
+function syncFormeCotes(o){ const F=formeDe(o); if(!F) return false; const s=o.forme, P=CAT.poses[o.pose]||{};
+  const L=num(F.id==="rond"?s.D:s.L), hs=F.ch.filter(k=>/^H|^D/.test(k)).map(k=>num(s[k])).filter(x=>x!=null), H=F.id==="rond"?num(s.D):(hs.length?Math.max(...hs):null);
+  let ch=false; [["L",L],["H",H]].forEach(([k,v])=>{ if(v==null) return; const i=P.actifs?P.actifs[k][0]:0; if(String(o.cotes[k][i]??"")!==String(v)){ o.cotes[k][i]=String(v); ch=true; } });
+  return ch; }
+/* Dessin : mode "edit" (cases de saisie sur le dessin), "vue" (cotes écrites), "mini" (icône) */
+function dessinForme(o, opt={}){
+  const F=opt.F||formeDe(o); if(!F) return ""; const NAVY="#1b2f5e", RED="#d3232f", s=opt.vals||(o&&o.forme)||{};
+  const v=formeVals(F,s), g=formeGeo(F,v), mini=opt.mode==="mini", edit=opt.mode==="edit";
+  const W=mini?60:440, m=mini?5:72, top=mini?5:48, bot=mini?5:46, avail=mini?44:250;
+  const sc=Math.min((W-2*m)/g.Lmax, avail/g.Hmax), Hs=Math.round(g.Hmax*sc+top+bot), ox=(W-g.Lmax*sc)/2;
+  const X=x=>+(ox+x*sc).toFixed(1), Y=y=>+(top+(g.Hmax-y)*sc).toFixed(1);
+  let sh="";
+  if(F.id==="rond") sh=`<circle cx="${X(v.D/2)}" cy="${Y(v.D/2)}" r="${(v.D/2*sc).toFixed(1)}"/>`;
+  else if(F.id==="cintre") sh=`<path d="M${X(0)},${Y(0)} L${X(0)},${Y(v.Hm)} A${(g.arc.R*sc).toFixed(1)},${(g.arc.R*sc).toFixed(1)} 0 ${g.arc.f>v.L/2?1:0} 1 ${X(v.L)},${Y(v.Hm)} L${X(v.L)},${Y(0)} Z"/>`;
+  else sh=`<polygon points="${g.pts.map(p=>X(p[0])+","+Y(p[1])).join(" ")}"/>`;
+  if(mini) return `<svg viewBox="0 0 ${W} ${Hs}" width="46" height="${Math.round(46*Hs/W)}" style="max-height:44px"><g fill="#fff" stroke="${NAVY}" stroke-width="3">${sh}</g></svg>`;
+  /* positions des cotes (coordonnées SVG) + traits de cote */
+  const P={}, dim=[]; const ln=(a,b,c,d,da)=>dim.push(`<line x1="${a}" y1="${b}" x2="${c}" y2="${d}" stroke="${RED}" stroke-width="1"${da?' stroke-dasharray="4 3"':""}/>`);
+  const vert=(x,y0,y1,cote,dx)=>{ ln(x+dx*0.45,Y(y0),x+dx*0.45,Y(y1)); P[cote]=[x+dx,(Y(y0)+Y(y1))/2]; };
+  if(F.id==="rond"){ ln(X(0),Y(v.D/2),X(v.D),Y(v.D/2),1); P.D=[X(v.D/2),Y(v.D/2)-18]; }
+  else { ln(X(0),Y(0)+12,X(v.L),Y(0)+12); P.L=[X(v.L/2),Y(0)+28]; }
+  const gauche=-34, droite=34;
+  if(F.ch.includes("Hg")) vert(X(0),0,v.Hg,"Hg",gauche);
+  if(F.ch.includes("Hd")) vert(X(v.L),0,v.Hd,"Hd",droite);
+  if(F.ch.includes("Hm")) vert(X(0),0,v.Hm,"Hm",gauche);
+  if(F.ch.includes("H")){
+    if(F.id==="tri_rg") vert(X(0),0,v.H,"H",gauche);
+    else if(F.id==="tri_rd"||F.id==="cintre") vert(X(v.L),0,v.H,"H",droite);
+    else { const ax=F.id==="tri_dec"?Math.min(v.d,v.L):v.L/2; ln(X(ax),Y(0),X(ax),Y(v.H),1); P.H=[X(ax)+(F.id==="tri_dec"&&ax>v.L*0.6?-36:36),Y(v.H*(F.id==="pignon"?0.45:0.32))]; } }
+  if(F.ch.includes("P")){ const x0=F.id==="pente_plat"?v.L-v.P:0, x1=F.id==="pente_plat"?v.L:v.P, y=F.id==="pente_plat"?v.Hd:v.Hg; ln(X(x0),Y(y)-10,X(x1),Y(y)-10); P.P=[(X(x0)+X(x1))/2,Y(y)-26]; }
+  if(F.ch.includes("d")){ ln(X(0),Y(v.H)-12,X(Math.min(v.d,v.L)),Y(v.H)-12); P.d=[(X(0)+X(Math.min(v.d,v.L)))/2,Y(v.H)-27]; }
+  /* rampants calculés (petit texte le long du côté, vers l'extérieur) */
+  const cx=g.pts.length?g.pts.reduce((a,p)=>a+p[0],0)/g.pts.length:0, cy=g.pts.length?g.pts.reduce((a,p)=>a+p[1],0)/g.pts.length:0;
+  const fc=opt.fab?formeCotes(o):null, ok=F.ch.every(k=>num(s[k])!=null);
+  let rt=""; g.ram.forEach(r=>{ const mx=(r.a[0]+r.b[0])/2, my=(r.a[1]+r.b[1])/2; let nx=-(r.b[1]-r.a[1]), ny=r.b[0]-r.a[0]; const nl=Math.hypot(nx,ny)||1; nx/=nl; ny/=nl; if(nx*(mx-cx)+ny*(my-cy)<0){ nx=-nx; ny=-ny; }
+    const tx=X(mx)+nx*28, ty=Y(my)-ny*28; rt+=`<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="12" fill="#5b6b8c">${ok?`rampant ${r.len}`:"rampant"}</text>`; });
+  if(F.id==="cintre") rt+=`<text x="${X(v.L/2)}" y="${Y(v.H)-14}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#5b6b8c">${ok?`arc développé ${g.arc.dev} · rayon ${Math.round(g.arc.R)}`:"arc"}</text>`;
+  const svg=`<svg viewBox="0 0 ${W} ${Hs}" class="dessin${opt.cls?" "+opt.cls:""}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(F.nom)}"><g fill="#fff" stroke="${NAVY}" stroke-width="4">${sh}</g>${dim.join("")}${rt}
+    ${edit?"":Object.entries(P).map(([k,[x,y]])=>{ const val=s[k]; return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="${val?RED:"#e08a8a"}">${FORME_COURT[k]} ${val?esc(String(val)):"?"}</text>`; }).join("")}</svg>`;
+  if(!edit) return svg;
+  return {svg, pos:Object.fromEntries(Object.entries(P).map(([k,[x,y]])=>[k,[x/W*100,y/Hs*100]])), Hs, W}; }
+/* bloc de saisie sur le dessin (vue ouverture) */
+function blocForme(o){ if(!estFixe(o)) return ""; const F=formeDe(o), cur=(o.forme&&o.forme.type)||"";
+  const choix=`<div class="hint" style="font-weight:700;color:var(--navy);margin-bottom:6px">FORME DU FIXE</div><div class="fo-grid">${FORMES.map(f=>`<button type="button" class="${cur===f.id?"on":""}" data-fotype="${f.id}" title="${esc(f.nom)}">${f.id?dessinForme(null,{F:f,mode:"mini",vals:{}}):`<svg viewBox="0 0 60 44" width="46" height="34"><rect x="8" y="5" width="44" height="34" fill="#fff" stroke="#1b2f5e" stroke-width="3"/></svg>`}<small>${esc(f.nom)}</small></button>`).join("")}</div>`;
+  if(!F) return `<div class="fo-bloc">${choix}</div>`;
+  const e=dessinForme(o,{mode:"edit"});
+  return `<div class="fo-bloc">${choix}
+    <div class="hint" style="margin:10px 0 4px">Touche une case sur le dessin et tape la cote (ou prends-la au télémètre). Largeur et plus grande hauteur sont recopiées dans les cotes tableau ci-dessous.</div>
+    <div class="fo-wrap" id="foWrap"><div id="foSvg">${e.svg}</div>
+      ${F.ch.map(k=>`<label class="fo-in" data-fopos="${k}" style="left:${e.pos[k][0].toFixed(2)}%;top:${e.pos[k][1].toFixed(2)}%"><span>${esc(FORME_LIB[k])}</span><input data-k="forme.${k}" inputmode="numeric" value="${esc((o.forme||{})[k]||"")}" placeholder="${FORME_COURT[k]}"></label>`).join("")}</div></div>`; }
+function majForme(o){ const w=$("#foWrap"); if(!w||!formeDe(o)) return; const e=dessinForme(o,{mode:"edit"}); $("#foSvg").innerHTML=e.svg;
+  $$("[data-fopos]").forEach(el=>{ const p=e.pos[el.dataset.fopos]; if(p){ el.style.left=p[0].toFixed(2)+"%"; el.style.top=p[1].toFixed(2)+"%"; } }); }
+/* tableau PDF : cotes prises, fabrication, rampants */
+function tableForme(o){ const c=formeCotes(o); if(!c) return ""; const F=c.F;
+  const ramTxt=g=>!g?"":F.id==="cintre"?`arc ${g.arc.dev} (rayon ${Math.round(g.arc.R)})`:g.ram.map(r=>r.len).join(" / ");
+  return `<table class="pt pdt pforme"><tr class="pdir"><th colspan="3">FORME : ${esc(F.nom.toUpperCase())}</th></tr><tr><th></th><th>Prise</th><th>Fabrication</th></tr>
+    ${F.ch.map(k=>`<tr><th>${esc(FORME_LIB[k])}</th><td>${esc(c.pris[k]||"")}</td><td><b>${c.fab[k]??""}</b></td></tr>`).join("")}
+    ${F.id!=="rond"&&(c.gP&&(c.gP.ram.length||F.id==="cintre"))?`<tr><th>${F.id==="cintre"?"Arc":"Rampant(s)"} calculé(s)</th><td>${ramTxt(c.gP)}</td><td><b>${ramTxt(c.gF)}</b></td></tr>`:""}</table>`; }
+/* contrôle */
+function controleForme(o, E, W){ const F=formeDe(o); if(!F) return; const s=o.forme, n=k=>num(s[k]);
+  F.ch.forEach(k=>{ if(n(k)==null) E.push(`Forme ${F.nom} : ${FORME_LIB[k].toLowerCase()} manquante`); });
+  if(F.id==="pignon" && n("H")!=null && n("H")<=Math.max(n("Hg")||0,n("Hd")||0)) E.push("Pignon : la hauteur au sommet doit être plus grande que les hauteurs gauche et droite");
+  if(F.ch.includes("P") && n("P")!=null && n("L")!=null && n("P")>=n("L")) E.push(`${F.nom} : la partie plate doit être plus courte que la largeur`);
+  if(F.id==="tri_dec" && n("d")!=null && n("L")!=null && n("d")>n("L")) E.push("Triangle décalé : la pointe sort de la largeur (d > L)");
+  if(F.id==="cintre" && n("H")!=null && n("Hm")!=null && n("H")<=n("Hm")) E.push("Plein cintre : la hauteur totale doit être plus grande que les montants");
+  if(F.id==="trap" && n("Hg")!=null && n("Hg")===n("Hd")) W.push("Trapèze avec deux hauteurs égales : c'est un rectangle ?");
+  if(F.ch.includes("Hg") && F.id!=="pignon" && F.id!=="trap" && n("Hg")!=null && n("Hd")!=null && n("Hg")===n("Hd")) W.push(`${F.nom} : hauteurs gauche et droite égales ?`); }
 
 /* ---------- Croquis au stylet ---------- */
 /* ---------- Outils de dessin façon iPad (18/11/2026) : couleurs, style de crayon, épaisseur, gomme, texte manuscrit → texte tapé ---------- */
@@ -3437,7 +3569,7 @@ function construireImpression(d){
       <div class="pst">HAUTEUR <small>– vue en coupe</small></div>${schemaHTML(o,"H","psch",true)||`<div class="hint">Pas de schéma</div>`}
       <div class="pdt2">${["L","H"].map(k=>`<table class="pt pdt"><tr class="pdir"><th colspan="2">${k==="L"?"LARGEUR":"HAUTEUR"}</th></tr>`+
         P.cotes.map((_,j)=>!coteUtile(o,j,k)?"":`<tr><th><span class="pn">${numCote(o,k,j)}</span>${esc(libCote(o,k,j))}</th><td>${esc(o.cotes[k][j]??"")}</td></tr>`).join("")
-        +`<tr class="pfabr"><th>FABRICATION</th><td>${f[k]??""}</td></tr></table>`).join("")}</div>
+        +`<tr class="pfabr"><th>FABRICATION</th><td>${f[k]??""}</td></tr></table>`).join("")}</div>${tableForme(o)}
       ${texteElarg(o)?`<div class="pelarg">Élargisseurs : <b>${esc(texteElarg(o))}</b></div>`:""}
       ${(()=>{const l=vrLie(d,o); return l&&l.avec_menuiserie?`<div class="pelarg">${esc(l.avec_menuiserie)} : <b>${esc(l.coffre_hauteur||"coffre compris dans la hauteur ? À PRÉCISER")}</b></div>`:"";})()}
       </div><div>

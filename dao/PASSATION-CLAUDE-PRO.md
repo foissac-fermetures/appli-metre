@@ -43,6 +43,12 @@ Adresse finale de la Mini DAO : **https://foissac-fermetures.github.io/appli-met
 | MacBook Pro | Safari | Menu **Fichier** puis **« Ajouter au Dock »**. Avec Chrome : icône d'installation dans la barre d'adresse. |
 | PC Windows | Edge ou Chrome | Icône **« Installer l'application »** dans la barre d'adresse (ou menu ⋯ → Applications → Installer). |
 
+⚠️ **PC de Nicolas (Chrome), constaté le 18/11/2026** : l'appli de métré étant déjà installée dans Chrome, et `dao/` étant dans sa portée,
+Chrome ne propose pas « Installer » pour la Mini DAO (seulement « Ouvrir dans Métré ») et « Créer un raccourci » n'a plus la case « Ouvrir dans une fenêtre ».
+Solution mise en place : raccourci **Bureau › « Mini DAO »** = `chrome_proxy.exe --profile-directory="Default" --app=https://foissac-fermetures.github.io/appli-metre/dao/`,
+icône `Documents\Mini DAO\mini-dao.ico`. Ouvre une vraie fenêtre sans barre d'adresse, avec le même profil Chrome que le métré (mêmes plans, même connexion Google).
+Même problème possible sur le Mac avec Chrome (Safari : Fichier › Ajouter au Dock marche).
+
 Une fois installée, la Mini DAO s'ouvre dans sa propre fenêtre, avec son icône, et **fonctionne sans Internet**.
 
 ⚠️ Les plans sont enregistrés **dans l'appareil** (stockage du navigateur). Pour passer un plan d'un appareil

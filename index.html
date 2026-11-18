@@ -1110,6 +1110,14 @@ function controleDossier(d){
 /* Fabrication VR : pose sous linteau (vers l'extérieur ou l'intérieur) → tableau L −10, H −5.
    En applique : saisie à la main. Une valeur tapée dans Fabrication remplace toujours le calcul. */
 const VR_SOUS_LINTEAU = ["linteau_ext","linteau_int"];
+/* Volet vendu AVEC la menuiserie (monobloc, intégré, demi linteau…) : cotes de fabrication données par l'usine (18/11/2026) */
+const vrUsine = l => !!(l&&l.avec_menuiserie) && !/^Passage/i.test(l.avec_menuiserie);
+/* couleur de la menuiserie → couleur volet (liste du catalogue), sinon la couleur telle quelle */
+function couleurVRDepuis(o){ const c=o.couleur_ext||o.couleur_int||""; if(!c) return ""; const items=(CAT.vr.couleurs||[]).flatMap(g=>g.items||[g]); const n=x=>nrm(String(x));
+  const ral=(c.match(/\b(\d{4})\b/)||[])[1]; let m=ral&&items.find(x=>String(x).includes(ral)); if(m) return m;
+  m=items.find(x=>n(x)===n(c)) || items.find(x=>n(c).includes(n(x))||n(x).includes(n(c))) || (/blanc/i.test(c)&&"Blanc") || (/ch[eê]ne/i.test(c)&&items.find(x=>/ch[eê]ne/i.test(x)));
+  return m||c; }
+const VR_COUL = [["couleur_tablier","Couleur tablier"],["couleur_coulisses","Couleur coulisses"],["couleur_coffre","Couleur coffre"]];
 function fabVR(l, v){
   const auto = VR_SOUS_LINTEAU.includes(v.type_pose), tL=num(l.tab_l), tH=num(l.tab_h);
   const aL = auto&&tL!=null ? tL-10 : null, aH = auto&&tH!=null ? tH-5 : null;
@@ -1122,7 +1130,7 @@ function controleVREntete(v){
   if(!v.type_pose) E.push("Type de pose non choisi");
   if(!v.coffre) W.push("Type de coffre non choisi");
   if(!v.motorisation) E.push("Motorisation non choisie");
-  if(!v.couleur_coffre && !v.couleur_coulisses && !v.couleur_tablier) W.push("Couleurs coffre / coulisses / tablier non renseignées");
+  if(!v.couleur_coffre && !v.couleur_coulisses && !v.couleur_tablier && v.lignes.some(l=>!VR_COUL.some(([k])=>l[k]))) W.push("Couleurs coffre / coulisses / tablier non renseignées");
   if(!v.manutention) W.push("Manutention (échelle, nacelle…) non renseignée");
   return {E,W};
 }
@@ -1130,9 +1138,10 @@ function controleLigneVR(l, v){
   const E=[],W=[], tL=num(l.tab_l), tH=num(l.tab_h), fb=fabVR(l,v), fL=fb.L, fH=fb.H;
   if(!l.repere) W.push("Repère manquant");
   if(tL==null||tH==null) E.push("Cote tableau manquante");
+  if(!vrUsine(l)){
   if(fL==null||fH==null) E.push("Cote de fabrication manquante");
   if(tL!=null&&fL!=null&&Math.abs(fL-tL)>150) E.push("Largeur : écart fabrication / tableau > 150 mm ?");
-  if(tH!=null&&fH!=null&&Math.abs(fH-tH)>150) E.push("Hauteur : écart fabrication / tableau > 150 mm ?");
+  if(tH!=null&&fH!=null&&Math.abs(fH-tH)>150) E.push("Hauteur : écart fabrication / tableau > 150 mm ?"); }
   if([tL,tH,fL,fH].some(x=>x!=null&&x%5!==0)) W.push("Cote qui n'est pas un multiple de 5 ?");
   if(l.fil_droite&&l.fil_gauche) E.push("Sortie de fil cochée à droite ET à gauche ?");
   if(vrMotorise(l,v)&&!l.fil_droite&&!l.fil_gauche) W.push("Côté de sortie de fil non coché");
@@ -1303,6 +1312,7 @@ function refreshLive(k){
     if(String(k).startsWith("gc.")||k==="allege") majGC();
     if(k==="gc.modele"){ const l=$(".gc-photo"); if(l){ l.href=lienPhotoGC(S.ouv); l.textContent="🔎 "+(S.ouv.gc.modele?"Voir ce modèle en photo":"Voir les modèles en photo"); } }
     if(String(k).endsWith(".avec_menuiserie")){ syncVR(S.dossier); renderVRInline(); }
+    if(k==="couleur_ext"||k==="couleur_int"){ const l=vrLie(S.dossier,S.ouv); if(l){ const cm=couleurVRDepuis(S.ouv); VR_COUL.forEach(([c])=>{ if(!l[c]||l[c]===l["_auto_"+c]) { l[c]=cm; l["_auto_"+c]=cm; } }); save(); renderVRInline(); } }
     majFab(); majControle(); majVRInline(); const ds=$("#dessin"); if(ds) ds.innerHTML=dessinMenuiserie(S.ouv);
   } else if(S.view==="dossier"){ majTitre(); if(String(k).startsWith("vr.")) majVR(); if(String(k).startsWith("clim.")) majClim(k);
     if(String(k).startsWith("pt.")) majPT(k);
@@ -1804,6 +1814,7 @@ function renderVRInline(){
       <span class="spacer"></span><button class="btn primary" id="vrLieAdd">+ Ajouter un volet roulant</button></div>`;
     $("#vrLieAdd").onclick=()=>{ ajouterVRLie(d,o); save(); renderVRInline(); }; return; }
   const i=d.vr.lignes.indexOf(l), k=`vr.lignes.${i}`, tp=C.types_pose.find(p=>p.id===v.type_pose);
+  { const cm=couleurVRDepuis(o); let ch=false; VR_COUL.forEach(([c])=>{ if(!l[c] && (v[c]||cm)){ l[c]=v[c]||cm; l["_auto_"+c]=l[c]; ch=true; } }); if(ch) save(); }   // pré-rempli : couleur générale des volets, sinon couleur de la menuiserie
   const html=`<div class="row" style="margin-bottom:10px"><h2 style="margin:0">Volet roulant de cette ouverture</h2><span id="vrInBadge"></span><span class="spacer"></span>
       <button class="btn small danger" id="vrLieDel">Retirer le volet</button></div>
     <div class="hint" style="margin-bottom:10px">Repère, quantité et cotes tableau repris de la menuiserie : <b>${esc(o.repere||"?")} · × ${esc(o.quantite)} · tableau <span id="vrInTab">${esc(coteTab(o,"L")||"?")} × ${esc(coteTab(o,"H")||"?")}</span></b>.
@@ -1811,9 +1822,10 @@ function renderVRInline(){
       <b>${esc([tp?.nom, v.coffre, v.motorisation, v.couleur_tablier].filter(Boolean).join(" · ")||"pas encore choisis")}</b> – <a href="#" id="vrGoSheet">ouvrir la feuille volets roulants</a></div>
     ${listeVRMenuis(o.gamme)?`<div class="grid g2" style="margin-bottom:12px">${F.sel(`${k}.avec_menuiserie`,`Volet vendu avec la menuiserie ${fournisseurGamme(o.gamme)}`,listeVRMenuis(o.gamme),l.avec_menuiserie).replace('<option value="">—</option>','<option value="">Non – volet indépendant</option>')}${l.avec_menuiserie&&listeManoeuvreVR(o.gamme)?F.sel(`${k}.manoeuvre_menuis`,"Manœuvre du volet roulant",listeManoeuvreVR(o.gamme),l.manoeuvre_menuis):""}
       ${l.avec_menuiserie?`<div style="grid-column:1/-1">${F.sel(`${k}.coffre_hauteur`,"Dimensions : le coffre est-il compris dans la hauteur ?",listeCoffreVR(o.gamme),l.coffre_hauteur)}</div>`:""}</div>`:""}
+    <div class="grid g3" style="margin-bottom:12px">${VR_COUL.map(([c,lab])=>{ const lst=CAT.vr.couleurs, val=l[c]||"", connu=dansListe(lst,val); return F.sel(`${k}.${c}`,lab,connu||!val?lst:[...lst,{groupe:"Couleur de la menuiserie",items:[val]}],val); }).join("")}</div>
     <div class="grid g4">
-      <label class="f">Fabrication – largeur <span class="fabhint" id="vrInFl"></span><input data-k="${k}.fab_l" inputmode="decimal" value="${esc(l.fab_l)}"></label>
-      <label class="f">Fabrication – hauteur <span class="fabhint" id="vrInFh"></span><input data-k="${k}.fab_h" inputmode="decimal" value="${esc(l.fab_h)}"></label>
+      ${vrUsine(l)?`<div class="hint" style="grid-column:span 2;align-self:center">Fabrication : <b>cotes données par l'usine</b> (volet vendu avec la menuiserie), rien à saisir.</div>`:`<label class="f">Fabrication – largeur <span class="fabhint" id="vrInFl"></span><input data-k="${k}.fab_l" inputmode="decimal" value="${esc(l.fab_l)}"></label>
+      <label class="f">Fabrication – hauteur <span class="fabhint" id="vrInFh"></span><input data-k="${k}.fab_h" inputmode="decimal" value="${esc(l.fab_h)}"></label>`}
       <div><div class="hint">Sortie de fil (vue int.)</div><div class="checks">${F.chk(`${k}.fil_gauche`,"Gauche",l.fil_gauche)}${F.chk(`${k}.fil_droite`,"Droite",l.fil_droite)}</div></div>
       <div><div class="hint">Perçage coulisse</div><div class="checks">${F.chk(`${k}.percage_tableau`,"Tableau",l.percage_tableau)}${F.chk(`${k}.percage_face`,"De face",l.percage_face)}</div></div>
       ${F.sel(`${k}.fil_coffre`,"Sortie de fil – coffre",C.sortie_fil_coffre,l.fil_coffre)}${F.sel(`${k}.electricite`,"Électricité",C.electricite,l.electricite)}
@@ -1831,7 +1843,7 @@ function majVRInline(){
   $("#vrInTab").textContent=`${coteTab(o,"L")||"?"} × ${coteTab(o,"H")||"?"}`;
   [["L","#vrInFl","fab_l"],["H","#vrInFh","fab_h"]].forEach(([K,id,f])=>{ const a=K==="L"?fb.autoL:fb.autoH, inp=$(`[data-dk="vr.lignes.${i}.${f}"]`);
     if(inp) inp.placeholder = a!=null?String(a):(fb.auto?"":"à saisir");
-    $(id).textContent = fb.auto ? (a!=null?(num(l[f])!=null?`(calcul : ${a}, remplacé)`:`(auto : ${a})`):"(auto)") : ""; });
+    if($(id)) $(id).textContent = fb.auto ? (a!=null?(num(l[f])!=null?`(calcul : ${a}, remplacé)`:`(auto : ${a})`):"(auto)") : ""; });
   $("#vrInBadge").innerHTML = c.E.length?`<span class="badge b-err">${c.E.length} à corriger</span> <span class="hint">${esc([...c.E,...c.W].join(" · "))}</span>`
     : c.W.length?`<span class="badge b-warn">${c.W.length} conseillé(s)</span> <span class="hint">${esc(c.W.join(" · "))}</span>`:`<span class="badge b-ok">OK</span>`;
 }
@@ -3643,7 +3655,7 @@ function construireImpression(d){
       <div class="pcols" style="grid-template-columns:5fr 1fr;align-items:start"><div>
       <table class="pt vrt"><tr><th rowspan="2">Repère</th><th rowspan="2">Qté</th><th colspan="2">Tableau</th><th colspan="2">Fabrication</th><th colspan="2">Sortie de fil<br>vue int.</th><th colspan="2">Perçage<br>coulisse</th><th rowspan="2">Sortie de fil<br>coffre</th><th rowspan="2">Électricité</th><th rowspan="2">Dépose</th><th rowspan="2">Option</th></tr>
         <tr><th>L</th><th>H</th><th>L</th><th>H</th><th>G</th><th>D</th><th>Tab.</th><th>Face</th></tr>
-        ${v.lignes.map(l=>`<tr><td><b>${l.num_poseur?"N°"+esc(l.num_poseur)+" ":""}${esc(l.repere)}</b>${l.avec_menuiserie?`<br><small>${esc(l.avec_menuiserie)} (avec menuiserie)${l.manoeuvre_menuis?"<br>"+esc(l.manoeuvre_menuis):""}${l.coffre_hauteur?"<br>"+esc(l.coffre_hauteur):""}</small>`:""}</td><td>${esc(l.quantite)}</td><td>${esc(l.tab_l)}</td><td>${esc(l.tab_h)}</td><td><b>${fabVR(l,v).L??""}</b></td><td><b>${fabVR(l,v).H??""}</b></td>
+        ${v.lignes.map(l=>`<tr><td><b>${l.num_poseur?"N°"+esc(l.num_poseur)+" ":""}${esc(l.repere)}</b>${l.avec_menuiserie?`<br><small>${esc(l.avec_menuiserie)} (avec menuiserie)${l.manoeuvre_menuis?"<br>"+esc(l.manoeuvre_menuis):""}${l.coffre_hauteur?"<br>"+esc(l.coffre_hauteur):""}</small>`:""}${VR_COUL.some(([c])=>l[c]&&l[c]!==v[c])?`<br><small>${esc(VR_COUL.filter(([c])=>l[c]).map(([c,lab])=>lab.replace("Couleur ","")+" "+l[c]).join(" · "))}</small>`:""}</td><td>${esc(l.quantite)}</td><td>${esc(l.tab_l)}</td><td>${esc(l.tab_h)}</td>${vrUsine(l)?`<td colspan="2"><small>usine</small></td>`:`<td><b>${fabVR(l,v).L??""}</b></td><td><b>${fabVR(l,v).H??""}</b></td>`}
           <td>${ck(l.fil_gauche)}</td><td>${ck(l.fil_droite)}</td><td>${ck(l.percage_tableau)}</td><td>${ck(l.percage_face)}</td><td>${esc(l.fil_coffre)}</td><td>${esc(l.electricite)}</td><td>${esc(l.depose)}</td><td>${esc(l.option)}</td></tr>`).join("")}
       </table>
       ${v.observation?`<table class="pt"><tr><th>Observation</th><td>${esc(v.observation)}</td></tr></table>`:""}

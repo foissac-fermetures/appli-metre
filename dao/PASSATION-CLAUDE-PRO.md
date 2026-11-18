@@ -241,14 +241,14 @@ PROMPT-POUR-CLAUDE-PRO.md ← le message que Nicolas te donne
 | 18/11/2026 | dao-v2 | Artefact sur le compte Pro (sample + downloads) ; nouvelle adresse `claudeUrl`, l'ancienne est ignorée. |
 | 18/11/2026 | dao-v3 | Drive : « 09 - Plan » fixé par son identifiant (`DOSSIERS_DAO.plan`, à la racine de Mon Drive). « Métrés » n'existait pas : Nicolas a choisi de le créer dans Mon Drive ; son identifiant sera mis dans `DOSSIERS_DAO.metres` après le 1er essai. |
 | 18/11/2026 | dao-v4 + metre-v95 | Liens entre les applis (Nicolas a coché les 4 options) : voir § 12. |
+| 18/11/2026 | metre-v95 | `sw.js` racine : ne supprime plus que les caches `metre-…` (§ 11). |
 
-## 11. Point de vigilance connu : le service worker de l'appli de métré
+## 11. Service worker de l'appli de métré : corrigé le 18/11/2026 (accord de Nicolas)
 
-Le `sw.js` de la racine (appli de métré) supprime, à chaque nouvelle version, **tous** les caches qui ne portent pas son nom,
-y compris `dao-v…` (les caches sont communs à toute l'adresse foissac-fermetures.github.io/appli-metre/).
-Conséquence : après une mise à jour de l'appli de métré, la Mini DAO perd sa copie hors ligne jusqu'à sa prochaine ouverture
-avec Internet (elle se recopie alors toute seule). Correction possible, **seulement avec l'accord de Nicolas** :
-dans `sw.js` racine, ne supprimer que les caches dont le nom commence par `metre-`.
+Avant, le `sw.js` de la racine supprimait à chaque nouvelle version **tous** les caches de l'adresse, y compris `dao-v…`,
+et la Mini DAO perdait sa copie hors ligne. Corrigé : il ne supprime plus que les caches dont le nom commence par `metre-`.
+Testé (Chromium) : `metre-v94` supprimé, `dao-v4` et un cache tiers gardés, appli de métré affichée sans erreur.
+Les deux applis gardent chacune leur propre service worker : `metre-…` (racine) et `dao-…` (`dao/`).
 
 ## 12. Liens avec l'appli de métré et le CRM (18/11/2026, demandé par Nicolas)
 

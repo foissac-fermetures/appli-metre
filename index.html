@@ -1049,9 +1049,11 @@ function controleOuverture(o, d=S.dossier){
   if(!o.repere) W.push("Repère / pièce non renseigné");
   if(!o.num_poseur) W.push("N° poseur non renseigné");
   if(!o.gamme) W.push("Produit et gamme non choisis");
-  if(tL==null) E.push("Largeur tableau manquante");
-  if(tH==null) E.push("Hauteur tableau manquante");
-  if(o.pose!=="libre" && (f.L==null||f.H==null)) E.push("Cote de fabrication incomplète");
+  /* cotes tableau pas prenables (accès extérieur impossible, échelle…) : sur un devis ce n'est plus une erreur (18/11/2026) */
+  const tabImp = !!o.tab_impossible && !estDefinitif(d||{});
+  if(tabImp && (tL==null||tH==null)) W.push("Cotes tableau pas prises (accès impossible) : à relever au métré définitif");
+  else { if(tL==null) E.push("Largeur tableau manquante"); if(tH==null) E.push("Hauteur tableau manquante"); }
+  if(o.pose!=="libre" && (f.L==null||f.H==null)) (tabImp?W:E).push("Cote de fabrication incomplète");
   if(!o.couleur_int && !o.couleur_ext) E.push("Couleur non renseignée");
   const md=modeleDe(o), fam=md?.famille, sansOP=["coulissant","galandage","fixe"].includes(fam), porte=fam==="porte";
   if(listeModeles(o.gamme) && !md) E.push("Modèle de menuiserie non choisi");
@@ -1691,6 +1693,7 @@ function renderOuverture(){
   </div></div>
 
   <div class="card"><h2><span class="num">3</span>Dimensions (mm)</h2>
+    <div class="checks" style="margin-bottom:8px">${F.chk("tab_impossible","Cotes tableau pas possibles (accès extérieur impossible, il faudrait une échelle…)",o.tab_impossible)}</div>
     ${o.pose==="neuf"?`<div class="enduit-banner">Pose en neuf : toutes les dimensions sont relevées <b>ENDUIT COMPRIS</b>.</div>`:""}
     ${blocForme(o)}${formeDe(o)?`<div class="hint">Fixe de forme : la fabrication est celle du dessin ci-dessus (pas de cotes tableau ni hors tout).</div>`:`<div class="cotes">${cotesBox("L","Largeur – vue en plan",P.schemaL)}${cotesBox("H","Hauteur – vue en coupe",P.schemaH)}</div>`}
     ${listeElarg(o.gamme)?`<div style="margin-top:14px"><div class="hint" style="font-weight:700;color:var(--navy);margin-bottom:6px">ÉLARGISSEURS (vue de l'intérieur)</div><div class="grid g3">
@@ -1867,7 +1870,7 @@ function majFab(){
 /* Couleur des cases selon le contrôle (18/11/2026) : rouge = à corriger, orange = conseillé */
 const CTL_CASES = [
   [/^Repère/i,["repere"]],[/N° poseur/,["num_poseur"]],[/Produit et gamme/,["gamme"]],
-  [/^Largeur (tableau|\d|:)|Cote tableau/,["cotes.L."]],[/^Hauteur (tableau|\d|:)|Cote tableau/,["cotes.H."]],[/Cote de fabrication|multiple de 5/,["cotes.","fab_force."]],
+  [/^Largeur (tableau|\d|:)|Cote tableau|Cotes tableau pas prises/,["cotes.L.","tab_impossible"]],[/^Hauteur (tableau|\d|:)|Cote tableau/,["cotes.H."]],[/Cote de fabrication|multiple de 5/,["cotes.","fab_force."]],
   [/^Couleur|Finition intérieure/,["couleur_int"]],[/^Couleur|Finition extérieure/,["couleur_ext"]],
   [/Modèle de menuiserie|Le modèle a/,["@.modgrid"]],[/vantaux|ouvrant principal/,["vantaux."]],[/Type de pose/,["@#chgPose"]],
   [/Allège/,["allege"]],[/Appui bas|appui bas/,["appui_bas"]],[/[Ss]euil/,["seuil_"]],[/Compensateur/,["comp."]],
@@ -3645,7 +3648,7 @@ function construireImpression(d){
       ${formeDe(o)?tableForme(o):`<div class="pst">LARGEUR <small>– vue en plan</small></div>${schemaHTML(o,"L","psch",true)||`<div class="hint">Pas de schéma</div>`}
       <div class="pst">HAUTEUR <small>– vue en coupe</small></div>${schemaHTML(o,"H","psch",true)||`<div class="hint">Pas de schéma</div>`}
       <div class="pdt2">${["L","H"].map(k=>`<table class="pt pdt"><tr class="pdir"><th colspan="2">${k==="L"?"LARGEUR":"HAUTEUR"}</th></tr>`+
-        P.cotes.map((_,j)=>!coteUtile(o,j,k)?"":`<tr><th><span class="pn">${numCote(o,k,j)}</span>${esc(libCote(o,k,j))}</th><td>${esc(o.cotes[k][j]??"")}</td></tr>`).join("")
+        P.cotes.map((_,j)=>!coteUtile(o,j,k)?"":`<tr><th><span class="pn">${numCote(o,k,j)}</span>${esc(libCote(o,k,j))}</th><td>${esc(o.cotes[k][j]??"")||(o.tab_impossible&&/tableau/i.test(libCote(o,k,j))?"<small>pas possible</small>":"")}</td></tr>`).join("")
         +`<tr class="pfabr"><th>FABRICATION</th><td>${f[k]??""}</td></tr></table>`).join("")}</div>`}
       ${texteElarg(o)?`<div class="pelarg">Élargisseurs : <b>${esc(texteElarg(o))}</b></div>`:""}
       ${(()=>{const l=vrLie(d,o); return l&&l.avec_menuiserie?`<div class="pelarg">${esc(l.avec_menuiserie)} : <b>${esc(l.coffre_hauteur||"coffre compris dans la hauteur ? À PRÉCISER")}</b></div>`:"";})()}

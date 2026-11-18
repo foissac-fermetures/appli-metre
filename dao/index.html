@@ -447,7 +447,7 @@ let hatchOpts = {pattern:"lignes", spacing:50, angle:45};
 let textOpts = {h:3.5, angle:0, bold:false};
 let visuel = null;            // {elements:[], menuiseries:[], couleurMenuiseries, titre, demandes:[]}
 let iaHist = [];              // échanges avec Claude (pour les demandes de suite)
-let claudeUrl = "https://claude.ai/artifact/S998mSD3A3dCjL1aqwmDJy";
+let claudeUrl = "https://claude.ai/artifact/7PvXDGDYbMSxNXBWj7XyUt";   // artefact du compte Claude Pro (sample + downloads)
 let driveAuto = true;   // à chaque 💾 : PDF → « 09 - Plan », plan .mdao → Métrés/Plans/AAAA (logiciel installé seulement)
 let snapModes = {end:true, mid:true, cen:true, inter:true, perp:true, near:false};
 let dimTxt = 2.5, lastDimId = null, win = null, repeatOn = true, clickShift = false;
@@ -466,7 +466,7 @@ function setPrompt(t){ promptEl.textContent = t; }
 const clone = o => JSON.parse(JSON.stringify(o));
 
 function save(){ try{ localStorage.setItem("miniDAO2D", JSON.stringify({ents,nextId,cart,visuel,iaHist,claudeUrl,driveAuto,lastOffset,hatchOpts,textOpts,dimTxt,snapModes,colors,repeatOn,planId,planNameTxt,layers,curLayer})); }catch(e){} }
-function load(){ try{ const s=JSON.parse(localStorage.getItem("miniDAO2D")||"null"); if(s){ ents=s.ents||[]; nextId=s.nextId||1; Object.assign(cart,s.cart||{}); lastOffset=s.lastOffset||100; if(s.hatchOpts) Object.assign(hatchOpts,s.hatchOpts); if(s.dimTxt) dimTxt=s.dimTxt; if(s.textOpts) Object.assign(textOpts,s.textOpts); visuel=s.visuel||null; iaHist=s.iaHist||[]; if(s.claudeUrl) claudeUrl=s.claudeUrl; if(typeof s.driveAuto==="boolean") driveAuto=s.driveAuto; if(s.snapModes) Object.assign(snapModes,s.snapModes); if(s.colors) Object.assign(colors,s.colors); if(typeof s.repeatOn==="boolean") repeatOn=s.repeatOn; planId=s.planId||null; planNameTxt=s.planNameTxt||""; if(Array.isArray(s.layers)&&s.layers.length) layers=s.layers; if(s.curLayer) curLayer=s.curLayer; } }catch(e){} }
+function load(){ try{ const s=JSON.parse(localStorage.getItem("miniDAO2D")||"null"); if(s){ ents=s.ents||[]; nextId=s.nextId||1; Object.assign(cart,s.cart||{}); lastOffset=s.lastOffset||100; if(s.hatchOpts) Object.assign(hatchOpts,s.hatchOpts); if(s.dimTxt) dimTxt=s.dimTxt; if(s.textOpts) Object.assign(textOpts,s.textOpts); visuel=s.visuel||null; iaHist=s.iaHist||[]; if(s.claudeUrl && !/S998mSD3A3dCjL1aqwmDJy/.test(s.claudeUrl)) claudeUrl=s.claudeUrl; /* ancienne adresse (compte perso) ignorée */ if(typeof s.driveAuto==="boolean") driveAuto=s.driveAuto; if(s.snapModes) Object.assign(snapModes,s.snapModes); if(s.colors) Object.assign(colors,s.colors); if(typeof s.repeatOn==="boolean") repeatOn=s.repeatOn; planId=s.planId||null; planNameTxt=s.planNameTxt||""; if(Array.isArray(s.layers)&&s.layers.length) layers=s.layers; if(s.curLayer) curLayer=s.curLayer; } }catch(e){} }
 function pushUndo(){ undoStack.push(JSON.stringify(ents)); if(undoStack.length>200) undoStack.shift(); redoStack.length=0; }
 function addEnt(e){ pushUndo(); e.id=nextId++; e.layer = e.type==="dim" ? "Cotes" : curLayer; ensureLayers(); { const l=layers.find(x=>x.name===e.layer); if(l && !l.visible){ l.visible=true; log(`  calque « ${l.name} » réaffiché`); updLayerUI(); } } if(e.type!=="dim" && !e.color) e.color = e.type==="hatch" ? colors.hachure : colors.trait; ents.push(e); save(); renderEnts(); return e; }
 

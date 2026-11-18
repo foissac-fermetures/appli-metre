@@ -21,7 +21,7 @@ de la même façon que ses deux autres applis déjà en ligne :
 Dépôt GitHub : **`foissac-fermetures/appli-metre`** (GitHub Pages, branche principale).
 Adresse finale de la Mini DAO : **https://foissac-fermetures.github.io/appli-metre/dao/**
 
-1. Copier le dossier **`dao/`** de ce paquet à la racine du dépôt, à côté de `crm/`.
+1. ✅ (18/11/2026, commit 02fc465) Copier le dossier **`dao/`** de ce paquet à la racine du dépôt, à côté de `crm/`.
    Il contient : `index.html` (toute l'appli), `manifest.webmanifest`, `sw.js`, les icônes et `lib/` (jsPDF + svg2pdf.js).
 2. Ajouter au `README.md` du dépôt la section qui se trouve dans `README-ajout.md`.
 3. **Ne pas toucher** au `sw.js` racine ni à `crm/`. La Mini DAO a son propre service worker (`dao/sw.js`,
@@ -167,12 +167,12 @@ Taper une autre commande pendant une commande permet de changer de commande.
   dans le presse-papiers (préfixe `MINIDAO1:` + JSON) et ouvre `claudeUrl`, c'est-à-dire l'artefact claude.ai.
   On y colle le plan, on fait le visuel, puis « ↩ Copier pour mon logiciel ». De retour dans le logiciel,
   on touche « 📋 Récupérer le plan et le visuel ».
-- ⚠️ **À faire par Claude Pro** : l'artefact actuel (https://claude.ai/artifact/S998mSD3A3dCjL1aqwmDJy) appartient au
-  **compte Claude personnel** de Nicolas. Depuis son compte Pro, il ne pourra sans doute pas l'ouvrir. Il faut donc :
-  1. publier `dao/index.html` comme **artefact sur le compte Pro** ;
-  2. y déclarer les capacités **`sample`** et **`downloads`** (`{"sample":{},"downloads":true}`) ;
-  3. remplacer l'adresse par défaut `claudeUrl` dans `dao/index.html` par celle du nouvel artefact (rechercher `S998mSD3A3dCjL1aqwmDJy`) ;
-  4. republier sur GitHub.
+- ✅ **Fait le 18/11/2026 (compte Pro)** : `dao/index.html` est publié comme artefact sur le compte Claude Pro de Nicolas :
+  **https://claude.ai/artifact/7PvXDGDYbMSxNXBWj7XyUt** (slug `33ca2da6-42c8-4e22-bf6f-dfead7f753c1`), avec les capacités
+  `{"sample":{},"downloads":{}}`. C'est la valeur par défaut de `claudeUrl`. L'ancienne adresse du compte perso
+  (`S998mSD3A3dCjL1aqwmDJy`) est ignorée si un appareil l'avait gardée en mémoire (`load()`).
+  **À chaque modification de `dao/index.html`, republier aussi cet artefact** (mêmes fichiers : index.html, manifest, icônes),
+  pour que la version dans Claude reste identique à celle de GitHub.
   Nicolas peut aussi changer cette adresse lui-même : ✨ Claude → « Adresse de la Mini DAO dans Claude ».
 - Option 2, possible plus tard : IA dans le logiciel installé avec une clé API Anthropic (compte développeur payant à l'usage).
   Elle n'est pas faite.
@@ -231,3 +231,18 @@ dao/icon-32.png, icon-180.png, icon-192.png, icon-512.png
 dao/lib/jspdf.umd.min.js, svg2pdf.umd.min.js (+ licences MIT)  ← fabrication du PDF hors ligne
 PROMPT-POUR-CLAUDE-PRO.md ← le message que Nicolas te donne
 ```
+
+## 10. Journal des évolutions
+
+| Date | Version cache | Changement |
+|---|---|---|
+| 18/11/2026 | dao-v1 | Mise en ligne dans `foissac-fermetures/appli-metre/dao/` (commit 02fc465). |
+| 18/11/2026 | dao-v2 | Artefact sur le compte Pro (sample + downloads) ; nouvelle adresse `claudeUrl`, l'ancienne est ignorée. |
+
+## 11. Point de vigilance connu : le service worker de l'appli de métré
+
+Le `sw.js` de la racine (appli de métré) supprime, à chaque nouvelle version, **tous** les caches qui ne portent pas son nom,
+y compris `dao-v…` (les caches sont communs à toute l'adresse foissac-fermetures.github.io/appli-metre/).
+Conséquence : après une mise à jour de l'appli de métré, la Mini DAO perd sa copie hors ligne jusqu'à sa prochaine ouverture
+avec Internet (elle se recopie alors toute seule). Correction possible, **seulement avec l'accord de Nicolas** :
+dans `sw.js` racine, ne supprimer que les caches dont le nom commence par `metre-`.

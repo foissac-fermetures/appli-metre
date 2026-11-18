@@ -1070,7 +1070,7 @@ function controleOuverture(o, d=S.dossier){
   if(o.comp&&o.comp.type){ if(compH(o)==null) E.push("Compensateur : hauteur (mm) manquante"); if(!o.comp.compris) W.push("Compensateur : préciser s'il est compris ou non dans la hauteur de fabrication"); if(o.comp.type.startsWith("Autre") && !/compensateur/i.test(o.obs_libre||"")) W.push("Compensateur « autre » : préciser la section dans les observations"); if(seuilEncastre(o)) W.push("Compensateur ET seuil encastré : vérifier"); }
   if(seuilEncastre(o) && num(o.fab_force.H)!=null) W.push("Seuil encastré : hauteur saisie à la main, vérifier que les 40 mm sont compris");
   if(!porte && tH!=null && tH>=1950 && !o.appui_bas && !aSeuil(o)) W.push("Hauteur ≥ 1950 sans seuil (porte-fenêtre ?)");
-  if(/sdb|wc|bain/i.test(o.repere) && !vitrageOpaque(o) && (!o.teinte || /clair/i.test(o.teinte))) E.push("Salle de bain / WC en vitrage clair ?");
+  if(sdbClair(o) && !o.clair_voulu) E.push("Salle de bain / WC en vitrage clair ? (coche « Vitrage clair à la demande du client » si c'est voulu)");
   if(o.repere && !porte && fam!=="pf" && !aSeuil(o) && !o.allege && !(tH>=1950)) W.push("Allège manquante ?");
   if([o.couleur_int,o.couleur_ext].some(c=>/à préciser/i.test(c||"")) && !/ral|plax|foil|kaleido/i.test(o.obs_libre||"")) W.push("Couleur hors standard : préciser la référence (RAL / plaxage) dans les observations");
   if(dormantImpose(o) && o.dormant_aile!==dormantImpose(o)) E.push(`LALOI ${raisonDormant(o)} : le dormant doit être « ${dormantImpose(o)} »`);
@@ -1239,6 +1239,7 @@ const peutDormantPeri = o => !["porte","pf"].includes(modeleDe(o)?.famille);   /
 function listeAppuis(g){ const fr=FRN(g).appuis, L=(fr ? [CAT.appui_bas[0],...fr] : listeFournisseur(CAT.appui_bas,GAMME_APPUI,g)).filter(gr=>!(typeof gr==="object" && gr.groupe==="" && (gr.items||[]).some(x=>["X","Large","STD"].includes(x))));
   return [{groupe:"", items:[DORMANT_PERI]}, ...L]; }
 function listeSB(g){ return FRN(g).soubassements || CAT.sb_type; }
+const sdbClair = o => /sdb|wc|bain/i.test(o.repere||"") && !vitrageOpaque(o) && (!o.teinte || /clair/i.test(o.teinte));   // salle de bain / WC en vitrage clair
 const vitrageOpaque = o => /d[ée]poli|delta mat|panneau|g200/i.test(o.vitrage||"");
 /* Dormants selon la gamme ET la pose : REHAU PORTEO en applique, feuillure ou tunnel → uniquement la liste dédiée */
 /* Ordre de priorité REHAU : rénovation (pose sur cadre existant) > applique / feuillure / tunnel > autres poses */
@@ -1305,7 +1306,7 @@ function refreshLive(k){
   if(S.view==="ouverture"){
     if(k==="gamme"||k==="renovation"||k==="applique_neuf"||k==="depose_totale"||k==="tapee_persienne"||(k.startsWith("vantaux.")&&!modeleDe(S.ouv))){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(String(k).startsWith("erp.")){ if(["erp.actif","erp.ap","erp.ap_type","erp.groom"].includes(k)) syncAccessoiresERP(S.ouv); const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
-    if(["seuil_std","seuil_plat","seuil_type","seuil_encastre","appui_bas","gc.etage","gc.deja_pose","gc.client_pose","poignee","poignee_modele"].includes(k)){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
+    if(["seuil_std","seuil_plat","seuil_type","seuil_encastre","appui_bas","gc.etage","gc.deja_pose","gc.client_pose","poignee","poignee_modele","vitrage","clair_voulu"].includes(k)){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(k==="accessoires"){ S.accOuvert=S.ouv.id; const sm=$(".acc-det>summary .hint"); if(sm){ const a=S.ouv.accessoires||[]; sm.textContent=a.length?`${a.length} choisi(s) : ${a.join(", ")}`:"aucun – touche pour choisir"; } }
     if(k==="dormant_aile"||k==="delignage"){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(k==="comp.type"){ const c=S.ouv.comp; if(c.type && !c.h) c.h=String((c.type.match(/^(\d+)/)||[])[1]||""); if(c.type && !c.compris) c.compris=COMP_COMPRIS[1]; if(!c.type){ c.h=""; c.compris=""; } save(); const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
@@ -1700,7 +1701,7 @@ function renderOuverture(){
   </div></div>
 
   <div class="card"><h2><span class="num">5</span>Vitrage, soubassement et imposte</h2><div class="grid g4">
-    <div style="grid-column:span 2">${F.sel("vitrage","Composition du vitrage",listeVitrages(o.gamme),o.vitrage)}</div>${o.teinte?F.sel("teinte","Teinte (ancien champ)",CAT.vitrage_teinte,o.teinte):""}${FRN(o.gamme).intercalaires?F.sel("intercalaire","Intercalaire",FRN(o.gamme).intercalaires,o.intercalaire):""}
+    <div style="grid-column:span 2">${F.sel("vitrage","Composition du vitrage",listeVitrages(o.gamme),o.vitrage)}${sdbClair(o)||o.clair_voulu?`<div class="checks" style="margin-top:6px">${F.chk("clair_voulu","Vitrage clair à la demande du client",o.clair_voulu)}</div>`:""}</div>${o.teinte?F.sel("teinte","Teinte (ancien champ)",CAT.vitrage_teinte,o.teinte):""}${FRN(o.gamme).intercalaires?F.sel("intercalaire","Intercalaire",FRN(o.gamme).intercalaires,o.intercalaire):""}
     ${F.numb("sb","Soubassement (SB) en mm",o.sb)}${F.sel("sb_type","Type de soubassement",listeSB(o.gamme),o.sb_type)}${F.text("imposte","Imposte",o.imposte)}${F.sel("imposte_type","Type d'imposte",CAT.sb_type,o.imposte_type)}
   </div></div>
 
@@ -3642,7 +3643,7 @@ function construireImpression(d){
       ${modeleDe(o)?`<div class="pmod">${imgModele(modeleDe(o),o.gamme)}<b>${esc(modeleDe(o).nom)}</b></div>`:""}
       <table class="pt">${row([["Type de pose",libellePose(o)],["Quantité",o.quantite],["Produit et gamme",o.gamme],["Profil / essence",[o.profil,o.essence].filter(Boolean).join(" – ")],["Couleur int.",o.couleur_int],["Couleur ext.",o.couleur_ext],["Dormant / aile",[o.dormant_aile, aileRecouvrement(o)&&o.delignage?"délignage : "+o.delignage.toLowerCase():""].filter(Boolean).join(" – ")],
         ["Dépose",[o.deligner&&"Déligner les cochonnets",o.depose_totale&&"Dépose totale",o.depose_seuil&&"Dépose seuil/appui"].filter(Boolean)],
-        ["Vantaux G·M·D",[o.vantaux.G,o.vantaux.M,o.vantaux.D].some(Boolean)?[o.vantaux.G,o.vantaux.M,o.vantaux.D].map(x=>x||"–").join(" · "):""],["Vitrage",[o.vitrage,o.teinte,o.intercalaire&&"intercalaire "+o.intercalaire].filter(Boolean).join(" – ")],["Petits bois",[...(o.petits_bois||[]),o.pb_motif?(o.pb_motif==="perso"?`${o.pb_c||"?"} × ${o.pb_r||"?"} carreaux`:PB_MOTIFS.find(m=>m.id===o.pb_motif)?.nom):""].filter(Boolean).join(" – ")],
+        ["Vantaux G·M·D",[o.vantaux.G,o.vantaux.M,o.vantaux.D].some(Boolean)?[o.vantaux.G,o.vantaux.M,o.vantaux.D].map(x=>x||"–").join(" · "):""],["Vitrage",[o.vitrage,o.teinte,o.clair_voulu&&"clair à la demande du client",o.intercalaire&&"intercalaire "+o.intercalaire].filter(Boolean).join(" – ")],["Petits bois",[...(o.petits_bois||[]),o.pb_motif?(o.pb_motif==="perso"?`${o.pb_c||"?"} × ${o.pb_r||"?"} carreaux`:PB_MOTIFS.find(m=>m.id===o.pb_motif)?.nom):""].filter(Boolean).join(" – ")],
         ["Appui bas",o.appui_bas===DORMANT_PERI?"Dormant en périphérique (sans appui)":o.appui_bas],["Seuil",[o.seuil_std&&"Alu standard",o.seuil_plat&&"Alu PLAT",seuilEncastre(o)&&"ENCASTRÉ 4 cm (+40 mm compris dans la hauteur de fabrication)"].filter(Boolean)],["Serrure à pêne",o.serrure],["Cylindre",o.cylindre],["Clé",texteCle(d,o)],["Fermeture semi-fixe",o.semi_fixe],["Soubassement",[o.sb&&o.sb+" mm",o.sb_type].filter(Boolean).join(" – ")],["Poignée",[o.poignee,o.poignee_modele].filter(Boolean).join(" – ")],["Fermeture",o.fermeture],["Oscillo-battant",o.ob_type],["Ferrage",o.ferrage],["Seuil fournisseur",o.seuil_type],["Modèle de porte",[o.modele_porte,o.sens_porte].filter(Boolean).join(" – ")],["GV",o.gv],["Allège",o.allege],["Imposte",[o.imposte,o.imposte_type].filter(Boolean).join(" – ")],["Accessoires",o.accessoires],["Garde-corps",texteGC(o)],["Accès public (ERP)",texteERP(o)],["Compensateur",texteComp(o)],["Appui",o.gc&&num(o.gc.appui_h)!=null?`${o.gc.appui_h} mm du sol${o.gc.etage?" · étage":""}${o.gc.zsp&&o.gc.zsp_h?` · radiateur/marche ${o.gc.zsp_h} mm`:""}`:""]])}</table></div><div>
       <table class="pt">${row([
         ["Volet roulant",(()=>{const l=vrLie(d,o); return l?`Oui${l.avec_menuiserie?` – ${l.avec_menuiserie}, vendu avec la menuiserie${l.manoeuvre_menuis?" ("+l.manoeuvre_menuis+")":""}`:""} – n° ${d.vr.lignes.indexOf(l)+1} sur la feuille volets roulants (fab. ${fabVR(l,d.vr).L??"?"} × ${fabVR(l,d.vr).H??"?"})`:"";})()],

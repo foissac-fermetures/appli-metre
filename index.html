@@ -319,6 +319,7 @@ input:disabled{background:#eef1f7;color:#4a5368}
   .pdc{display:grid;grid-template-columns:1fr 1fr;gap:4mm;margin-top:6px;align-items:start}
   .pdc .pdessin,.p3 .pdc .pimg{max-height:52mm}
   .pdessin.pdpetit,.p3 .pimg.pcroq{max-height:58mm}
+  .pres-pos{margin-top:8px;font-weight:800;font-size:10pt;color:#fff;background:#1b2f5e;padding:2px 8px;border-radius:4px 4px 0 0;display:inline-block}
   .pprev{border:1.5px solid #1b2f5e;border-radius:6px;padding:6px 10px;margin-top:4px} .pprev .pst{margin:0 0 4px} .pprev-i{display:flex;gap:8px;align-items:flex-start;font-size:10pt;margin:3px 0} .pcase{flex:0 0 11px;height:11px;border:1.5px solid #1b2f5e;border-radius:2px;margin-top:2px}
   .sv{font-family:Arial,Helvetica,sans-serif;color:#1d2433} .sv-h{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2.5px solid #1b3a7a;padding-bottom:6px;margin-bottom:8px} .sv-h img{height:44px}
   .sv-t{font-size:22pt;font-weight:800;color:#1b3a7a;letter-spacing:.3px} .sv-t small{font-size:11pt;font-weight:400} .sv-s{font-size:10pt;color:#5b6478;margin-top:2px}
@@ -500,11 +501,13 @@ function prevoirAuto(d){ const L=[], n=x=>x>1?` (${x})`:"";
     if(sc.length) L.push(`Scellement chimique + gonds à sceller : ${sc.map(l=>l.repere||"?").join(", ")}`);
     if(ex.length) L.push(`Gonds existants à contrôler (gabarit) : ${ex.map(l=>l.repere||"?").join(", ")}`);
     if(v.arrets) L.push(`Arrêts de vent${v.arret_type?" "+v.arret_type:""} : perceuse + chevilles adaptées`);
-    const cr=v.lignes.filter(l=>(l.options||[]).includes("Crochet crémaillère")); if(cr.length) L.push(`Crochet crémaillère à poser : ${cr.map(l=>l.repere||"?").join(", ")}`); }
+    const cr=v.lignes.filter(l=>(l.options||[]).includes("Crochet crémaillère")); if(cr.length) L.push(`Crochet crémaillère à poser : ${cr.map(l=>l.repere||"?").join(", ")}`);
+    L.push("Carton et accessoires","Scotch (orange ou électricien)","Cale de vitrage pour le jeu","Coin de calage"); }
   if(aVT(d)){ const v=d.vt, lourds=v.lignes.filter(l=>(vtCalc(l).poids||0)>=40); if(lourds.length) L.push(`Ventouses + 2 personnes (vitrages lourds) : ${lourds.map(l=>`${l.repere||"?"} ≈ ${vtCalc(l).poids} kg`).join(", ")}`);
     L.push("Cales de vitrage, joints / silicone, gants anti-coupure, protection des sols"); if(v.lignes.some(l=>/Mastic/.test(l.parclose||""))) L.push("Mastic à vitrer + pointes (menuiserie bois ancienne)");
     if(v.lignes.some(l=>/Cassé|Fêlé/.test(l.degat||""))) L.push("Évacuation du verre cassé (caisse / bâche)"); if(v.provisoire==="À faire en urgence") L.push("⚠ Mise en sécurité provisoire à faire en urgence (contreplaqué / film)"); }
   return L; }
+const PREVOIR_ROUGE = /^(Matériel d'accès|Carton et accessoires)/;   // en rouge et gras sur le PDF (18/11/2026)
 const prevoirTout = d => [...prevoirAuto(d), ...(d.prevoir||[]).filter(x=>!prevoirAuto(d).some(y=>nrm(y).includes(nrm(x)))), ...String(d.prevoir_txt||"").split("\n").map(s=>s.trim()).filter(Boolean)];
 function migrerPose(d){
   const E={"Tout seul":"1 personne","Seul":"1 personne","A 2":"2 personnes","A 3":"3 personnes","A 4":"4 personnes"};
@@ -2916,17 +2919,18 @@ function dessinVB(v, l, cls="pdessin"){
   return `<svg class="${cls}" viewBox="0 0 ${W+80} ${Hh+Y+(fl?fl+4:0)+52}" xmlns="http://www.w3.org/2000/svg"><g transform="translate(0,${fl?fl+4:0})">${s}</g></svg>`;
 }
 /* ---------- PDF volets battants : même présentation que les menuiseries ---------- */
+const vbTypeSansDim = t => String(t||"").replace(/\s*\(\s*\d+\s*[×x]\s*\d+\s*\)/g,"").trim();   // PDF : sans « (2400 × 3000) »
 function pagesVB(d, head, row){
-  const v=d.vb; if(!aVB(d)) return ""; const c=controleVB(d), n=(l,i)=>l.repere||`volet ${i+1}`, ge=gondsExistants(v)||v.lignes.some(l=>vbSurGonds(v,l)), mix=vbPosesMixtes(v);
-  const commun=[["Matière",v.matiere],["Type",v.type],[v.matiere==="Bois"?"Finition":"Couleur",vbCouleurTexte(v)],["Essence",v.essence],["Lame",v.lame],["Barres et écharpes",v.barre],["Ferrage (pentures)",v.ferrage],["Gonds",v.gonds],["Couleur des ferrages",v.ferrage_couleur],["Pose",mix?"Variable selon le volet (voir le tableau)":vbPoseLigne(v,v.lignes[0])],["Type de dimensions",mix?"":vbTypeDim(v,v.lignes[0])],["Arrêts de vent",v.arrets?(v.arret_type||"Oui"):""],["Manutention",v.manutention]];
+  const v=d.vb; if(!aVB(d)) return ""; const c=controleVB(d), n=(l,i)=>l.repere||`volet ${i+1}`, ge=gondsExistants(v)||v.lignes.some(l=>vbSurGonds(v,l)), mix=vbPosesMixtes(v), obsV=v.lignes.some(l=>l.obs||(l.g&&l.g.obs));
+  const commun=[["Matière",v.matiere],["Type",vbTypeSansDim(v.type)],[v.matiere==="Bois"?"Finition":"Couleur",vbCouleurTexte(v)],["Essence",v.essence],["Lame",v.lame],["Barres et écharpes",v.barre],["Ferrage (pentures)",v.ferrage],["Gonds",v.gonds],["Couleur des ferrages",v.ferrage_couleur],["Pose",mix?"Variable selon le volet (voir le tableau)":vbPoseLigne(v,v.lignes[0])],["Type de dimensions",mix?"":vbTypeDim(v,v.lignes[0])],["Arrêts de vent",v.arrets?(v.arret_type||"Oui"):""],["Manutention",v.manutention]];
   let h=`<div class="pg">${head(`Volets battants Corrèze – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
     <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","Corrèze Fermetures"],["Pose (équipe · durée)",textePose(d)],["Nombre de volets",String(v.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div>
     <div><table class="pt">${row(commun)}</table></div></div>
-    <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Vantaux</th>${mix?"<th>Pose</th>":""}<th>Largeur</th><th>Hauteur</th><th>Allège</th><th>Espagn. sur ouvrant</th><th>Feuillure l × p · côtés</th><th>Cintre</th><th>Espagnolette</th><th>Options</th></tr>
+    <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Vantaux</th>${mix?"<th>Pose</th>":""}<th>Largeur</th><th>Hauteur</th><th>Allège</th><th>Espagn. sur ouvrant</th><th>Feuillure l × p · côtés</th><th>Cintre</th><th>Espagnolette</th><th>Options</th>${obsV?"<th>Observation</th>":""}</tr>
     ${v.lignes.map((l,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.qte)}</td><td>${esc(l.vantaux)}</td>${mix?`<td>${esc(vbPoseLigne(v,l))}${vbTypeDim(v,l)===VB_TYPE_DIM[1]?" (fond de feuill.)":""}</td>`:""}<td><b>${esc(l.L)}</b></td><td><b>${esc(l.H)}</b></td><td>${esc(l.allege)}</td><td>${[l.sens_g&&"Gauche",l.sens_d&&"Droite"].filter(Boolean).join(" + ")}</td>
-      <td>${[l.f_l||l.f_p?`${l.f_l||"?"} × ${l.f_p||"?"}`:"",l.f_cotes].filter(Boolean).join(" · ")}</td><td>${l.cintre_f?`flèche ${esc(l.cintre_f)}${l.cintre_n?" / naiss. "+esc(l.cintre_n):""}`:""}</td><td>${esc(l.espagnolette)}</td><td>${esc((l.options||[]).join(", "))}</td></tr>`).join("")}</table>
-    ${(()=>{ const pv=v.lignes.map((l,k)=>n(l,k)+" : "), gen=[...c.E,...c.W].filter(x=>!pv.some(p=>x.startsWith(p))), nb=c.E.length+c.W.length-gen.length; return gen.length||nb?`<div class="pwarn">À vérifier : ${esc([...gen, nb?`${nb} point(s) sur les volets, détaillés volet par volet`:""].filter(Boolean).join(" · "))}</div>`:`<div class="pok">Contrôle OK</div>`; })()}
-    ${ge?`<div class="pst" style="margin-top:8px">REPÈRES DES COTES DES GONDS EXISTANTS <small>– vus de l'intérieur</small></div><div style="display:flex;gap:10px;justify-content:center"><img src="img/vb-gonds-formes.jpg" style="width:auto;max-width:48%;max-height:48mm"><img src="img/vb-gonds-deport.jpg" style="width:auto;max-width:48%;max-height:48mm"></div>`:""}</div>`;
+      <td>${[l.f_l||l.f_p?`${l.f_l||"?"} × ${l.f_p||"?"}`:"",l.f_cotes].filter(Boolean).join(" · ")}</td><td>${l.cintre_f?`flèche ${esc(l.cintre_f)}${l.cintre_n?" / naiss. "+esc(l.cintre_n):""}`:""}</td><td>${esc(l.espagnolette)}</td><td>${esc((l.options||[]).join(", "))}</td>${obsV?`<td>${esc([l.obs,l.g&&l.g.obs].filter(Boolean).join(" – "))}</td>`:""}</tr>`).join("")}</table>
+    ${(()=>{ const pv=v.lignes.map((l,k)=>n(l,k)+" : "), gen=[...c.E,...c.W].filter(x=>!pv.some(p=>x.startsWith(p))), nb=c.E.length+c.W.length-gen.length; return gen.length||nb?`<div class="pwarn">À vérifier : ${esc([...gen, nb?`${nb} point(s) sur les volets, détaillés volet par volet`:""].filter(Boolean).join(" · "))}</div>`:""; })()}
+    </div>`;
   /* 3 volets par page (17/11/2026) : réglages communs sur la page récap, chaque volet en bandeau compact */
   const cel="border:1px solid #c9d1e3;padding:1px 3px;text-align:center", tete=cel+";background:#e8edf7;font-weight:700;color:#1b2f5e";
   const bloc=(l,i)=>{ const pre=n(l,i)+" : ", msg=[...c.E,...c.W].filter(x=>x.startsWith(pre)).map(x=>x.slice(pre.length));
@@ -2941,14 +2945,14 @@ function pagesVB(d, head, row){
           <tr><th>Naiss. cintre</th><td>${esc(l.cintre_n)}</td></tr><tr><th>Flèche</th><td>${esc(l.cintre_f)}</td></tr></table></div>
       ${msg.length?`<div class="pwarn" style="margin-top:4px;font-size:8pt">À vérifier : ${esc(msg.join(" · "))}</div>`:""}
       </div><div>
-      <table class="pt">${row([["Vantaux",l.vantaux],["Espagnolette sur ouvrant",[l.sens_g&&"Gauche",l.sens_d&&"Droite"].filter(Boolean).join(" + ")],["Espagnolette",l.espagnolette],["Options",(l.options||[]).join(", ")],["Observation",l.obs]])}</table>
+      <table class="pt">${row([["Vantaux",l.vantaux],["Espagnolette sur ouvrant",[l.sens_g&&"Gauche",l.sens_d&&"Droite"].filter(Boolean).join(" + ")],["Espagnolette",l.espagnolette],["Options",(l.options||[]).join(", ")],["Observation",l.obs],["Observation gonds",(vbSurGonds(v,l)||/existant/i.test(v.gonds||"")||aG)?"":g.obs]])}</table>
       ${vbSurGonds(v,l)||/existant/i.test(v.gonds||"")||aG?`<div class="pst" style="margin-top:4px">GONDS EXISTANTS <small>– vus de l'intérieur</small></div>
         <div style="display:grid;grid-template-columns:1.25fr repeat(5,1fr) 1.6fr;font-size:7.5pt;margin-top:2px">${["","A","B","C","D/Dp ⟷","R/Db ↕","Ø"].map(x=>`<div style="${tete}">${x}</div>`).join("")}
         ${["g","d"].map(sd=>`<div style="${cel};font-weight:700;text-align:left">${sd==="g"?"Gauche":"Droite"}</div>${["A","B","C","D","R"].map(x=>`<div style="${cel}">${esc(g[x+"_"+sd]||"")||"&nbsp;"}</div>`).join("")}<div style="${cel};font-weight:700;color:#d3232f">${esc(vbDiamTexte(g,sd))||"&nbsp;"}</div>`).join("")}</div>
         ${g.gond||g.obs?`<div class="pelarg" style="font-size:8pt">${esc([g.gond,g.obs].filter(Boolean).join(" – "))}</div>`:""}`:""}
       </div><div class="vbdes">${dessinVB(v,l)}</div></div>`; };
   const NP=3; for(let i=0;i<v.lignes.length;i+=NP){ const fin=Math.min(i+NP,v.lignes.length); h+=`<div class="pg">${head(`Volets battants – ${v.lignes.length>NP?`volets ${i+1}${fin>i+1?" à "+fin:""} sur ${v.lignes.length}`:"détail"} – ${d.client.nom||""}`)}
-    <div class="vbsous">${esc([mix?"Pose variable selon le volet":"Pose : "+(vbPoseLigne(v,v.lignes[0])||"à préciser"), v.type, vbCouleurTexte(v)].filter(Boolean).join(" · "))}</div>
+    <div class="vbsous">${esc([mix?"Pose variable selon le volet":"Pose : "+(vbPoseLigne(v,v.lignes[0])||"à préciser"), vbTypeSansDim(v.type), vbCouleurTexte(v)].filter(Boolean).join(" · "))}</div>
     ${v.lignes.slice(i,fin).map((l,j)=>bloc(l,i+j)).join("")}</div>`; }
   const ph=(v.photos||[]).filter(x=>x.img);
   for(let i=0;i<ph.length;i+=4) h+=`<div class="pg">${head(`Volets battants – Photos${ph.length>4?` (${i/4+1})`:""} – ${d.client.nom||""}`)}
@@ -3399,7 +3403,7 @@ function construireImpression(d){
   if(aSAV(d)) return pagesSAV(d);
   const row=(a)=>a.filter(x=>x[1]!==""&&x[1]!=null&&!(Array.isArray(x[1])&&!x[1].length)).map(([k,v])=>`<tr><th>${esc(k)}</th><td>${esc(Array.isArray(v)?v.join(", "):v)}</td></tr>`).join("");
   const head=t=>`<div class="ph"><img src="${LOGO}"><div class="tt">${esc(t)}</div><div>${esc(d.type_document)} · ${esc(d.variante)}<br>${fmtDate(d.client.date_rdv)} · Métreur : ${esc(d.metreur)}</div></div>`;
-  const PV=prevoirTout(d), boitePrev=PV.length?`<div class="pprev"><div class="pst">À PRÉVOIR POUR LA POSE</div>${PV.map(x=>`<div class="pprev-i"><span class="pcase"></span>${esc(x)}</div>`).join("")}</div>`:"";
+  const PV=prevoirTout(d), boitePrev=PV.length?`<div class="pres-pos">RÉSERVÉ AUX POSEURS</div><div class="pprev"><div class="pst">À PRÉVOIR POUR LA POSE</div>${PV.map(x=>`<div class="pprev-i"${PREVOIR_ROUGE.test(x)?' style="color:#d3232f;font-weight:700"':""}><span class="pcase"></span>${esc(x)}</div>`).join("")}</div>`:"";
   let h=(estDefinitif(d)
    ? `<div class="pg">${head("Métré définitif – "+(d.client.nom||""))}
     <div class="pcols"><div><table class="pt">${row([["Nom",d.client.nom],["Téléphone",d.client.telephone],["Adresse chantier",d.adresse_chantier],["Pose",textePose(d)],["Observations",d.observations]])}</table></div>

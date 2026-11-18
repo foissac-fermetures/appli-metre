@@ -246,6 +246,15 @@ input:disabled{background:#eef1f7;color:#4a5368}
   #print{display:block;font-size:10.5pt;color:#000}
   .pg{page-break-after:always;break-after:page}
   .clim-pg{font-family:Helvetica,Arial,sans-serif;font-size:8.5pt}
+  .cl-haut{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:start} .cl-t{width:100%;margin-bottom:6px} .cl-t th{width:46%}
+  .cl-oui{color:#1f7a3a;font-weight:700} .cl-non{color:#d3232f;font-weight:700}
+  .cl-obs{border:1.5px solid #e08a00;background:#fff7e8;border-radius:6px;padding:5px 8px;margin-top:4px}
+  .cl-grille{display:grid;grid-template-columns:repeat(3,1fr);gap:8px} .cl-carte{border:1.5px solid #1b2f5e;border-radius:8px;overflow:hidden;break-inside:avoid} .cl-carte.var{border-style:dashed;border-color:#7b8bb0}
+  .cl-ch{background:#1b2f5e;color:#fff;padding:4px 7px;display:flex;gap:6px;align-items:center;flex-wrap:wrap} .cl-carte.var .cl-ch{background:#7b8bb0}
+  .cl-n{background:#fff;color:#1b2f5e;border-radius:50%;min-width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:8pt}
+  .cl-badge{margin-left:auto;background:#eef2fa;color:#1b2f5e;border-radius:9px;padding:0 6px;font-size:7.5pt;font-weight:700} .cl-badge+.cl-badge{margin-left:0} .cl-badge.ue{background:#fde8e8;color:#a3141e} .cl-badge.v{background:#fff;color:#7b8bb0}
+  .cl-cb{padding:5px 7px} .cl-svg{width:100%;max-height:34mm;display:block;margin-bottom:3px}
+  .cl-mini{width:100%;border-collapse:collapse;font-size:8pt} .cl-mini th{text-align:left;color:#5b6b8c;font-weight:600;padding:1px 4px 1px 0;width:48%} .cl-mini td{padding:1px 0} .cl-mini tr+tr{border-top:1px solid #e3e7ef}
   .clim-titre{text-align:center;color:#1f4fd8;font-weight:700;font-size:12pt;margin:2px 0 8px}
   .clim-haut{display:grid;grid-template-columns:1.25fr 2.6fr .8fr;gap:14px;margin-bottom:12px;align-items:start}
   .ct{width:100%;border-collapse:collapse;margin-bottom:6px}
@@ -1366,7 +1375,6 @@ async function renderHome(){
     <button class="btn" id="hOpen">Ouvrir un fichier…</button>
     <button class="btn" id="hCRM">Depuis le CRM</button>
     <button class="btn" id="hTablette" title="Relier cet iPad au PC pour y dessiner">📲 Tablette de dessin</button>
-    <button class="btn" id="hDAO" title="Ouvrir la Mini DAO (dessin 2D, comme AutoCAD)">📐 Mini DAO</button>
     <button class="btn primary" id="hNew" style="font-size:17px;padding:12px 20px">+ Nouveau rendez-vous</button></div>
   <p class="hint">Chaque métré s'enregistre tout seul quand tu reviens à cette liste, dans <b>Mon Drive › Appli métré – Dossiers › Devis</b> (ou <b>› Métrés définitif</b> pour un métré définitif). Pour l'envoyer à Clémence : bouton <b>📨 Envoyer à Clémence</b> en haut du métré. Plusieurs devis pour un même client (gîtes, maison…) : « + Autre devis pour ce client » dans la fiche client, ou « ✂ Séparer en plusieurs devis » dans les ouvertures. Les métrés faits sur tes autres appareils apparaissent ici tout seuls (ou avec « ☁ Actualiser »).</p>
   <div class="card" id="hAgenda" style="margin-bottom:16px"><p class="hint">Chargement des rendez-vous…</p></div>
@@ -1380,7 +1388,7 @@ async function renderHome(){
         <div class="s">${G.L.map(d=>esc(d.devis_nom||d.variante)).join(" · ")}</div>
         <div>${nE?`<span class="badge b-err">${nE} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} ${nC?`<span class="badge b-ok">📨 ${nC}/${G.L.length} envoyé(s) à Clémence</span>`:""} ${nA?`<span class="badge b-n">☁ ${nA} pas encore dans le Drive</span>`:""}</div></div>
         ${ouvert?`<div class="dos-sous">${G.L.map(d=>carteMetre(d,true)).join("")}</div>`:""}`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau rendez-vous ».</div>`}</div>`;
-  $("#hNew").onclick=()=>nouveauRendezVous(); $("#hTablette").onclick=tabletteRejoindre; $("#hDAO").onclick=()=>{ location.href="dao/?retour=accueil"; };   // Mini DAO (voir CLAUDE.md)
+  $("#hNew").onclick=()=>nouveauRendezVous(); $("#hTablette").onclick=tabletteRejoindre;
   $("#hOpen").onclick=()=>$("#fileOpen").click();
   $("#hSync").onclick=async()=>{ const b=$("#hSync"); b.disabled=true; b.textContent="☁ Actualisation…"; await synchroAccueil(true); const b2=$("#hSync"); if(b2){ b2.disabled=false; b2.textContent="☁ Actualiser"; } };
   { const z=document.createElement("div"); z.id="hSyncLe"; z.className="hint"; z.style.textAlign="right"; z.textContent=texteSyncLe(); $("#app .row").after(z); }
@@ -1454,7 +1462,7 @@ function renderDossier(){
       <small class="clem-etat">${der?`✓ Envoyé le ${new Date(der.le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} → ${esc(der.dossier)}${E.length>1?` (${E.length} envois)`:""}`:`→ ECHANGES › ${esc(cibleClemence(d).nom)}`}</small>`; })()}</div>
   </div>
   <div class="row" style="margin-bottom:12px">
-    <div class="tabs" style="margin:0">${T.filter(([k])=>ongletsVisibles(d).includes(k)).map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?"on":""}">${l}</button>`).join("")}<button id="tabAdd" class="tab-add" title="Ajouter un portail, des volets, une clim…">+ Ajouter…</button><button id="tabDAO" class="tab-add" title="Dessiner le plan de ce client dans la Mini DAO (le PDF « Plan … » sera joint à ce métré)">📐 Dessiner le plan</button></div>
+    <div class="tabs" style="margin:0">${T.filter(([k])=>ongletsVisibles(d).includes(k)).map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?"on":""}">${l}</button>`).join("")}<button id="tabAdd" class="tab-add" title="Ajouter un portail, des volets, une clim…">+ Ajouter…</button></div>
     <span class="spacer"></span>
     ${aSAV(d)?"":`<button class="btn small" id="dVar">Variante PVC / Alu / Bois</button>`}
     <button class="btn small" id="dPrint">Imprimer / PDF</button>
@@ -1463,7 +1471,6 @@ function renderDossier(){
   <div id="tab"></div>`;
   $$("[data-tab]").forEach(b=>b.onclick=()=>{ S.tab=b.dataset.tab; renderDossier(); });
   $("#tabAdd").onclick=()=>ajouterAuMetre(d);
-  $("#tabDAO").onclick=async()=>{ clearTimeout(S.saveT); await DB.put(d); location.href="dao/?client="+encodeURIComponent((d.client&&d.client.nom||"").trim())+"&retour="+encodeURIComponent(d.id); };   // Mini DAO (voir CLAUDE.md)
   $$("[data-circuit]").forEach(b=>b.onclick=()=>choisirCircuit(b.dataset.circuit));
   $("#dClem").onclick=envoyerClemence; $("#dPrint").onclick=imprimer; $("#dSave").onclick=enregistrerDrive; if($("#dVar")) $("#dVar").onclick=ouvrirVariante;
   const t=$("#tab"), FIC=CAT.fic;
@@ -2651,6 +2658,15 @@ const climLignes = d => (d.clim?.lignes||[]).filter(l=>!l.variante);
 const climVariantes = d => (d.clim?.lignes||[]).filter(l=>l.variante);
 const aClim = d => !!(d.clim && (d.clim.lignes.length || d.clim.modele));
 /* Puissance indicative (froid) : 35 W/m³ maison isolée, jusqu'à 50 W/m³ si murs / plafond peu isolés ou simple vitrage. Indicatif, pas sur le PDF. */
+/* petit dessin d'une pièce vue de dessus : la pièce, l'unité intérieure, la liaison jusqu'au groupe extérieur */
+function dessinPieceClim(l){ const L=num(l.L)||4, W=num(l.l)||3, r=Math.min(110/L,70/W), w=Math.max(50,L*r), hh=Math.max(36,W*r), x=12, y=14, coul={Split:"#1f4fd8",Console:"#7b2cbf",Gainable:"#e07b00",Cassette:"#00a3c4"}[l.type]||"#1f4fd8";
+  const ux=l.type==="Console"?x+w/2-10:x+w/2-14, uy=l.type==="Cassette"||l.type==="Gainable"?y+hh/2-5:y+2;
+  return `<svg viewBox="0 0 200 ${hh+54}" class="cl-svg"><rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="#f4f6fb" stroke="#1b2f5e" stroke-width="2"/>
+    ${l.L?`<text x="${x+w/2}" y="${y-4}" text-anchor="middle" font-size="9" fill="#5b6b8c">${esc(l.L)} m</text>`:""}${l.l?`<text x="${x+w+3}" y="${y+hh/2+3}" font-size="9" fill="#5b6b8c">${esc(l.l)} m</text>`:""}
+    <rect x="${ux}" y="${uy}" width="${l.type==="Console"?20:28}" height="${l.type==="Console"?12:9}" rx="2" fill="${coul}"/>
+    <path d="M${ux+14},${uy+5} L${x+w+30},${uy+5} L${x+w+30},${y+hh+18}" fill="none" stroke="#1f9d3a" stroke-width="2" stroke-dasharray="5 3"/>
+    <rect x="${x+w+18}" y="${y+hh+16}" width="26" height="18" rx="2" fill="#d3232f"/><text x="${x+w+31}" y="${y+hh+28}" text-anchor="middle" font-size="8" fill="#fff" font-weight="700">UE</text>
+    ${l.distance!==""&&l.distance!=null?`<text x="${x+w+34}" y="${(uy+y+hh+18)/2}" font-size="10" font-weight="700" fill="#1f9d3a">${esc(l.distance)} m</text>`:""}${l.pompe?`<text x="${x+2}" y="${y+hh+12}" font-size="8" fill="#00a3c4">+ pompe de relevage</text>`:""}</svg>`; }
 function puissanceClim(l){ const v=num(l.volume); if(v==null) return null;
   let w=35; if(l.vitrage==="Simple") w+=5; if(!num(l.isol_murs)) w+=5; if((num(l.isol_plafond)||0)<100 && (num(l.isol_combles)||0)<100) w+=5;
   return Math.round(v*w/100)/10; }
@@ -2789,32 +2805,33 @@ function majClim(k){
 /* ---------- PDF : même présentation que la feuille Numbers ---------- */
 function pagesClim(d){
   const c=d.clim; if(!aClim(d)) return "";
-  const ck=v=>`<span class="cbx">${v?"☑":"☐"}</span>`, bl=v=>`<span class="cv">${esc(v??"")}</span>`;
-  const rowL=(l)=>l?`<tr><td class="cv c">${esc(l.piece)}</td><td class="cv r">${l.volume!==""?esc(l.volume)+"&nbsp;&nbsp;m3":""}</td><td class="cv r">${l.surface!==""?esc(l.surface)+"&nbsp;&nbsp;m2":""}</td>
-      <td class="c">${ck(l.vitrage==="Simple")}</td><td class="c">${ck(l.vitrage==="Double")}</td><td class="cv r">${esc(l.isol_murs)}</td><td class="cv r">${esc(l.isol_plafond)}</td><td class="cv r">${esc(l.isol_combles)}</td>
-      <td class="cv">${esc(l.type)}</td><td class="c">${ck(l.pompe)}</td><td class="cv c">${esc(l.unite)}</td><td class="dist">${l.distance!==""?esc(l.distance)+"&nbsp;&nbsp;&nbsp;mètres":""}</td></tr>`
-    : `<tr><td></td><td></td><td></td><td class="c">${ck(false)}</td><td class="c">${ck(false)}</td><td></td><td></td><td></td><td></td><td class="c">${ck(false)}</td><td></td><td class="dist"></td></tr>`;
-  const pad=(L,n)=>[...L, ...Array(Math.max(0,n-L.length)).fill(null)];
-  let h=`<div class="pg clim-pg"><div class="clim-titre">BON DE METRES CLIMATISATION ATLANTIC</div>
-    <div class="clim-haut">
-      <div><table class="ct"><tr><td class="lb">NOM DU CLIENT</td><td class="cv b c" colspan="3">${esc(d.client.nom)}</td></tr></table>
-        <table class="ct"><tr><td class="lb">MONO</td><td class="c">${ck(c.mono)}</td><td class="lb">MULTI SPLIT</td><td class="c">${ck(c.multi)}</td></tr></table>
-        <table class="ct"><tr><td class="lb">MODÈLE</td><td class="cv c">${esc(c.modele)}</td><td class="lb">OPTION</td><td class="cv c">${esc(c.option)}</td></tr></table></div>
-      <div><table class="ct"><tr><td class="lb">Année de la maison</td><td class="cv c">${esc(c.annee)}</td></tr></table>
-        <table class="ct">${(()=>{ let r=""; const N=climNbUE(c)+(climNbUE(c)%2); for(let n=1;n<=N;n+=2){ const A=climUE(c,n), B=n+1<=climNbUE(c)?climUE(c,n+1):null;
-            const hs=(x,k)=>x?`<td class="lb">Hauteur du sol UNITÉ EXTERIEUR ${k}</td><td class="cv">${esc(x.h_sol)}</td>`:`<td></td><td></td>`, cb=x=>x?`<td class="lb">Longueur de câbles au tableau 3G</td><td class="vert">${x.cable!==""?esc(x.cable)+" Metre":""}</td>`:`<td></td><td></td>`;
-            r+=`<tr>${hs(A,n)}${hs(B,n+1)}</tr><tr>${cb(A)}${cb(B)}</tr>`; } return r; })()}
-          <tr><td class="lb">Faire une dalle béton</td><td class="c">${ck(c.dalle)}</td><td class="lb">RAL goulottes extérieure</td><td class="cv">${esc(c.ral_ext)}</td></tr>
-          <tr><td class="lb">Supports muraux</td><td class="c">${ck(c.supports)}</td><td class="lb">RAL goulottes intérieur</td><td class="cv">${esc(c.ral_int)}</td></tr></table></div>
-      <div><table class="ct"><tr><td class="lb">Temps de pose</td><td class="cv">${esc(c.temps_pose)}</td></tr><tr><td colspan="2" class="lb b c" style="border:0">ESTIMATION</td></tr></table></div>
+  /* 18/11/2026 : même présentation que les fiches menuiserie (en-tête, tableaux clairs, une carte par pièce avec un petit dessin) */
+  const head=t=>`<div class="ph"><img src="${LOGO}"><div class="tt">${esc(t)}</div><div>${esc(d.type_document)} · ${esc(d.variante)}<br>${esc(d.client.nom)} · ${fmtDate(d.client.date_rdv)}</div></div>`;
+  const oui=v=>v?`<span class="cl-oui">✔ Oui</span>`:`<span class="cl-non">Non</span>`;
+  const tr=(k,v)=>v===""||v==null?"":`<tr><th>${k}</th><td>${v}</td></tr>`;
+  const P=climLignes(d), V=climVariantes(d), nbUE=climNbUE(c);
+  const pTot=P.map(puissanceClim).filter(x=>x!=null).reduce((a,b)=>a+b,0);
+  const ue=Array.from({length:nbUE},(_,i)=>{ const u=climUE(c,i+1), nom=`Unité ${i+1}`, L=P.filter(l=>(l.unite||"Unité 1")===nom), dmax=Math.max(0,...L.map(l=>num(l.distance)||0));
+    if(!L.length && !u.h_sol && !u.cable) return "";   // groupe sans pièce ni info : rien à imprimer
+    return `<table class="pt pdt cl-t"><tr class="pdir"><th colspan="2">UNITÉ EXTÉRIEURE ${i+1}</th></tr>${tr("Hauteur du sol / emplacement",esc(u.h_sol)+(/^\d+$/.test(u.h_sol||"")?" mm":""))}${tr("Câble au tableau (3G)",u.cable!==""?esc(u.cable)+" m":"")}
+      ${tr("Unités intérieures reliées",L.length?`${L.length} : ${esc(L.map(l=>l.piece||"?").join(", "))}`:"")}${tr("Liaison la plus longue",dmax?dmax+" m":"")}</table>`; }).join("");
+  const carte=(l,n,variante)=>{ const p=puissanceClim(l), dims=[l.L,l.l,l.h].some(x=>x)?`${esc(l.L||"?")} × ${esc(l.l||"?")} × ${esc(l.h||"?")} m`:"";
+    const isol=[["murs",l.isol_murs],["plafond",l.isol_plafond],["combles",l.isol_combles]].filter(x=>x[1]!==""&&x[1]!=null).map(([k,v])=>`${k} ${esc(v)}`).join(" · ");
+    return `<div class="cl-carte${variante?" var":""}"><div class="cl-ch"><span class="cl-n">${n}</span><b>${esc(l.piece||"Pièce sans nom")}</b>${variante?`<span class="cl-badge v">VARIANTE</span>`:""}<span class="cl-badge">${esc(l.type||"type ?")}</span><span class="cl-badge ue">${esc(l.unite||"Unité 1")}</span></div>
+      <div class="cl-cb">${dessinPieceClim(l)}<table class="cl-mini">${tr("Dimensions (L × l × h)",dims)}${tr("Volume",l.volume!==""?esc(l.volume)+" m³":"")}${tr("Surface vitrée",[l.surface!==""?esc(l.surface)+" m²":"", l.vitrage?"vitrage "+esc(l.vitrage).toLowerCase():""].filter(Boolean).join(" – "))}
+        ${tr("Isolation (cm)",isol)}${tr("Distance jusqu'au groupe",l.distance!==""?`<b>${esc(l.distance)} m</b>`:"")}${tr("Pompe de relevage",oui(l.pompe))}${tr("Puissance conseillée",p!=null?`≈ ${String(p).replace(".",",")} kW <small>(indicatif)</small>`:"")}</table></div></div>`; };
+  const cartes=[...P.map((l,i)=>carte(l,i+1,false)), ...V.map((l,i)=>carte(l,"V"+(i+1),true))];
+  let h=`<div class="pg cl-pg">${head("Métré climatisation")}
+    <div class="cl-haut">
+      <table class="pt pdt cl-t"><tr class="pdir"><th colspan="2">INSTALLATION</th></tr>${tr("Type",c.multi?"Multi split":c.mono?"Mono split":"")}${tr("Modèle",esc(c.modele))}${tr("Option",esc(c.option))}${tr("Année de la maison",esc(c.annee))}
+        ${tr("Unités intérieures",`${P.length}${V.length?` (+ ${V.length} en variante)`:""}`)}${tr("Puissance totale conseillée",pTot?`≈ ${String(Math.round(pTot*10)/10).replace(".",",")} kW <small>(indicatif)</small>`:"")}${tr("Temps de pose estimé",esc(c.temps_pose))}</table>
+      <div>${ue}</div>
+      <table class="pt pdt cl-t"><tr class="pdir"><th colspan="2">FINITIONS ET À PRÉVOIR</th></tr>${tr("Dalle béton",oui(c.dalle))}${tr("Supports muraux",oui(c.supports))}${tr("Goulottes extérieures",esc(c.ral_ext))}${tr("Goulottes intérieures",esc(c.ral_int))}
+        ${tr("Tableau électrique",c.tableau&&c.tableau.place?`<span class="${/^Non/.test(c.tableau.place)?"cl-non":"cl-oui"}">${esc(c.tableau.place)}</span>`:"")}</table>
     </div>
-    <table class="ct clim-tab"><colgroup>${[10,8,11,4.5,4.5,10,9,9,8.5,7,8.5,10].map(w=>`<col style="width:${w}%">`).join("")}</colgroup><tr class="jaune"><th rowspan="2">Pièce</th><th rowspan="2">Volume en M3</th><th rowspan="2">Dimensions des ME en surface vitrée par pièce M2</th><th colspan="2">Vitrage</th><th rowspan="2">Épaisseur, isolation des murs en cm</th><th rowspan="2">Isolation du plafond en cm</th><th rowspan="2">Isolation des combles en cm</th><th rowspan="2">Type de Split ou Console</th><th rowspan="2">Pompes de relevage</th><th rowspan="2">Groupement sur l'unité</th><th rowspan="2">Distance unité int unité ext</th></tr>
-      <tr class="jaune"><th>Simple</th><th>Double</th></tr>
-      ${pad(climLignes(d),6).map(rowL).join("")}
-      <tr><td colspan="12" class="cv c">VARIANTE</td></tr>
-      ${pad(climVariantes(d),5).map(rowL).join("")}
-      <tr><td colspan="12" class="cv c obs">${esc(c.observation).replace(/\n/g,"<br>")}</td></tr></table></div>`;
-  const head=t=>`<div class="ph"><img src="${LOGO}"><div class="tt">${esc(t)}</div><div>${esc(d.client.nom)}<br>${fmtDate(d.client.date_rdv)}</div></div>`;
+    ${c.observation?`<div class="cl-obs"><b>Observation :</b> ${esc(c.observation).replace(/\n/g,"<br>")}</div>`:""}
+    <div class="pst" style="margin-top:8px">PIÈCES À CLIMATISER</div><div class="cl-grille">${cartes.slice(0,3).join("")}</div></div>`;
+  for(let k=3;k<cartes.length;k+=6) h+=`<div class="pg cl-pg">${head("Métré climatisation – pièces (suite)")}<div class="cl-grille">${cartes.slice(k,k+6).join("")}</div></div>`;
   climSchemas(c).forEach(k=>{ const t=nomSchema(c,k); if(c[k]) h+=`<div class="pg">${head(t)}<img src="${c[k]}" class="clim-schema">${legendeClimHTML()}</div>`; });
   if(c.tableau?.img) h+=`<div class="pg">${head("PH Tableau électrique")}<div class="clim-tabpdf"><img src="${c.tableau.img}"><div><div class="clim-place${/^Non/.test(c.tableau.place)?" non":""}">${esc(c.tableau.place||"Place pour se rebrancher : non précisé")}</div>${c.tableau.txt?`<p>${esc(c.tableau.txt).replace(/\n/g,"<br>")}</p>`:""}</div></div></div>`;
   const ph=c.photos.filter(p=>p.img);
@@ -4849,11 +4866,7 @@ async function tabletteRejoindre(){
 /* ---------- Démarrage ---------- */
 $("#logo").src=LOGO;
 $("#btnBack").onclick=()=>{ if(S.view==="ouverture"){ S.tab="ouvertures"; renderDossier(); } else { const d=S.dossier; clearTimeout(S.saveT); if(d){ DB.put(d); enregistrerAuto(d).then(()=>{ if(S.view==="home") renderHome(); }); } S.chronoVu=null; renderHome(); } scrollTo(0,0); };
-DB.open().then(async()=>{ await normaliserTout();
-  /* Retour de la Mini DAO (« ↩ Retour ») : ?ouvrir=<id du métré> rouvre ce métré – voir CLAUDE.md */
-  let ouvrir=null; try{ ouvrir=new URLSearchParams(location.search).get("ouvrir"); if(ouvrir) history.replaceState(null,"",location.pathname); }catch(e){}
-  const d=ouvrir ? (await DB.all()).find(x=>x.id===ouvrir) : null;
-  if(d){ S.dossier=d; S.tab="client"; renderDossier(); } else renderHome(); });
+DB.open().then(async()=>{ await normaliserTout(); renderHome(); });
 /* Mises à jour de l'appli : les anciens métrés sont convertis une fois sur l'appareil SANS être comptés comme « modifiés »
    (sinon un autre appareil verrait sa version écrasée par cette conversion) */
 async function normaliserTout(){ try{ for(const d of await DB.all()){ const avant=empreinte(d), synchro=d.drive&&d.drive.sig===avant; normaliser(d); const apres=empreinte(d);

@@ -1056,7 +1056,8 @@ function controleOuverture(o, d=S.dossier){
   const md=modeleDe(o), fam=md?.famille, sansOP=["coulissant","galandage","fixe"].includes(fam), porte=fam==="porte";
   if(listeModeles(o.gamme) && !md) E.push("Modèle de menuiserie non choisi");
   controleForme(o, E, W);
-  { const Lc=f.L??tL, Hc=f.H??tH; if(md?.lmax && Lc>md.lmax) E.push(`Largeur ${Lc} > maximum ${md.lmax} du fournisseur (${md.nom})`); if(md?.hmax && Hc>md.hmax) E.push(`Hauteur ${Hc} > maximum ${md.hmax} du fournisseur (${md.nom})`); }
+  { const Lc=f.L??tL, Hc=f.H??tH, X=fam==="fixe"?W:E, dp=fam==="fixe"?" : faire une demande de prix":"";   // fixe : souvent accepté sur demande de prix → orange (18/11/2026)
+    if(md?.lmax && Lc>md.lmax) X.push(`Largeur ${Lc} > maximum ${md.lmax} du fournisseur (${md.nom})${dp}`); if(md?.hmax && Hc>md.hmax) X.push(`Hauteur ${Hc} > maximum ${md.hmax} du fournisseur (${md.nom})${dp}`); }
   if(vt.length===0 && !sansOP) E.push("Répartition des vantaux non renseignée");
   if(md && (fam==="of"||fam==="pf") && md.vantaux<=3 && vt.length && vt.length!==md.vantaux) W.push(`Le modèle a ${md.vantaux} vantail(aux), la répartition en indique ${vt.length}`);
   if(tL!=null && f.L!=null && Math.abs(f.L-tL)>150) E.push("Largeur : écart fabrication / tableau > 150 mm ?");
@@ -1069,7 +1070,7 @@ function controleOuverture(o, d=S.dossier){
   if(aileRecouvrement(o)){ if(o.pose!=="tunnel") W.push("Ailes de recouvrement : prévues pour la pose en tunnel"); if(!o.delignage) W.push("Ailes de recouvrement : préciser le délignage (ou « sans délignage »)"); }
   if(o.comp&&o.comp.type){ if(compH(o)==null) E.push("Compensateur : hauteur (mm) manquante"); if(!o.comp.compris) W.push("Compensateur : préciser s'il est compris ou non dans la hauteur de fabrication"); if(o.comp.type.startsWith("Autre") && !/compensateur/i.test(o.obs_libre||"")) W.push("Compensateur « autre » : préciser la section dans les observations"); if(seuilEncastre(o)) W.push("Compensateur ET seuil encastré : vérifier"); }
   if(seuilEncastre(o) && num(o.fab_force.H)!=null) W.push("Seuil encastré : hauteur saisie à la main, vérifier que les 40 mm sont compris");
-  if(!porte && tH!=null && tH>=1950 && !o.appui_bas && !aSeuil(o)) W.push("Hauteur ≥ 1950 sans seuil (porte-fenêtre ?)");
+  if(!porte && fam!=="fixe" && tH!=null && tH>=1950 && !o.appui_bas && !aSeuil(o)) W.push("Hauteur ≥ 1950 sans seuil (porte-fenêtre ?)");
   if(sdbClair(o) && !o.clair_voulu) E.push("Salle de bain / WC en vitrage clair ? (coche « Vitrage clair à la demande du client » si c'est voulu)");
   if(o.repere && !porte && fam!=="pf" && !aSeuil(o) && !o.allege && !(tH>=1950)) W.push("Allège manquante ?");
   if([o.couleur_int,o.couleur_ext].some(c=>/à préciser/i.test(c||"")) && !/ral|plax|foil|kaleido/i.test(o.obs_libre||"")) W.push("Couleur hors standard : préciser la référence (RAL / plaxage) dans les observations");

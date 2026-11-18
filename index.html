@@ -118,6 +118,11 @@ input:focus,select:focus,textarea:focus{outline:3px solid #c9d6f3;border-color:v
 #tlmPastille{position:fixed;right:12px;bottom:12px;z-index:60;max-width:330px;background:#fff;border:2px solid #1b2f5e;border-radius:14px;padding:10px 12px;box-shadow:0 6px 20px rgba(0,0,0,.18);display:flex;flex-direction:column;gap:6px;font-size:14px}
 #tlmPastille span{color:#3b4458;line-height:1.35} #btnMesure.on{background:#fff;color:#1b2f5e}
 input.tlm-cible{outline:3px solid #0a84ff!important;outline-offset:1px} input.tlm-metre{outline:3px dashed #e07b00!important;outline-offset:1px} input.tlm-ok{background:#d9f7e3!important;transition:background .2s}
+#tabPC{position:fixed;left:12px;bottom:12px;z-index:61;max-width:300px;background:#fff;border:2px solid #1b2f5e;border-radius:14px;padding:10px 12px;box-shadow:0 6px 20px rgba(0,0,0,.18);display:flex;flex-direction:column;gap:6px;font-size:14px}
+.tab-code{font-size:38px;font-weight:800;letter-spacing:8px;color:#1b2f5e;text-align:center}
+#tabIpad{position:fixed;inset:0;z-index:80;background:#fff;display:flex;flex-direction:column;padding:10px env(safe-area-inset-right) 10px env(safe-area-inset-left)}
+#tabIpad .tab-bar{display:flex;gap:10px;align-items:center;padding:0 10px} #tabIpad .tab-zone{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;padding:6px}
+#tabCv{border:1px solid #c9d1e3;border-radius:8px;touch-action:none;background:#fff}
 .sk-ipad{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:6px 0 8px;padding:8px 10px;background:#f4f6fa;border-radius:12px}
 .sk-grp{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .sk-c{width:30px;height:30px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #c9d1e3;cursor:pointer;padding:0;position:relative}
@@ -1294,6 +1299,7 @@ async function renderHome(){
     <button class="btn" id="hSync" title="Récupérer les métrés faits ou modifiés sur mes autres appareils">☁ Actualiser</button>
     <button class="btn" id="hOpen">Ouvrir un fichier…</button>
     <button class="btn" id="hCRM">Depuis le CRM</button>
+    <button class="btn" id="hTablette" title="Relier cet iPad au PC pour y dessiner">📲 Tablette de dessin</button>
     <button class="btn primary" id="hNew" style="font-size:17px;padding:12px 20px">+ Nouveau rendez-vous</button></div>
   <p class="hint">Chaque métré s'enregistre tout seul quand tu reviens à cette liste, dans <b>Mon Drive › Appli métré – Dossiers › Devis</b> (ou <b>› Métrés définitif</b> pour un métré définitif). Pour l'envoyer à Clémence : bouton <b>📨 Envoyer à Clémence</b> en haut du métré. Plusieurs devis pour un même client (gîtes, maison…) : « + Autre devis pour ce client » dans la fiche client, ou « ✂ Séparer en plusieurs devis » dans les ouvertures. Les métrés faits sur tes autres appareils apparaissent ici tout seuls (ou avec « ☁ Actualiser »).</p>
   <div class="card" id="hAgenda" style="margin-bottom:16px"><p class="hint">Chargement des rendez-vous…</p></div>
@@ -1307,7 +1313,7 @@ async function renderHome(){
         <div class="s">${G.L.map(d=>esc(d.devis_nom||d.variante)).join(" · ")}</div>
         <div>${nE?`<span class="badge b-err">${nE} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} ${nC?`<span class="badge b-ok">📨 ${nC}/${G.L.length} envoyé(s) à Clémence</span>`:""} ${nA?`<span class="badge b-n">☁ ${nA} pas encore dans le Drive</span>`:""}</div></div>
         ${ouvert?`<div class="dos-sous">${G.L.map(d=>carteMetre(d,true)).join("")}</div>`:""}`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau rendez-vous ».</div>`}</div>`;
-  $("#hNew").onclick=()=>nouveauRendezVous();
+  $("#hNew").onclick=()=>nouveauRendezVous(); $("#hTablette").onclick=tabletteRejoindre;
   $("#hOpen").onclick=()=>$("#fileOpen").click();
   $("#hSync").onclick=async()=>{ const b=$("#hSync"); b.disabled=true; b.textContent="☁ Actualisation…"; await synchroAccueil(true); const b2=$("#hSync"); if(b2){ b2.disabled=false; b2.textContent="☁ Actualiser"; } };
   { const z=document.createElement("div"); z.id="hSyncLe"; z.className="hint"; z.style.textAlign="right"; z.textContent=texteSyncLe(); $("#app .row").after(z); }
@@ -2019,7 +2025,7 @@ function barreOutils(avecCouleurs=true){
     <div class="sk-grp"><button class="btn small" data-pen="eraseObj" title="Efface le trait entier touché">🧽 Gomme trait</button><button class="btn small" data-pen="erase" title="Efface comme une gomme">◻ Gomme</button>
       <button class="btn small" id="skTexteMain" title="Touche le dessin puis écris au stylet : l'iPad transforme ton écriture en texte">✍︎ Texte au stylet</button>
       <button class="btn small" id="skUndo">↶</button><button class="btn small" id="skRedo">↷</button><button class="btn small danger" id="skClear">Effacer tout</button>
-      <label class="chip" id="skPenOnly"><input type="checkbox">Stylet seulement</label></div></div>`;
+      <label class="chip" id="skPenOnly"><input type="checkbox">Stylet seulement</label><button class="btn small" id="skTablette" title="Dessiner sur l'iPad pendant que le dessin s'affiche ici">📲 Dessiner sur l'iPad</button></div></div>`;
 }
 /* iPad + Apple Pencil : sans ceci, Safari (« Griffonner ») prend le stylet pour du défilement / de l'écriture et les traits s'arrêtent */
 function bloquerGestesTactiles(cv){ if(cv._tb) return; cv._tb=1; const stop=e=>{ if(e.cancelable) e.preventDefault(); }; ["touchstart","touchmove","touchend"].forEach(t=>cv.addEventListener(t,stop,{passive:false})); }
@@ -2140,6 +2146,9 @@ function initSketch(o=S.ouv, cle="croquis"){
   $$("[data-skstyle]").forEach(b=>b.onclick=()=>{ S.skStyle=b.dataset.skstyle; $$("[data-skstyle]").forEach(x=>x.classList.toggle("on",x===b)); if(pen.startsWith("erase")){ const p1=$("[data-pen]:not([data-pen^='erase'])"); if(p1) choisirPen(p1); } });
   $$("[data-skep]").forEach(b=>b.onclick=()=>{ S.skEp=+b.dataset.skep; $$("[data-skep]").forEach(x=>x.classList.toggle("on",x===b)); });
   const cp=$("#skPerso"); if(cp) cp.oninput=()=>{ cp.parentElement.dataset.pen=cp.value; cp.parentElement.style.background=cp.value; choisirPen(cp.parentElement); if(sels.length){ sels.forEach(s=>s.c=cp.value); commit(); } };
+  /* lien iPad : le PC reçoit les traits dessinés sur la tablette */
+  S.skDistant={ ajouter(s){ strokes.push(s); commit(); return s; }, retirer(s){ strokes=strokes.filter(x=>x!==s); commit(); }, w:()=>cv.width, h:()=>cv.height, png:()=>{ const c=document.createElement("canvas"); c.width=cv.width; c.height=cv.height; const x=c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,c.width,c.height); x.drawImage(cv,0,0); return c.toDataURL("image/jpeg",0.8); } };   // fond blanc (sinon noir en JPEG)
+  const bt=$("#skTablette"); if(bt) bt.onclick=tabletteDemarrer;
   const tm=$("#skTexteMain"); if(tm) tm.onclick=()=>{ texteMain=!texteMain; tm.classList.toggle("on",texteMain); if(texteMain){ texte=null; toast("Touche le dessin à l'endroit voulu, puis écris au stylet dans la case"); } };
   const rd=$("#skRedo"); if(rd) rd.onclick=()=>{ if(!refaire.length) return; const sn=refaire.pop(); hist.push(sn); strokes=JSON.parse(sn); sels=[]; restaure=true; commit(); };
   $$("[data-pen]").forEach(b=>b.onclick=()=>{ choisirPen(b);
@@ -4424,6 +4433,91 @@ async function synchroAccueil(manuel){
 }
 function texteSyncLe(){ const t=lireLS(SYNC_LE,null); if(!t) return "Pas encore actualisé sur cet appareil"; const d=new Date(t);
   return `Actualisé ${d.toDateString()===new Date().toDateString()?"aujourd'hui":"le "+d.toLocaleDateString("fr-FR")} à ${d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}`; }
+
+/* ---------- 📲 Dessiner sur l'iPad depuis le PC (18/11/2026) ----------
+   Le PC ouvre une « séance » : un petit fichier dans le Drive (« Appli métré – tablette 1234.json ») avec l'image du dessin en cours.
+   L'iPad tape le code, dessine au stylet ; chaque trait est ajouté au fichier ; le PC le relit toutes les 1,5 s et ajoute les traits au dessin.
+   Coordonnées des traits entre 0 et 1 (indépendantes de la taille des écrans). */
+const TAB_NOM = c => `Appli métré – tablette ${c}.json`;
+let TAB_PC=null;
+async function tabletteDemarrer(){
+  if(!S.skDistant){ toast("Ouvre d'abord un croquis ou un schéma"); return; }
+  if(!driveDispo()){ toast("Le lien avec l'iPad passe par Google Drive : ouvre l'appli en ligne"); return; }
+  try{ await demanderJeton(); }catch(e){ toast("Connexion Google refusée"); return; }
+  if(TAB_PC) tabletteArreter(true);
+  const code=String(Math.floor(1000+Math.random()*9000)), D=S.skDistant;
+  const contenu={v:1, code, cree:new Date().toISOString(), w:D.w(), h:D.h(), fond:D.png(), titre:[S.dossier?.client?.nom, S.ouv?.repere].filter(Boolean).join(" – "), ops:[], fin:false};
+  const meta={name:TAB_NOM(code), mimeType:"application/json"}, fd=new FormData();
+  fd.append("metadata",new Blob([JSON.stringify(meta)],{type:"application/json"})); fd.append("file",new Blob([JSON.stringify(contenu)],{type:"application/json"}));
+  let f; try{ f=await gdrive("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",{method:"POST",body:fd}); }catch(e){ toast("Impossible de créer la séance : "+e.message); return; }
+  TAB_PC={code, id:f.id, appliques:0, miens:[], timer:null, cible:D};
+  let m=$("#tabPC"); if(!m){ m=document.createElement("div"); m.id="tabPC"; document.body.appendChild(m); }
+  m.innerHTML=`<b>📲 Dessiner sur l'iPad</b><div class="tab-code">${code}</div><span>Sur l'iPad : ouvre l'appli → <b>📲 Tablette de dessin</b> → tape ce code.</span><span id="tabEtat" class="hint">En attente de l'iPad…</span><button class="btn small" id="tabStop">Revenir à la souris</button>`;
+  $("#tabStop").onclick=()=>tabletteArreter(false);
+  TAB_PC.timer=setInterval(tabletteLire, 1500);
+}
+async function tabletteLire(){
+  const T=TAB_PC; if(!T || T.lit) return; T.lit=true;
+  try{ const r=await fetch(`https://www.googleapis.com/drive/v3/files/${T.id}?alt=media`,{headers:{Authorization:"Bearer "+G_JETON}}); if(!r.ok) throw new Error(r.status); const c=await r.json();
+    const D=S.skDistant; if(!D){ tabletteArreter(false); return; }
+    if(c.ipad && !T.vu){ T.vu=true; toast("iPad relié : dessine au stylet"); }
+    const ops=c.ops||[];
+    for(let i=T.appliques;i<ops.length;i++){ const op=ops[i];
+      if(op.a==="t"){ const s=JSON.parse(JSON.stringify(op.s)); if(s.pts) s.pts=s.pts.map(p=>[p[0]*D.w(),p[1]*D.h(),p[2]]); if(s.t!=null){ s.x*=D.w(); s.y*=D.h(); } T.miens.push(D.ajouter(s)); }
+      else if(op.a==="u"){ const s=T.miens.pop(); if(s) D.retirer(s); }
+      else if(op.a==="x"){ T.miens.forEach(s=>D.retirer(s)); T.miens=[]; } }
+    T.appliques=ops.length;
+    const e=$("#tabEtat"); if(e) e.textContent=c.ipad?`iPad relié · ${T.miens.length} trait(s) reçu(s)`:"En attente de l'iPad…";
+    if(c.fin){ toast(`Dessin de l'iPad terminé (${T.miens.length} trait(s))`); tabletteArreter(false); }
+  }catch(e){ if(/expir|401/.test(e.message)) { const z=$("#tabEtat"); if(z) z.textContent="Connexion Google expirée : touche l'écran"; } }
+  finally{ if(TAB_PC) TAB_PC.lit=false; }
+}
+function tabletteArreter(silencieux){ const T=TAB_PC; if(!T) return; clearInterval(T.timer); TAB_PC=null; $("#tabPC")?.remove();
+  gdrive(`https://www.googleapis.com/drive/v3/files/${T.id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:true})}).catch(()=>{});
+  if(!silencieux) toast("Retour à la souris"); }
+
+/* ----- Côté iPad : la tablette de dessin ----- */
+async function tabletteRejoindre(){
+  if(!driveDispo()){ toast("Ouvre l'appli en ligne pour relier l'iPad"); return; }
+  const code=(await demanderTexte("Code affiché sur le PC (4 chiffres) :","","Relier",[]) || "").replace(/\D/g,""); if(code.length!==4) return;
+  try{ await demanderJeton(); }catch(e){ toast("Connexion Google refusée"); return; }
+  let f; try{ f=((await gdrive(`https://www.googleapis.com/drive/v3/files?pageSize=5&orderBy=createdTime%20desc&fields=files(id)&q=${encodeURIComponent(`name='${TAB_NOM(code)}' and trashed=false`)}`)).files||[])[0]; }catch(e){ toast("Drive : "+e.message); return; }
+  if(!f){ toast("Aucune séance avec ce code : vérifie le code sur le PC"); return; }
+  const r=await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`,{headers:{Authorization:"Bearer "+G_JETON}}); const C=await r.json();
+  C.ipad=new Date().toISOString(); const T={id:f.id, C, envoi:false, encore:false};
+  const envoyer=async()=>{ if(T.envoi){ T.encore=true; return; } T.envoi=true;
+    try{ await fetch(`https://www.googleapis.com/upload/drive/v3/files/${T.id}?uploadType=media`,{method:"PATCH",headers:{Authorization:"Bearer "+G_JETON,"Content-Type":"application/json"},body:JSON.stringify(T.C)}); $("#tabIEtat").textContent="✓ envoyé au PC"; }
+    catch(e){ $("#tabIEtat").textContent="⚠ envoi raté, nouvel essai…"; T.encore=true; }
+    T.envoi=false; if(T.encore){ T.encore=false; setTimeout(envoyer,400); } };
+  envoyer();
+  const m=document.createElement("div"); m.id="tabIpad";
+  m.innerHTML=`<div class="tab-bar"><b>📲 ${esc(C.titre||"Dessin")}</b><span id="tabIEtat" class="hint">relié au PC</span><span class="spacer"></span><button class="btn primary" id="tabFin">Terminé</button></div>
+    ${barreOutils(true).replace(/id="sk/g,'id="tk').replace(/<button class="btn small" data-pen="erase"[^>]*>[^<]*<\/button>/,"").replace(/<button class="btn small" id="tkTexteMain"[^>]*>[^<]*<\/button>/,"").replace(/<button class="btn small" id="tkRedo">↷<\/button>/,"").replace(/<button class="btn small" data-pen="eraseObj"[^>]*>[^<]*<\/button>/,"").replace('id="tkClear">Effacer tout','id="tkClear">Effacer mes traits').replace(/<button class="btn small" id="tkTablette"[^>]*>[^<]*<\/button>/,"")}
+    <div class="tab-zone"><canvas id="tabCv"></canvas></div>`;
+  document.body.appendChild(m);
+  const cv=$("#tabCv"), ctx=cv.getContext("2d"); bloquerGestesTactiles(cv); let fond=null, traits=[], cur=null, pen="#1b2f5e", penOnly=false;
+  const taille=()=>{ const z=m.querySelector(".tab-zone").getBoundingClientRect(), k=Math.min(z.width/C.w, z.height/C.h); cv.style.width=Math.floor(C.w*k)+"px"; cv.style.height=Math.floor(C.h*k)+"px"; cv.width=C.w; cv.height=C.h; dessiner(); };
+  const trait=(s)=>{ ctx.lineCap=ctx.lineJoin="round"; ctx.strokeStyle=s.c; const k=cv.width/cv.getBoundingClientRect().width/1.2;
+    if((s.o||1)<1){ ctx.globalAlpha=s.o; ctx.lineWidth=s.w*k; ctx.beginPath(); s.pts.forEach((q,i)=>i?ctx.lineTo(q[0]*cv.width,q[1]*cv.height):ctx.moveTo(q[0]*cv.width,q[1]*cv.height)); ctx.stroke(); ctx.globalAlpha=1; }
+    else for(let i=1;i<s.pts.length;i++){ const a=s.pts[i-1], b=s.pts[i]; ctx.lineWidth=s.w*(0.55+(b[2]||0.5)*0.9)*k; ctx.beginPath(); ctx.moveTo(a[0]*cv.width,a[1]*cv.height); ctx.lineTo(b[0]*cv.width,b[1]*cv.height); ctx.stroke(); } };
+  const dessiner=()=>{ ctx.clearRect(0,0,cv.width,cv.height); if(fond) ctx.drawImage(fond,0,0,cv.width,cv.height); traits.forEach(trait); if(cur) trait(cur); };
+  if(C.fond){ fond=new Image(); fond.onload=dessiner; fond.src=C.fond; }
+  const pt=e=>{ const r=cv.getBoundingClientRect(); return [Math.round((e.clientX-r.left)/r.width*10000)/10000, Math.round((e.clientY-r.top)/r.height*10000)/10000, Math.round((e.pressure||0.5)*100)/100]; };
+  cv.onpointerdown=e=>{ if(e.pointerType==="pen") penOnly=true; if(penOnly&&e.pointerType==="touch") return; try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+    const sty=SK_STYLES.find(x=>x[0]===(S.skStyle||"stylo"))||SK_STYLES[0], mul=[0,0.6,1,1.6,2.4][S.skEp||2]; cur={c:pen,w:Math.round(sty[2]*mul*10)/10,o:sty[3],pts:[pt(e)]}; e.preventDefault(); };
+  cv.onpointermove=e=>{ if(!cur) return; (e.getCoalescedEvents?e.getCoalescedEvents():[e]).forEach(ev=>cur.pts.push(pt(ev))); dessiner(); e.preventDefault(); };
+  const fin=()=>{ if(!cur) return; if(cur.pts.length===1) cur.pts.push([cur.pts[0][0]+0.001,cur.pts[0][1],cur.pts[0][2]]); traits.push(cur); C.ops.push({a:"t",s:cur}); cur=null; dessiner(); envoyer(); };
+  cv.onpointerup=fin; cv.onpointercancel=fin;
+  m.querySelectorAll("[data-pen]").forEach(b=>b.onclick=()=>{ pen=b.dataset.pen; m.querySelectorAll("[data-pen]").forEach(x=>x.classList.toggle("on",x===b)); });
+  const cp=$("#tkPerso"); if(cp) cp.oninput=()=>{ pen=cp.value; cp.parentElement.style.background=cp.value; };
+  m.querySelectorAll("[data-skstyle]").forEach(b=>b.onclick=()=>{ S.skStyle=b.dataset.skstyle; m.querySelectorAll("[data-skstyle]").forEach(x=>x.classList.toggle("on",x===b)); });
+  m.querySelectorAll("[data-skep]").forEach(b=>b.onclick=()=>{ S.skEp=+b.dataset.skep; m.querySelectorAll("[data-skep]").forEach(x=>x.classList.toggle("on",x===b)); });
+  $("#tkUndo").onclick=()=>{ if(!traits.length) return; traits.pop(); C.ops.push({a:"u"}); dessiner(); envoyer(); };
+  $("#tkClear").onclick=()=>{ if(!traits.length) return; traits=[]; C.ops.push({a:"x"}); dessiner(); envoyer(); };
+  const po=m.querySelector("#tkPenOnly input"); if(po) po.onchange=()=>{ penOnly=po.checked; };
+  $("#tabFin").onclick=async()=>{ C.fin=true; await envoyer(); m.remove(); window.removeEventListener("resize",taille); toast("Dessin envoyé au PC"); };
+  window.addEventListener("resize",taille); setTimeout(taille,50);
+}
 
 /* ---------- Démarrage ---------- */
 $("#logo").src=LOGO;

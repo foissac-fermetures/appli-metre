@@ -1162,12 +1162,12 @@ function controleLigneVR(l, v){
 function listeErreurs(d){ normaliser(d); const L=[], add=(ou,E,go)=>E.forEach(e=>L.push({ou,e,go}));
   add("Client",controleDossier(d).E,{tab:"client"});
   d.ouvertures.forEach((o,i)=>add(`${o.num_poseur?"N°"+o.num_poseur+" ":""}${o.repere||"Ouverture "+(i+1)}`,controleOuverture(o,d).E,{ouv:o.id}));
-  add("Volets roulants",controleVREntete(d.vr).E,{tab:"vr"}); d.vr.lignes.forEach((l,i)=>add(`Volet ${l.repere||i+1}`,controleLigneVR(l,d.vr).E,{tab:"vr"}));
+  add("Volets roulants",controleVREntete(vrSeparees(d.vr)).E,{tab:"vr"}); d.vr.lignes.forEach((l,i)=>add(`Volet ${l.repere||i+1}`,controleLigneVR(l,d.vr).E,vrUsine(l)&&l.ouv_id?{ouv:l.ouv_id}:{tab:"vr"}));   // monobloc : on corrige sur la fiche de l'ouverture
   if(aClim(d)) add("Clim",controleClim(d).E,{tab:"clim"}); if(aVB(d)) add("Volets battants",controleVB(d).E,{tab:"vb"}); if(aPT(d)) add("Portail",controlePT(d).E,{tab:"pt"}); if(aPP(d)) add("Portes palières",controlePP(d).E,{tab:"pp"}); if(aSAV(d)) add("Fiche SAV",controleSAV(d).E,{tab:"sav"}); if(aVT(d)) add("Vitrages",controleVT(d).E,{tab:"vt"});
   return L; }
 function allerErreur(go){ if(!go) return; if(go.ouv){ const o=S.dossier.ouvertures.find(x=>x.id===go.ouv); if(o){ S.ouv=o; renderOuverture(); scrollTo(0,0); return; } } S.tab=go.tab||"client"; renderDossier(); scrollTo(0,0); }
 function nbErreurs(d){ normaliser(d); return controleDossier(d).E.length + d.ouvertures.reduce((a,o)=>a+controleOuverture(o,d).E.length,0)
-  + controleVREntete(d.vr).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0) + (aClim(d)?controleClim(d).E.length:0) + (aVB(d)?controleVB(d).E.length:0) + (aPT(d)?controlePT(d).E.length:0) + (aPP(d)?controlePP(d).E.length:0) + (aSAV(d)?controleSAV(d).E.length:0) + (aVT(d)?controleVT(d).E.length:0); }
+  + controleVREntete(vrSeparees(d.vr)).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0) + (aClim(d)?controleClim(d).E.length:0) + (aVB(d)?controleVB(d).E.length:0) + (aPT(d)?controlePT(d).E.length:0) + (aPP(d)?controlePP(d).E.length:0) + (aSAV(d)?controleSAV(d).E.length:0) + (aVT(d)?controleVT(d).E.length:0); }
 
 /* ---------- Catalogue : aides ---------- */
 const GAMME_COULEUR = { "PVC - REHAU PORTEO":"REHAU", "PVC - FENSTAR FLAT (droit)":"FENSTAR", "PVC - FENSTAR NEW (arrondie)":"FENSTAR",

@@ -711,6 +711,25 @@ html.resa-open{overflow:hidden}
 #v-sav:not([hidden]){display:grid;gap:16px}
 #v-mail:not([hidden]){display:grid;gap:16px}
 #v-cli:not([hidden]){display:grid;gap:16px}
+.og-list{display:grid;gap:10px;padding:12px 16px 16px}
+.og-it{display:grid;gap:8px;padding:12px 14px;border:1px solid var(--line);border-left:4px solid var(--cc);border-radius:12px;background:var(--panel)}
+.og-top{display:flex;flex-wrap:wrap;gap:6px 12px;justify-content:space-between;align-items:center}.og-k{font-size:.78rem;font-weight:800;color:var(--cc);text-transform:uppercase;letter-spacing:.05em}
+.og-act{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.og-dl{font-size:.82rem;font-weight:700;padding:3px 10px;border-radius:999px}.og-dl.late{background:#fee2e2;color:#991b1b}.og-dl.soon{background:#ffedd5;color:#9a3412}.og-dl.ok{background:#dcfce7;color:#166534}
+.og-slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.og-slot{display:grid;gap:2px;text-align:left;padding:8px 12px;border-radius:10px;border:1px solid color-mix(in srgb,var(--cc) 35%,var(--line));background:color-mix(in srgb,var(--cc) 7%,var(--panel));color:inherit;font:inherit;cursor:pointer}
+.og-slot:hover{border-color:var(--cc);background:color-mix(in srgb,var(--cc) 14%,var(--panel))}.og-slot b{font-size:.95rem}.og-slot span{font-size:.8rem;color:var(--muted)}
+.og-tod{display:grid;grid-template-columns:60px minmax(0,1fr) auto auto;gap:4px 10px;align-items:center;padding:6px 0;border-top:1px dashed var(--line)}.og-tod:first-child{border-top:0}.og-h{font-weight:800;font-variant-numeric:tabular-nums}
+.og-tod .sub{display:block}.og-run{font-weight:700;color:#dc2626;font-size:.88rem}
+.og-mp{display:flex;flex-wrap:wrap;gap:8px 12px;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px dashed var(--line)}.og-mp:first-child{border-top:0}.og-v{font-weight:600;margin-top:3px}
+.og-cfg{display:grid;gap:12px;padding:12px 16px 16px}.og-sum{display:flex;flex-wrap:wrap;gap:6px}.og-sum span{padding:4px 10px;border-radius:999px;border:1px solid var(--line);font-size:.86rem}.og-sum span.off{opacity:.5}
+.og-days{display:grid;gap:6px}.og-day{display:grid;grid-template-columns:130px repeat(4,minmax(0,1fr));gap:6px 10px;align-items:end;padding:6px 8px;border-radius:8px;border:1px solid var(--line)}.og-day.off{opacity:.55}
+.og-day label,.og-durs label{display:grid;gap:2px;font-size:.78rem;color:var(--muted)}.og-chk{display:flex!important;gap:6px;align-items:center;color:var(--ink)!important;font-size:.95rem!important}
+.og-cfg input,.og-cfg select{font:inherit;padding:5px 7px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:inherit;min-width:0}
+.og-libres{display:grid;gap:6px;margin:6px 0}.og-lib{display:grid;grid-template-columns:170px 150px 120px 120px minmax(0,1fr) auto;gap:6px}
+.og-durs{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.og-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start}.og-idea{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,#f472b6 8%,var(--panel));border:1px solid color-mix(in srgb,#f472b6 30%,var(--line))}
+@media (max-width:760px){.og-day{grid-template-columns:1fr 1fr}.og-day .og-chk{grid-column:1/-1}.og-lib{grid-template-columns:1fr 1fr}.og-tod{grid-template-columns:50px minmax(0,1fr)}.og-tod>button,.og-tod>.og-run{grid-column:2}}
 .cv-search.picked>.hd{display:none}.cv-search.picked>div{padding:10px 12px!important}.cv-search.picked .cvq{font-size:1rem;padding:9px 14px}
 .cvq{width:100%;box-sizing:border-box;font:inherit;font-size:1.15rem;padding:12px 16px;border:2px solid var(--line);border-radius:12px;background:var(--panel);color:inherit}.cvq:focus{outline:none;border-color:#22d3ee}
 .cvres{display:grid;gap:6px}.cvres button{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;text-align:left;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:inherit;font:inherit;cursor:pointer}
@@ -925,6 +944,7 @@ h2{text-transform:none;letter-spacing:0;font-weight:800;font-size:1.12rem}
     <button class="tab" id="t-pose" aria-selected="false" style="--dc:#f472b6"><i></i><span>Pose</span><span class="tab-n" id="tpose-n"></span></button>
     <button class="tab" id="t-sav" aria-selected="false" style="--dc:#f87171"><i></i><span>SAV</span><span class="tab-n" id="tsav-n"></span></button>
     <button class="tab" id="t-cli" aria-selected="false" style="--dc:#22d3ee"><i></i><span>Fiche client</span></button>
+    <button class="tab" id="t-org" aria-selected="false" style="--dc:#f472b6"><i></i><span>Organisation</span><span class="tab-n" id="torg-n"></span></button>
     <button class="tab" id="t-mail" aria-selected="false" style="--dc:#60a5fa"><i></i><span>Mails</span><span class="tab-n" id="tmail-n"></span></button>
     <button class="tab" id="t-four" aria-selected="false" style="--dc:#34d399"><i></i><span>Fournisseurs</span><span class="tab-n" id="tfour-n"></span></button>
     <button class="tab" id="t-tour" hidden aria-selected="false" style="--dc:#94a3b8"><i></i><span>Tournées</span><span class="tab-n" id="ttour-n"></span></button>
@@ -1052,6 +1072,7 @@ h2{text-transform:none;letter-spacing:0;font-weight:800;font-size:1.12rem}
       <div style="padding:14px 16px 16px;display:grid;gap:10px"><input type="search" id="cvq" class="cvq" placeholder="Ex. : Maily, 06 87…, Gourdon…" autocomplete="off" aria-label="Chercher un client"><div id="cvres" class="cvres"></div></div></section>
     <div id="cvbody"></div>
   </div>
+  <div id="v-org" hidden><div id="ogbody" style="display:grid;gap:16px"></div></div>
   <div id="v-mail" hidden>
     <section class="panel"><div class="hd"><h2>Mes mails</h2><div class="filters"><label class="sub">depuis <select id="mper"><option value="2">2 jours</option><option value="7" selected>7 jours</option><option value="14">14 jours</option><option value="30">30 jours</option></select></label><button class="btn pri" id="mref" type="button">🔄 Actualiser</button></div></div>
       <div id="mrecap" class="mrecap"><div class="empty">Clique sur « Actualiser » : je lis tes mails, je les range par client et je te prépare ce qu'il y a à noter.</div></div></section>
@@ -2721,7 +2742,7 @@ function needMetre(r){ const vd = venteD(r); if (!vd) return false;
   return true; }
 function fixStages(){ for (const r of rows) { const V = r.vente || []; if (!V.length) continue; let need = null;
     for (const v of V) { if (v.et0 == null) v.et0 = v.et; if (v.et0 === "commande") { if (need == null) need = needMetre(r); v.et = need ? "metre" : "commande"; } else v.et = v.et0; } } }
-function renderAll(){ try { fixStages(); } catch(e){ console.warn(e); } try { renderMails(); } catch(e){ console.warn(e); } try { if (cvSel && !(callRec && callRec.on && callRec.rid === cvSel)) renderCv(); } catch(e){ console.warn(e); } renderPay(); renderTaches(); renderPose(); renderSav(); renderDash(); renderTours(); renderStrip(); renderList(); renderQueue(); renderChantiers(); renderRdv(); renderMailCount(); if (openId) renderDrawer(); }
+function renderAll(){ try { fixStages(); } catch(e){ console.warn(e); } try { renderMails(); } catch(e){ console.warn(e); } try { renderOrg(); } catch(e){ console.warn(e); } try { if (cvSel && !(callRec && callRec.on && callRec.rid === cvSel)) renderCv(); } catch(e){ console.warn(e); } renderPay(); renderTaches(); renderPose(); renderSav(); renderDash(); renderTours(); renderStrip(); renderList(); renderQueue(); renderChantiers(); renderRdv(); renderMailCount(); if (openId) renderDrawer(); }
 
 /* ---------- chantiers signés ---------- */
 function chantiers(){ return rows.flatMap(r => (r.vente||[]).map((v,i) => ({r, v, i}))); }
@@ -4085,6 +4106,153 @@ document.addEventListener("click", e => { if (e.defaultPrevented || e.button !==
   const w = Math.min(1100, screen.availWidth - 80), h = screen.availHeight - 80, l = Math.max(0, screen.availWidth - w - 20);
   const win = window.open(u, "crm_document", "popup=yes,width=" + w + ",height=" + h + ",left=" + l + ",top=20");
   if (win) { e.preventDefault(); try { win.focus(); } catch(_){} } }, true);
+/* ===== Onglet « Organisation » : RDV à prendre (métré définitif sous 15 jours), créneaux selon l'agenda et les kilomètres,
+   propositions de RDV reçues par mail, chrono des métrés, temps libre réglable, idées d'amélioration ===== */
+const ORG_DEF = { jours: { 1: { on: 1, deb: "08:30", fin: "18:00", pd: "12:00", pf: "13:30" }, 2: { on: 1, deb: "08:30", fin: "18:00", pd: "12:00", pf: "13:30" }, 3: { on: 1, deb: "08:30", fin: "18:00", pd: "12:00", pf: "13:30" }, 4: { on: 1, deb: "08:30", fin: "18:00", pd: "12:00", pf: "13:30" }, 5: { on: 1, deb: "08:30", fin: "17:30", pd: "12:00", pf: "13:30" }, 6: { on: 0, deb: "09:00", fin: "12:00", pd: "", pf: "" }, 0: { on: 0, deb: "", fin: "", pd: "", pf: "" } },
+  libres: [], dur: { men: 60, clim: 90, premier: 60, sav: 45 }, maxRoute: 40, delaiMetre: 15, jours_vus: 12 };
+let orgCfg = JSON.parse(JSON.stringify(ORG_DEF)), orgTemps = [], orgChrono = null, orgEditCfg = false, orgUsage = {};
+try { orgChrono = JSON.parse(localStorage.getItem("crm-chrono") || "null"); } catch(_){}
+try { orgUsage = JSON.parse(localStorage.getItem("crm-usage") || "{}") || {}; } catch(_){}
+const ORG_J = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+const tMin = (a, b) => (!a || !b) ? 20 : a === "flex" || b === "flex" ? 0 : Math.max(3, Math.round(km(a, b) / 48 * 60 + 3));
+const m2h = m => pad2(Math.floor(m / 60)) + ":" + pad2(m % 60), hTxt = m => m2h(m).replace(":", "h");
+const durTxt = m => m >= 60 ? Math.floor(m / 60) + " h" + (m % 60 ? " " + pad2(m % 60) : "") : m + " min";
+function orgClim(r, its){ return /CLIM|PAC\b|POMPE A CHALEUR|CLIMATIS|SPLIT|GAINABLE/.test(upAscii([r.proj, ...(its || [])].join(" "))); }
+function orgQty(its){ let n = 0; (its || []).forEach(s => String(s).split(/\+|,| ET /i).forEach(p => { const m = p.trim().match(/^(\d{1,2})\b/); if (m) n += +m[1]; else if (/[A-Za-z]{2}/.test(p)) n += 1; })); return n || 0; }
+function orgEstim(kind, clim, qty){ const D = orgCfg.dur || ORG_DEF.dur;
+  if (kind === "sav") return D.sav || 45; if (kind === "premier") return clim ? (D.clim || 90) : (D.premier || 60);
+  const base = clim ? (D.clim || 90) : (D.men || 60);
+  const S = orgTemps.filter(x => x.type === "metre" && !!x.clim === !!clim && x.min > 10 && x.min < 400);
+  if (S.length >= 3 && qty) { const withQ = S.filter(x => x.qty), perPiece = withQ.length >= 3 ? withQ.map(x => x.min / x.qty).sort((a, b) => a - b)[Math.floor(withQ.length / 2)] : null;
+    const med = S.map(x => x.min).sort((a, b) => a - b)[Math.floor(S.length / 2)];
+    const v = perPiece ? Math.round(Math.max(30, Math.min(240, perPiece * qty)) / 15) * 15 : Math.round(med / 15) * 15; return v; }
+  if (qty && !clim) return qty <= 4 ? base : qty <= 8 ? base + 30 : base + 60;
+  return base; }
+function orgLL(e){ if (e.ll !== undefined) return e.ll; let p = null; try { if (e.r) p = llOf(e.r); if (!p && e.lieu) { const k = kc(String(e.lieu).replace(/^.*\b\d{5}\s+/, "").replace(/,.*$/, "")); if (COMMUNES[k]) p = { lat: COMMUNES[k][0], lon: COMMUNES[k][1] }; else { const w = upAscii(e.lieu).split(/[^A-Z]+/).reverse().find(x => COMMUNES[x]); if (w) p = { lat: COMMUNES[w][0], lon: COMMUNES[w][1] }; } } } catch(_){} return (e.ll = p); }
+/* ce qui occupe une journée : agendas + RDV notés dans le CRM + pause + temps libre */
+function orgBusy(day){ const out = [], wd = pd(day).getDay(), J = (orgCfg.jours || {})[wd] || {};
+  const evs = (typeof agendaEv !== "undefined" ? agendaEv : []).concat(typeof agendaPerso !== "undefined" ? agendaPerso : []).filter(e => e.d === day);
+  let blocked = false;
+  evs.forEach(e => { if (!e.h) { if (/cong|vacance|f[ée]ri|absen|repos|malad|formation|salon/i.test(e.summary || "")) blocked = true; return; }
+    const s = hm2(e.h), f = e.f ? hm2(e.f) : s + 60; out.push({ s, f: Math.max(f, s + 15), ll: orgLL(e), l: e.r ? e.r.client : (e.summary || "RDV"), lieu: e.r ? e.r.lieu : e.lieu, r: e.r || null }); });
+  rows.forEach(r => { const m = myRdv(r); if (!m || m.d !== day || !m.h) return; const s = hm2(m.h); if (out.some(x => x.r && x.r.id === r.id && Math.abs(x.s - s) < 60)) return; out.push({ s, f: s + (m.dur || 60), ll: (() => { try { return llOf(r); } catch(_){ return null; } })(), l: r.client, lieu: r.lieu, r }); });
+  if (J.pd && J.pf) out.push({ s: hm2(J.pd), f: hm2(J.pf), ll: "flex", l: "Pause midi", pause: 1 });
+  (orgCfg.libres || []).forEach(b => { if ((b.date && b.date === day) || (!b.date && +b.j === wd)) out.push({ s: hm2(b.deb), f: hm2(b.fin), ll: "flex", l: b.l || "Temps libre", pause: 1 }); });
+  return { on: !!J.on && !blocked, deb: J.deb ? hm2(J.deb) : 510, fin: J.fin ? hm2(J.fin) : 1080, busy: out.sort((a, b) => a.s - b.s), blocked }; }
+function orgDays(n){ const L = [], t = today(); for (let i = 0; L.length < n && i < 40; i++) { const d = new Date(t); d.setDate(d.getDate() + i); const k = iso(d); const J = (orgCfg.jours || {})[d.getDay()] || {}; if (J.on) L.push(k); } return L; }
+/* les créneaux possibles pour un client, classés par détour */
+function orgSlots(P, D, opts){ opts = opts || {}; const home = DEPARTS.maison, now = new Date(), out = [], maxR = orgCfg.maxRoute || 40;
+  const days = opts.days || orgDays(orgCfg.jours_vus || 12);
+  days.forEach((day, di) => { const B = orgBusy(day); if (!B.on) return;
+    let start = B.deb; if (day === iso(now)) start = Math.max(start, Math.ceil((now.getHours() * 60 + now.getMinutes() + 60) / 15) * 15);
+    const anchors = [{ f: start, ll: home, l: "chez toi", home: 1 }].concat(B.busy.filter(x => x.f > start)).concat([{ s: B.fin, ll: home, l: "retour chez toi", home: 1 }]);
+    const realBefore = i => { for (let j = i; j >= 0; j--) if (anchors[j].ll !== "flex") return anchors[j]; return anchors[0]; }, realAfter = i => { for (let j = i; j < anchors.length; j++) if (anchors[j].ll !== "flex") return anchors[j]; return anchors[anchors.length - 1]; };
+    const dayHas = B.busy.some(x => !x.pause);
+    for (let i = 0; i < anchors.length - 1; i++) { const A0 = anchors[i], B0 = anchors[i + 1]; const gs = Math.max(A0.f, start), ge = B0.s; if (ge - gs < D) continue;
+      const A = realBefore(i), Bn = realAfter(i + 1);
+      const t1 = tMin(A.ll, P), t2 = tMin(P, Bn.ll);
+      if ((!A.home && A.ll !== "flex" && t1 > maxR) || (!Bn.home && Bn.ll !== "flex" && t2 > maxR)) continue;
+      let s = Math.ceil((gs + t1) / 15) * 15; if (opts.after != null) s = Math.max(s, Math.ceil(opts.after / 15) * 15);
+      const e = s + D; if (opts.before != null && e > opts.before) continue; if (e + t2 > ge) continue;
+      const base = (A.ll === "flex" || Bn.ll === "flex") ? 0 : tMin(A.ll, Bn.ll), detour = Math.max(0, t1 + t2 - base);
+      const near = [A, Bn].filter(x => !x.home && !x.pause).map(x => x.l + (x.lieu ? " (" + String(x.lieu).replace(/^.*\d{5}\s*/, "").slice(0, 22) + ")" : ""));
+      out.push({ day, s, e, t1, t2, detour, near, di, alone: !near.length, free: !dayHas }); } });
+  return out; }
+function orgBest(P, D, dl){ const S = orgSlots(P, D); const sc = x => x.detour + x.di * 3 + (x.alone ? 12 : 0) + (dl && x.day > dl ? 200 : 0);
+  const seen = new Set(), R = []; S.sort((a, b) => sc(a) - sc(b)).forEach(x => { if (R.length < 3 && !seen.has(x.day)) { seen.add(x.day); R.push(x); } }); return R; }
+function orgTodo(){ const t = iso(today()), L = [];
+  let T = []; try { T = rdvTodo(); } catch(_){}
+  T.forEach(x => { const r = x.r, its = x.v ? x.v.it : [], clim = orgClim(r, its), qty = orgQty(its);
+    const dl = x.kind === "metre" && x.since ? addDays(x.since, orgCfg.delaiMetre || 15) : null;
+    L.push({ r, kind: x.kind, since: x.since, dl, clim, qty, D: orgEstim(x.kind, clim, qty), its }); });
+  Object.entries(csav || {}).forEach(([id, v]) => { if (!v || !v.rid || /clos|termin|fini|regl/i.test(v.st || "") || v.inter) return; const r = rows.find(x => x.id === v.rid); if (!r || rdvAVenir(r)) return; if (L.some(x => x.r.id === r.id)) return;
+    L.push({ r, kind: "sav", since: v.d, dl: null, clim: false, qty: 0, D: orgEstim("sav"), sav: v }); });
+  const rank = x => x.kind === "metre" ? (x.dl ? (pd(x.dl) - today()) / 864e5 : 30) : x.kind === "premier" ? 20 + Math.min(30, (today() - pd(x.since || t)) / -864e5) : 25;
+  return L.sort((a, b) => rank(a) - rank(b)); }
+function orgDl(x){ if (!x.dl) return ""; const n = Math.round((pd(x.dl) - today()) / 864e5);
+  return n < 0 ? `<span class="og-dl late">🔴 métré définitif en retard de ${-n} j</span>` : n <= 4 ? `<span class="og-dl soon">🟠 reste ${n} j (avant le ${esc(fd(x.dl))})</span>` : `<span class="og-dl ok">🟢 reste ${n} j (avant le ${esc(fd(x.dl))})</span>`; }
+const ORG_KIND = { metre: ["📐", "Métré définitif", "#0ea5e9"], premier: ["🤝", "1er rendez-vous", "#7c3aed"], sav: ["🔧", "SAV", "#dc2626"] };
+function orgSlotBtn(x, slot){ const d = pd(slot.day), lbl = ORG_J[d.getDay()].slice(0, 3) + " " + fd(slot.day);
+  return `<button type="button" class="og-slot" data-ogtake="${esc(x.r.id)}" data-d="${slot.day}" data-h="${m2h(slot.s)}" data-dur="${x.D}"><b>${esc(lbl)} · ${hTxt(slot.s)}–${hTxt(slot.e)}</b><span>${slot.alone ? (slot.free ? "journée libre · " : "") + slot.t1 + " min depuis " + (slot.t1 && slot.near.length === 0 ? "chez toi" : "chez toi") + (slot.free ? "" : " · " + slot.t2 + " min pour rentrer") : "entre " + esc(slot.near.join(" et ")) + " · +" + slot.detour + " min de route"}</span></button>`; }
+/* propositions de RDV reçues par mail */
+function orgMailProps(){ const out = []; if (!(mailsList || []).length) return out;
+  mailsList.forEach(m => { let o; try { o = mailAna(m); } catch(_){ return; } if (!o.client || !o.sig.includes("rdv") || o.cat === "pub") return;
+    const txt = o.clean.replace(/\s+/g, " "), day = typeof cnDate === "function" ? cnDate(txt) : ""; if (!day || day < iso(today())) return;
+    const hm = txt.match(/\b(\d{1,2})\s?h\s?(\d{2})?\b/i); let after = null, before = null, at = null;
+    if (hm && +hm[1] >= 7 && +hm[1] <= 19) at = +hm[1] * 60 + (+hm[2] || 0); else if (/apr[eè]s[- ]midi|aprem/i.test(txt)) after = 13 * 60 + 30; else if (/\bmatin/i.test(txt)) before = 12 * 60 + 30;
+    const r = o.client; let P = null; try { P = llOf(r); } catch(_){} const D = orgEstim(r.vente && r.vente.some(v => v.et === "metre") ? "metre" : "premier", orgClim(r, []), 0);
+    const S = orgSlots(P, D, { days: [day], after: at != null ? at : after, before: at != null ? at + D : before });
+    const fit = at != null ? S.find(s => s.s === Math.ceil(at / 15) * 15) : S.sort((a, b) => a.detour - b.detour)[0];
+    out.push({ o, r, day, at, after, before, D, fit, any: S.length }); });
+  return out; }
+function orgToday(){ const t = iso(today()), B = orgBusy(t); return B.busy.filter(x => !x.pause); }
+function orgStats(){ const S = orgTemps.filter(x => x.min > 5); if (!S.length) return "";
+  const g = (f) => { const L = S.filter(f); if (!L.length) return null; const avg = Math.round(L.reduce((a, x) => a + x.min, 0) / L.length); const q = L.filter(x => x.qty); return { n: L.length, avg, pp: q.length ? Math.round(q.reduce((a, x) => a + x.min / x.qty, 0) / q.length) : null }; };
+  const men = g(x => x.type === "metre" && !x.clim), cl = g(x => x.type === "metre" && x.clim), pr = g(x => x.type === "premier"), sv = g(x => x.type === "sav");
+  const li = (l, x) => x ? `<div class="cv-li"><b>${l} · ${x.n} chronométré${x.n > 1 ? "s" : ""}</b><span class="sub">en moyenne ${durTxt(x.avg)}${x.pp ? " · ≈ " + x.pp + " min par menuiserie" : ""}</span></div>` : "";
+  return li("📐 Métrés menuiserie", men) + li("❄️ Métrés climatisation", cl) + li("🤝 1ers rendez-vous", pr) + li("🔧 SAV", sv) + `<span class="sub">Dès 3 métrés chronométrés, les durées proposées se règlent sur tes temps réels (selon le nombre de menuiseries).</span>`; }
+function orgIdeas(){ const I = [], U = orgUsage.tabs || {}, order = typeof tabOrderNow === "function" ? tabOrderNow() : [];
+  const top = Object.entries(U).sort((a, b) => b[1] - a[1])[0]; if (top && top[1] >= 15) { const pos = order.indexOf(top[0]); const nm = ($("#" + top[0] + " span") || {}).textContent || top[0]; if (pos > 2) I.push({ t: `Tu ouvres souvent « ${nm} » (${top[1]} fois). Je le remonte en 2e position dans le menu ?`, act: "tab:" + top[0] }); }
+  const late = orgTodo().filter(x => x.dl && x.dl < iso(today())).length; if (late >= 2) I.push({ t: `${late} métrés définitifs ont dépassé les ${orgCfg.delaiMetre || 15} jours. Bloque une demi-journée « métrés » cette semaine : les créneaux proposés ci-dessus les regroupent par secteur.` });
+  const S = orgTemps.filter(x => x.type === "metre" && !x.clim && x.min > 5); if (S.length >= 3) { const avg = Math.round(S.reduce((a, x) => a + x.min, 0) / S.length); const D = (orgCfg.dur || {}).men || 60; if (Math.abs(avg - D) >= 15) I.push({ t: `Tes métrés menuiserie durent en moyenne ${durTxt(avg)} (réglage actuel : ${durTxt(D)}). Je mets ${durTxt(Math.round(avg / 15) * 15)} par défaut ?`, act: "dur:" + Math.round(avg / 15) * 15 }); }
+  if (!orgTemps.length) I.push({ t: "Pense à lancer le chrono ⏱ au début de tes rendez-vous (section « Aujourd'hui ») : je pourrai ajuster les durées de métré à ta vraie façon de travailler." });
+  return I; }
+function orgCfgHtml(){ const C = orgCfg, J = C.jours || {};
+  return `<section class="panel"><div class="hd"><h2>⏰ Temps libre et horaires</h2><button class="btn sm" type="button" id="ogcfgb">${orgEditCfg ? "✓ Terminé" : "Modifier"}</button></div>
+    <div class="og-cfg">${orgEditCfg ? `<div class="og-days">${[1, 2, 3, 4, 5, 6, 0].map(d => { const x = J[d] || {}; return `<div class="og-day ${x.on ? "" : "off"}" data-wd="${d}"><label class="og-chk"><input type="checkbox" data-k="on" ${x.on ? "checked" : ""}> <b>${ORG_J[d]}</b></label>
+          <label>début<input type="time" data-k="deb" value="${esc(x.deb || "")}"></label><label>fin<input type="time" data-k="fin" value="${esc(x.fin || "")}"></label><label>pause de<input type="time" data-k="pd" value="${esc(x.pd || "")}"></label><label>à<input type="time" data-k="pf" value="${esc(x.pf || "")}"></label></div>`; }).join("")}</div>
+        <div><span class="eyebrow">Temps libres en plus</span> <span class="sub">(un créneau chaque semaine, ou une date précise)</span><div class="og-libres">${(C.libres || []).map((b, i) => `<div class="og-lib"><select data-li="${i}" data-k="j"><option value="">— date précise —</option>${[1, 2, 3, 4, 5, 6, 0].map(d => `<option value="${d}" ${!b.date && +b.j === d ? "selected" : ""}>chaque ${ORG_J[d].toLowerCase()}</option>`).join("")}</select><input type="date" data-li="${i}" data-k="date" value="${esc(b.date || "")}"><input type="time" data-li="${i}" data-k="deb" value="${esc(b.deb || "")}"><input type="time" data-li="${i}" data-k="fin" value="${esc(b.fin || "")}"><input type="text" data-li="${i}" data-k="l" value="${esc(b.l || "")}" placeholder="Ex. : enfants, sport, agence…"><button class="btn sm" type="button" data-lidel="${i}">✕</button></div>`).join("")}</div><button class="btn sm" type="button" id="oglibadd">+ un temps libre</button></div>
+        <div class="og-durs"><label>Métré menuiserie (min)<input type="number" min="15" step="15" data-dk="men" value="${(C.dur || {}).men || 60}"></label><label>Métré climatisation<input type="number" min="15" step="15" data-dk="clim" value="${(C.dur || {}).clim || 90}"></label><label>1er rendez-vous<input type="number" min="15" step="15" data-dk="premier" value="${(C.dur || {}).premier || 60}"></label><label>SAV<input type="number" min="15" step="15" data-dk="sav" value="${(C.dur || {}).sav || 45}"></label><label>Route max entre 2 clients (min)<input type="number" min="10" step="5" id="ogmax" value="${C.maxRoute || 40}"></label><label>Délai métré définitif (jours)<input type="number" min="5" step="1" id="ogdel" value="${C.delaiMetre || 15}"></label></div>`
+      : `<div class="og-sum">${[1, 2, 3, 4, 5, 6, 0].map(d => { const x = J[d] || {}; return `<span class="${x.on ? "" : "off"}"><b>${ORG_J[d].slice(0, 3)}</b> ${x.on ? esc((x.deb || "").replace(":", "h")) + "–" + esc((x.fin || "").replace(":", "h")) + (x.pd ? " · pause " + esc(x.pd.replace(":", "h")) + "–" + esc((x.pf || "").replace(":", "h")) : "") : "libre"}</span>`; }).join("")}</div>
+        ${(C.libres || []).length ? `<div class="og-sum">${C.libres.map(b => `<span>🕑 ${b.date ? esc(fd(b.date)) : "chaque " + ORG_J[+b.j].toLowerCase()} ${esc((b.deb || "").replace(":", "h"))}–${esc((b.fin || "").replace(":", "h"))}${b.l ? " · " + esc(b.l) : ""}</span>`).join("")}</div>` : ""}
+        <div class="sub">Durées : métré menuiserie ${durTxt((C.dur || {}).men || 60)} (+30 min au-delà de 4 menuiseries), climatisation ${durTxt((C.dur || {}).clim || 90)}, 1er RDV ${durTxt((C.dur || {}).premier || 60)}, SAV ${durTxt((C.dur || {}).sav || 45)} · route max ${C.maxRoute || 40} min entre 2 clients · métré définitif sous ${C.delaiMetre || 15} jours</div>`}</div></section>`; }
+function renderOrg(){ const el = $("#ogbody"); if (!el) return; if ($("#v-org") && $("#v-org").hidden && !orgEditCfg) { const n = orgTodo().filter(x => x.dl && x.dl <= addDays(iso(today()), 4)).length; const tn = $("#torg-n"); if (tn) tn.textContent = n || ""; return; }
+  const T = orgTodo(), tn = $("#torg-n"); if (tn) tn.textContent = T.filter(x => x.dl && x.dl <= addDays(iso(today()), 4)).length || "";
+  const today0 = orgToday(), MP = orgMailProps(), ideas = orgIdeas();
+  const agOk = typeof agendaState === "undefined" || agendaState !== "loading";
+  let h = "";
+  h += `<section class="panel"><div class="hd"><h2>📍 Aujourd'hui</h2><span class="sub">${esc(ORG_J[today().getDay()])} ${esc(fd(iso(today())))} · lance le chrono au début de chaque rendez-vous</span></div><div class="og-list">${today0.length ? today0.map(x => { const on = orgChrono && orgChrono.k === iso(today()) + x.s + x.l; return `<div class="og-tod"><span class="og-h">${hTxt(x.s)}</span><div style="min-width:0"><b>${esc(x.l)}</b><span class="sub">${esc(x.lieu || "")}</span></div>${x.r ? (on ? `<span class="og-run">⏱ en cours depuis ${hTxt(orgChrono.t0m)}</span><button class="btn sm pri" type="button" data-ogstop="${esc(x.r.id)}">✓ Terminé</button>` : `<button class="btn sm" type="button" data-ogstart="${esc(x.r.id)}" data-k="${esc(iso(today()) + x.s + x.l)}">⏱ Je commence</button>`) : ""}</div>`; }).join("") : `<span class="sub">Pas de rendez-vous aujourd'hui dans ton agenda.</span>`}</div></section>`;
+  h += `<section class="panel"><div class="hd"><h2>🗓️ Rendez-vous à prendre <span class="cnt">${T.length}</span></h2><span class="sub">les plus urgents d'abord · 3 créneaux proposés pour chacun, selon ton agenda et la route</span></div>${!agOk ? `<div class="empty">Lecture de l'agenda…</div>` : ""}<div class="og-list">${T.map(x => { const r = x.r, K = ORG_KIND[x.kind], c = ctRdv(r), P = (() => { try { return llOf(r); } catch(_){ return null; } })(); const best = P ? orgBest(P, x.D, x.dl) : [];
+      return `<article class="og-it" style="--cc:${K[2]}"><div class="og-top"><div style="min-width:0"><span class="og-k">${K[0]} ${K[1]}</span> <button class="lnk" type="button" data-id="${esc(r.id)}"><b>${esc(r.client)}</b></button><span class="sub"> · ${esc(r.lieu || "")}${trajet(r) ? " · " + esc(trajet(r).t) + " de chez toi" : ""} · durée prévue ${durTxt(x.D)}${x.clim ? " (clim)" : x.qty ? " (" + x.qty + " menuiserie" + (x.qty > 1 ? "s" : "") + ")" : ""}</span></div>
+        <div class="og-act">${orgDl(x)}${c && c.tel ? `<a class="btn sm pri" href="${esc(telLink(c.tel))}">📞 ${esc(c.lien || "Contact")}</a>` : r.tel ? `<a class="btn sm pri" href="${esc(telLink(r.tel))}">📞 Appeler</a>` : ""}</div></div>
+        ${x.kind === "sav" && x.sav && x.sav.pb ? `<div class="sub">🔧 ${esc(x.sav.pb.slice(0, 140))}</div>` : ""}
+        <div class="og-slots">${best.length ? best.map(s => orgSlotBtn(x, s)).join("") : `<span class="sub">${P ? "Pas de créneau libre dans les " + (orgCfg.jours_vus || 12) + " prochains jours de travail avec tes réglages." : "Adresse introuvable : je ne peux pas calculer la route."}</span>`}</div></article>`; }).join("") || `<div class="empty">Aucun rendez-vous à prendre 🎉</div>`}</div></section>`;
+  h += `<section class="panel"><div class="hd"><h2>✉️ Propositions de RDV reçues par mail</h2><span class="sub">je regarde si ça passe avec ton agenda et la route</span></div><div class="og-list">${!(mailsList || []).length ? `<span class="sub">Actualise l'onglet Mails pour que je les vérifie ici.</span>` : MP.length ? MP.map(p => { const d = pd(p.day), when = ORG_J[d.getDay()] + " " + fd(p.day) + (p.at != null ? " à " + hTxt(p.at) : p.after ? " après-midi" : p.before ? " matin" : "");
+      const v = p.fit ? (p.at != null ? `✅ Ça passe${p.fit.near.length ? " : entre " + esc(p.fit.near.join(" et ")) + " (+" + p.fit.detour + " min)" : " : journée libre"}` : `✅ Possible à ${hTxt(p.fit.s)}${p.fit.near.length ? " (entre " + esc(p.fit.near.join(" et ")) + ", +" + p.fit.detour + " min)" : ""}`) : p.any ? "⚠️ Serré : possible ce jour-là, mais pas à l'heure demandée" : "❌ Ne passe pas : agenda déjà plein ou trop de route ce jour-là";
+      return `<div class="og-mp"><div style="min-width:0"><b>${esc(p.r.client)}</b> propose <b>${esc(when)}</b><div class="sub">« ${esc(p.o.m.subject || "")} » · ${esc(fd(iso(new Date(p.o.m.date))))}</div><div class="og-v">${v}</div></div><div class="og-act">${p.fit ? `<button class="btn sm pri" type="button" data-ogtake="${esc(p.r.id)}" data-d="${p.day}" data-h="${m2h(p.fit.s)}" data-dur="${p.D}">Prendre ce RDV</button>` : ""}<button class="btn sm" type="button" data-ogmail>Répondre</button></div></div>`; }).join("") : `<span class="sub">Aucune proposition de date dans les mails chargés.</span>`}</div></section>`;
+  h += orgCfgHtml();
+  h += `<div class="og-two"><section class="panel"><div class="hd"><h2>⏱ Mes temps de rendez-vous</h2></div><div class="og-list">${orgStats() || `<span class="sub">Pas encore de rendez-vous chronométré.</span>`}</div></section>
+    <section class="panel"><div class="hd"><h2>💡 Idées pour toi</h2></div><div class="og-list">${ideas.map(i => `<div class="og-idea"><span>${esc(i.t)}</span>${i.act ? `<button class="btn sm pri" type="button" data-ogidea="${esc(i.act)}">Oui, fais-le</button>` : ""}</div>`).join("") || `<span class="sub">Rien à proposer pour l'instant.</span>`}<span class="sub">J'observe discrètement comment tu utilises le CRM (onglets, actions) pour te proposer des améliorations. Rien ne sort de ton Drive.</span></div></section></div>`;
+  el.innerHTML = h; wireOrg(); }
+async function orgSave(next){ orgCfg = next; renderOrg(); if (!db || !canWrite) return; try { await db.doc("meta/organisation").set(next); } catch(_){ toast("Réglages non enregistrés"); } }
+function wireOrg(){ const el = $("#ogbody"); if (!el) return;
+  el.querySelectorAll("[data-id]").forEach(b => b.onclick = () => openDossier(b.dataset.id));
+  el.querySelectorAll("[data-ogtake]").forEach(b => b.onclick = () => { const id = b.dataset.ogtake; openDossier(id); setTimeout(() => { const d = $("#rdvd"), hh = $("#rdvh"), du = $("#rdvdur");
+      if (d) { d.value = b.dataset.d; if (hh) hh.value = b.dataset.h; if (du) { const v = String(b.dataset.dur); if (![...du.options].some(o => o.value === v)) du.add(new Option(durLbl ? durLbl(+v) : v + " min", v)); du.value = v; du.dispatchEvent(new Event("change")); }
+        [d, hh].forEach(x => x && x.classList.add("nc-hit")); d.scrollIntoView({ block: "center", behavior: "smooth" }); toast("Créneau prérempli : vérifie et enregistre le RDV"); }
+      else toast("Ouvre « Prendre RDV » dans la fiche : " + fd(b.dataset.d) + " à " + b.dataset.h.replace(":", "h")); }, 250); });
+  el.querySelectorAll("[data-ogmail]").forEach(b => b.onclick = () => goView("mail", "#mails"));
+  el.querySelectorAll("[data-ogstart]").forEach(b => b.onclick = () => { const n = new Date(); orgChrono = { rid: b.dataset.ogstart, k: b.dataset.k, t0: n.getTime(), t0m: n.getHours() * 60 + n.getMinutes() }; try { localStorage.setItem("crm-chrono", JSON.stringify(orgChrono)); } catch(_){} renderOrg(); });
+  el.querySelectorAll("[data-ogstop]").forEach(b => b.onclick = async () => { if (!orgChrono) return; const r = rows.find(x => x.id === orgChrono.rid), min = Math.round((Date.now() - orgChrono.t0) / 60000);
+    const vm = r ? (r.vente || []).filter(v => !v.ann) : [], isM = vm.some(v => v.et === "metre"), its = vm.flatMap(v => v.it || []), sav = r && Object.values(csav || {}).some(v => v && v.rid === r.id && !/clos|termin/i.test(v.st || ""));
+    const s = { rid: orgChrono.rid, client: r ? r.client : "", d: iso(today()), type: isM ? "metre" : sav ? "sav" : "premier", clim: r ? orgClim(r, its) : false, qty: orgQty(its), min };
+    orgChrono = null; try { localStorage.removeItem("crm-chrono"); } catch(_){}
+    orgTemps = orgTemps.concat(s).slice(-200); if (db && canWrite) { try { await db.doc("meta/temps_rdv").set({ L: orgTemps }); } catch(_){} }
+    toast("Rendez-vous chronométré : " + durTxt(min)); renderOrg(); });
+  const cb = $("#ogcfgb"); if (cb) cb.onclick = () => { orgEditCfg = !orgEditCfg; renderOrg(); };
+  if (orgEditCfg) { const C = JSON.parse(JSON.stringify(orgCfg)); const save = () => orgSave(C);
+    el.querySelectorAll(".og-day [data-k]").forEach(i => i.onchange = () => { const wd = i.closest(".og-day").dataset.wd; C.jours[wd] = C.jours[wd] || {}; C.jours[wd][i.dataset.k] = i.type === "checkbox" ? (i.checked ? 1 : 0) : i.value; save(); });
+    el.querySelectorAll("[data-li]").forEach(i => i.onchange = () => { const b = C.libres[+i.dataset.li]; const k = i.dataset.k; if (k === "j") { b.j = i.value; if (i.value !== "") delete b.date; } else if (k === "date") { b.date = i.value; if (i.value) b.j = ""; } else b[k] = i.value; save(); });
+    el.querySelectorAll("[data-lidel]").forEach(i => i.onclick = () => { C.libres.splice(+i.dataset.lidel, 1); save(); });
+    const la = $("#oglibadd"); if (la) la.onclick = () => { C.libres = (C.libres || []).concat({ j: "3", deb: "17:00", fin: "18:00", l: "" }); save(); };
+    el.querySelectorAll("[data-dk]").forEach(i => i.onchange = () => { C.dur = C.dur || {}; C.dur[i.dataset.dk] = Math.max(15, +i.value || 60); save(); });
+    const mx = $("#ogmax"); if (mx) mx.onchange = () => { C.maxRoute = Math.max(10, +mx.value || 40); save(); };
+    const dl = $("#ogdel"); if (dl) dl.onchange = () => { C.delaiMetre = Math.max(5, +dl.value || 15); save(); }; }
+  el.querySelectorAll("[data-ogidea]").forEach(b => b.onclick = async () => { const a = b.dataset.ogidea;
+    if (a.startsWith("tab:")) { const id = a.slice(4), O = tabOrderNow().filter(x => x !== id); O.splice(1, 0, id); applyTabOrder(O); if (db && canWrite) { try { await db.doc("meta/onglets").set({ order: O, updated: new Date().toISOString() }); } catch(_){} } orgUsage.tabs[id] = 0; toast("Onglet remonté"); renderOrg(); }
+    else if (a.startsWith("dur:")) { orgSave(Object.assign({}, orgCfg, { dur: Object.assign({}, orgCfg.dur, { men: +a.slice(4) }) })); toast("Durée des métrés ajustée"); } }); }
+function orgTrack(tabId){ orgUsage.tabs = orgUsage.tabs || {}; orgUsage.tabs[tabId] = (orgUsage.tabs[tabId] || 0) + 1; try { localStorage.setItem("crm-usage", JSON.stringify(orgUsage)); } catch(_){}
+  orgUsage.n = (orgUsage.n || 0) + 1; if (orgUsage.n % 10 === 0 && db && canWrite) { db.doc("meta/usage").set({ tabs: orgUsage.tabs, updated: new Date().toISOString() }).catch(() => {}); } }
 /* ===== Onglet « Fiche client » : je tape un nom, j'ai tout sur le client ===== */
 let cvSel = null, cvPicked = false, cvEdit = false, cvCfg = { order: null, hidden: [] };
 const CV_BLOCKS = [["chan", "Avancement du chantier"], ["recap", "Récapitulatif"], ["coord", "Coordonnées"], ["projet", "Le projet"], ["devis", "Devis et ventes"], ["taches", "Tâches"], ["sav", "SAV"], ["notes", "Notes d'appel"], ["mails", "Ses mails"], ["hist", "Historique"], ["autres", "Autres dossiers"]];
@@ -4725,17 +4893,18 @@ $("#tdep").onchange = e => { depart = e.target.value; AGENCE = DEPARTS[depart]; 
 $("#told").onchange = e => { tourOld = e.target.checked; renderTours(); };
 
 /* ---------- vues ---------- */
-const VIEWS = { pay: ["#v-pay", "#t-pay", "#relance-paiement"], taches: ["#v-taches", "#t-taches", "#taches"], sav: ["#v-sav", "#t-sav", "#sav"], pose: ["#v-pose", "#t-pose", "#pose"], tour: ["#v-tour", "#t-tour", "#tournees"], dash: ["#v-dash", "#t-dash", "#tableau-de-bord"], pros: ["#v-pros", "#t-pros", "#prospection"], chantiers: ["#v-chan", "#t-chan", "#chantiers"], rdv: ["#v-rdv", "#t-rdv", "#rendez-vous"], four: ["#v-four", "#t-four", "#fournisseurs"], mail: ["#v-mail", "#t-mail", "#mails"], cli: ["#v-cli", "#t-cli", "#client"] };
-function viewFromHash(){ return location.hash === "#relance-paiement" ? "pay" : location.hash === "#chantiers" ? "chantiers" : location.hash === "#rendez-vous" ? "rdv" : location.hash === "#prospection" ? "pros" : location.hash === "#tournees" ? "rdv" : location.hash === "#pose" ? "pose" : location.hash === "#sav" ? "sav" : location.hash === "#taches" ? "taches" : location.hash === "#fournisseurs" ? "four" : location.hash === "#mails" ? "mail" : location.hash === "#client" ? "cli" : "dash"; }
-const VTITLE = { pay: "Relance paiement", taches: "Tâches", sav: "SAV", pose: "Pose", dash: "Tableau de bord", pros: "Relances et devis", chantiers: "Chantiers signés", rdv: "Rendez-vous à prendre", tour: "Tournées", four: "Fournisseurs", mail: "Mails", cli: "Fiche client" };
+const VIEWS = { pay: ["#v-pay", "#t-pay", "#relance-paiement"], taches: ["#v-taches", "#t-taches", "#taches"], sav: ["#v-sav", "#t-sav", "#sav"], pose: ["#v-pose", "#t-pose", "#pose"], tour: ["#v-tour", "#t-tour", "#tournees"], dash: ["#v-dash", "#t-dash", "#tableau-de-bord"], pros: ["#v-pros", "#t-pros", "#prospection"], chantiers: ["#v-chan", "#t-chan", "#chantiers"], rdv: ["#v-rdv", "#t-rdv", "#rendez-vous"], four: ["#v-four", "#t-four", "#fournisseurs"], mail: ["#v-mail", "#t-mail", "#mails"], cli: ["#v-cli", "#t-cli", "#client"], org: ["#v-org", "#t-org", "#organisation"] };
+function viewFromHash(){ return location.hash === "#relance-paiement" ? "pay" : location.hash === "#chantiers" ? "chantiers" : location.hash === "#rendez-vous" ? "rdv" : location.hash === "#prospection" ? "pros" : location.hash === "#tournees" ? "rdv" : location.hash === "#pose" ? "pose" : location.hash === "#sav" ? "sav" : location.hash === "#taches" ? "taches" : location.hash === "#fournisseurs" ? "four" : location.hash === "#mails" ? "mail" : location.hash === "#client" ? "cli" : location.hash === "#organisation" ? "org" : "dash"; }
+const VTITLE = { pay: "Relance paiement", taches: "Tâches", sav: "SAV", pose: "Pose", dash: "Tableau de bord", pros: "Relances et devis", chantiers: "Chantiers signés", rdv: "Rendez-vous à prendre", tour: "Tournées", four: "Fournisseurs", mail: "Mails", cli: "Fiche client", org: "Mon organisation" };
 function showView(v){
   Object.entries(VIEWS).forEach(([k, [sec, tab]]) => { $(sec).hidden = k !== v; $(tab).setAttribute("aria-selected", k === v); });
+  try { orgTrack((VIEWS[v] || [])[1] ? VIEWS[v][1].slice(1) : v); if (v === "org") renderOrg(); } catch(e){}
   const vt = $("#vtitle"); if (vt) vt.textContent = VTITLE[v] || "Mes dossiers Gourdon";
 }
 Object.entries(VIEWS).forEach(([k, [, tab, hash]]) => { $(tab).onclick = () => { showView(k); try { history.replaceState(null, "", hash); } catch(e){} }; });
 window.addEventListener("hashchange", () => showView(viewFromHash()));
 /* ordre des onglets choisi par Nicolas (meta/onglets) : bouton « Ranger les onglets », flèches ▲ ▼ */
-const TAB_DEFAULT = ["t-dash", "t-cli", "t-mail", "t-rdv", "t-taches", "t-pros", "t-chan", "t-pose", "t-pay", "t-sav", "t-four", "t-tour"];
+const TAB_DEFAULT = ["t-dash", "t-cli", "t-org", "t-mail", "t-rdv", "t-taches", "t-pros", "t-chan", "t-pose", "t-pay", "t-sav", "t-four", "t-tour"];
 let tabEdit = false;
 function applyTabOrder(order){ const nav = $(".snav"); if (!nav) return; let ids = (order || TAB_DEFAULT).slice();
   TAB_DEFAULT.forEach((t, i) => { if (ids.includes(t)) return; const prev = TAB_DEFAULT.slice(0, i).reverse().find(x => ids.includes(x)); ids.splice(prev ? ids.indexOf(prev) + 1 : ids.length, 0, t); }); // un nouvel onglet arrive à sa place, même avec un ordre enregistré
@@ -5723,6 +5892,9 @@ function rebuild(){
   db.doc("meta/rattach").onSnapshot(sn => { rattach = Object.assign({ f: {}, v: {} }, sn.exists ? sn.data() : {}); rebuild(); }, () => {});
   db.doc("meta/onglets").onSnapshot(sn => { if (!tabEdit) applyTabOrder(sn.exists ? (sn.data() || {}).order : null); }, () => {});
   db.doc("meta/listes").onSnapshot(sn => { const v = sn.exists ? sn.data() : {}; const j = JSON.stringify(v); if (j === listCfgJson) return; listCfg = v; listCfgJson = j; renderAll(); }, () => {});
+  db.doc("meta/organisation").onSnapshot(sn => { if (sn.exists) { const d = sn.data() || {}; orgCfg = Object.assign(JSON.parse(JSON.stringify(ORG_DEF)), d, { jours: Object.assign({}, ORG_DEF.jours, d.jours || {}), dur: Object.assign({}, ORG_DEF.dur, d.dur || {}) }); } if (!orgEditCfg) renderOrg(); }, () => {});
+  db.doc("meta/temps_rdv").onSnapshot(sn => { orgTemps = (sn.exists && (sn.data() || {}).L) || []; renderOrg(); }, () => {});
+  db.doc("meta/usage").onSnapshot(sn => { if (sn.exists) { const t = (sn.data() || {}).tabs || {}; orgUsage.tabs = orgUsage.tabs || {}; Object.entries(t).forEach(([k, v]) => { if ((orgUsage.tabs[k] || 0) < v) orgUsage.tabs[k] = v; }); } }, () => {});
   db.doc("meta/fiche_ordre").onSnapshot(sn => { cvCfg = Object.assign({ order: null, hidden: [] }, sn.exists ? sn.data() : {});
     if (cvCfg.order && !cvCfg.v2) { const O = cvCfg.order.filter(k => k !== "chan"); O.unshift("chan"); cvCfgSave(Object.assign({}, cvCfg, { order: O, v2: 1 })); return; } // Nicolas : avancement du chantier sous le nom
     if (cvSel) renderCv(); }, () => {});

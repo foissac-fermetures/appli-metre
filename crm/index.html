@@ -4106,6 +4106,33 @@ document.addEventListener("click", e => { if (e.defaultPrevented || e.button !==
   const w = Math.min(1100, screen.availWidth - 80), h = screen.availHeight - 80, l = Math.max(0, screen.availWidth - w - 20);
   const win = window.open(u, "crm_document", "popup=yes,width=" + w + ",height=" + h + ",left=" + l + ",top=20");
   if (win) { e.preventDefault(); try { win.focus(); } catch(_){} } }, true);
+/* ===== Lien avec l'appli métré : lecture (seule) des métrés déposés dans le Drive par l'appli (fichiers .json « appli-metre ») =====
+   → nombre exact de menuiseries / volets / clim par client, dates, et temps de prise de cotes (chrono de l'appli si présent, sinon estimation). */
+let appMetres = [], appMetresAt = 0, appMetresBusy = false;
+try { const c = JSON.parse(localStorage.getItem("crm-metres-app") || "null"); if (c && c.L) { appMetres = c.L; appMetresAt = c.at || 0; } } catch(_){}
+function metSum(d, f){ const ouv = d.ouvertures || [], qty = ouv.reduce((a, o) => a + (+o.quantite || 1), 0), vr = ((d.vr || {}).lignes || []).filter(l => !l.ouv_id).length, clim = ((d.clim || {}).lignes || []).length;
+  let dur = null, approx = false; const ch = d.chrono || d.tps || null;
+  if (ch && ch.debut && ch.fin) { dur = Math.round((new Date(ch.fin) - new Date(ch.debut)) / 60000); if (ch.actif) dur = Math.round(ch.actif); }
+  else if (d.cree && d.modifie) { const a = new Date(d.cree), b = new Date(d.modifie), m = Math.round((b - a) / 60000); if (iso(a) === iso(b) && m >= 10 && m <= 180) { dur = m; approx = true; } }
+  return { fid: f.id, did: d.id, nom: String((d.client || {}).nom || "").trim(), rdv: (d.client || {}).date_rdv || "", cree: d.cree || "", modifie: d.modifie || f.modifiedTime || "", def: /D[ÉE]FINITIF/i.test(d.type_document || ""),
+    doc: d.type_document || "", variante: d.variante || "", qty, vr, clim, dur, approx, fmod: f.modifiedTime, at: (f.title || f.name || "") }; }
+function metClient(m){ const T = upAscii(m.nom).split(/[^A-Z]+/).filter(x => x.length >= 3); if (!T.length) return null;
+  let best = null, bs = 0; rows.forEach(r => { const C = upAscii(r.client).split(/[^A-Z]+/).filter(x => x.length >= 3); if (!C.length || !T.includes(C[0])) return; const n = C.filter(x => T.includes(x)).length;
+    if (n > bs || (n === bs && best && String(startDate(r) || "") > String(startDate(best) || ""))) { best = r; bs = n; } }); return best; }
+function metresOf(r){ return appMetres.filter(m => { const c = metClient(m); return c && c.id === r.id; }).sort((a, b) => String(b.rdv || b.cree).localeCompare(String(a.rdv || a.cree))); }
+function metQtyOf(r){ const L = metresOf(r).filter(m => !m.def); return L.length ? L[0].qty + L[0].vr : 0; }
+async function loadAppMetres(force){ if (appMetresBusy) return; if (!force && Date.now() - appMetresAt < 20 * 60 * 1000) return; appMetresBusy = true;
+  try { const mcp = await claude.use("mcp"); if (!mcp) return; const since = new Date(Date.now() - 200 * 864e5).toISOString().slice(0, 19);
+    const res = await mcp.callTool("Google Drive", "search_files", { query: "mimeType = 'application/json' and fullText contains 'appli-metre' and modifiedTime > '" + since + "'", pageSize: 200, orderBy: "modifiedTime desc", excludeContentSnippets: true });
+    const F = ((res.payload || res).files || []).filter(f => /\.json$/i.test(f.title || "") && !/tablette \d{4}/i.test(f.title || "")); const old = new Map(appMetres.map(m => [m.fid, m])), out = [];
+    for (const f of F) { const o = old.get(f.id); if (o && o.fmod === f.modifiedTime) { out.push(o); continue; }
+      try { const rr = await mcp.callTool("Google Drive", "read_file_content", { fileId: f.id }); const txt = (rr.payload || rr).fileContent || ""; const d = JSON.parse(txt); if (!d || d.app !== "appli-metre") continue; out.push(metSum(d, f)); } catch(_){} }
+    const seen = new Set(); appMetres = out.filter(m => { const k = m.did + "|" + m.variante; if (seen.has(k)) return false; seen.add(k); return true; }); appMetresAt = Date.now();
+    try { localStorage.setItem("crm-metres-app", JSON.stringify({ L: appMetres, at: appMetresAt })); } catch(_){}
+    renderOrg(); if (typeof cvSel !== "undefined" && cvSel) renderCv(); }
+  catch(e){ console.warn("métrés appli", e); } finally { appMetresBusy = false; } }
+function cvMetresHtml(r){ const L = metresOf(r); if (!L.length) return "";
+  return `<section class="cv-card" style="--cc:#0891b2"><h3>Métrés de l'appli · ${L.length}</h3>${L.map(m => `<div class="cv-li"><b>${m.def ? "📐 Métré définitif" : "📏 Métré devis"}${m.variante && m.variante !== "V1" ? " · " + esc(m.variante) : ""} · ${esc(fd(m.rdv || String(m.cree).slice(0, 10)))}</b><span class="sub">${[m.qty ? m.qty + " menuiserie" + (m.qty > 1 ? "s" : "") : "", m.vr ? m.vr + " volet" + (m.vr > 1 ? "s" : "") + " seul" + (m.vr > 1 ? "s" : "") : "", m.clim ? m.clim + " ligne" + (m.clim > 1 ? "s" : "") + " clim" : ""].filter(Boolean).join(" · ") || "vide"}${m.dur ? " · prise de cotes " + (m.approx ? "≈ " : "") + durTxt(m.dur) : ""}</span></div>`).join("")}<a class="btn sm" href="../" target="_blank" rel="noopener">Ouvrir l'appli métré</a></section>`; }
 /* ===== Onglet « Organisation » : RDV à prendre (métré définitif sous 15 jours), créneaux selon l'agenda et les kilomètres,
    propositions de RDV reçues par mail, chrono des métrés, temps libre réglable, idées d'amélioration ===== */
 const ORG_DEF = { jours: { 1: { on: 1, deb: "08:30", fin: "18:00", pd: "12:00", pf: "13:30" }, 2: { on: 1, deb: "08:30", fin: "18:00", pd: "12:00", pf: "13:30" }, 3: { on: 1, deb: "08:30", fin: "18:00", pd: "12:00", pf: "13:30" }, 4: { on: 1, deb: "08:30", fin: "18:00", pd: "12:00", pf: "13:30" }, 5: { on: 1, deb: "08:30", fin: "17:30", pd: "12:00", pf: "13:30" }, 6: { on: 0, deb: "09:00", fin: "12:00", pd: "", pf: "" }, 0: { on: 0, deb: "", fin: "", pd: "", pf: "" } },
@@ -4122,7 +4149,7 @@ function orgQty(its){ let n = 0; (its || []).forEach(s => String(s).split(/\+|,|
 function orgEstim(kind, clim, qty){ const D = orgCfg.dur || ORG_DEF.dur;
   if (kind === "sav") return D.sav || 45; if (kind === "premier") return clim ? (D.clim || 90) : (D.premier || 60);
   const base = clim ? (D.clim || 90) : (D.men || 60);
-  const S = orgTemps.filter(x => x.type === "metre" && !!x.clim === !!clim && x.min > 10 && x.min < 400);
+  const S = orgTemps.concat(appMetres.filter(m => m.dur && !m.approx).map(m => ({ type: m.def ? "metre" : "premier", clim: m.clim > 0, qty: m.qty + m.vr, min: m.dur }))).filter(x => x.type === "metre" && !!x.clim === !!clim && x.min > 10 && x.min < 400);
   if (S.length >= 3 && qty) { const withQ = S.filter(x => x.qty), perPiece = withQ.length >= 3 ? withQ.map(x => x.min / x.qty).sort((a, b) => a - b)[Math.floor(withQ.length / 2)] : null;
     const med = S.map(x => x.min).sort((a, b) => a - b)[Math.floor(S.length / 2)];
     const v = perPiece ? Math.round(Math.max(30, Math.min(240, perPiece * qty)) / 15) * 15 : Math.round(med / 15) * 15; return v; }
@@ -4162,7 +4189,7 @@ function orgBest(P, D, dl){ const S = orgSlots(P, D); const sc = x => x.detour +
   const seen = new Set(), R = []; S.sort((a, b) => sc(a) - sc(b)).forEach(x => { if (R.length < 3 && !seen.has(x.day)) { seen.add(x.day); R.push(x); } }); return R; }
 function orgTodo(){ const t = iso(today()), L = [];
   let T = []; try { T = rdvTodo(); } catch(_){}
-  T.forEach(x => { const r = x.r, its = x.v ? x.v.it : [], clim = orgClim(r, its), qty = orgQty(its);
+  T.forEach(x => { const r = x.r, its = x.v ? x.v.it : [], clim = orgClim(r, its) || metresOf(r).some(m => m.clim), qty = metQtyOf(r) || orgQty(its);
     const dl = x.kind === "metre" && x.since ? addDays(x.since, orgCfg.delaiMetre || 15) : null;
     L.push({ r, kind: x.kind, since: x.since, dl, clim, qty, D: orgEstim(x.kind, clim, qty), its }); });
   Object.entries(csav || {}).forEach(([id, v]) => { if (!v || !v.rid || /clos|termin|fini|regl/i.test(v.st || "") || v.inter) return; const r = rows.find(x => x.id === v.rid); if (!r || rdvAVenir(r)) return; if (L.some(x => x.r.id === r.id)) return;
@@ -4186,11 +4213,13 @@ function orgMailProps(){ const out = []; if (!(mailsList || []).length) return o
     out.push({ o, r, day, at, after, before, D, fit, any: S.length }); });
   return out; }
 function orgToday(){ const t = iso(today()), B = orgBusy(t); return B.busy.filter(x => !x.pause); }
-function orgStats(){ const S = orgTemps.filter(x => x.min > 5); if (!S.length) return "";
+function orgStats(){ const S = orgTemps.filter(x => x.min > 5); if (!S.length && !appMetres.length) return "";
   const g = (f) => { const L = S.filter(f); if (!L.length) return null; const avg = Math.round(L.reduce((a, x) => a + x.min, 0) / L.length); const q = L.filter(x => x.qty); return { n: L.length, avg, pp: q.length ? Math.round(q.reduce((a, x) => a + x.min / x.qty, 0) / q.length) : null }; };
   const men = g(x => x.type === "metre" && !x.clim), cl = g(x => x.type === "metre" && x.clim), pr = g(x => x.type === "premier"), sv = g(x => x.type === "sav");
   const li = (l, x) => x ? `<div class="cv-li"><b>${l} · ${x.n} chronométré${x.n > 1 ? "s" : ""}</b><span class="sub">en moyenne ${durTxt(x.avg)}${x.pp ? " · ≈ " + x.pp + " min par menuiserie" : ""}</span></div>` : "";
-  return li("📐 Métrés menuiserie", men) + li("❄️ Métrés climatisation", cl) + li("🤝 1ers rendez-vous", pr) + li("🔧 SAV", sv) + `<span class="sub">Dès 3 métrés chronométrés, les durées proposées se règlent sur tes temps réels (selon le nombre de menuiseries).</span>`; }
+  const AM = appMetres.filter(m => m.dur), amD = AM.filter(m => m.def), amV = AM.filter(m => !m.def), av = L => L.length ? Math.round(L.reduce((a, m) => a + m.dur, 0) / L.length) : 0, pq = L => { const q = L.filter(m => m.qty + m.vr); return q.length ? Math.round(q.reduce((a, m) => a + m.dur / (m.qty + m.vr), 0) / q.length) : 0; };
+  const app = appMetres.length ? `<div class="cv-li"><b>📲 Appli métré · ${appMetres.length} métré${appMetres.length > 1 ? "s" : ""} lus dans le Drive</b><span class="sub">${amD.length ? "définitifs : ≈ " + durTxt(av(amD)) + (pq(amD) ? " (≈ " + pq(amD) + " min par menuiserie)" : "") + " · " : ""}${amV.length ? "métrés devis : ≈ " + durTxt(av(amV)) + (pq(amV) ? " (≈ " + pq(amV) + " min par menuiserie)" : "") : ""}${!AM.length ? "temps de prise de cotes pas encore disponibles" : AM.some(m => m.approx) ? " · estimé d'après l'heure de création et de dernière modification du métré" : ""}</span></div>` : "";
+  return li("📐 Métrés menuiserie", men) + li("❄️ Métrés climatisation", cl) + li("🤝 1ers rendez-vous", pr) + li("🔧 SAV", sv) + app + `<span class="sub">Dès 3 métrés chronométrés, les durées proposées se règlent sur tes temps réels (selon le nombre de menuiseries).</span>`; }
 function orgIdeas(){ const I = [], U = orgUsage.tabs || {}, order = typeof tabOrderNow === "function" ? tabOrderNow() : [];
   const top = Object.entries(U).sort((a, b) => b[1] - a[1])[0]; if (top && top[1] >= 15) { const pos = order.indexOf(top[0]); const nm = ($("#" + top[0] + " span") || {}).textContent || top[0]; if (pos > 2) I.push({ t: `Tu ouvres souvent « ${nm} » (${top[1]} fois). Je le remonte en 2e position dans le menu ?`, act: "tab:" + top[0] }); }
   const late = orgTodo().filter(x => x.dl && x.dl < iso(today())).length; if (late >= 2) I.push({ t: `${late} métrés définitifs ont dépassé les ${orgCfg.delaiMetre || 15} jours. Bloque une demi-journée « métrés » cette semaine : les créneaux proposés ci-dessus les regroupent par secteur.` });
@@ -4235,7 +4264,7 @@ function wireOrg(){ const el = $("#ogbody"); if (!el) return;
   el.querySelectorAll("[data-ogstart]").forEach(b => b.onclick = () => { const n = new Date(); orgChrono = { rid: b.dataset.ogstart, k: b.dataset.k, t0: n.getTime(), t0m: n.getHours() * 60 + n.getMinutes() }; try { localStorage.setItem("crm-chrono", JSON.stringify(orgChrono)); } catch(_){} renderOrg(); });
   el.querySelectorAll("[data-ogstop]").forEach(b => b.onclick = async () => { if (!orgChrono) return; const r = rows.find(x => x.id === orgChrono.rid), min = Math.round((Date.now() - orgChrono.t0) / 60000);
     const vm = r ? (r.vente || []).filter(v => !v.ann) : [], isM = vm.some(v => v.et === "metre"), its = vm.flatMap(v => v.it || []), sav = r && Object.values(csav || {}).some(v => v && v.rid === r.id && !/clos|termin/i.test(v.st || ""));
-    const s = { rid: orgChrono.rid, client: r ? r.client : "", d: iso(today()), type: isM ? "metre" : sav ? "sav" : "premier", clim: r ? orgClim(r, its) : false, qty: orgQty(its), min };
+    const s = { rid: orgChrono.rid, client: r ? r.client : "", d: iso(today()), type: isM ? "metre" : sav ? "sav" : "premier", clim: r ? (orgClim(r, its) || metresOf(r).some(m => m.clim)) : false, qty: (r && metQtyOf(r)) || orgQty(its), min };
     orgChrono = null; try { localStorage.removeItem("crm-chrono"); } catch(_){}
     orgTemps = orgTemps.concat(s).slice(-200); if (db && canWrite) { try { await db.doc("meta/temps_rdv").set({ L: orgTemps }); } catch(_){} }
     toast("Rendez-vous chronométré : " + durTxt(min)); renderOrg(); });
@@ -4255,7 +4284,7 @@ function orgTrack(tabId){ orgUsage.tabs = orgUsage.tabs || {}; orgUsage.tabs[tab
   orgUsage.n = (orgUsage.n || 0) + 1; if (orgUsage.n % 10 === 0 && db && canWrite) { db.doc("meta/usage").set({ tabs: orgUsage.tabs, updated: new Date().toISOString() }).catch(() => {}); } }
 /* ===== Onglet « Fiche client » : je tape un nom, j'ai tout sur le client ===== */
 let cvSel = null, cvPicked = false, cvEdit = false, cvCfg = { order: null, hidden: [] };
-const CV_BLOCKS = [["chan", "Avancement du chantier"], ["recap", "Récapitulatif"], ["coord", "Coordonnées"], ["projet", "Le projet"], ["devis", "Devis et ventes"], ["taches", "Tâches"], ["sav", "SAV"], ["notes", "Notes d'appel"], ["mails", "Ses mails"], ["hist", "Historique"], ["autres", "Autres dossiers"]];
+const CV_BLOCKS = [["chan", "Avancement du chantier"], ["recap", "Récapitulatif"], ["coord", "Coordonnées"], ["projet", "Le projet"], ["devis", "Devis et ventes"], ["metres", "Métrés de l'appli"], ["taches", "Tâches"], ["sav", "SAV"], ["notes", "Notes d'appel"], ["mails", "Ses mails"], ["hist", "Historique"], ["autres", "Autres dossiers"]];
 const CV_WIDE = ["recap", "chan", "mails"];
 function cvWide(k){ const W = cvCfg.wide; return W ? W.includes(k) : CV_WIDE.includes(k); }
 function cvOrderNow(){ const D = CV_BLOCKS.map(x => x[0]); const O = (cvCfg.order || []).filter(k => D.includes(k)); D.forEach((k, i) => { if (!O.includes(k)) { const prev = D.slice(0, i).reverse().find(x => O.includes(x)); O.splice(prev ? O.indexOf(prev) + 1 : 0, 0, k); } }); return O; }
@@ -4295,6 +4324,7 @@ function renderCv(){ const el = $("#cvbody"); if (!el) return; const r = cvSel &
     notes: `${callCard(r)}`,
     mails: `<section class="cv-card cv-wide" style="--cc:#60a5fa" id="cvmails">${cvMailsHtml(r)}</section>`,
     hist: `<section class="cv-card" style="--cc:#f59e0b"><h3>Historique</h3>${tl.length ? `<div class="cv-tl">${tl.map(x => `<div><span>${esc(fd(x.d))}</span>${esc(x.t)}</div>`).join("")}</div>` : `<span class="sub">Rien de noté pour l'instant.</span>`}${r.notes ? `<div class="cv-li"><b>Suivi noté dans le tableau Drive</b><span class="sub" style="white-space:pre-wrap">${esc(r.notes)}</span></div>` : ""}</section>`,
+    metres: `${cvMetresHtml(r)}`,
     autres: `${REL.length ? `<section class="cv-card" style="--cc:#64748b"><h3>Autres dossiers de ce client</h3>${REL.map(x => `<div class="cv-li"><button class="lnk" type="button" data-cvgo="${esc(x.id)}"><b>${esc(x.client)}</b></button><span class="sub">${x.fic ? "FIC du " + esc(fd(x.fic)) + "/" + yOf(x) : ""}${venteD(x) ? " · vente du " + esc(fd(venteD(x))) : ""} · ${esc(ST[status(x)].l)}</span></div>`).join("")}</section>` : ""}`
   };
   const order = cvOrderNow(), hid = (cvCfg.hidden || []);
@@ -4898,7 +4928,7 @@ function viewFromHash(){ return location.hash === "#relance-paiement" ? "pay" : 
 const VTITLE = { pay: "Relance paiement", taches: "Tâches", sav: "SAV", pose: "Pose", dash: "Tableau de bord", pros: "Relances et devis", chantiers: "Chantiers signés", rdv: "Rendez-vous à prendre", tour: "Tournées", four: "Fournisseurs", mail: "Mails", cli: "Fiche client", org: "Mon organisation" };
 function showView(v){
   Object.entries(VIEWS).forEach(([k, [sec, tab]]) => { $(sec).hidden = k !== v; $(tab).setAttribute("aria-selected", k === v); });
-  try { orgTrack((VIEWS[v] || [])[1] ? VIEWS[v][1].slice(1) : v); if (v === "org") renderOrg(); } catch(e){}
+  try { orgTrack((VIEWS[v] || [])[1] ? VIEWS[v][1].slice(1) : v); if (v === "org") { renderOrg(); loadAppMetres(); } if (v === "cli") loadAppMetres(); } catch(e){}
   const vt = $("#vtitle"); if (vt) vt.textContent = VTITLE[v] || "Mes dossiers Gourdon";
 }
 Object.entries(VIEWS).forEach(([k, [, tab, hash]]) => { $(tab).onclick = () => { showView(k); try { history.replaceState(null, "", hash); } catch(e){} }; });

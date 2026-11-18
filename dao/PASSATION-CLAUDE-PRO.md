@@ -195,8 +195,8 @@ dans **Mon Drive › Métrés › Plans › <année>**.
 - Déclenchement : à chaque **💾 Enregistrer** (réglage « ☁️ À chaque 💾… » dans 📁, activé par défaut), avec les boutons
   « ☁️ Ranger maintenant » (📁) et « ☁️ PDF dans 09 - Plan » (cartouche). Un fichier du même nom est **remplacé** (PATCH).
 - Le jeton est demandé **dans le clic** (`rangerDriveClic`), sinon la fenêtre Google serait bloquée.
-- **Testé ici avec un faux Google Drive** (création des dossiers, dépôt, remplacement sans doublon), mais **jamais sur le vrai Drive** :
-  il faut faire le 1er essai réel avec un plan « Plan TEST », puis supprimer les fichiers de test.
+- ✅ **Essai réel fait le 18/11/2026** sur le vrai Drive avec « Plan TEST » : dossiers créés une seule fois, fichiers remplacés au 2e enregistrement.
+  Le navigateur intégré de Claude bloque la fenêtre Google si le clic ne vient pas de Nicolas : c'est lui qui clique sur 💾 la 1re fois.
 - Le PDF est fabriqué par jsPDF et svg2pdf.js, **copiés dans `dao/lib/`** : cela marche hors ligne, et ils sont dans le cache de `dao/sw.js`.
   Dans Claude, les mêmes versions sont chargées depuis cdn.jsdelivr.net.
 
@@ -242,6 +242,7 @@ PROMPT-POUR-CLAUDE-PRO.md ← le message que Nicolas te donne
 | 18/11/2026 | dao-v3 | Drive : « 09 - Plan » fixé par son identifiant (`DOSSIERS_DAO.plan`, à la racine de Mon Drive). « Métrés » n'existait pas : Nicolas a choisi de le créer dans Mon Drive ; son identifiant sera mis dans `DOSSIERS_DAO.metres` après le 1er essai. |
 | 18/11/2026 | dao-v4 + metre-v95 | Liens entre les applis (Nicolas a coché les 4 options) : voir § 12. |
 | 18/11/2026 | metre-v95 | `sw.js` racine : ne supprime plus que les caches `metre-…` (§ 11). |
+| 18/11/2026 | dao-v5 | **Essai réel Google Drive réussi** (« Plan TEST », 2 enregistrements : PDF dans 09 - Plan, .mdao dans Métrés › Plans › 2026, remplacés sans doublon). « Métrés » fixé : `DOSSIERS_DAO.metres = 1HoXaRkku5deGnEtg6t3SK6jtvs4zr1lz`. |
 
 ## 11. Service worker de l'appli de métré : corrigé le 18/11/2026 (accord de Nicolas)
 

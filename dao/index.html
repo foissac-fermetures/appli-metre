@@ -1709,7 +1709,7 @@ function lsSet(k,v){ try{ v==null ? localStorage.removeItem(k) : localStorage.se
 /* Dossiers réels de Nicolas, repérés par leur identifiant (choix de Nicolas du 18/11/2026) : jamais de doublon, même si un dossier est renommé. */
 const DOSSIERS_DAO = {
   plan:   "1VmeCGm30gWiPxYmOkP4gJbtpkFl31aio",   // Mon Drive › 09 - Plan (PDF, joints au métré du client par l'appli de métré)
-  metres: ""                                     // Mon Drive › Métrés (rempli après sa création au 1er essai)
+  metres: "1HoXaRkku5deGnEtg6t3SK6jtvs4zr1lz"   // Mon Drive › Métrés (créé au 1er essai réel, 18/11/2026)
 };
 async function dossierFixe(id){ if(!id) return null; try{ const f=await gdrive(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,trashed`); if(f && !f.trashed) return id; }catch(e){ if(!/Drive 404/.test(e.message)) throw e; } return null; }
 async function dossierPlans(){ const k="plans_dossier"; { const fixe=await dossierFixe(DOSSIERS_DAO.plan); if(fixe){ lsSet(k,fixe); return fixe; } } let id=lsGet(k);

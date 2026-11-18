@@ -43,6 +43,16 @@
   #stage{position:relative;overflow:hidden;background:#151a21;touch-action:none}
   #cv{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
   #hopts{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:max-content;max-width:96%;background:var(--panel);border:1px solid var(--acc);border-radius:8px;padding:7px 10px;display:none;gap:10px;align-items:center;font-size:12px;color:var(--mut);z-index:3;flex-wrap:wrap}
+  #symopts{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:max-content;max-width:96%;background:var(--panel);border:1px solid var(--acc);border-radius:8px;padding:7px 10px;display:none;gap:10px;align-items:center;font-size:12px;color:var(--mut);z-index:3;flex-wrap:wrap}
+  #symopts b{color:var(--txt);font-size:13px}
+  #symopts label{display:flex;gap:5px;align-items:center}
+  #symopts input[type=number]{background:#11151b;border:1px solid var(--line);color:#fff;border-radius:5px;padding:4px 6px;font-size:13px;width:76px}
+  #syGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px}
+  .symtile{background:#11151b;border:1px solid var(--line);border-radius:8px;color:#dfe6f0;padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;font:inherit}
+  .symtile:hover{border-color:var(--acc);background:#16202b}
+  .symtile svg{width:100%;height:86px;fill:none}
+  .symtile span{font-size:12px;text-align:center;line-height:1.25}
+  .symtile small{display:block;color:var(--mut);font-size:11px}
   #topts{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:max-content;max-width:96%;background:var(--panel);border:1px solid var(--acc);border-radius:8px;padding:7px 10px;display:none;gap:12px;align-items:center;font-size:12px;color:var(--mut);z-index:3;flex-wrap:wrap}
   #topts select{background:#11151b;border:1px solid var(--line);color:#fff;border-radius:5px;padding:4px 6px;font-size:13px}
   #topts label{display:flex;gap:5px;align-items:center}
@@ -199,6 +209,7 @@
     <button class="tool" data-cmd="EFFACER"><svg viewBox="0 0 26 26"><path d="M6 7h14M10 7V5h6v2M8 7l1 14h8l1-14"/></svg>Effacer<small>E</small></button>
     <hr data-key="sep2">
     <button class="tool" id="bDim" data-key="MENUCOT"><svg viewBox="0 0 26 26"><path d="M4 8v12M22 8v12M4 15h18M4 15l3-2M4 15l3 2M22 15l-3-2M22 15l-3 2"/><path d="M10 10h6" stroke-width="1.2"/></svg>Cotation ▾<small>menu</small></button>
+    <button class="tool" data-cmd="SYMBOLE"><svg viewBox="0 0 26 26"><path d="M4 22V4h2v18"/><path d="M6 4a16 16 0 0 1 16 16"/><path d="M6 20h16" stroke-width="1.1"/><rect x="15" y="3" width="8" height="6" stroke-width="1.1"/></svg>Symboles<small>SYM</small></button>
       <div id="navEnd">
       <button class="hbtn" id="bOrg" title="Changer l'ordre des boutons">⇅ Organiser</button>
       <div id="orgHelp">Faites glisser les boutons. <button class="hbtn" id="bOrgReset">Ordre d'origine</button></div>
@@ -213,6 +224,9 @@
       <button class="hbtn danger" id="sbDel">🗑 Supprimer</button>
       <button class="hbtn" id="sbMove">Déplacer</button>
       <button class="hbtn" id="sbCopy">Copier</button>
+      <button class="hbtn" id="sbRot" title="Tourner la sélection de 90°">⟳ 90°</button>
+      <button class="hbtn" id="sbMir" title="Retourner la sélection (miroir gauche-droite)">⇋ Miroir</button>
+      <button class="hbtn" id="sbExpl" title="Décomposer le symbole pour modifier ses traits un par un">Décomposer</button>
       <button class="hbtn" id="sbAll">Tout sélectionner</button>
       <button class="hbtn" id="sbNone" title="Désélectionner (Échap)">✕</button>
     </div>
@@ -235,6 +249,15 @@
       <button class="hbtn primary" id="tOk" style="display:none">✓ Valider le texte</button>
     </div>
     <textarea id="tEdit" rows="1" spellcheck="true" placeholder="Écrivez… (Entrée = ligne suivante)"></textarea>
+    <div id="symopts"><b id="syName"></b>
+      <button class="hbtn" id="syRot" title="Tourner de 90° (touche R)">⟳ 90°</button>
+      <button class="hbtn" id="syMir" title="Retourner en miroir : côté des paumelles (touche M)">⇋ Miroir</button>
+      <button class="hbtn" id="syFlip" title="Changer de côté : ouverture vers l'autre côté du mur (touche I)">⇅ Côté</button>
+      <label id="syWl">Largeur <input id="syW" type="number" min="100" step="10"> mm</label>
+      <label id="syEl">Mur <input id="syE" type="number" min="50" step="10"> mm</label>
+      <label><input type="checkbox" id="syWall"> Accrocher au mur</label>
+      <button class="hbtn" id="syLib">📚 Autre symbole</button>
+    </div>
     <div id="hopts">
       <label>Motif <select id="hPat">
         <optgroup label="Général"><option value="lignes">Lignes</option><option value="croise">Quadrillage</option><option value="plein">Plein (gris)</option><option value="beton">Béton</option><option value="isolant">Isolant (zigzag)</option></optgroup>
@@ -310,6 +333,7 @@
     <tr><td><code>H</code></td><td><b>Hachures</b> : choisissez le motif, l'espacement et l'angle dans la barre en haut, puis cliquez à l'intérieur d'une zone fermée (rectangle, cercle, ou traits qui se rejoignent). Entre deux rectangles décalés, seule la bande est hachurée (épaisseur de mur). <code>P</code> = tracer le contour point par point, Entrée pour valider.</td></tr>
     <tr><td><code>DEP</code> / <code>CP</code></td><td><b>Déplacer / Copier</b> : cliquez l'objet (ou faites une fenêtre en glissant ; Maj+clic pour en prendre plusieurs puis Entrée), puis cliquez un point de base et la destination. Vous pouvez taper une distance (ex. <code>500</code> vers la souris) ou <code>@200,0</code>. Copier permet d'enchaîner plusieurs copies.</td></tr>
     <tr><td>Cotation ▾</td><td><b>Cotes comme AutoCAD</b> : <code>COTLIN</code> linéaire, <code>COTALI</code> alignée, <code>COTCONT</code> continue (chaîne), <code>COTRAYON</code>, <code>COTDIA</code>, <code>COTANG</code>. Cliquez les 2 points (ou Entrée puis cliquez un trait), puis placez la cote : elle suit la souris avec ses flèches et la valeur au milieu. Vous pouvez aussi taper la distance de la cote au trait.</td></tr>
+    <tr><td><code>SYM</code></td><td><b>Symboles</b> (bouton 🚪 Symboles) : portes, fenêtres, baies, portails, WC, lavabo, douche, cuisine, escaliers, meubles, voiture, Nord… Cliquez un symbole, il suit la souris ; près d'un mur il s'aligne tout seul (et prend l'épaisseur d'un mur en double trait), la porte s'ouvre du côté de la souris. <code>R</code> = tourner 90°, <code>M</code> = miroir, <code>I</code> = changer de côté, ou tapez une largeur. Un symbole posé forme un bloc (un clic le sélectionne en entier) sur le calque « Symboles » ; barre de sélection : ⟳ 90°, ⇋ Miroir, Décomposer.</td></tr>
     <tr><td>Clic droit</td><td>Sort de la commande en cours (comme Échap) et désélectionne tout.</td></tr>
     <tr><td>⇅ Organiser</td><td>En bas de la barre de gauche : cliquez « Organiser », faites glisser les boutons (et les séparateurs) où vous voulez, puis « Terminé ». L'ordre est retenu. « Ordre d'origine » remet la barre comme au départ.</td></tr>
     <tr><td>🔁 Répéter</td><td>Activé : la commande reste active et se relance après chaque tracé, cote ou mesure (ex. mesurer la hauteur, puis la largeur, puis la diagonale). On sort avec le clic droit ou Échap. Pour Ligne, Entrée commence un nouveau trait.</td></tr>
@@ -358,6 +382,13 @@
   <div class="crow" data-c="coteTexte"><div class="cl">Chiffres des cotes</div><div class="sw"></div></div>
   <div class="note">Le blanc s'imprime en noir. Pour changer la couleur d'objets déjà dessinés : sélectionnez-les, puis cliquez une couleur de « Traits » (ou de « Hachures » pour une hachure).</div>
 </div>
+<div class="modal" id="mSym"><div class="box" style="width:780px">
+  <h2>🚪 Bibliothèque de symboles</h2>
+  <div id="syTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
+  <div id="syGrid"></div>
+  <div class="note">Cliquez un symbole : il suit la souris, cliquez pour le poser (autant de fois que voulu, Échap pour finir). Près d'un mur, il s'aligne tout seul et prend l'épaisseur d'un mur en double trait ; la porte s'ouvre du côté de la souris. <b>R</b> = tourner 90°, <b>M</b> = miroir (côté des paumelles), <b>I</b> = changer de côté, ou tapez une largeur (ex. 900). Chaque symbole forme un bloc, rangé sur le calque « Symboles ».</div>
+  <div class="row"><button class="hbtn" id="syClose">Fermer</button></div>
+</div></div>
 <div class="modal" id="mSave"><div class="box" style="width:460px">
   <h2>Enregistrer le plan</h2>
   <div style="display:flex;align-items:center;gap:8px">
@@ -438,7 +469,12 @@ function layerOf(e){ return e.layer || (e.type==="dim" ? "Cotes" : "Dessin"); }
 function isVis(e){ const l=layers.find(x=>x.name===layerOf(e)); return !l || l.visible; }
 function VE(){ return ents.filter(isVis); }               // {id,type:'line',a,b} | {type:'rect',a,b} | {type:'circle',c,r}
 let nextId = 1;
-let selected = new Set();
+class GroupSel extends Set{ // un symbole (même « grp ») se sélectionne et se désélectionne en entier
+  grpOf(id){ const e=ents.find(x=>x.id===id); return e && e.grp ? e.grp : null; }
+  add(id){ const g=this.grpOf(id); if(g){ for(const o of ents) if(o.grp===g) super.add(o.id); return this; } return super.add(id); }
+  delete(id){ const g=this.grpOf(id); if(g){ let r=false; for(const o of ents) if(o.grp===g) r=super.delete(o.id)||r; return r; } return super.delete(id); }
+}
+let selected = new GroupSel();
 let undoStack = [], redoStack = [];
 let view = {z:0.25, tx:120, ty:0};
 let cursorS = {x:0,y:0}, cursorW = {x:0,y:0}, snapPt = null, hasCursor=false;
@@ -466,8 +502,8 @@ function log(t){ histEl.textContent += (histEl.textContent?"\n":"") + t; histEl.
 function setPrompt(t){ promptEl.textContent = t; }
 const clone = o => JSON.parse(JSON.stringify(o));
 
-function save(){ try{ localStorage.setItem("miniDAO2D", JSON.stringify({ents,nextId,cart,visuel,iaHist,claudeUrl,driveAuto,lastOffset,hatchOpts,textOpts,dimTxt,snapModes,colors,repeatOn,planId,planNameTxt,layers,curLayer})); }catch(e){} }
-function load(){ try{ const s=JSON.parse(localStorage.getItem("miniDAO2D")||"null"); if(s){ ents=s.ents||[]; nextId=s.nextId||1; Object.assign(cart,s.cart||{}); lastOffset=s.lastOffset||100; if(s.hatchOpts) Object.assign(hatchOpts,s.hatchOpts); if(s.dimTxt) dimTxt=s.dimTxt; if(s.textOpts) Object.assign(textOpts,s.textOpts); visuel=s.visuel||null; iaHist=s.iaHist||[]; if(s.claudeUrl && !/S998mSD3A3dCjL1aqwmDJy/.test(s.claudeUrl)) claudeUrl=s.claudeUrl; /* ancienne adresse (compte perso) ignorée */ if(typeof s.driveAuto==="boolean") driveAuto=s.driveAuto; if(s.snapModes) Object.assign(snapModes,s.snapModes); if(s.colors) Object.assign(colors,s.colors); if(typeof s.repeatOn==="boolean") repeatOn=s.repeatOn; planId=s.planId||null; planNameTxt=s.planNameTxt||""; if(Array.isArray(s.layers)&&s.layers.length) layers=s.layers; if(s.curLayer) curLayer=s.curLayer; } }catch(e){} }
+function save(){ try{ localStorage.setItem("miniDAO2D", JSON.stringify({ents,nextId,cart,visuel,iaHist,claudeUrl,driveAuto,lastOffset,hatchOpts,textOpts,dimTxt,snapModes,colors,repeatOn,planId,planNameTxt,layers,curLayer,symOpts})); }catch(e){} }
+function load(){ try{ const s=JSON.parse(localStorage.getItem("miniDAO2D")||"null"); if(s){ ents=s.ents||[]; nextId=s.nextId||1; Object.assign(cart,s.cart||{}); lastOffset=s.lastOffset||100; if(s.hatchOpts) Object.assign(hatchOpts,s.hatchOpts); if(s.dimTxt) dimTxt=s.dimTxt; if(s.textOpts) Object.assign(textOpts,s.textOpts); visuel=s.visuel||null; iaHist=s.iaHist||[]; if(s.claudeUrl && !/S998mSD3A3dCjL1aqwmDJy/.test(s.claudeUrl)) claudeUrl=s.claudeUrl; /* ancienne adresse (compte perso) ignorée */ if(typeof s.driveAuto==="boolean") driveAuto=s.driveAuto; if(s.snapModes) Object.assign(snapModes,s.snapModes); if(s.colors) Object.assign(colors,s.colors); if(typeof s.repeatOn==="boolean") repeatOn=s.repeatOn; planId=s.planId||null; planNameTxt=s.planNameTxt||""; if(Array.isArray(s.layers)&&s.layers.length) layers=s.layers; if(s.curLayer) curLayer=s.curLayer; if(s.symOpts) Object.assign(symOpts,s.symOpts); } }catch(e){} }
 function pushUndo(){ undoStack.push(JSON.stringify(ents)); if(undoStack.length>200) undoStack.shift(); redoStack.length=0; }
 function addEnt(e){ pushUndo(); e.id=nextId++; e.layer = e.type==="dim" ? "Cotes" : curLayer; ensureLayers(); { const l=layers.find(x=>x.name===e.layer); if(l && !l.visible){ l.visible=true; log(`  calque « ${l.name} » réaffiché`); updLayerUI(); } } if(e.type!=="dim" && !e.color) e.color = e.type==="hatch" ? colors.hachure : colors.trait; ents.push(e); save(); renderEnts(); return e; }
 
@@ -817,6 +853,7 @@ function renderPreview(){
       t=`L ${fmt(dist(a,P))}  ∠ ${fmt(ang(a,P))}°  · total ${fmt(tot)}`; }
     if(cmd.name==="LIGNE" && cmd.pts.length){ const a=cmd.pts[cmd.pts.length-1]; drawEnt({type:"line",a,b:P},gPrev,pst); t=`L ${fmt(dist(a,P))}  ∠ ${fmt(ang(a,P))}°`; }
     let pm="";
+    if(cmd.name==="SYMBOLE"){ const r=symPreviewMarkup(P); pm+=r.m; t=r.t; }
     if(cmd.name==="AJUSTER"||cmd.name==="PROLONGER"){ const e=hitGeom(cursorW); if(e) pm+=entMarkup(e,W2S,view.z,"#ff6b6b",2.4,"4 3"); }
     if(cmd.name==="MESURER" && cmd.p1 && dist(cmd.p1,P)>0){ pm+=dimMarkup({kind:"ali",p1:cmd.p1,p2:P,q:cmd.p1},W2S,view.z,DIM_SCREEN,"#ffd36e"); t=`${fmt(dist(cmd.p1,P))} mm · ΔX ${fmt(P.x-cmd.p1.x)} · ΔY ${fmt(P.y-cmd.p1.y)} · ∠ ${fmt(ang(cmd.p1,P))}°`; }
     if((cmd.name==="COTLIN"||cmd.name==="COTALI")){
@@ -909,7 +946,7 @@ function entDist(e,p){
 }
 function hit(pW,noHatch){ const tol=8/view.z; let best=null,bd=tol; for(const e of VE()){ if(noHatch&&e.type==="hatch") continue; const d=entDist(e,pW); if(d<=bd){bd=d;best=e;} } return best; }
 
-function updateSelBar(){ if($("layMenu").classList.contains("show")) setTimeout(updLayerUI,0); const n=[...selected].filter(id=>ents.some(e=>e.id===id)).length; const show = n>0 && !cmd; $("selBar").classList.toggle("show",show); if(show) $("selCount").textContent = n+" objet"+(n>1?"s":"")+" sélectionné"+(n>1?"s":""); }
+function updateSelBar(){ if($("layMenu").classList.contains("show")) setTimeout(updLayerUI,0); const n=[...selected].filter(id=>ents.some(e=>e.id===id)).length; const show = n>0 && !cmd; $("selBar").classList.toggle("show",show); if(show) $("sbExpl").style.display = [...selected].some(id=>{ const e=ents.find(x=>x.id===id); return e && e.grp; }) ? "" : "none"; if(show) $("selCount").textContent = n+" objet"+(n>1?"s":"")+" sélectionné"+(n>1?"s":""); }
 function updateSelInfo(){
   updateSelBar();
   if($("colMenu").classList.contains("show")){ const n=selected.size; $("selNote").textContent = n ? `→ s'applique aussi aux ${n} objet(s) sélectionné(s)` : ""; }
@@ -958,7 +995,7 @@ function parsePoint(txt, base){
 }
 
 // ---------- Commandes ----------
-const ALIASES = {L:"LIGNE",LIGNE:"LIGNE",LINE:"LIGNE",REC:"RECTANGLE",RECTANG:"RECTANGLE",RECTANGLE:"RECTANGLE",R:"RECTANGLE",C:"CERCLE",CERCLE:"CERCLE",CIRCLE:"CERCLE",
+const ALIASES = {SYM:"SYMBOLE",SYMBOLE:"SYMBOLE",SYMBOLES:"SYMBOLE",BIBLIO:"SYMBOLE",BLOC:"SYMBOLE",INSERER:"SYMBOLE","INSÉRER":"SYMBOLE",L:"LIGNE",LIGNE:"LIGNE",LINE:"LIGNE",REC:"RECTANGLE",RECTANG:"RECTANGLE",RECTANGLE:"RECTANGLE",R:"RECTANGLE",C:"CERCLE",CERCLE:"CERCLE",CIRCLE:"CERCLE",
   DEC:"DECALER",DECALER:"DECALER","DÉCALER":"DECALER",O:"DECALER",OFFSET:"DECALER",P:"DECALER",E:"EFFACER",EFFACER:"EFFACER",SUPPR:"EFFACER",ERASE:"EFFACER",
   DI:"MESURER",DIST:"MESURER",MESURER:"MESURER",U:"ANNULER",ANNULER:"ANNULER",ZE:"ZE",Z:"ZE",ZOOM:"ZE",CART:"CARTOUCHE",CARTOUCHE:"CARTOUCHE",IMPRIMER:"CARTOUCHE",PRINT:"CARTOUCHE",AIDE:"AIDE","?":"AIDE",H:"HACHURES",T:"TEXTE",TEXTE:"TEXTE",TXT:"TEXTE",TEXT:"TEXTE",MTEXT:"TEXTE",PL:"POLYLIGNE",POLYLIGNE:"POLYLIGNE",PLINE:"POLYLIGNE",POLY:"POLYLIGNE",AJ:"AJUSTER",AJUSTER:"AJUSTER",TR:"AJUSTER",TRIM:"AJUSTER",PR:"PROLONGER",PROLONGER:"PROLONGER",EX:"PROLONGER",EXTEND:"PROLONGER",DEP:"DEPLACER",DEPLACER:"DEPLACER","DÉPLACER":"DEPLACER",M:"DEPLACER",MOVE:"DEPLACER",CP:"COPIER",CO:"COPIER",COPIER:"COPIER",COPY:"COPIER",COTLIN:"COTLIN",DLI:"COTLIN",CL:"COTLIN",COTALI:"COTALI",DAL:"COTALI",CA:"COTALI",COTCONT:"COTCONT",DCO:"COTCONT",CC:"COTCONT",COTRAYON:"COTRAYON",COTRAY:"COTRAYON",DRA:"COTRAYON",COTDIA:"COTDIA",DDI:"COTDIA",COTANG:"COTANG",DAN:"COTANG",COT:"MENUCOT",COTE:"MENUCOT",COTES:"MENUCOT",HA:"HACHURES",HACH:"HACHURES",HACHURES:"HACHURES",HATCH:"HACHURES"};
 
@@ -969,6 +1006,7 @@ function startCmd(name,quiet){
   if(name==="CARTOUCHE"){ openCart(); return; }
   if(name==="AIDE"){ $("mHelp").classList.add("show"); return; }
   if(name==="MENUCOT"){ toggleDimMenu(true); return; }
+  if(name==="SYMBOLE"){ toggleDimMenu(false); openSymLib(); return; }
   toggleDimMenu(false);
   if(name==="COTCONT"){ const base=ents.find(e=>e.id===lastDimId && e.type==="dim" && (e.kind==="lin"||e.kind==="ali")) || [...ents].reverse().find(e=>e.type==="dim"&&(e.kind==="lin"||e.kind==="ali"));
     const selDim = selected.size===1 ? ents.find(e=>selected.has(e.id)&&e.type==="dim"&&(e.kind==="lin"||e.kind==="ali")) : null;
@@ -1008,12 +1046,13 @@ function finishCmd(){ if(repeatOn && cmd){ const n=cmd.name; if(n==="DEPLACER"||
 function endCmd(silent){
   if(cmd && cmd.name==="LIGNE" && cmd.count>0 && !silent) {}
   if(cmd && (cmd.name==="DEPLACER"||cmd.name==="COPIER")) selected.clear();
-  closeTextEdit(true); cmd=null; win=null; showHatchOpts(false); showTextOpts(false); setPrompt("Commande :"); document.querySelectorAll(".tool").forEach(b=>b.classList.remove("active")); renderAll();
+  closeTextEdit(true); cmd=null; win=null; showHatchOpts(false); showTextOpts(false); showSymOpts(false); setPrompt("Commande :"); document.querySelectorAll(".tool").forEach(b=>b.classList.remove("active")); renderAll();
 }
 
 // Applique un point (cliqué ou saisi) à la commande en cours
 function feedPoint(p){
   if(!cmd) return;
+  if(cmd.name==="SYMBOLE"){ placeSym(); renderPreview(); return; }
   if(cmd.name==="LIGNE"){
     if(cmd.pts.length){ const a=cmd.pts[cmd.pts.length-1]; if(dist(a,p)<1e-9) return; addEnt({type:"line",a:{...a},b:{...p}}); cmd.count++; log(`  segment ${fmt(dist(a,p))} mm à ${fmt(ang(a,p))}°`); }
     cmd.pts.push(p);
@@ -1050,7 +1089,7 @@ function feedPoint(p){
     else if(cmd.step==="base"){ cmd.base=p; cmd.step="dest"; setPrompt(`${cmd.name} – Point de destination, ou distance (ex. 500, @200,0) :`); }
     else if(cmd.step==="dest"){ const dx=p.x-cmd.base.x, dy=p.y-cmd.base.y; if(!dx&&!dy) return; pushUndo();
       if(cmd.name==="DEPLACER"){ for(const id of cmd.sel){ const e=ents.find(x=>x.id===id); if(e) translate(e,dx,dy); } log(`  ${cmd.sel.length} objet(s) déplacé(s) de ${fmt(dist(cmd.base,p))} mm`); save(); finishCmd(); return; }
-      else { for(const id of cmd.sel){ const e=ents.find(x=>x.id===id); if(e){ const c=translate(clone(e),dx,dy); c.id=nextId++; ents.push(c); } } log(`  copie à ${fmt(dist(cmd.base,p))} mm (Entrée pour finir)`); save(); renderEnts(); }
+      else { const gmap={}; for(const id of cmd.sel){ const e=ents.find(x=>x.id===id); if(e){ const c=translate(clone(e),dx,dy); c.id=nextId++; if(c.grp) c.grp = gmap[c.grp] || (gmap[c.grp]=nextId++); ents.push(c); } } log(`  copie à ${fmt(dist(cmd.base,p))} mm (Entrée pour finir)`); save(); renderEnts(); }
     }
   } else if(cmd.name==="COTLIN"||cmd.name==="COTALI"){
     if(cmd.step==="p1"){ cmd.p1=p; cmd.step="p2"; setPrompt(`${cmd.name} – Origine de la 2e ligne d'attache :`); }
@@ -1073,7 +1112,7 @@ function feedPoint(p){
     else { const r=findRegion(p); if(r){ cmd.lastId=addEnt({type:"hatch",bounds:r,pattern:hatchOpts.pattern,spacing:hatchOpts.spacing,angle:hatchOpts.angle}).id; log(`  hachure ajoutée (${hatchOpts.pattern}, ${fmt(hatchOpts.spacing)} mm, ${fmt(hatchOpts.angle)}°)`); }
       else log("  Aucune zone fermée ici. Tapez P pour tracer le contour point par point."); }
   } else if(cmd.name==="EFFACER"){
-    const e=hit(p); if(e){ pushUndo(); ents=ents.filter(x=>x.id!==e.id); save(); renderEnts(); log("  objet effacé"); }
+    const e=hit(p); if(e){ pushUndo(); const g=e.grp; ents=ents.filter(x=>g ? x.grp!==g : x.id!==e.id); save(); renderEnts(); log(g?"  symbole effacé":"  objet effacé"); }
   }
   renderPreview();
 }
@@ -1098,6 +1137,7 @@ function submit(raw){
     return;
   }
   if(txt) log("  > "+txt);
+  if(cmd.name==="SYMBOLE"){ symSubmit(txt,up); return; }
   // taper une autre commande pendant une commande : on change de commande
   if(/^[A-ZÉÈ?]+$/.test(up) && ALIASES[up] && !((cmd.name==="LIGNE"||cmd.name==="POLYLIGNE")&&cmd.pts.length>0&&(up==="F"||up==="C"||up==="U")) && !(cmd.name==="HACHURES"&&up==="P") && !(cmd.name==="CERCLE"&&up==="D") && !(cmd.name==="COTCONT"&&up==="S")){ startCmd(ALIASES[up]); return; }
   if(cmd.name==="POLYLIGNE"){
@@ -1876,6 +1916,16 @@ $("fImport").onchange=ev=>{ const f=ev.target.files[0]; if(!f) return; const r=n
 function selectAll(){ if(cmd) endCmd(true); selected=new Set(VE().map(e=>e.id)); renderEnts(); log(`${selected.size} objet(s) sélectionné(s)`); }
 $("sbDel").onclick=()=>startCmd("EFFACER");
 $("sbMove").onclick=()=>startCmd("DEPLACER");
+$("sbRot").onclick=()=>transformSel("rot"); $("sbMir").onclick=()=>transformSel("mir"); $("sbExpl").onclick=explodeSel;
+$("syRot").onclick=()=>symAction("R"); $("syMir").onclick=()=>symAction("M"); $("syFlip").onclick=()=>symAction("I");
+$("syLib").onclick=openSymLib; $("syClose").onclick=()=>$("mSym").classList.remove("show");
+$("syW").oninput=()=>{ const v=parseFloat($("syW").value); if(cmd&&cmd.name==="SYMBOLE"&&v>0){ cmd.w=v; symOpts.w[cmd.sym.id]=v; save(); renderPreview(); } };
+$("syE").oninput=()=>{ const v=parseFloat($("syE").value); if(cmd&&cmd.name==="SYMBOLE"&&v>0){ cmd.ep=v; symOpts.ep[cmd.sym.id]=v; save(); renderPreview(); } };
+$("syWall").onchange=()=>{ symOpts.wall=$("syWall").checked; save(); renderPreview(); cmdIn.focus(); };
+document.addEventListener("keydown",ev=>{ // touches R / M / I pendant la pose d'un symbole
+  if(!cmd||cmd.name!=="SYMBOLE"||ev.ctrlKey||ev.metaKey||ev.altKey||document.querySelector(".modal.show")) return;
+  const t=ev.target; if(t && t!==cmdIn && /INPUT|SELECT|TEXTAREA/.test(t.tagName)) return; if(cmdIn.value) return;
+  const k=(ev.key||"").toUpperCase(); if(k==="R"||k==="M"||k==="I"){ ev.preventDefault(); ev.stopPropagation(); symAction(k); } }, true);
 $("sbCopy").onclick=()=>startCmd("COPIER");
 $("sbAll").onclick=selectAll;
 $("sbNone").onclick=()=>{ selected.clear(); renderEnts(); };
@@ -1885,6 +1935,167 @@ $("kEnter").onclick=()=>{ if(textEdit){ closeTextEdit(true); return; } const v=c
 $("kEsc").addEventListener("pointerdown",ev=>{ if(textEdit) ev.preventDefault(); });
 $("kEnter").addEventListener("pointerdown",ev=>{ if(textEdit) ev.preventDefault(); });
 $("kEsc").onclick=()=>{ const m=document.querySelector(".modal.show"); if(m) m.classList.remove("show"); else cancelAll(); };
+
+// ---------- Bibliothèque de symboles (18/11/2026) ----------
+/* Chaque symbole est fait d'objets ordinaires (traits, polylignes, rectangles, cercles, textes) regroupés par un même « grp » :
+   impression, PDF, Google Drive et .mdao n'ont rien de spécial à faire. Repère local en mm : x le long du mur, y vers l'intérieur
+   (côté où la porte s'ouvre) ; origine = milieu de l'ouverture sur l'axe du mur (menuiseries), ou milieu du dos (appareils, meubles). */
+const SY = {
+  L:(x1,y1,x2,y2)=>({type:"line",a:{x:x1,y:y1},b:{x:x2,y:y2}}),
+  R:(x1,y1,x2,y2)=>({type:"rect",a:{x:x1,y:y1},b:{x:x2,y:y2}}),
+  C:(x,y,r)=>({type:"circle",c:{x,y},r}),
+  P:(pts,closed)=>({type:"poly",pts:pts.map(([x,y])=>({x,y})),closed:!!closed}),
+  T:(x,y,txt,h)=>({type:"text",p:{x,y},txt,h:h||2.5,angle:0,bold:false}),
+  arc(cx,cy,r,a0,a1,n){ n=n||Math.max(8,Math.round(Math.abs(a1-a0)/6)); const pts=[]; for(let i=0;i<=n;i++){ const a=(a0+(a1-a0)*i/n)*Math.PI/180; pts.push([cx+r*Math.cos(a),cy+r*Math.sin(a)]); } return SY.P(pts,false); },
+  ell(cx,cy,rx,ry,n){ n=n||28; const pts=[]; for(let i=0;i<n;i++){ const a=2*Math.PI*i/n; pts.push([cx+rx*Math.cos(a),cy+ry*Math.sin(a)]); } return SY.P(pts,true); },
+  rrect(x1,y1,x2,y2,r){ const pts=[]; const c=[[x2-r,y2-r,0],[x1+r,y2-r,90],[x1+r,y1+r,180],[x2-r,y1+r,270]]; for(const [cx,cy,a0] of c) for(let i=0;i<=6;i++){ const a=(a0+15*i)*Math.PI/180; pts.push([cx+r*Math.cos(a),cy+r*Math.sin(a)]); } return SY.P(pts,true); },
+  arrow(x1,y1,x2,y2,s){ s=s||120; const a=Math.atan2(y2-y1,x2-x1), b=0.45; return [SY.L(x1,y1,x2,y2), SY.L(x2,y2,x2-s*Math.cos(a-b),y2-s*Math.sin(a-b)), SY.L(x2,y2,x2-s*Math.cos(a+b),y2-s*Math.sin(a+b))]; },
+  jambs(w,ep){ return [SY.L(-w/2,-ep/2,-w/2,ep/2), SY.L(w/2,-ep/2,w/2,ep/2)]; },
+  leaf(hx,hy,len,a0,a1){ const a=a1*Math.PI/180; return [SY.L(hx,hy,hx+len*Math.cos(a),hy+len*Math.sin(a)), SY.arc(hx,hy,len,a0,a1)]; },
+  glass(w,ep){ const g=Math.min(30,ep/4); return [SY.L(-w/2,-g,w/2,-g), SY.L(-w/2,g,w/2,g)]; }
+};
+const SYM_CATS = [["men","Portes"],["fen","Fenêtres"],["baie","Baies et portes-fenêtres"],["ext","Extérieur"],["san","WC, lavabo, douche"],["cui","Cuisine et buanderie"],["esc","Escaliers"],["mob","Mobilier et voiture"],["rep","Nord et repères"]];
+const SYMS = [
+  // Portes (ouverture dans le mur : w = passage, ep = épaisseur du mur)
+  {id:"porte1",cat:"men",name:"Porte 1 vantail",open:true,w:830,ep:200,draw:({w,ep})=>[...SY.jambs(w,ep),...SY.leaf(-w/2,ep/2,w,0,90)]},
+  {id:"porte2",cat:"men",name:"Porte 2 vantaux",open:true,w:1400,ep:200,draw:({w,ep})=>[...SY.jambs(w,ep),...SY.leaf(-w/2,ep/2,w/2,0,90),...SY.leaf(w/2,ep/2,w/2,180,90)]},
+  {id:"portecoul",cat:"men",name:"Porte coulissante",open:true,w:830,ep:200,draw:({w,ep})=>[...SY.jambs(w,ep),SY.R(-w/2,ep/2+10,w/2+60,ep/2+50),...SY.arrow(w/4,ep/2+140,-w/4,ep/2+140,90)]},
+  {id:"garage",cat:"men",name:"Porte de garage",open:true,w:2400,ep:200,draw:({w,ep})=>[...SY.jambs(w,ep),SY.R(-w/2,ep/2,w/2,ep/2+60),SY.L(-w/2,ep/2+60,-w/2,ep/2+600),SY.L(w/2,ep/2+60,w/2,ep/2+600),SY.T(-w/2+80,ep/2+250,"Porte de garage")]},
+  // Fenêtres
+  {id:"fen1",cat:"fen",name:"Fenêtre 1 vantail",open:true,w:800,ep:200,draw:({w,ep})=>[...SY.jambs(w,ep),...SY.glass(w,ep),...SY.leaf(-w/2,ep/2,w,0,90)]},
+  {id:"fen2",cat:"fen",name:"Fenêtre 2 vantaux",open:true,w:1200,ep:200,draw:({w,ep})=>[...SY.jambs(w,ep),...SY.glass(w,ep),...SY.leaf(-w/2,ep/2,w/2,0,90),...SY.leaf(w/2,ep/2,w/2,180,90)]},
+  {id:"fenob",cat:"fen",name:"Oscillo-battant",open:true,w:800,ep:200,draw:({w,ep})=>[...SY.jambs(w,ep),...SY.glass(w,ep),...SY.leaf(-w/2,ep/2,w,0,90),SY.T(-w/2+60,ep/2+120,"OB")]},
+  {id:"fenfixe",cat:"fen",name:"Châssis fixe",open:true,w:800,ep:200,draw:({w,ep})=>[...SY.jambs(w,ep),...SY.glass(w,ep),SY.L(-w/2,0,w/2,0),SY.T(-w/2+60,ep/2+120,"Fixe")]},
+  // Baies et portes-fenêtres
+  {id:"pf1",cat:"baie",name:"Porte-fenêtre 1 vantail",open:true,w:900,ep:200,draw:({w,ep})=>[...SY.jambs(w,ep),...SY.glass(w,ep),...SY.leaf(-w/2,ep/2,w,0,90),SY.T(-w/2+60,ep/2+120,"PF")]},
+  {id:"pf2",cat:"baie",name:"Porte-fenêtre 2 vantaux",open:true,w:1400,ep:200,draw:({w,ep})=>[...SY.jambs(w,ep),...SY.glass(w,ep),...SY.leaf(-w/2,ep/2,w/2,0,90),...SY.leaf(w/2,ep/2,w/2,180,90),SY.T(-w/2+60,ep/2+120,"PF")]},
+  {id:"baie2",cat:"baie",name:"Baie coulissante 2 rails",open:true,w:2400,ep:200,draw:({w,ep})=>{ const r=Math.min(30,ep/4), o=w*0.04; return [...SY.jambs(w,ep),SY.L(-w/2,-r,w/2,-r),SY.L(-w/2,r,w/2,r),SY.R(-w/2,-r,o,0),SY.R(-o,0,w/2,r),...SY.arrow(-w/6,ep/2+120,w/6,ep/2+120,90)]; }},
+  {id:"baie3",cat:"baie",name:"Baie coulissante 3 rails",open:true,w:3000,ep:200,draw:({w,ep})=>{ const r=Math.min(30,ep/4), s=w/3, o=w*0.03; return [...SY.jambs(w,ep),SY.L(-w/2,-r*1.5,w/2,-r*1.5),SY.L(-w/2,r*1.5,w/2,r*1.5),SY.R(-w/2,-r*1.5,-w/2+s+o,-r/2),SY.R(-w/2+s-o,-r/2,-w/2+2*s+o,r/2),SY.R(w/2-s-o,r/2,w/2,r*1.5)]; }},
+  // Extérieur (w = passage entre piliers)
+  {id:"portailb",cat:"ext",name:"Portail battant",open:true,w:3500,ep:200,draw:({w})=>[SY.R(-w/2-200,-100,-w/2,100),SY.R(w/2,-100,w/2+200,100),...SY.leaf(-w/2,0,w/2,0,90),...SY.leaf(w/2,0,w/2,180,90)]},
+  {id:"portailc",cat:"ext",name:"Portail coulissant",open:true,w:4000,ep:200,draw:({w})=>[SY.R(-w/2-200,-100,-w/2,100),SY.R(w/2,-100,w/2+200,100),SY.R(-w/2,100,w/2,160),SY.R(-w/2-w,170,-w/2-200,230),SY.T(-w/2-w+100,400,"Refoulement"),...SY.arrow(w/4,400,-w/4,400,150)]},
+  {id:"portillon",cat:"ext",name:"Portillon",open:true,w:1000,ep:200,draw:({w})=>[SY.R(-w/2-150,-75,-w/2,75),SY.R(w/2,-75,w/2+150,75),...SY.leaf(-w/2,0,w,0,90)]},
+  {id:"pergola",cat:"ext",name:"Pergola 3 × 4 m",w:3000,draw:({w})=>{ const d=4000, o=[SY.R(-w/2,0,w/2,d)]; for(const [x,y] of [[-w/2,0],[w/2-150,0],[-w/2,d-150],[w/2-150,d-150]]) o.push(SY.R(x,y,x+150,y+150)); for(let y=400;y<d;y+=400) o.push(SY.L(-w/2,y,w/2,y)); o.push(SY.T(-w/2+150,d/2,"Pergola")); return o; }},
+  // WC, lavabo, douche, baignoire (contre le mur : y = 0)
+  {id:"wc",cat:"san",name:"WC",draw:()=>[SY.R(-250,0,250,180),SY.ell(0,390,180,215)]},
+  {id:"lavemains",cat:"san",name:"Lave-mains",draw:()=>[SY.R(-200,0,200,250),SY.ell(0,130,130,85),SY.C(0,130,15)]},
+  {id:"lavabo",cat:"san",name:"Lavabo",draw:()=>[SY.R(-300,0,300,450),SY.ell(0,240,220,160),SY.C(0,240,20)]},
+  {id:"vasque2",cat:"san",name:"Double vasque",draw:()=>[SY.R(-600,0,600,500),SY.ell(-300,260,200,150),SY.ell(300,260,200,150),SY.C(-300,260,20),SY.C(300,260,20)]},
+  {id:"douche",cat:"san",name:"Douche 90 × 90",draw:()=>[SY.R(-450,0,450,900),SY.L(-450,0,450,900),SY.L(450,0,-450,900),SY.C(0,450,40)]},
+  {id:"italienne",cat:"san",name:"Douche italienne",draw:()=>[SY.R(-600,0,600,1200),SY.C(0,600,45),SY.L(-600,0,0,600),SY.L(600,0,0,600),SY.L(-600,1200,0,600),SY.L(600,1200,0,600),SY.T(-560,1100,"Douche italienne",2)]},
+  {id:"baignoire",cat:"san",name:"Baignoire",draw:()=>[SY.R(-850,0,850,700),SY.rrect(-800,50,800,650,200),SY.C(-640,350,30)]},
+  // Cuisine et buanderie
+  {id:"evier",cat:"cui",name:"Évier + égouttoir",draw:()=>{ const o=[SY.R(-600,0,600,600),SY.rrect(-560,70,-60,530,60),SY.C(-310,300,30)]; for(let x=40;x<=540;x+=70) o.push(SY.L(x,90,x,510)); return o; }},
+  {id:"plaque",cat:"cui",name:"Plaque de cuisson",draw:()=>[SY.R(-300,0,300,600),SY.C(-140,170,95),SY.C(140,170,70),SY.C(-140,430,70),SY.C(140,430,95)]},
+  {id:"frigo",cat:"cui",name:"Réfrigérateur",draw:()=>[SY.R(-300,0,300,650),SY.L(-300,600,300,600),SY.T(-200,330,"Frigo")]},
+  {id:"pdt",cat:"cui",name:"Plan de travail",w:2400,draw:({w})=>[SY.R(-w/2,0,w/2,650)]},
+  {id:"lavelinge",cat:"cui",name:"Lave-linge",draw:()=>[SY.R(-300,0,300,600),SY.C(0,320,210),SY.T(-60,90,"LL")]},
+  {id:"sechelinge",cat:"cui",name:"Sèche-linge",draw:()=>[SY.R(-300,0,300,600),SY.C(0,320,210),SY.T(-60,90,"SL")]},
+  {id:"cumulus",cat:"cui",name:"Chauffe-eau",draw:()=>[SY.C(0,300,280),SY.T(-70,270,"CE")]},
+  // Escaliers (w = largeur de l'escalier)
+  {id:"escdroit",cat:"esc",name:"Escalier droit (14 marches)",w:900,draw:({w})=>{ const g=250, n=14, L=g*n, o=[SY.R(-w/2,0,w/2,L)]; for(let i=1;i<n;i++) o.push(SY.L(-w/2,i*g,w/2,i*g)); o.push(...SY.arrow(0,g/2,0,L-g/2,150),SY.T(60,g*0.8,"Montée",2)); return o; }},
+  {id:"escquart",cat:"esc",name:"Escalier quart tournant",w:900,draw:({w})=>{ const g=250, n1=10, L=g*n1, n2=4, L2=g*n2, o=[SY.P([[-w/2,0],[w/2,0],[w/2,L],[w/2+L2,L],[w/2+L2,L+w],[-w/2,L+w]],true)];
+      for(let i=1;i<n1;i++) o.push(SY.L(-w/2,i*g,w/2,i*g)); for(let i=1;i<=n2;i++) o.push(SY.L(w/2+i*g-g,L,w/2+i*g-g,L+w));
+      o.push(SY.L(w/2,L,-w/2,L+w*0.4),SY.L(w/2,L,-w/2,L+w),SY.L(w/2,L,-w/2+w*0.6,L+w)); o.push(SY.P([[0,g/2],[0,L+w/2]],false),...SY.arrow(0,L+w/2,w/2+L2-g/2,L+w/2,150)); return o; }},
+  // Mobilier et voiture
+  {id:"lit90",cat:"mob",name:"Lit 90 × 190",draw:()=>[SY.R(-450,0,450,1900),SY.rrect(-370,60,370,380,60),SY.L(-450,650,450,650)]},
+  {id:"lit140",cat:"mob",name:"Lit 140 × 190",draw:()=>[SY.R(-700,0,700,1900),SY.rrect(-640,60,-40,380,60),SY.rrect(40,60,640,380,60),SY.L(-700,650,700,650)]},
+  {id:"table6",cat:"mob",name:"Table + 6 chaises",draw:()=>{ const o=[SY.R(-800,300,800,1200)]; for(const x of [-550,0,550]){ o.push(SY.R(x-225,0,x+225,450),SY.R(x-225,1050,x+225,1500)); } return o; }},
+  {id:"canape",cat:"mob",name:"Canapé 3 places",draw:()=>[SY.R(-1000,0,1000,900),SY.L(-800,200,800,200),SY.L(-800,200,-800,900),SY.L(800,200,800,900),SY.L(-267,200,-267,900),SY.L(267,200,267,900)]},
+  {id:"armoire",cat:"mob",name:"Armoire / placard",draw:()=>[SY.R(-600,0,600,600),SY.L(-560,300,560,300),SY.L(-400,220,-330,380),SY.L(-150,220,-80,380),SY.L(100,220,170,380),SY.L(350,220,420,380)]},
+  {id:"voiture",cat:"mob",name:"Voiture",draw:()=>[SY.rrect(-900,0,900,4500,350),SY.P([[-760,1300],[-560,1650],[560,1650],[760,1300]],false),SY.P([[-760,3500],[-600,3250],[600,3250],[760,3500]],false),SY.L(-760,1300,-760,3500),SY.L(760,1300,760,3500),SY.R(-1020,1550,-900,1700),SY.R(900,1550,1020,1700)]},
+  // Nord et repères
+  {id:"nord",cat:"rep",name:"Flèche du Nord",draw:()=>[SY.C(0,0,400),SY.P([[0,400],[160,-260],[0,-120],[-160,-260]],true),SY.T(-70,620,"N",5)]},
+  {id:"coupe",cat:"rep",name:"Repère de coupe",w:3000,draw:({w})=>[SY.L(-w/2,0,w/2,0),...SY.arrow(-w/2,0,-w/2,300,120),...SY.arrow(w/2,0,w/2,300,120),SY.T(-w/2-60,450,"A",5),SY.T(w/2-60,450,"A",5)]},
+  {id:"entree",cat:"rep",name:"Entrée",draw:()=>[...SY.arrow(0,-900,0,-100,200),SY.T(120,-650,"Entrée",3.5)]}
+];
+var symOpts = {wall:true, w:{}, ep:{}};
+function symDef(id){ return SYMS.find(s=>s.id===id); }
+function primPts(e){ if(e.type==="line") return [e.a,e.b]; if(e.type==="rect") return [e.a,e.b]; if(e.type==="poly") return e.pts; if(e.type==="circle") return [{x:e.c.x-e.r,y:e.c.y-e.r},{x:e.c.x+e.r,y:e.c.y+e.r}]; if(e.type==="text") return [e.p]; return []; }
+function walkPts(o,f){ if(o&&typeof o==="object"){ if(typeof o.x==="number"&&typeof o.y==="number"&&!Array.isArray(o)){ const q=f(o); o.x=q.x; o.y=q.y; return o; } for(const k in o){ if(o[k]&&typeof o[k]==="object") walkPts(o[k],f); } } return o; }
+function normTxtAng(a){ a=((a%360)+360)%360; if(a>90&&a<=270) a-=180; if(a>180) a-=360; return Math.round(a*1000)/1000; }
+// Transforme une copie d'objet : f = fonction point→point, rot = rotation (degrés), mir = vrai si la transformation retourne (miroir)
+function xformEnt(e,f,rot,mir){ let c=clone(e);
+  const quarter = Math.abs(((rot%90)+90)%90)<1e-6;
+  if(c.type==="rect" && !quarter){ const x1=Math.min(c.a.x,c.b.x),x2=Math.max(c.a.x,c.b.x),y1=Math.min(c.a.y,c.b.y),y2=Math.max(c.a.y,c.b.y); c={...c,type:"poly",closed:true,pts:[{x:x1,y:y1},{x:x2,y:y1},{x:x2,y:y2},{x:x1,y:y2}]}; delete c.a; delete c.b; }
+  if(c.type==="dim" && c.kind==="lin" && !quarter) c.kind="ali";
+  walkPts(c,f);
+  if(c.type==="text"){ let a=c.angle||0; if(mir) a=-a; c.angle=normTxtAng(a+rot); }
+  if(c.type==="hatch"){ let a=c.angle||0; if(mir) a=-a; c.angle=Math.round((((a+rot)%180)+180)%180); }
+  if(c.type==="dim" && c.kind==="lin" && quarter && Math.round(rot/90)%2) c.orient = c.orient==="v" ? "h" : "v";
+  return c; }
+function symPrims(def,w,ep){ return def.draw({w:w||def.w||0, ep:ep||def.ep||200}); }
+// Repère de pose : origine, angle (degrés), miroirs ; accroche au mur le plus proche (détecte l'épaisseur d'un mur en double trait)
+function symFrame(P){
+  const c=cmd, def=c.sym; let o={...P}, a=c.rot, sx=c.flipX?-1:1, sy=c.flipY?-1:1, ep=c.ep, info="";
+  if(symOpts.wall){
+    const tol=40/view.z, C=cursorW; let best=null, bd=tol;
+    for(const [p,q] of snapSegs().segs){ const d=distSeg(C,p,q); if(d<bd && dist(p,q)>1){ bd=d; best=[p,q]; } }
+    if(best){ const [p,q]=best, L=dist(p,q), u={x:(q.x-p.x)/L,y:(q.y-p.y)/L}, n={x:-u.y,y:u.x};
+      const base = snapPt && distSeg(snapPt.p,p,q)<1e-6 ? snapPt.p : C;
+      let t=(base.x-p.x)*u.x+(base.y-p.y)*u.y; t=Math.max(0,Math.min(L,t)); let O={x:p.x+t*u.x,y:p.y+t*u.y};
+      let side=Math.sign((C.x-O.x)*n.x+(C.y-O.y)*n.y)||1;
+      if(def.open){ // mur en double trait : on cherche la face parallèle la plus proche
+        let face=null, fd=Infinity;
+        for(const [p2,q2] of snapSegs().segs){ if(p2===p&&q2===q) continue; const L2=dist(p2,q2); if(L2<1) continue; const u2={x:(q2.x-p2.x)/L2,y:(q2.y-p2.y)/L2}; if(Math.abs(u.x*u2.y-u.y*u2.x)>0.02) continue;
+          const dd=(p2.x-O.x)*n.x+(p2.y-O.y)*n.y; if(Math.abs(dd)<30||Math.abs(dd)>700) continue; const t2=(O.x-p2.x)*u2.x+(O.y-p2.y)*u2.y; if(t2<-1||t2>L2+1) continue; if(Math.abs(dd)<Math.abs(fd)){ fd=dd; face=1; } }
+        if(face){ ep=Math.round(Math.abs(fd)); O={x:O.x+n.x*fd/2,y:O.y+n.y*fd/2}; side=Math.sign((C.x-O.x)*n.x+(C.y-O.y)*n.y)||1; info=` · mur de ${fmt(ep)} mm`; }
+      }
+      a=Math.atan2(u.y,u.x)*180/Math.PI; o=O; sy=side*(c.flipY?-1:1); info="accroché au mur"+info;
+    }
+  }
+  return {o,a,sx,sy,ep,info};
+}
+function symPlaced(fr){ const c=cmd, rad=fr.a*Math.PI/180, cs=Math.cos(rad), sn=Math.sin(rad);
+  const f=p=>{ const X=p.x*fr.sx, Y=p.y*fr.sy; return {x:fr.o.x+X*cs-Y*sn, y:fr.o.y+X*sn+Y*cs}; };
+  return symPrims(c.sym,c.w,fr.ep).map(e=>xformEnt(e,f,fr.a,fr.sx*fr.sy<0)); }
+function ensureSymLayer(){ let l=layers.find(x=>x.name==="Symboles"); if(!l){ l={name:"Symboles",visible:true}; layers.push(l); } if(!l.visible) l.visible=true; updLayerUI(); }
+function placeSym(){ const fr=symFrame(currentPoint()), list=symPlaced(fr); if(!list.length) return;
+  pushUndo(); ensureSymLayer(); const g=nextId++;
+  for(const e of list){ e.id=nextId++; e.layer="Symboles"; e.grp=g; e.sym=cmd.sym.id; if(!e.color) e.color=colors.trait; ents.push(e); }
+  save(); renderEnts(); log(`  ${cmd.sym.name}${cmd.sym.w?` · ${fmt(cmd.w)} mm`:""} posé${fr.info?" ("+fr.info+")":""}`); }
+function symPreviewMarkup(P){ const fr=symFrame(P); let m=""; for(const e of symPlaced(fr)) m+=entMarkup(e,W2S,view.z,"#4fa3ff",1.6,"");
+  if(fr.info){ const s=W2S(fr.o); m+=`<circle cx="${s.x}" cy="${s.y}" r="5" fill="none" stroke="#3ecf8e" stroke-width="2"/>`; }
+  return {m, t:`${cmd.sym.name}${cmd.sym.w?` · ${fmt(cmd.w)} mm`:""}${fr.info?" · "+fr.info:""}`}; }
+function beginSym(id){ const def=symDef(id); if(!def) return; if(cmd) endCmd(true); $("mSym").classList.remove("show"); selected.clear();
+  cmd={name:"SYMBOLE",sym:def,w:symOpts.w[id]||def.w||0,ep:symOpts.ep[id]||def.ep||200,rot:0,flipX:false,flipY:false}; lastCmd="SYMBOLE";
+  log(`Symbole : ${def.name}`); setPrompt(`SYMBOLE ${def.name} – Cliquez pour poser · R = tourner 90° · M = miroir · I = changer de côté${def.w?" · tapez une largeur (ex. "+def.w+")":""} · Échap pour finir :`);
+  document.querySelectorAll(".tool").forEach(b=>b.classList.toggle("active",b.dataset.cmd==="SYMBOLE")); showSymOpts(true); renderAll(); }
+function symAction(k){ if(!cmd||cmd.name!=="SYMBOLE") return;
+  if(k==="R"){ cmd.rot=(cmd.rot+90)%360; log("  tourné de 90°"); }
+  if(k==="M"){ cmd.flipX=!cmd.flipX; log("  retourné (miroir)"); }
+  if(k==="I"){ cmd.flipY=!cmd.flipY; log("  côté inversé"); }
+  showSymOpts(true); renderPreview(); }
+function symSubmit(txt,up){
+  if(!txt){ openSymLib(); return; }
+  if(up==="R"||up==="M"||up==="I"){ symAction(up); return; }
+  const v=num(txt.replace(",",".")); if(v!==null && v>0){ if(!cmd.sym.w){ log("  Ce symbole a une taille fixe"); return; } cmd.w=v; symOpts.w[cmd.sym.id]=v; save(); log(`  largeur ${fmt(v)} mm`); showSymOpts(true); renderPreview(); return; }
+  if(ALIASES[up]){ startCmd(ALIASES[up]); return; }
+  log("  Tapez R, M, I, une largeur, ou Échap");
+}
+function showSymOpts(on){ const o=$("symopts"); o.style.display=on?"flex":"none"; if(!on||!cmd||cmd.name!=="SYMBOLE") return;
+  $("syName").textContent=cmd.sym.name; $("syWl").style.display=cmd.sym.w?"flex":"none"; $("syEl").style.display=cmd.sym.open&&cmd.sym.ep?"flex":"none";
+  if(document.activeElement!==$("syW")) $("syW").value=cmd.w||""; if(document.activeElement!==$("syE")) $("syE").value=cmd.ep||""; $("syWall").checked=symOpts.wall; }
+function symThumb(def){ const list=symPrims(def); const pts=list.flatMap(primPts); if(!pts.length) return "";
+  let x1=Math.min(...pts.map(p=>p.x)), x2=Math.max(...pts.map(p=>p.x)), y1=Math.min(...pts.map(p=>p.y)), y2=Math.max(...pts.map(p=>p.y));
+  const m=Math.max(x2-x1,y2-y1)*0.08+1; x1-=m; y1-=m; x2+=m; y2+=m; const W=x2-x1, H=y2-y1;
+  const T=p=>({x:p.x-x1, y:y2-p.y}); let s="";
+  for(const e of list){ if(e.type==="text") continue; s+=entMarkup(e,T,1,"currentColor",1,""); }
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="vector-effect:non-scaling-stroke">${s.replace(/stroke-width="1"/g,'stroke-width="1" vector-effect="non-scaling-stroke"')}</svg>`; }
+let symCat="men";
+function openSymLib(){ const tabs=$("syTabs"), grid=$("syGrid");
+  tabs.innerHTML=SYM_CATS.map(([k,l])=>`<button class="hbtn${k===symCat?" primary":""}" data-cat="${k}">${l}</button>`).join("");
+  grid.innerHTML=SYMS.filter(s=>s.cat===symCat).map(s=>`<button class="symtile" data-sym="${s.id}" title="${s.name}">${symThumb(s)}<span>${s.name}${s.w?`<small>${fmt(symOpts.w[s.id]||s.w)} mm</small>`:""}</span></button>`).join("");
+  tabs.querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{ symCat=b.dataset.cat; openSymLib(); });
+  grid.querySelectorAll("[data-sym]").forEach(b=>b.onclick=()=>beginSym(b.dataset.sym));
+  $("mSym").classList.add("show"); }
+// Barre de sélection : tourner de 90° / miroir autour du centre de la sélection ; décomposer un symbole
+function selCenter(ids){ const bb=bbox(ents.filter(e=>ids.includes(e.id))); return bb?{x:(bb.x1+bb.x2)/2,y:(bb.y1+bb.y2)/2}:null; }
+function transformSel(kind){ const ids=[...selected].filter(id=>ents.some(e=>e.id===id)); if(!ids.length) return; const c=selCenter(ids); if(!c) return; pushUndo();
+  const f = kind==="rot" ? (p=>({x:c.x-(p.y-c.y), y:c.y+(p.x-c.x)})) : (p=>({x:2*c.x-p.x, y:p.y}));
+  ents=ents.map(e=>ids.includes(e.id) ? Object.assign(xformEnt(e,f,kind==="rot"?90:0,kind==="mir"),{id:e.id}) : e);
+  save(); renderEnts(); log(kind==="rot" ? `  ${ids.length} objet(s) tourné(s) de 90°` : `  ${ids.length} objet(s) retourné(s) (miroir)`); }
+function explodeSel(){ const ids=[...selected]; let n=0; pushUndo(); for(const e of ents) if(ids.includes(e.id) && e.grp){ delete e.grp; delete e.sym; n++; } save(); renderEnts(); log(n?`  symbole décomposé (${n} objets, modifiables un par un)`:"  Rien à décomposer"); }
 
 // ---------- Liens avec l'appli de métré et le CRM (18/11/2026) ----------
 /* dao/?client=NOM&retour=<id du métré>  : vient de « 📐 Dessiner le plan » d'un métré → plan de ce client, retour à ce métré.
@@ -1930,6 +2141,9 @@ if("serviceWorker" in navigator && location.protocol==="https:" && /github\.io$/
   navigator.serviceWorker.register("sw.js").catch(()=>{});
 }
 
+// Accès réservé aux tests automatiques (inactif sauf si window.__daoTest est posé avant le chargement)
+if(window.__daoTest) window.__dao={ get ents(){return ents;}, get cmd(){return cmd;}, get selected(){return [...selected];}, get layers(){return layers;}, get symOpts(){return symOpts;},
+  W2S:p=>W2S(p), setView:v=>{ Object.assign(view,v); renderAll(); }, zoomExtents:()=>zoomExtents(), addEnt:e=>addEnt(e), SYMS, symThumb };
 // ---------- Démarrage ----------
 load();
 { const cl=(URLP.get("client")||"").trim(); if(cl){ ouvrirPlanClient(cl); try{ URLP.delete("client"); history.replaceState(null,"",location.pathname+(URLP.toString()?"?"+URLP:"")); }catch(e){} } }

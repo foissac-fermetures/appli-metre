@@ -251,6 +251,8 @@ PROMPT-POUR-CLAUDE-PRO.md ← le message que Nicolas te donne
 | 18/11/2026 | dao-v3 | Drive : « 09 - Plan » fixé par son identifiant (`DOSSIERS_DAO.plan`, à la racine de Mon Drive). « Métrés » n'existait pas : Nicolas a choisi de le créer dans Mon Drive ; son identifiant sera mis dans `DOSSIERS_DAO.metres` après le 1er essai. |
 | 18/11/2026 | dao-v4 + metre-v95 | Liens entre les applis (Nicolas a coché les 4 options) : voir § 12. |
 | 18/11/2026 | metre-v95 | `sw.js` racine : ne supprime plus que les caches `metre-…` (§ 11). |
+| 18/11/2026 | metre-v102 | Liens Mini DAO + correctif hors-ligne **remis** dans le métré (effacés par les versions v96-v101 d'une autre conversation). Ajout de `CLAUDE.md` à la racine (consignes : repartir de la dernière version, garder ces ajouts). |
+| 18/11/2026 | dao-v6 | **Bibliothèque de symboles** (Nicolas a coché toutes les options) : voir § 13. |
 | 18/11/2026 | dao-v5 | **Essai réel Google Drive réussi** (« Plan TEST », 2 enregistrements : PDF dans 09 - Plan, .mdao dans Métrés › Plans › 2026, remplacés sans doublon). « Métrés » fixé : `DOSSIERS_DAO.metres = 1HoXaRkku5deGnEtg6t3SK6jtvs4zr1lz`. |
 
 ## 11. Service worker de l'appli de métré : corrigé le 18/11/2026 (accord de Nicolas)
@@ -277,3 +279,24 @@ dans l'appli de métré installée, `dao/` est dans la portée du manifeste du m
 Intérêt : le PDF « Plan <client>.pdf » est dans « 09 - Plan » avant le retour, donc l'appli de métré le joint au PDF du métré.
 Tests (Playwright, adresse github.io simulée + faux Drive) : accueil → DAO → retour ; métré → Dessiner → 💾 → retour au même métré ;
 2e passage = même plan rouvert, fichiers Drive remplacés (pas de doublon) ; CRM → DAO → retour CRM ; DAO seule = pas de bouton Retour.
+
+## 13. Bibliothèque de symboles (dao-v6, 18/11/2026)
+
+Bouton **🚪 Symboles** (barre de gauche, après Cotation) ou commandes `SYM`, `SYMBOLE`, `BIBLIO`, `BLOC`, `INSERER`.
+41 symboles en 9 onglets (`SYM_CATS` / `SYMS` dans `index.html`, bloc « Bibliothèque de symboles ») :
+portes (1 et 2 vantaux, coulissante, garage), fenêtres (1, 2 vantaux, OB, fixe), portes-fenêtres et baies coulissantes 2/3 rails,
+extérieur (portail battant, coulissant avec refoulement, portillon, pergola), WC / lave-mains / lavabo / double vasque / douches / baignoire,
+cuisine et buanderie (évier, plaque, frigo, plan de travail, lave-linge, sèche-linge, chauffe-eau), escaliers (droit, quart tournant),
+mobilier (lits, table + 6 chaises, canapé, armoire), voiture, Nord, repère de coupe, « Entrée ».
+
+- **Construction** : chaque symbole = objets ordinaires (line, rect, poly, circle, text) avec le même `grp` (+ `sym` = id du symbole), sur le calque **« Symboles »**.
+  Rien à faire pour l'impression, le PDF, Drive ou le .mdao. Repère local en mm : x le long du mur, y vers le côté d'ouverture ; origine = milieu de l'ouverture
+  sur l'axe du mur (menuiseries `open:true`, paramètres `w` passage et `ep` épaisseur du mur) ou milieu du dos (appareils, meubles).
+- **Pose** (`beginSym`, `symFrame`, `placeSym`) : le symbole suit la souris. « Accrocher au mur » (case de la barre du haut, retenue) : aligné sur le trait le plus proche
+  (40 px) ; pour une menuiserie, si une face parallèle existe à 30–700 mm, l'épaisseur est prise et le symbole est centré dans le mur. Ouverture du côté de la souris.
+  Touches **R** (90°), **M** (miroir = côté des paumelles), **I** (changer de côté), largeur tapée ; boutons équivalents dans la barre `#symopts` (iPad).
+  Largeurs / épaisseurs retenues par symbole dans `symOpts` (sauvegardé).
+- **Blocs** : `selected` est un `GroupSel` (un clic sélectionne tout le symbole) ; Effacer au clic efface le bloc ; Copier crée de nouveaux blocs.
+  Barre de sélection : **⟳ 90°**, **⇋ Miroir** (autour du centre de la sélection, `transformSel` / `xformEnt`, aussi pour des objets ordinaires) et **Décomposer**.
+- Les traits du mur ne sont pas coupés automatiquement dans l'ouverture : utiliser **Ajuster** entre les deux montants.
+- Tests : `window.__daoTest = true` avant le chargement expose `window.__dao` (tests automatiques seulement).

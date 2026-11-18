@@ -1341,11 +1341,21 @@ function groupesClients(ds){ const M=new Map(); ds.forEach(d=>{ const k=cleClien
   return [...M.values()].map(G=>{ G.L.sort((x,y)=>String(x.devis_nom||x.variante).localeCompare(String(y.devis_nom||y.variante),"fr",{numeric:true})); return G; }); }
 const contenuDevis = d => [d.ouvertures.length&&"Menuiseries", d.vr&&d.vr.lignes.length&&"Volets roulants", aPT(d)&&"Portail", aVB(d)&&"Volets battants", aPP(d)&&"Portes palières", aVT(d)&&"Vitrages", aClim(d)&&"Clim", aSAV(d)&&"🔧 SAV"].filter(Boolean).join(" + ")||"Devis vide";
 function carteMetre(d, sous=false){ normaliser(d); const n=nbErreurs(d);
-  return `<div class="item${S.selMode&&S.sel.has(d.id)?" sel":""}" data-id="${d.id}">
+  const cf=d._conflit?`<div class="conflit" style="margin:6px 0;padding:8px 10px;border:2px solid #d3232f;border-radius:8px;background:#fdecec;color:#7a1218">⚠ <b>Modifié sur cet appareil et sur un autre</b> (autre version enregistrée le ${new Date(d._conflit.le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})}). Laquelle garder ?
+      <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" data-cfd="${d.id}">Prendre celle de l'autre appareil</button><button class="btn small" data-cfl="${d.id}">Garder celle de cet appareil</button></div></div>`:"";
+  return `<div class="item${S.selMode&&S.sel.has(d.id)?" sel":""}" data-id="${d.id}">${cf}
       <div class="row">${S.selMode?`<input type="checkbox" class="hchk" ${S.sel.has(d.id)?"checked":""} aria-label="Sélectionner">`:""}${sous?`<span class="t">${d.devis_nom?esc(d.devis_nom):`<i style="font-weight:600;color:#6b7385">${esc(contenuDevis(d))}</i>`}</span><button class="btn small" data-hren="${d.id}" title="Renommer ce devis" aria-label="Renommer ce devis" style="margin-left:6px">✏️</button>`:`<span class="t">${esc(d.client.nom||"Sans nom")}</span>${d.devis_nom?`<span class="badge b-warn" style="margin-left:6px">${esc(d.devis_nom)}</span>`:""}`}<span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span>${S.selMode?"":`<button class="btn small danger" data-hdel="${d.id}" title="Supprimer ce métré" aria-label="Supprimer ce métré">🗑</button>`}</div>
       <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.length} ouverture(s)${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}${aPT(d)?` · ${d.pt.elements.length} portail / portillon`:""}${aVB(d)?` · ${d.vb.lignes.length} volet(s) battant(s)`:""}${aPP(d)?` · ${d.pp.lignes.length} porte(s) palière(s)`:""}${aClim(d)?` · clim ${d.clim.lignes.length} pièce(s)`:""}</div>
       <div>${n?`<span class="badge b-err">${n} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} <span class="badge ${estDefinitif(d)?"b-err":"b-n"}">${estDefinitif(d)?"Métré définitif":"Devis"}</span> ${d.drive_attente?`<span class="badge b-n">☁ envoi en attente</span>`:d.drive?`<span class="badge b-ok">☁ dans le Drive</span>`:""} ${envoisClemence(d).length?`<span class="badge b-ok">📨 Clémence ${new Date(envoisClemence(d).slice(-1)[0].le).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</span>`:""}</div>
     </div>`; }
+/* Avant d'ouvrir un métré : s'il a pu changer sur un autre appareil, on récupère d'abord la dernière version du Drive (18/11/2026) */
+async function ouvrirMetreAJour(id){
+  if(driveDispo() && navigator.onLine && (Date.now()-(S.syncOuv||0))>60000){
+    if(!jetonValide()){ if(await demander("Avant de travailler dessus : vérifier dans le Drive si ce métré a été modifié sur un autre appareil ? (reconnexion Google)","Vérifier (conseillé)","Ouvrir sans vérifier")){ try{ await demanderJeton(); }catch(e){} } }
+    if(jetonValide()){ toast("Vérification des autres appareils…"); try{ await synchroniserMetres(false); S.syncOuv=Date.now(); }catch(e){} } }
+  const d=(await DB.all()).find(x=>x.id===id); if(!d){ renderHome(); return; }
+  if(d._conflit){ toast("Ce métré a été modifié sur deux appareils : choisis d'abord la bonne version"); renderHome(); return; }
+  S.dossier=d; S.tab="client"; renderDossier(); }
 async function renderHome(){
   S.homeOuverts=S.homeOuverts||new Set(); S.view="home"; S.dossier=null; S.ouv=null; setBar("Mes métrés", false);
   const ds=(await DB.all()).sort((a,b)=>(b.modifie||"").localeCompare(a.modifie||""));
@@ -1383,8 +1393,10 @@ async function renderHome(){
     S.homeOuverts.has(k)?S.homeOuverts.delete(k):S.homeOuverts.add(k); renderHome(); });
   $$(".item[data-id]").forEach(el=>el.onclick=e=>{ if(e.target.closest("button")) return;
     if(S.selMode){ const id=el.dataset.id; S.sel.has(id)?S.sel.delete(id):S.sel.add(id); renderHome(); return; }
-    S.dossier=ds.find(d=>d.id===el.dataset.id); S.tab="client"; renderDossier(); });
+    ouvrirMetreAJour(el.dataset.id); });
   $$("[data-hdel]").forEach(b=>b.onclick=()=>supprimerMetres([ds.find(d=>d.id===b.dataset.hdel)]));
+  $$("[data-cfd]").forEach(b=>b.onclick=e=>{ e.stopPropagation(); resoudreConflit(ds.find(d=>d.id===b.dataset.cfd), true); });
+  $$("[data-cfl]").forEach(b=>b.onclick=async e=>{ e.stopPropagation(); if(await demander("Garder la version de CET appareil et remplacer celle de l'autre appareil dans le Drive ?","Garder celle-ci")) resoudreConflit(ds.find(d=>d.id===b.dataset.cfl), false); });
   $$("[data-hren]").forEach(b=>b.onclick=async()=>{ const d=ds.find(x=>x.id===b.dataset.hren); const n=await demanderTexte(`Nom de ce devis (${contenuDevis(d)}) pour ${d.client.nom||"ce client"} :`, d.devis_nom||"", "Renommer"); if(n==null) return; d.devis_nom=n; await DB.put(d); renderHome(); setTimeout(envoyerEnAttente,300); });
   if($("#hSel")) $("#hSel").onclick=()=>{ S.selMode=true; S.sel=new Set(); renderHome(); };
   if($("#hSelFin")) $("#hSelFin").onclick=()=>{ S.selMode=false; renderHome(); };
@@ -1827,7 +1839,7 @@ function renderVRInline(){
       <span class="spacer"></span><button class="btn primary" id="vrLieAdd">+ Ajouter un volet roulant</button></div>`;
     $("#vrLieAdd").onclick=()=>{ ajouterVRLie(d,o); save(); renderVRInline(); }; return; }
   const i=d.vr.lignes.indexOf(l), k=`vr.lignes.${i}`, tp=C.types_pose.find(p=>p.id===v.type_pose);
-  { const cm=couleurVRDepuis(o); let ch=false; VR_COUL.forEach(([c])=>{ if(!l[c] && (v[c]||cm)){ l[c]=v[c]||cm; l["_auto_"+c]=l[c]; ch=true; } }); if(ch) save(); }   // pré-rempli : couleur générale des volets, sinon couleur de la menuiserie
+  { const cm=couleurVRDepuis(o); let ch=false; VR_COUL.forEach(([c])=>{ if(!l[c] && (v[c]||cm)){ l[c]=v[c]||cm; l["_auto_"+c]=l[c]; ch=true; } }); if(ch) DB.put(d,true); }   // pré-rempli : couleur générale des volets, sinon couleur de la menuiserie
   const html=`<div class="row" style="margin-bottom:10px"><h2 style="margin:0">Volet roulant de cette ouverture</h2><span id="vrInBadge"></span><span class="spacer"></span>
       <button class="btn small danger" id="vrLieDel">Retirer le volet</button></div>
     <div class="hint" style="margin-bottom:10px">Repère, quantité et cotes tableau repris de la menuiserie : <b>${esc(o.repere||"?")} · × ${esc(o.quantite)} · tableau <span id="vrInTab">${esc(coteTab(o,"L")||"?")} × ${esc(coteTab(o,"H")||"?")}</span></b>.
@@ -3857,7 +3869,7 @@ function nomMetre(d){
   return `${nom} ME ${mat.length?mat.join(" ET "):(d.vr.lignes.length?"VR":"")}${labS?" "+labS:""}${n>1?" V"+n:""}`.replace(/\s+/g," ").trim();
 }
 /* Empreinte du contenu, pour savoir s'il a changé depuis le dernier envoi */
-function empreinte(d){ const {drive,drive_attente,modifie,_e,...r}=d; const t=JSON.stringify(r); let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))|0; return String(h); }
+function empreinte(d){ const {drive,drive_attente,modifie,_e,_conflit,...r}=d; const t=JSON.stringify(r); let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))|0; return String(h); }
 /* Dossier du client : créé dans « Devis » ou « Métrés définitif(s) » au premier envoi, puis réutilisé là où il est.
    S'il attend encore son contrôle (directement dans l'un des deux) et que le choix Devis / Métré définitif a changé, il passe dans l'autre. */
 async function dossierClient(d){
@@ -3996,7 +4008,7 @@ function nonEnvoyeDrive(d){ return !!(d && (d.client.nom||d.ouvertures.length) &
 let ENVOI_EN_COURS=false;
 async function envoyerEnAttente(){
   if(!driveDispo() || !navigator.onLine || ENVOI_EN_COURS) return;
-  const attente=(await DB.all()).filter(x=>nonEnvoyeDrive(x) && !(S.view!=="home" && S.dossier && S.dossier.id===x.id));
+  const attente=(await DB.all()).filter(x=>nonEnvoyeDrive(x) && !x._conflit && !(S.view!=="home" && S.dossier && S.dossier.id===x.id));   // en conflit : on attend le choix de Nicolas, rien ne part
   if(!attente.length){ majBandeauDrive(0); return; }
   if(!jetonValide()){ majBandeauDrive(attente.length); return; }
   ENVOI_EN_COURS=true; let n=0;
@@ -4670,7 +4682,7 @@ async function synchroniserMetres(manuel=false){
   try{
     if(manuel) await demanderJeton();
     const vus=lireLS(SYNC_VUS,{}), suppr=new Set(lireLS(SYNC_SUPPR,[])), locaux=new Map((await DB.all()).map(x=>[x.id,x]));
-    const ign=lireLS(SYNC_IGN,{}), bases=new Set([...locaux.values()].map(x=>x.drive&&x.drive.base).filter(Boolean));
+    const ign=lireLS(SYNC_IGN,{}), bases=new Set([...locaux.values()].map(x=>x.drive&&x.drive.base).filter(Boolean)), importes=new Set();
     let files=[], page="";
     do{ const q="mimeType='application/json' and trashed=false and 'me' in owners";
       const r=await gdrive("https://www.googleapis.com/drive/v3/files?pageSize=200&orderBy=modifiedTime desc&fields=nextPageToken,files(id,name,modifiedTime,parents)&q="+encodeURIComponent(q)+(page?"&pageToken="+page:""));
@@ -4683,30 +4695,54 @@ async function synchroniserMetres(manuel=false){
       if(!R || R.app!=="appli-metre" || !R.id){ ign[f.id]={non:true}; continue; }
       if(suppr.has(R.id)){ ign[f.id]={id:R.id, nom:[R.client?.nom||"Sans nom", R.devis_nom].filter(Boolean).join(" – "), le:f.modifiedTime}; continue; }   // supprimé sur cet appareil : on le note pour pouvoir le récupérer
       delete ign[f.id];
-      const L=locaux.get(R.id), tF=new Date(f.modifiedTime).getTime();
+      const L=locaux.get(R.id), tF=new Date(f.modifiedTime).getTime(); importes.add(R.id);
       if(L){
         if(L.drive && L.drive.le && new Date(L.drive.le).getTime() >= tF-5000) continue;     // c'est notre propre envoi (ou plus ancien)
         const nonEnvoye = L.drive_attente || !L.drive || L.drive.sig!==empreinte(L);
         // modifié des deux côtés : la modification la plus récente gagne (celle de l'autre appareil si elle est postérieure à la dernière retouche ici)
-        if(nonEnvoye && !(L.modifie && new Date(L.modifie).getTime() < tF-5000)){ res.conflits.push(L.client?.nom||"Sans nom"); continue; }
+        if(nonEnvoye && !(L.modifie && new Date(L.modifie).getTime() < tF-5000)){
+          /* modifié ici ET sur un autre appareil : on ne choisit plus tout seul (18/11/2026). La version du Drive est gardée à côté, rien ne repart vers le Drive tant que Nicolas n'a pas choisi. */
+          R.drive={...(R.drive||{}), le:f.modifiedTime, dossier:(f.parents||[])[0]||R.drive?.dossier, base:f.name.replace(/\.json$/i,"")}; delete R.drive_attente; delete R._conflit;
+          L._conflit={le:f.modifiedTime, R}; await DB.put(L,true); res.conflits.push(L.client?.nom||"Sans nom"); importes.add(R.id); continue; }
       }
       R.drive={...(R.drive||{}), le:f.modifiedTime, dossier:(f.parents||[])[0]||R.drive?.dossier, base:f.name.replace(/\.json$/i,"")};
       delete R.drive_attente; if(typeof normaliser==="function") normaliser(R);
       R.drive.sig=empreinte(R);
-      R.modifie=f.modifiedTime; await DB.put(R,true); L?res.maj++:res.ajoutes++;
+      R.modifie=f.modifiedTime; delete R._conflit; await DB.put(R,true); L?res.maj++:res.ajoutes++;
       if(S.dossier && S.dossier.id===R.id && S.view!=="home") S.dossier=R;
+    }
+    /* Métrés supprimés sur un autre appareil (mis à la corbeille du Drive) : on les retire aussi ici (18/11/2026).
+       Seulement s'ils avaient été envoyés, qu'aucun fichier du Drive ne les porte encore, et qu'ils n'ont pas de modification non envoyée ici. */
+    const noms=new Set(files.map(f=>f.name)); res.supprimes=[]; res.gardes=[];
+    for(const L of locaux.values()){
+      if(!L.drive || !L.drive.le || !L.drive.base || importes.has(L.id) || noms.has(L.drive.base+".json")) continue;
+      let parti=false;
+      try{ if(L.drive.dossier){ const fd=await fetch(`https://www.googleapis.com/drive/v3/files/${L.drive.dossier}?fields=trashed&supportsAllDrives=true`,{headers:{Authorization:"Bearer "+G_JETON}});
+          if(fd.status===404) parti=true; else if(fd.ok){ const j=await fd.json(); if(j.trashed) parti=true;
+            else { const q=`'${L.drive.dossier}' in parents and name='${q_(L.drive.base+".json")}' and trashed=false`; const r2=await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id)&q="+encodeURIComponent(q)); parti=!(r2.files||[]).length; } } } }
+      catch(e){ continue; }
+      if(!parti) continue;
+      if(L.drive_attente || L.drive.sig!==empreinte(L) || L._conflit){ res.gardes.push(L.client?.nom||"Sans nom"); continue; }   // modifié ici depuis : on le garde
+      await DB.del(L.id); res.supprimes.push([L.client?.nom,L.devis_nom].filter(Boolean).join(" – ")||"Sans nom");
     }
     ecrireLS(SYNC_VUS,vus); ecrireLS(SYNC_IGN,ign); ecrireLS(SYNC_LE,new Date().toISOString());
     res.ignores=Object.entries(ign).filter(([,x])=>x.id&&suppr.has(x.id));
     return res;
   } finally { SYNC_EN_COURS=false; }
 }
+/* Conflit : Nicolas choisit la version à garder */
+async function resoudreConflit(d, garderDrive){ const R=d._conflit&&d._conflit.R; if(!R) return;
+  if(garderDrive){ if(typeof normaliser==="function") normaliser(R); R.drive.sig=empreinte(R); R.modifie=d._conflit.le; delete R._conflit; await DB.put(R,true); toast("Version de l'autre appareil reprise"); }
+  else { d.drive={...R.drive, sig:"x"}; delete d._conflit; d.drive_attente=true; await DB.put(d,true); toast("Version de cet appareil gardée : elle part dans le Drive"); envoyerEnAttente(); }
+  renderHome(); }
 async function synchroAccueil(manuel){
   try{ const r=await synchroniserMetres(manuel); if(!r) { if(manuel) toast("Pas de réseau ou Drive indisponible"); return; }
     const t=[r.ajoutes&&`${r.ajoutes} métré(s) ajouté(s)`, r.maj&&`${r.maj} mis à jour`].filter(Boolean).join(" · ");
-    if(r.conflits.length) toast(`Gardé la version de cet appareil (modifiée, pas encore envoyée) : ${r.conflits.join(", ")}`);
+    if(r.conflits.length) toast(`⚠ Modifié sur cet appareil ET sur un autre : ${r.conflits.join(", ")} – choisis la bonne version sur la carte`);
+    else if(r.supprimes&&r.supprimes.length) toast(`Supprimé${r.supprimes.length>1?"s":""} sur un autre appareil, retiré${r.supprimes.length>1?"s":""} ici : ${r.supprimes.join(", ")} (encore 30 jours dans la corbeille du Drive)`);
     else if(t || manuel) toast(t||"Tout est à jour");
-    if((r.ajoutes||r.maj) && S.view==="home") renderHome(); else { const z=document.getElementById("hSyncLe"); if(z) z.textContent=texteSyncLe(); }
+    if(r.gardes&&r.gardes.length) setTimeout(()=>toast(`Supprimé sur un autre appareil mais modifié ici, donc gardé : ${r.gardes.join(", ")}`),3500);
+    if((r.ajoutes||r.maj||r.conflits.length||(r.supprimes&&r.supprimes.length)) && S.view==="home") renderHome(); else { const z=document.getElementById("hSyncLe"); if(z) z.textContent=texteSyncLe(); }
     envoyerEnAttente();   // et dans l'autre sens : ce qui est sur cet appareil part dans le Drive
     if(manuel && r.ignores && r.ignores.length) await proposerRecuperation(r.ignores);
   }catch(e){ if(manuel) toast("Drive : "+e.message); }

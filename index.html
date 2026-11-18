@@ -71,6 +71,8 @@ input:focus,select:focus,textarea:focus{outline:3px solid #c9d6f3;border-color:v
 .schema img{max-width:100%;max-height:220px}
 .sch{position:relative;display:inline-block;margin:0 auto;padding:0 28px}
 .sch img{display:block;max-width:100%}
+.sch-im{position:relative;display:block} .psch .sch-im{display:inline-block} .sch-tap{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+.sch-bloc{display:flex;flex-direction:column;align-items:center;width:100%} .tap-badge{display:inline-block;flex:none;margin:4px auto 0;background:#FAEEDA;border:1.5px solid #BA7517;color:#633806;font-weight:700;font-size:12px;border-radius:999px;padding:2px 12px;text-transform:uppercase;letter-spacing:.3px}
 .sch-v img{max-height:360px}
 .sch .sl{position:absolute;transform:translate(-50%,-50%);background:#fff;border:2px solid var(--red);color:var(--red);font-weight:800;border-radius:7px;padding:1px 6px;font-size:14px;white-space:nowrap;display:flex;align-items:center;gap:4px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .sch .sl i{font-style:normal;background:var(--navy);color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;display:grid;place-items:center}
@@ -485,6 +487,7 @@ function prevoirAuto(d){ const L=[], n=x=>x>1?` (${x})`:"";
   const man=[d.vr&&d.vr.lignes.length&&d.vr.manutention, aVB(d)&&d.vb.manutention].filter(Boolean); [...new Set(man)].forEach(m=>L.push(`Matériel d'accès : ${m}`));
   if(d.ouvertures.length){ const dep=d.ouvertures.filter(o=>o.depose_totale||o.pose==="neuf_depose").length; if(dep) L.push(`Dépose et évacuation des anciennes menuiseries${n(dep)}`);
     const gros=d.ouvertures.filter(o=>(num(coteTab(o,"L"))||0)*(num(coteTab(o,"H"))||0)>=3e6).length; if(gros) L.push(`Grand châssis : prévoir ventouses / 2 personnes${n(gros)}`);
+    const tp=d.ouvertures.filter(o=>o.tapee_persienne); if(tp.length) L.push(`Tapées de persienne contre le dormant : ${tp.map(o=>o.repere||("n° "+(o.num_poseur||"?"))).join(", ")}`);
     L.push("Mousse PU, silicone, compribande, cales, visserie"); }
   if(d.vr&&d.vr.lignes.length&&/moteur|radio|filaire|solaire|électr/i.test(d.vr.motorisation||"")) L.push("Volets motorisés : alimentation électrique à vérifier / électricien");
   if(aVB(d)){ const v=d.vb, sc=v.lignes.filter(l=>!vbSurGonds(v,l)&&/sceller/i.test(v.gonds||"")), ex=v.lignes.filter(l=>vbSurGonds(v,l));
@@ -773,6 +776,22 @@ depose_2:{d:"h",pts:[[50,9.6,0],[50,71.8,0],[50,95.7,0],[16.9,56.9,1]]}, depose_
 function positionsLong(pos){ const n=pos.p.length, along=Array(n).fill(50), seuil=pos.d==="h"?12:30;
   for(let i=0;i<n;i++) for(let j=i+1;j<n;j++) if(Math.abs(pos.p[i]-pos.p[j])<seuil){ along[i]=Math.min(along[i],38); along[j]=Math.max(along[j],62); }
   return along; }
+/* ---------- Tapées de persienne (18/11/2026) : dessinées contre le dormant, côté extérieur (2 en plan, 1 en haut en coupe) ----------
+   Coordonnées en pixels de chaque image de schéma (taille réelle) ; les tapées ne croisent aucune flèche de cote. */
+const TAPEES = {
+  tableau_2_v3:  {w:520,h:135, r:[[117,73.5,44,4.5],[359,73.5,44,4.5]]},
+  embrasure_1_v3:{w:520,h:227, r:[[117,116.5,44,4.5],[356,116.5,44,4.5]]},
+  feuillure_1_v3:{w:520,h:173, r:[[146,47.5,44,4.5],[337,47.5,44,4.5]]},
+  depose_2:      {w:520,h:209, r:[[116,112.5,44,4.5],[359,112.5,44,4.5]]},
+  neuf_2:        {w:520,h:209, r:[[116,112.5,44,4.5],[359,112.5,44,4.5]]},
+  tableau_1_v2:  {w:170,h:520, r:[[68.5,103,4.5,44]]},
+  embrasure_2_v2:{w:196,h:520, r:[[96.5,109,4.5,44]]},
+  feuillure_2_v2:{w:250,h:520, r:[[130.5,121,4.5,44]]},
+  depose_1:      {w:337,h:520, r:[[187.5,107,4.5,44]]},
+  neuf_1:        {w:277,h:520, r:[[187.5,107,4.5,44]]} };
+function tapeesSVG(key){ const T=TAPEES[key]||TAPEES[key.replace(/_ds$/,"")]; if(!T) return "";
+  return `<svg class="sch-tap" viewBox="0 0 ${T.w} ${T.h}" preserveAspectRatio="none" aria-hidden="true"><defs><pattern id="tph" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="3" stroke="#BA7517" stroke-width="0.9"/></pattern></defs>
+    ${T.r.map(([x,y,w,h])=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#FAEEDA" stroke="#BA7517" stroke-width="1.3"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#tph)"/>`).join("")}</svg>`; }
 function schemaHTML(o,k,cls="",masquerVides=false){
   const P=CAT.poses[o.pose]; let key=k==="L"?P.schemaL:P.schemaH;
   if(k==="H" && o.depose_seuil && SCHEMAS[key+"_ds"]) key+="_ds";  // dépose du seuil/appui : la flèche descend sous l'appui
@@ -783,7 +802,8 @@ function schemaHTML(o,k,cls="",masquerVides=false){
     const pt=pos.pts&&pos.pts[i], rot=pt?pt[2]:pos.d==="v";
     const st = pt ? `left:${pt[0]}%;top:${pt[1]}%` : pos.d==="h" ? `top:${pos.p[i]}%;left:${along[i]}%` : `left:${pos.p[i]}%;top:${along[i]}%`;
     return `<span class="sl${val?"":" vide"}${rot?" rot":""}" style="${st}"><i>${numCote(o,k,i)}</i>${esc(val||"?")}</span>`; }).join("");
-  return `<div class="sch ${cls} sch-${pos?pos.d:"h"}"><img src="${SCHEMAS[key]}" alt="">${lab}</div>`;
+  const sch=`<div class="sch ${cls} sch-${pos?pos.d:"h"}"><span class="sch-im"><img src="${SCHEMAS[key]}" alt="">${o.tapee_persienne?tapeesSVG(key):""}</span>${lab}</div>`;
+  return o.tapee_persienne ? `<div class="sch-bloc">${sch}<span class="tap-badge">Tapées de persienne</span></div>` : sch;
 }
 
 /* ---------- Combinaisons de pose (règles de Nicolas) ----------
@@ -1232,7 +1252,7 @@ document.addEventListener("change", e=>{ if(e.target.matches("select[data-k],sel
 
 function refreshLive(k){
   if(S.view==="ouverture"){
-    if(k==="gamme"||k==="renovation"||k==="applique_neuf"||k==="depose_totale"||(k.startsWith("vantaux.")&&!modeleDe(S.ouv))){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
+    if(k==="gamme"||k==="renovation"||k==="applique_neuf"||k==="depose_totale"||k==="tapee_persienne"||(k.startsWith("vantaux.")&&!modeleDe(S.ouv))){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(String(k).startsWith("erp.")){ if(["erp.actif","erp.ap","erp.ap_type","erp.groom"].includes(k)) syncAccessoiresERP(S.ouv); const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(k==="dormant_aile"||k==="delignage"){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(k==="comp.type"){ const c=S.ouv.comp; if(c.type && !c.h) c.h=String((c.type.match(/^(\d+)/)||[])[1]||""); if(c.type && !c.compris) c.compris=COMP_COMPRIS[1]; if(!c.type){ c.h=""; c.compris=""; } save(); const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
@@ -1594,6 +1614,7 @@ function renderOuverture(){
 
   <div class="card"><h2><span class="num">2</span>Pose et dépose</h2><div class="checks">
     ${POSES_RENO.includes(o.pose)&&!o.applique_neuf?F.chk("renovation","Pose en rénovation (sur cadre existant)",o.renovation):""}
+    ${o.pose!=="libre"?F.chk("tapee_persienne","Tapées de persienne",o.tapee_persienne):""}
     ${POSES_APPLIQUE.includes(o.pose)&&!o.renovation?F.chk("applique_neuf","Pose en applique",o.applique_neuf):""}
     ${o.pose==="neuf_depose"&&!o.renovation?`<label class="chip on" title="Toujours vrai en neuf avec dépose"><input type="checkbox" checked disabled>Dépose totale (d'office)</label>`:(o.renovation?"":F.chk("depose_totale","Dépose totale",o.depose_totale))}
     ${F.chk("deligner","Déligner les cochonnets",o.deligner)}${F.chk("depose_seuil","Dépose du seuil ou appui",o.depose_seuil)}

@@ -47,7 +47,10 @@ Adresse finale de la Mini DAO : **https://foissac-fermetures.github.io/appli-met
 Chrome ne propose pas « Installer » pour la Mini DAO (seulement « Ouvrir dans Métré ») et « Créer un raccourci » n'a plus la case « Ouvrir dans une fenêtre ».
 Solution mise en place : raccourci **Bureau › « Mini DAO »** = `chrome_proxy.exe --profile-directory="Default" --app=https://foissac-fermetures.github.io/appli-metre/dao/`,
 icône `Documents\Mini DAO\mini-dao.ico`. Ouvre une vraie fenêtre sans barre d'adresse, avec le même profil Chrome que le métré (mêmes plans, même connexion Google).
-Même problème possible sur le Mac avec Chrome (Safari : Fichier › Ajouter au Dock marche).
+Même raccourci corrigé pour le CRM « Mes dossiers Gourdon » (Bureau, menu Démarrer, barre des tâches), icône `Documents\CRM Gourdon\crm.ico`.
+**MacBook Pro (18/11/2026)** : Métré déjà installé (appli Chrome). Pour la Mini DAO et le CRM, Safari et Chrome sont en lecture seule pour Claude ;
+solution : deux petites applis dans `~/Applications` (« Mini DAO.app », « Mes dossiers Gourdon.app ») dont le script lance
+`open -na "Google Chrome" --args --profile-directory=Default --app=<adresse>` (même profil Chrome que le métré). Les trois sont dans le Dock (Finder › Fichier › Ajouter au Dock).
 
 Une fois installée, la Mini DAO s'ouvre dans sa propre fenêtre, avec son icône, et **fonctionne sans Internet**.
 

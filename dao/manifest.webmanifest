@@ -1,0 +1,17 @@
+{
+  "name": "Mini DAO 2D – Foissac Fermetures",
+  "short_name": "Mini DAO",
+  "start_url": "./",
+  "scope": "./",
+  "id": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1e232b",
+  "theme_color": "#1e232b",
+  "lang": "fr",
+  "description": "Petit logiciel de dessin 2D inspiré d'AutoCAD : traits, rectangles, polylignes, parallèles, cotes, hachures, cartouche et impression A4/A3.",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

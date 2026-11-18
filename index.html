@@ -2054,12 +2054,19 @@ function dessinMenuiserie(o, opt={}){
   if(g.type && typeof num==="function"){
     const Hmm=num(f.H)??Hr, px=(Y1-Y0)/(Hmm||1000), GC="#3d4352";
     if(g.type==="grille"){ for(let k=1;k<9;k++){ const x=X0+(X1-X0)*k/9; s+=line(x,Y0+4,x,Y1-4,2.2,GC); } s+=line(X0,Y0+(Y1-Y0)*0.15,X1,Y0+(Y1-Y0)*0.15,2.2,GC)+line(X0,Y1-(Y1-Y0)*0.15,X1,Y1-(Y1-Y0)*0.15,2.2,GC); }
-    else { const hb = g.type==="balconnet" ? (num(g.H)??450) : (num((String(g.modele||"").match(/H(\d{3})/)||[])[1]) ?? 0);
+    else { const cg=typeof calcGC==="function"?calcGC(o):{}, hNorme=cg.hProp!=null&&cg.hProp>0?cg.hProp:null;   // hauteur mini imposée par la norme (haut à 1 m du sol)
+      const hb = g.type==="balconnet" ? (num(g.H)??hNorme??450) : (num((String(g.modele||"").match(/H(\d{3})/)||[])[1]) ?? 0);
       const yT=Math.max(Y0+6, Y1-Math.max(hb*px, 6));
       s+=`<rect x="${X0-6}" y="${yT-3}" width="${X1-X0+12}" height="6" rx="2" fill="${GC}"/>`;
       if(hb>0){ s+=line(X0-4,Y1-2,X1+4,Y1-2,2.4,GC); const n=Math.max(4,Math.round((X1-X0)/16)); for(let k=1;k<n;k++){ const x=X0+(X1-X0)*k/n; s+=line(x,yT,x,Y1-2,1.6,GC); }
         if(g.losange){ const cx=(X0+X1)/2, cy=(yT+Y1)/2, r=Math.min(26,(Y1-yT)/2-3); s+=`<polygon points="${cx},${cy-r} ${cx+r},${cy} ${cx},${cy+r} ${cx-r},${cy}" fill="none" stroke="${GC}" stroke-width="2"/>`; } }
-      s+=`<text x="${(X0+X1)/2}" y="${yT-8}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="${GC}">${g.type==="barre"?"Barre d'appui":"Garde-corps"}${hb>0&&g.type==="balconnet"?" "+hb:""}</text>`; }
+      s+=`<text x="${(X0+X1)/2}" y="${yT-8}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="${GC}">${g.type==="barre"?"Barre d'appui":"Garde-corps"}</text>`;
+      /* cote de hauteur du balconnet sur le dessin (18/11/2026) + hauteur mini de la norme */
+      if(g.type==="balconnet" && hb>0){ const xc=X0+14, CG="#1f7a3a";
+        s+=line(xc,Y1-2,xc,yT,1.4,CG)+line(xc-5,yT,xc+5,yT,1.4,CG)+line(xc-5,Y1-2,xc+5,Y1-2,1.4,CG);
+        s+=`<rect x="${xc+4}" y="${(yT+Y1)/2-10}" width="${hNorme?236:60}" height="${hNorme?32:18}" rx="3" fill="#fff" fill-opacity=".9" stroke="${CG}" stroke-width=".8"/>`
+          +`<text x="${xc+9}" y="${(yT+Y1)/2+3}" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="${CG}">H ${hb}${num(g.H)==null?" ?":""}</text>`
+          +(hNorme?`<text x="${xc+9}" y="${(yT+Y1)/2+16}" font-family="Arial,sans-serif" font-size="10" fill="${hb<hNorme?"#d3232f":CG}">norme : mini ${hNorme} (haut à ${cg.haut} du sol)</text>`:""); } }
   }
   /* ---- cotes : largeur et hauteur de fabrication, hauteur du coffre ---- */
   const COT="#d3232f";

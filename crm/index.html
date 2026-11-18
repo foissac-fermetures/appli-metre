@@ -1086,7 +1086,7 @@ h2{text-transform:none;letter-spacing:0;font-weight:800;font-size:1.12rem}
   <div id="v-mail" hidden>
     <section class="panel"><div class="hd"><h2>Mes mails</h2><div class="filters"><label class="sub">depuis <select id="mper"><option value="2">2 jours</option><option value="7" selected>7 jours</option><option value="14">14 jours</option><option value="30">30 jours</option></select></label><button class="btn pri" id="mref" type="button">🔄 Actualiser</button></div></div>
       <div id="mrecap" class="mrecap"><div class="empty">Clique sur « Actualiser » : je lis tes mails, je les range par client et je te prépare ce qu'il y a à noter.</div></div></section>
-    <div id="mbody" style="display:grid;gap:16px"></div>
+    <div id="mlbody" style="display:grid;gap:16px"></div>
   </div>
   <div id="v-four" hidden>
     <section class="panel"><div class="hd"><h2>Mes fournisseurs</h2><div class="filters"><input type="search" id="fqs" class="fqs" placeholder="Chercher un fournisseur, un nom, un produit…" aria-label="Chercher un fournisseur"><button class="btn pri sm" id="fadd" type="button">+ Fournisseur</button></div></div>
@@ -4617,7 +4617,7 @@ async function triValider(o, card){ const btn = card.querySelector("[data-tok]")
     catch(e){ draft = " · ⚠️ brouillon pas créé (" + (e && e.code === "consent_required" ? "autorise Gmail avec le bandeau bleu" : String((e && e.message) || e).slice(0, 60)) + ")"; } }
   if (mailRep && mailRep.id === o.m.id) mailRep = null;
   await mailMark(o.m.id + ":done", "ok"); toast((done.length ? done.length + " info" + (done.length > 1 ? "s rangées" : " rangée") : "Mail traité") + draft); renderAll(); renderMails(); }
-function renderMails(){ const box = $("#mbody"), rc = $("#mrecap"); if (!box || !rc) return; mailFournIx = null; mailNameIx = null;
+function renderMails(){ const box = $("#mlbody"), rc = $("#mrecap"); if (!box || !rc) return; mailFournIx = null; mailNameIx = null;
   const A = mailsList.filter(m => !MAIL_ME.test(mailAddr(m.from).a)).map(m => mailAna(m)), R = triSort(A);
   const tn = $("#tmail-n"); if (tn) tn.textContent = R.tt.length || "";
   if (mailErr === "GMAIL_API_OFF") rc.innerHTML = `<div class="empty" style="display:grid;gap:10px;justify-items:center;text-align:center"><b>L'autorisation est bonne, mais le « service Gmail » n'est pas encore activé pour ton application Google « Appli metre Foissac ».</b><span>C'est un réglage à faire une seule fois : ouvre le lien ci-dessous (connecté avec nb@foissacfermetures.fr), clique sur le bouton bleu <b>« Activer »</b>, attends une minute, puis reviens cliquer sur Actualiser.</span><a class="btn pri" href="https://console.cloud.google.com/apis/library/gmail.googleapis.com?project=1087131197985" target="_blank" rel="noopener">Ouvrir la page pour activer Gmail</a></div>`;

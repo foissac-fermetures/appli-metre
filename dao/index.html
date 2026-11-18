@@ -1705,7 +1705,13 @@ async function deposerDrive(nom, blob, parent, description){
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
 function lsSet(k,v){ try{ v==null ? localStorage.removeItem(k) : localStorage.setItem(k,v); }catch(e){} }
 /* Même recherche (et même mémoire « plans_dossier ») que l'appli de métré ; créé dans Mon Drive s'il n'existe pas. */
-async function dossierPlans(){ const k="plans_dossier"; let id=lsGet(k);
+/* Dossiers réels de Nicolas, repérés par leur identifiant (choix de Nicolas du 18/11/2026) : jamais de doublon, même si un dossier est renommé. */
+const DOSSIERS_DAO = {
+  plan:   "1VmeCGm30gWiPxYmOkP4gJbtpkFl31aio",   // Mon Drive › 09 - Plan (PDF, joints au métré du client par l'appli de métré)
+  metres: ""                                     // Mon Drive › Métrés (rempli après sa création au 1er essai)
+};
+async function dossierFixe(id){ if(!id) return null; try{ const f=await gdrive(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,trashed`); if(f && !f.trashed) return id; }catch(e){ if(!/Drive 404/.test(e.message)) throw e; } return null; }
+async function dossierPlans(){ const k="plans_dossier"; { const fixe=await dossierFixe(DOSSIERS_DAO.plan); if(fixe){ lsSet(k,fixe); return fixe; } } let id=lsGet(k);
   if(id){ try{ const f=await gdrive(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,trashed`); if(f && !f.trashed) return id; }catch(e){ if(!/Drive 404/.test(e.message)) throw e; } lsSet(k,null); }
   const q="mimeType='application/vnd.google-apps.folder' and trashed=false and (name='09 - Plan' or name='Plan' or name='Plans' or name='PLAN' or name='PLANS')";
   const r=await gdrive("https://www.googleapis.com/drive/v3/files?pageSize=20&includeItemsFromAllDrives=true&fields=files(id,name)&q="+encodeURIComponent(q));
@@ -1713,7 +1719,7 @@ async function dossierPlans(){ const k="plans_dossier"; let id=lsGet(k);
   id = f ? f.id : await dossierDrive("09 - Plan","root"); lsSet(k,id); return id; }
 async function dossierMdao(){ const an=String(new Date().getFullYear()), k="minidao_dossier_"+an; let id=lsGet(k);
   if(id){ try{ const f=await gdrive(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,trashed`); if(f && !f.trashed) return id; }catch(e){ if(!/Drive 404/.test(e.message)) throw e; } }
-  const metres=await dossierDrive("Métrés","root"), plans=await dossierDrive("Plans",metres); id=await dossierDrive(an,plans); lsSet(k,id); return id; }
+  const metres=(await dossierFixe(DOSSIERS_DAO.metres)) || await dossierDrive("Métrés","root"), plans=await dossierDrive("Plans",metres); id=await dossierDrive(an,plans); lsSet(k,id); return id; }
 let driveEnCours=false;
 async function rangerDrive(quoi){ quoi=quoi||{pdf:true,mdao:true};
   if(driveEnCours) return; driveEnCours=true; const nom=(planNameTxt||"Plan").replace(/[\\/:*?"<>|]+/g,"-").trim(); const faits=[];

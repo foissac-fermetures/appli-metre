@@ -188,6 +188,8 @@ dans **Mon Drive › Métrés › Plans › <année>**.
   la même mémoire `plans_dossier`. Si aucun dossier n'est trouvé, il crée « 09 - Plan » dans Mon Drive.
 - Intérêt : l'appli de métré joint à la fin du PDF d'un métré tout PDF de « 09 - Plan » dont le nom contient le nom du client.
   Comme le 💾 de la Mini DAO nomme les plans **« Plan <client> »**, « Plan Dupont.pdf » est joint au métré DUPONT.
+- `DOSSIERS_DAO` (choix de Nicolas, 18/11/2026) : identifiants fixes de « 09 - Plan » (`1VmeCGm30gWiPxYmOkP4gJbtpkFl31aio`, racine de Mon Drive)
+  et de « Métrés ». `dossierPlans()` et `dossierMdao()` les utilisent d'abord ; la recherche par nom ne sert que si le dossier a été supprimé.
 - `dossierMdao()` retrouve ou crée `Métrés` (à la racine de Mon Drive), puis `Plans`, puis `<année>`.
   ⚠️ **À vérifier avec Nicolas** : s'il a déjà un dossier « Métrés » ailleurs dans son Drive, adapter `dossierMdao()`
   pour viser le bon, si possible par son identifiant, comme `DOSSIERS_CONNUS` dans l'appli de métré, et ne **jamais** créer de doublon.
@@ -238,6 +240,7 @@ PROMPT-POUR-CLAUDE-PRO.md ← le message que Nicolas te donne
 |---|---|---|
 | 18/11/2026 | dao-v1 | Mise en ligne dans `foissac-fermetures/appli-metre/dao/` (commit 02fc465). |
 | 18/11/2026 | dao-v2 | Artefact sur le compte Pro (sample + downloads) ; nouvelle adresse `claudeUrl`, l'ancienne est ignorée. |
+| 18/11/2026 | dao-v3 | Drive : « 09 - Plan » fixé par son identifiant (`DOSSIERS_DAO.plan`, à la racine de Mon Drive). « Métrés » n'existait pas : Nicolas a choisi de le créer dans Mon Drive ; son identifiant sera mis dans `DOSSIERS_DAO.metres` après le 1er essai. |
 
 ## 11. Point de vigilance connu : le service worker de l'appli de métré
 

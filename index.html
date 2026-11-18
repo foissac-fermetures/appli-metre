@@ -214,7 +214,10 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .finrow select{flex:1;min-width:0}.finrow .fincote{flex:0 0 150px}
 .modfam{margin-bottom:8px}.modfam>span{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
 .modgrid{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
-.q-fixe .q-porte{display:none} .gc-det>summary{cursor:pointer;min-height:40px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.q-fixe .q-porte{display:none} .sk-symgrp{flex-wrap:wrap}
+.sk-rel{border:2px solid var(--navy);border-radius:10px;padding:8px 10px;margin:8px 0;background:#f7f9fd} .sk-rel-h{display:flex;gap:10px;align-items:center;margin-bottom:6px} .sk-rel-h button{margin-left:auto}
+.sk-rel-c{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:12px;align-items:start} .sk-rel-svg{width:100%;background:#fff;border:1px solid var(--line);border-radius:8px} .sk-rel-etape{font-weight:700;color:var(--navy)}
+@media (max-width:700px){ .sk-rel-c{grid-template-columns:1fr} } .sk-sym.on{background:var(--navy);color:#fff} .gc-det>summary{cursor:pointer;min-height:40px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 input.f-err,select.f-err,.chip.f-err,.modgrid.f-err,#chgPose.f-err{border-color:#d3232f!important;background:#fdecec!important;box-shadow:0 0 0 2px rgba(211,35,47,.25)}
 input.f-warn,select.f-warn,.chip.f-warn,.modgrid.f-warn{border-color:#e08a00!important;background:#fff4e0!important;box-shadow:0 0 0 2px rgba(224,138,0,.25)}
 .modgrid.f-err,.modgrid.f-warn{border:2px solid;border-radius:10px;padding:4px} .pb-det>summary,.acc-det>summary{cursor:pointer;min-height:40px;display:flex;align-items:center;gap:10px;flex-wrap:wrap} .acc-det{border:1.5px solid var(--line);border-radius:10px;padding:6px 10px;margin-top:6px} .acc-det[open]{border-color:var(--navy)}
@@ -757,6 +760,7 @@ function fenetreSuivanteTLM(){ TLM.suite=false; if(S.view!=="ouverture"||!S.ouv|
     if(f){ TLM.cible=f; f.focus(); f.scrollIntoView({block:"center"}); parler("Nouvelle fenêtre. "+(libelleCase(f)||"Première cote")); } majPastilleTLM(); },350); }
 function recevoirMesure(m){
   TLM.derniere=m; vibrer(60); let alerte="";
+  if(typeof TLM.releve==="function"){ TLM.releve(m); return; }   // relevé de pièce en cours : la mesure est un mur / une fenêtre / la hauteur
   if(TLM.suite){ fenetreSuivanteTLM(); return; }                 // appui sur le GLM après la dernière cote → fenêtre suivante
   let el=TLM.cible;
   if(!el || !document.contains(el)){ majPastilleTLM(); toast(`Mesure ${Math.round(m*1000)} mm : touche d'abord la case à remplir`); parler("Touche d'abord une case"); return; }
@@ -2273,8 +2277,51 @@ function barreOutils(avecCouleurs=true){
     <div class="sk-grp"><button class="btn small" data-pen="eraseObj" title="Efface le trait entier touché">🧽 Gomme trait</button><button class="btn small" data-pen="erase" title="Efface comme une gomme">◻ Gomme</button>
       <button class="btn small" id="skTexteMain" title="Touche le dessin puis écris au stylet : l'iPad transforme ton écriture en texte">✍︎ Texte au stylet</button>
       <button class="btn small" id="skUndo">↶</button><button class="btn small" id="skRedo">↷</button><button class="btn small danger" id="skClear">Effacer tout</button>
-      <label class="chip" id="skPenOnly"><input type="checkbox">Stylet seulement</label><button class="btn small" id="skTablette" title="Dessiner sur l'iPad pendant que le dessin s'affiche ici">📲 Dessiner sur l'iPad</button></div></div>`;
+      <label class="chip" id="skPenOnly"><input type="checkbox">Stylet seulement</label><button class="btn small" id="skTablette" title="Dessiner sur l'iPad pendant que le dessin s'affiche ici">📲 Dessiner sur l'iPad</button></div>
+    <div class="sk-grp sk-symgrp"><label class="chip${S.skRedresse!==false?" on":""}" id="skRedresse" title="Traits presque droits → bien droits ; rectangles et ronds griffonnés → formes propres"><input type="checkbox"${S.skRedresse!==false?" checked":""}>📐 Redresser mes traits</label>
+      <span class="hint">Poser :</span>${SK_SYMBOLES.map(([k,l,g])=>`<button class="btn small sk-sym" data-sksym="${k}" title="${l} : touche le bouton puis l'endroit du dessin">${l}</button>`).join("")}
+      <button class="btn small" id="skRot" title="Tourner d'un quart de tour le dernier symbole posé (ou celui sélectionné)">⟳ 90°</button>
+      <button class="btn small primary" id="skReleve" title="Mesurer les murs au télémètre (ou à la main) : le plan de la pièce se dessine tout seul">📏 Relever la pièce</button>
+      <button class="btn small" id="skImport" title="Mettre en fond un plan (photo, capture, PDF – ex. scan LiDAR magicplan)">🖼 Importer un plan</button><input type="file" id="skImportF" accept="image/*,application/pdf" hidden></div><!--sym-->
+    <div id="skRelPanel" class="sk-rel hide"></div></div>`;
 }
+/* Symboles à poser d'un toucher (18/11/2026). [clé, libellé, groupe]. « mur » et « goulotte » : le prochain trait devient un mur / une goulotte bien droits */
+const SK_SYMBOLES = [["fenetre","🪟 Fenêtre","men"],["porte","🚪 Porte","men"],["pf","Porte-fenêtre","men"],["coul","Coulissant","men"],["mur","▬ Mur","men"],
+  ["split","Split","clim"],["console","Console","clim"],["gainable","Gainable","clim"],["cassette","Cassette","clim"],["ue","Groupe ext.","clim"],["goul","Goulotte","clim"],["tableau","Tableau élec.","clim"],["pompe","Pompe relevage","clim"]];
+/* dessin d'un symbole (vue de dessus), centré sur (0,0), taille de base 100 */
+function dessinSymbole(ctx, k){ const L=(x1,y1,x2,y2)=>{ ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }, box=(x,y,w,h,fill)=>{ ctx.beginPath(); ctx.rect(x,y,w,h); if(fill){ ctx.fillStyle=fill; ctx.fill(); } ctx.stroke(); },
+    lab=(t,c="#fff",fs=16)=>{ ctx.fillStyle=c; ctx.font=`800 ${fs}px Arial,sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(t,0,1); };
+  ctx.lineWidth=3; ctx.strokeStyle="#1b2f5e"; ctx.lineCap="round";
+  switch(k){
+    case "fenetre": box(-50,-8,100,16,"#fff"); L(-50,0,50,0); break;
+    case "porte": ctx.fillStyle="#fff"; box(-45,-6,90,12,"#fff"); L(-45,6,-45,-84); ctx.setLineDash([6,5]); ctx.beginPath(); ctx.arc(-45,6,90,-Math.PI/2,0); ctx.stroke(); ctx.setLineDash([]); break;
+    case "pf": box(-50,-6,100,12,"#fff"); L(-50,6,-50,-44); L(50,6,50,-44); ctx.setLineDash([6,5]); ctx.beginPath(); ctx.arc(-50,6,50,-Math.PI/2,0); ctx.stroke(); ctx.beginPath(); ctx.arc(50,6,50,Math.PI,-Math.PI/2); ctx.stroke(); ctx.setLineDash([]); break;
+    case "coul": box(-55,-9,110,18,"#fff"); ctx.lineWidth=4; L(-52,-3,8,-3); L(-8,4,52,4); ctx.lineWidth=2; L(18,-3,32,-3); L(26,-8,32,-3); L(26,2,32,-3); break;
+    case "split": ctx.strokeStyle="#1f4fd8"; box(-40,-11,80,22,"#dce6ff"); lab("SPLIT","#1f4fd8",14); break;
+    case "console": ctx.strokeStyle="#7b2cbf"; box(-26,-16,52,32,"#efe2fb"); lab("C","#7b2cbf",18); break;
+    case "gainable": ctx.strokeStyle="#e07b00"; ctx.setLineDash([7,5]); box(-45,-18,90,36,"#fff3e2"); ctx.setLineDash([]); lab("GAINABLE","#e07b00",12); break;
+    case "cassette": ctx.strokeStyle="#00a3c4"; box(-28,-28,56,56,"#e0f7fb"); L(-28,-28,28,28); L(28,-28,-28,28); break;
+    case "ue": ctx.strokeStyle="#d3232f"; box(-36,-26,72,52,"#fde8e8"); ctx.beginPath(); ctx.arc(-6,0,17,0,Math.PI*2); ctx.stroke(); L(-6,-17,-6,17); L(-23,0,11,0); ctx.fillStyle="#d3232f"; ctx.font="800 12px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("UE",22,1); break;
+    case "tableau": ctx.strokeStyle="#e07b00"; box(-22,-28,44,56,"#fff3e2"); lab("TE","#e07b00",17); break;
+    case "pompe": ctx.strokeStyle="#00a3c4"; ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.fillStyle="#e0f7fb"; ctx.fill(); ctx.stroke(); lab("P","#00a3c4",15); break; } }
+/* Redressement d'un trait à main levée (18/11/2026) : droite, ligne brisée (angles nets, horizontales / verticales), rectangle, rond */
+function redresserTrait(pts, k){   // k = échelle écran → toile
+  if(pts.length<4) return null; const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]), w=Math.max(...xs)-Math.min(...xs), h=Math.max(...ys)-Math.min(...ys), taille=Math.hypot(w,h);
+  if(taille<45*k) return null;   // petits traits (écriture, points) : on n'y touche pas
+  const tol=Math.max(9*k, taille*0.045), dseg=(p,a,b)=>{ const dx=b[0]-a[0], dy=b[1]-a[1], l2=dx*dx+dy*dy||1, t=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l2)); return Math.hypot(p[0]-a[0]-t*dx,p[1]-a[1]-t*dy); };
+  const rdp=(P,e)=>{ if(P.length<3) return P; let m=0,i0=0; for(let i=1;i<P.length-1;i++){ const d=dseg(P[i],P[0],P[P.length-1]); if(d>m){ m=d; i0=i; } } return m>e ? [...rdp(P.slice(0,i0+1),e).slice(0,-1), ...rdp(P.slice(i0),e)] : [P[0],P[P.length-1]]; };
+  const ferme=Math.hypot(pts[0][0]-pts[pts.length-1][0],pts[0][1]-pts[pts.length-1][1])<Math.max(25*k,taille*0.18);
+  if(ferme){ const cx=xs.reduce((a,b)=>a+b,0)/xs.length, cy=ys.reduce((a,b)=>a+b,0)/ys.length, r=pts.map(p=>Math.hypot((p[0]-cx)/(w/2||1),(p[1]-cy)/(h/2||1))), mr=r.reduce((a,b)=>a+b,0)/r.length, sd=Math.sqrt(r.reduce((a,b)=>a+(b-mr)**2,0)/r.length);
+    const simp=rdp(pts,tol*1.4);
+    if(simp.length>=4 && simp.length<=6){ return {f:"rect", a:[Math.min(...xs),Math.min(...ys)], b:[Math.max(...xs),Math.max(...ys)]}; }
+    if(sd/mr<0.16) return {f:"rond", a:[Math.min(...xs),Math.min(...ys)], b:[Math.max(...xs),Math.max(...ys)]};
+    return null; }
+  let simp=rdp(pts,tol); if(simp.length>7) return null;   // trait trop courbe / écriture
+  if(!pts.every(p=>{ for(let i=1;i<simp.length;i++) if(dseg(p,simp[i-1],simp[i])<=tol*1.25) return true; return false; })) return null;
+  simp=simp.map(p=>[p[0],p[1],0.5]);
+  for(let i=1;i<simp.length;i++){ const a=simp[i-1], b=simp[i], dx=b[0]-a[0], dy=b[1]-a[1];   // horizontales / verticales si on en est proche (≈ 10°)
+    if(Math.abs(dy)<Math.abs(dx)*0.18) b[1]=a[1]; else if(Math.abs(dx)<Math.abs(dy)*0.18) b[0]=a[0]; }
+  return {pts:simp}; }
 /* iPad + Apple Pencil : sans ceci, Safari (« Griffonner ») prend le stylet pour du défilement / de l'écriture et les traits s'arrêtent */
 function bloquerGestesTactiles(cv){ if(cv._tb) return; cv._tb=1; const stop=e=>{ if(e.cancelable) e.preventDefault(); }; ["touchstart","touchmove","touchend"].forEach(t=>cv.addEventListener(t,stop,{passive:false})); }
 function initSketch(o=S.ouv, cle="croquis"){
@@ -2288,6 +2335,7 @@ function initSketch(o=S.ouv, cle="croquis"){
   const one=()=>sels.length===1?sels[0]:null;
   function size(){ const r=cv.getBoundingClientRect(); cv.width=W; cv.height=Math.round(W*r.height/r.width); ratio=cv.width/r.width; redraw(); }
   function drawStroke(s){
+    if(s.sy){ const sc=(s.z||1)*ratio/1.2*1.1; ctx.save(); ctx.translate(s.x,s.y); ctx.rotate((s.r||0)*Math.PI/2); ctx.scale(sc,sc); dessinSymbole(ctx,s.sy); ctx.restore(); return; }
     if(s.t){ const fs=Math.round(30*ratio/1.2); ctx.font=`700 ${fs}px Arial,sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.lineJoin="round";
       ctx.lineWidth=fs/4; ctx.strokeStyle="#fff"; ctx.strokeText(s.t,s.x,s.y); ctx.fillStyle=s.c; ctx.fillText(s.t,s.x,s.y); return; }
     if(s.f){ const [x1,y1]=s.a, [x2,y2]=s.b; ctx.strokeStyle=s.c; ctx.lineWidth=4*ratio/1.2; ctx.lineCap=ctx.lineJoin="round"; ctx.beginPath();
@@ -2302,8 +2350,9 @@ function initSketch(o=S.ouv, cle="croquis"){
     else for(let i=1;i<s.pts.length;i++){ const a=s.pts[i-1], b=s.pts[i]; ctx.lineWidth=(s.c==="erase"?(s.w||30):s.w?s.w*(0.55+(b[2]||0.5)*0.9):(1.5+b[2]*4))*k; ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); }
     ctx.globalCompositeOperation="source-over"; }
   /* poignées de la forme sélectionnée */
-  function poignees(s){ if(s.t) return []; const [x1,y1]=s.a,[x2,y2]=s.b; return (s.f==="ligne"||s.f==="fleche") ? [[x1,y1],[x2,y2]] : [[x1,y1],[x2,y1],[x1,y2],[x2,y2]]; }
-  function bbox(s){ if(s.t){ const fs=30*ratio/1.2, w=Math.max(60,s.t.length*fs*0.6); return [s.x-w/2,s.y-fs/2,s.x+w/2,s.y+fs/2]; }
+  function poignees(s){ if(s.t||s.sy) return []; const [x1,y1]=s.a,[x2,y2]=s.b; return (s.f==="ligne"||s.f==="fleche") ? [[x1,y1],[x2,y2]] : [[x1,y1],[x2,y1],[x1,y2],[x2,y2]]; }
+  function bbox(s){ if(s.sy){ const e=58*(s.z||1)*ratio/1.2*1.1; return [s.x-e,s.y-e,s.x+e,s.y+e]; }
+    if(s.t){ const fs=30*ratio/1.2, w=Math.max(60,s.t.length*fs*0.6); return [s.x-w/2,s.y-fs/2,s.x+w/2,s.y+fs/2]; }
     if(s.pts){ const xs=s.pts.map(p=>p[0]), ys=s.pts.map(p=>p[1]); return [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]; }
     return [Math.min(s.a[0],s.b[0]),Math.min(s.a[1],s.b[1]),Math.max(s.a[0],s.b[0]),Math.max(s.a[1],s.b[1])]; }
   function drawSel(){ sels=sels.filter(s=>strokes.includes(s)); ctx.save(); ctx.setLineDash([10,8]); ctx.strokeStyle="#e07b00"; ctx.lineWidth=2*ratio/1.2;
@@ -2323,7 +2372,8 @@ function initSketch(o=S.ouv, cle="croquis"){
   else if(o[cle]){ base=new Image(); base.onload=()=>redraw(); base.src=o[cle]; }
   const pt=e=>{ const r=cv.getBoundingClientRect(); return [(e.clientX-r.left)*ratio,(e.clientY-r.top)*ratio, e.pressure||0.5]; };
   /* trouver la forme / l'étiquette touchée (la plus récente d'abord ; le contour avant l'intérieur) */
-  function toucher(x,y){ const tol=(S.skDoigt?34:22)*ratio/1.2, L=strokes.filter(s=>s.f||s.t).reverse();
+  function toucher(x,y){ const tol=(S.skDoigt?34:22)*ratio/1.2, sy=strokes.filter(s=>s.sy).reverse().find(s=>{ const [a,b,c,d]=bbox(s); return x>a&&x<c&&y>b&&y<d; }); if(sy) return sy;
+    const L=strokes.filter(s=>s.f||s.t).reverse();
     const dSeg=(s)=>{ const [x1,y1]=s.a,[x2,y2]=s.b, dx=x2-x1, dy=y2-y1, l2=dx*dx+dy*dy||1, t=Math.max(0,Math.min(1,((x-x1)*dx+(y-y1)*dy)/l2)); return Math.hypot(x-(x1+t*dx),y-(y1+t*dy)); };
     const bord=s=>{ if(s.t) return Math.abs(x-s.x)<Math.max(50,s.t.length*14)*ratio/1.2 && Math.abs(y-s.y)<26*ratio/1.2;
       if(s.f==="ligne"||s.f==="fleche") return dSeg(s)<tol;
@@ -2335,6 +2385,7 @@ function initSketch(o=S.ouv, cle="croquis"){
     const main=s=>s.pts&&s.c!=="erase"&&s.pts.some((p,i)=>i&&dSeg({a:s.pts[i-1],b:p})<tol);
     return L.find(bord) || strokes.slice().reverse().find(main) || L.find(dedans) || null; }
   cv.onpointerdown=e=>{ if(penOnly && e.pointerType==="touch") return;
+    if(S.skPose){ const [x,y]=pt(e); const sObj={sy:S.skPose, x, y, r:0, z:1}; strokes.push(sObj); S.skDernier=sObj; refaire=[]; commit(); if(!S.skPoseGarde){ S.skPose=null; $$("[data-sksym]").forEach(b=>b.classList.remove("on")); } e.preventDefault(); return; }
     if(texte){ const [x,y]=pt(e); strokes.push({t:texte.t, c:texte.c, x, y}); if($("#skTxtLibre")&&$("#skTxtLibre").value.trim()===texte.t) $("#skTxtLibre").value=""; texte=null; $$("[data-sktxt]").forEach(b=>b.classList.remove("on")); commit(); e.preventDefault(); return; }
     try{ cv.setPointerCapture(e.pointerId); }catch(_){}
     S.skDoigt=e.pointerType==="touch"; const fo=S.skForme||"", [px,py]=pt(e);
@@ -2368,7 +2419,7 @@ function initSketch(o=S.ouv, cle="croquis"){
     if(lasso){ lasso.b=pt(e).slice(0,2); redraw(); e.preventDefault(); return; }
     const sel=act&&act.m?null:one();
     if(act&&act.m){ const [x,y]=pt(e), dx=x-act.m[0], dy=y-act.m[1]; act.m=[x,y];
-      sels.forEach(s=>{ if(s.t){ s.x+=dx; s.y+=dy; } else if(s.pts) s.pts.forEach(p=>{ p[0]+=dx; p[1]+=dy; }); else { s.a=[s.a[0]+dx,s.a[1]+dy]; s.b=[s.b[0]+dx,s.b[1]+dy]; } });
+      sels.forEach(s=>{ if(s.t||s.sy){ s.x+=dx; s.y+=dy; } else if(s.pts) s.pts.forEach(p=>{ p[0]+=dx; p[1]+=dy; }); else { s.a=[s.a[0]+dx,s.a[1]+dy]; s.b=[s.b[0]+dx,s.b[1]+dy]; } });
       redraw(); e.preventDefault(); return; }
     if(act&&sel){ const [x,y]=pt(e);
       if(false){}
@@ -2387,7 +2438,14 @@ function initSketch(o=S.ouv, cle="croquis"){
       if(x2-x1>10||y2-y1>10) strokes.forEach(s=>{ if(s.pts&&s.c==="erase") return; const [a,b,c,d]=bbox(s); if(a>=x1&&c<=x2&&b>=y1&&d<=y2 && !sels.includes(s)) sels.push(s); });
       redraw(); majBoutonSel(); if(sels.length>1) toast(`${sels.length} éléments sélectionnés`); return; }
     if(act){ act=null; commit(); return; }
-    if(!cur) return; if(cur.f ? Math.hypot(cur.b[0]-cur.a[0],cur.b[1]-cur.a[1])<8 : cur.pts.length<2) strokes.pop(); cur=null; commit(); };
+    if(!cur) return; if(cur.f ? Math.hypot(cur.b[0]-cur.a[0],cur.b[1]-cur.a[1])<8 : cur.pts.length<2){ strokes.pop(); cur=null; commit(); return; }
+    if(cur.pts && cur.c!=="erase" && (S.skTrait || S.skRedresse!==false) && (cur.o||1)>=1){   // traits redressés / mur / goulotte
+      const r=redresserTrait(cur.pts, ratio/1.2), i=strokes.indexOf(cur);
+      if(S.skTrait){ const p0=cur.pts[0], p1=cur.pts[cur.pts.length-1], pp=(r&&r.pts)||[[p0[0],p0[1],0.5],[p1[0],p1[1],0.5]];
+        const tr=S.skTrait==="mur"?{c:"#1b2f5e",w:14,o:1,pts:pp}:{c:"#1f9d3a",w:7,o:1,pts:pp}; strokes[i]=tr;
+        if(!S.skPoseGarde){ S.skTrait=null; $$("[data-sksym]").forEach(b=>b.classList.remove("on")); } }
+      else if(r){ strokes[i]= r.pts ? {...cur, pts:r.pts} : {f:r.f, c:cur.c, a:r.a, b:r.b}; } }
+    cur=null; commit(); };
   cv.onpointerup=end; cv.onpointercancel=end; cv.onpointerleave=end;
   const quitterEdit=()=>{ if(sels.length){ sels=[]; redraw(); majBoutonSel(); } };
   const choisirPen=(b)=>{ pen=b.dataset.pen; texte=null; texteMain=false; $("#skTexteMain")?.classList.remove("on"); $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); $$("[data-pen]").forEach(x=>x.classList.toggle("on",x===b)); };
@@ -2397,6 +2455,81 @@ function initSketch(o=S.ouv, cle="croquis"){
   /* lien iPad : le PC reçoit les traits dessinés sur la tablette */
   S.skDistant={ ajouter(s){ strokes.push(s); commit(); return s; }, retirer(s){ strokes=strokes.filter(x=>x!==s); commit(); }, w:()=>cv.width, h:()=>cv.height, png:()=>{ const c=document.createElement("canvas"); c.width=cv.width; c.height=cv.height; const x=c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,c.width,c.height); x.drawImage(cv,0,0); return c.toDataURL("image/jpeg",0.8); } };   // fond blanc (sinon noir en JPEG)
   const bt=$("#skTablette"); if(bt) bt.onclick=tabletteDemarrer;
+  const rz=$("#skRedresse input"); if(rz) rz.onchange=()=>{ S.skRedresse=rz.checked; $("#skRedresse").classList.toggle("on",rz.checked); toast(rz.checked?"Traits redressés : tes traits presque droits deviennent droits":"Traits laissés tels quels"); };
+  $$("[data-sksym]").forEach(b=>b.onclick=()=>{ const k=b.dataset.sksym, on=!b.classList.contains("on"); $$("[data-sksym]").forEach(x=>x.classList.remove("on")); S.skPose=null; S.skTrait=null;
+    if(on){ b.classList.add("on"); if(k==="mur"||k==="goul"){ S.skTrait=k; toast(k==="mur"?"Trace le mur au stylet : il sera bien droit et épais":"Trace la goulotte : elle sera droite, en vert"); } else { S.skPose=k; toast("Touche le dessin à l'endroit voulu"); }
+      texte=null; texteMain=false; if(pen.startsWith("erase")){ const p1=$("[data-pen]:not([data-pen^='erase'])"); if(p1) choisirPen(p1); } } });
+  /* ---------- Relevé de pièce (18/11/2026) : mur après mur au télémètre, ↰ ↱, fenêtres / portes, hauteur → plan à l'échelle posé sur le dessin ---------- */
+  const rp=$("#skRelPanel"), rb=$("#skReleve");
+  if(rb && rp) rb.onclick=()=>{ if(!rp.classList.contains("hide")){ fermerReleve(); return; } ouvrirReleve(); };
+  let RL=null;
+  function fermerReleve(){ rp.classList.add("hide"); rp.innerHTML=""; if(TLM.releve) TLM.releve=null; RL=null; rb&&rb.classList.remove("on"); }
+  const fmtM=mm=>(Math.round(mm/10)/100).toFixed(2).replace(".",",")+" m";
+  function geoReleve(){ let x=0,y=0; const P=[[0,0]]; RL.murs.forEach(m=>{ const a=m.dir*Math.PI/180; x+=m.L*Math.cos(a); y+=m.L*Math.sin(a); P.push([x,y]); }); return P; }
+  function aireReleve(P){ let a=0; for(let i=0;i<P.length-1;i++) a+=P[i][0]*P[i+1][1]-P[i+1][0]*P[i][1]; return Math.abs(a)/2/1e6; }   // m²
+  function ouvrirReleve(){ RL={murs:[], ouv:[], h:null, tourne:1, angle:90, etape:"mur", mur:null, tmp:null}; rp.classList.remove("hide"); rb&&rb.classList.add("on"); TLM.releve=recevoirReleve; dessinerReleve();
+    parler("Relevé de la pièce. Mets-toi dans un coin et vise le premier mur"); }
+  function etapeTexte(){ const n=RL.murs.length+1;
+    return RL.etape==="mur"?`Mur ${n} : vise le mur ${n===1?"depuis un coin":"suivant"} et appuie sur le télémètre (ou tape la longueur)`
+      : RL.etape==="ouv_d"?`${RL.tmp.t==="porte"?"Porte":RL.tmp.t==="pf"?"Porte-fenêtre":"Fenêtre"} sur le mur ${RL.tmp.mur+1} : distance depuis le début du mur`
+      : RL.etape==="ouv_w"?"Largeur de l'ouverture" : RL.etape==="h"?"Hauteur sous plafond : vise le plafond" : ""; }
+  function recevoirReleve(m){ ajouterValeur(Math.round(m*1000)); }
+  function ajouterValeur(mm){ if(!(mm>0)) return;
+    if(RL.etape==="mur"){ const dir=RL.murs.length? (RL.murs[RL.murs.length-1].dir+RL.tourne*RL.angle+360)%360 : 0; RL.murs.push({L:mm, dir}); parler(`${mm}. Tourne, puis mur ${RL.murs.length+1}`); }
+    else if(RL.etape==="ouv_d"){ RL.tmp.d=mm; RL.etape="ouv_w"; parler(`${mm}. Largeur`); }
+    else if(RL.etape==="ouv_w"){ RL.tmp.w=mm; RL.ouv.push(RL.tmp); RL.tmp=null; RL.etape="mur"; parler(`${mm}. Ouverture ajoutée`); }
+    else if(RL.etape==="h"){ RL.h=mm; RL.etape="mur"; parler(`Hauteur ${mm}`); }
+    dessinerReleve(); }
+  function dessinerReleve(){ const P=geoReleve(), n=RL.murs.length, ecart=n>=3?Math.round(Math.hypot(P[n][0],P[n][1])):null;
+    const xs=P.map(p=>p[0]), ys=P.map(p=>p[1]), x0=Math.min(...xs), y0=Math.min(...ys), w=Math.max(1000,Math.max(...xs)-x0), h=Math.max(1000,Math.max(...ys)-y0), sc=Math.min(260/w,170/h), X=v=>20+(v-x0)*sc, Y=v=>20+(v-y0)*sc;
+    const ouvSvg=RL.ouv.map(o=>{ const m=RL.murs[o.mur]; if(!m) return ""; const a=m.dir*Math.PI/180, p=P[o.mur], ax=p[0]+o.d*Math.cos(a), ay=p[1]+o.d*Math.sin(a), bx=ax+o.w*Math.cos(a), by=ay+o.w*Math.sin(a);
+      return `<line x1="${X(ax)}" y1="${Y(ay)}" x2="${X(bx)}" y2="${Y(by)}" stroke="${o.t==="fenetre"?"#1f4fd8":"#e07b00"}" stroke-width="6"/>`; }).join("");
+    const cotes=RL.murs.map((m,i)=>{ const a=P[i], b=P[i+1]; return `<text x="${(X(a[0])+X(b[0]))/2}" y="${(Y(a[1])+Y(b[1]))/2-5}" font-size="10" text-anchor="middle" fill="#d3232f" font-weight="700">${i+1}: ${fmtM(m.L)}</text>`; }).join("");
+    const S2=n>=3?aireReleve(P):null;
+    rp.innerHTML=`<div class="sk-rel-h"><b>📏 Relevé de la pièce</b><span class="hint">${TLM.car?"📡 télémètre connecté":"télémètre non connecté : tape les longueurs"}</span><button class="btn small" id="rlX">✕ Fermer</button></div>
+      <div class="sk-rel-c"><svg viewBox="0 0 300 210" class="sk-rel-svg"><polyline points="${P.map(p=>X(p[0])+","+Y(p[1])).join(" ")}" fill="none" stroke="#1b2f5e" stroke-width="5" stroke-linejoin="round"/>${ouvSvg}${cotes}<circle cx="${X(0)}" cy="${Y(0)}" r="5" fill="#1f9d3a"/>${n?`<circle cx="${X(P[n][0])}" cy="${Y(P[n][1])}" r="5" fill="#d3232f"/>`:""}</svg>
+        <div><div class="sk-rel-etape">${etapeTexte()}</div>
+          <div class="row" style="gap:6px;margin:6px 0"><input id="rlVal" inputmode="none" type="text" placeholder="longueur en mm" style="width:140px"><button class="btn small primary" id="rlOk">OK</button></div>
+          ${RL.etape==="mur"?`<div class="row" style="gap:6px;flex-wrap:wrap"><span class="hint">Le mur suivant part :</span><button class="btn small${RL.tourne===-1?" on":""}" id="rlG">↰ à gauche</button><button class="btn small${RL.tourne===1?" on":""}" id="rlD">↱ à droite</button>
+            <select id="rlA" style="width:auto">${[90,45,135,30,60,120,150].map(a=>`<option${RL.angle===a?" selected":""}>${a}</option>`).join("")}</select><span class="hint">degrés</span></div>
+          <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${n?`<select id="rlMur" style="width:auto">${RL.murs.map((m,i)=>`<option value="${i}"${i===n-1?" selected":""}>mur ${i+1}</option>`).join("")}</select><button class="btn small" data-rlo="fenetre">＋ Fenêtre</button><button class="btn small" data-rlo="porte">＋ Porte</button><button class="btn small" data-rlo="pf">＋ Porte-fenêtre</button>`:""}<button class="btn small" id="rlH">Hauteur plafond${RL.h?" ("+fmtM(RL.h)+")":""}</button></div>`:""}
+          <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:8px"><button class="btn small" id="rlU">↶ Annuler</button>${n>=2?`<button class="btn small" id="rlF">Fermer la pièce</button>`:""}${n>=1?`<button class="btn small primary" id="rlP">✔ Placer sur le dessin</button>`:""}</div>
+          ${ecart!=null?`<div class="hint" style="margin-top:6px">Écart de fermeture : <b style="color:${ecart>Math.max(50,0.02*RL.murs.reduce((a,m)=>a+m.L,0))?"#d3232f":"#1f7a3a"}">${ecart} mm</b>${S2?` · surface ≈ ${S2.toFixed(1).replace(".",",")} m²`:""}${S2&&RL.h?` · volume ≈ ${(S2*RL.h/1000).toFixed(1).replace(".",",")} m³`:""}</div>`:""}</div></div>`;
+    const v=$("#rlVal"); const ok=()=>{ const x=parseFloat(String(v.value).replace(",",".")); if(!x){ v.focus(); return; } ajouterValeur(x<50?Math.round(x*1000):Math.round(x)); };   // en m (3,45) ou en mm (3450)
+    v.setAttribute("inputmode","decimal"); v.onkeydown=e=>{ if(e.key==="Enter") ok(); }; $("#rlOk").onclick=ok; $("#rlX").onclick=fermerReleve;
+    if($("#rlG")){ $("#rlG").onclick=()=>{ RL.tourne=-1; dessinerReleve(); }; $("#rlD").onclick=()=>{ RL.tourne=1; dessinerReleve(); }; $("#rlA").onchange=e=>{ RL.angle=+e.target.value; }; }
+    $$("[data-rlo]").forEach(b=>b.onclick=()=>{ RL.tmp={t:b.dataset.rlo, mur:+$("#rlMur").value}; RL.etape="ouv_d"; dessinerReleve(); parler("Distance depuis le début du mur"); });
+    if($("#rlH")) $("#rlH").onclick=()=>{ RL.etape="h"; dessinerReleve(); parler("Vise le plafond"); };
+    $("#rlU").onclick=()=>{ if(RL.etape!=="mur"){ RL.etape="mur"; RL.tmp=null; } else if(RL.ouv.length && RL.ouv[RL.ouv.length-1].mur===RL.murs.length-1) RL.ouv.pop(); else RL.murs.pop(); dessinerReleve(); };
+    if($("#rlF")) $("#rlF").onclick=()=>{ const Q=geoReleve(), e=Q[Q.length-1], L=Math.round(Math.hypot(e[0],e[1])); if(L<20){ toast("La pièce est déjà fermée"); return; }
+      RL.murs.push({L, dir:(Math.atan2(-e[1],-e[0])*180/Math.PI+360)%360}); toast(`Dernier mur ajouté : ${fmtM(L)}`); dessinerReleve(); };
+    if($("#rlP")) $("#rlP").onclick=placerReleve;
+    if(RL.etape!=="mur" || !TLM.car) setTimeout(()=>v.focus(),50); }
+  function placerReleve(){ const P=geoReleve(), xs=P.map(p=>p[0]), ys=P.map(p=>p[1]), x0=Math.min(...xs), y0=Math.min(...ys), w=Math.max(500,Math.max(...xs)-x0), h=Math.max(500,Math.max(...ys)-y0);
+    const mg=95*ratio/1.2, sc=Math.min((cv.width-2*mg)/w,(cv.height-2*mg)/h), X=v=>mg+(v-x0)*sc+((cv.width-2*mg)-w*sc)/2, Y=v=>mg+(v-y0)*sc+((cv.height-2*mg)-h*sc)/2;
+    const cx=xs.reduce((a,b)=>a+b,0)/xs.length, cy=ys.reduce((a,b)=>a+b,0)/ys.length;
+    strokes.push({c:"#1b2f5e", w:12, o:1, pts:P.map(p=>[X(p[0]),Y(p[1]),0.5])});
+    RL.murs.forEach((m,i)=>{ const a=P[i], b=P[i+1], mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2; let nx=-(b[1]-a[1]), ny=b[0]-a[0]; const l=Math.hypot(nx,ny)||1; nx/=l; ny/=l; if(nx*(mx-cx)+ny*(my-cy)<0){ nx=-nx; ny=-ny; }
+      strokes.push({t:fmtM(m.L), c:"#d3232f", x:X(mx)+nx*46*ratio/1.2, y:Y(my)+ny*46*ratio/1.2}); });
+    RL.ouv.forEach(o=>{ const m=RL.murs[o.mur]; if(!m) return; const a=m.dir*Math.PI/180, p=P[o.mur], c0=o.d+o.w/2, x=p[0]+c0*Math.cos(a), y=p[1]+c0*Math.sin(a);
+      strokes.push({sy:o.t, x:X(x), y:Y(y), r:m.dir/90, z:Math.max(0.3,(o.w*sc)/(100*ratio/1.2*1.1))}); });
+    const S2=RL.murs.length>=3?aireReleve(P):null;
+    if(S2) strokes.push({t:`${S2.toFixed(1).replace(".",",")} m²${RL.h?` · h ${fmtM(RL.h)} · ${(S2*RL.h/1000).toFixed(1).replace(".",",")} m³`:""}`, c:"#1b2f5e", x:X((x0+x0+w)/2), y:(Y(y0+h)+92*ratio/1.2 < cv.height-24*ratio) ? Y(y0+h)+92*ratio/1.2 : Y(y0+h/2)});   // sous la pièce, sinon au milieu
+    refaire=[]; commit(); fermerReleve(); toast("Plan de la pièce posé : ajoute la clim, le groupe, les goulottes…"); parler("Plan posé"); }
+  /* ---------- Importer un plan en fond (photo, capture, PDF d'un scan LiDAR…) ---------- */
+  const ib=$("#skImport"), iF=$("#skImportF");
+  if(ib && iF){ ib.onclick=()=>iF.click(); iF.onchange=async()=>{ const f=iF.files[0]; iF.value=""; if(!f) return;
+    try{ let src;
+      if(/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)){ await chargerScript(LIB_PDFJS); pdfjsLib.GlobalWorkerOptions.workerSrc=LIB_PDFJS_W; const doc=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise, pg=await doc.getPage(1), vp=pg.getViewport({scale:2});
+        const c=document.createElement("canvas"); c.width=vp.width; c.height=vp.height; await pg.render({canvasContext:c.getContext("2d"), viewport:vp}).promise; src=c.toDataURL("image/jpeg",0.85); }
+      else src=await new Promise((ok,ko)=>{ const r=new FileReader(); r.onload=()=>ok(r.result); r.onerror=ko; r.readAsDataURL(f); });
+      const im=await new Promise((ok,ko)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=ko; i.src=src; });
+      const c=document.createElement("canvas"); c.width=cv.width; c.height=cv.height; const x=c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,c.width,c.height);
+      const k=Math.min(c.width/im.width,c.height/im.height)*0.96, w=im.width*k, h=im.height*k; x.globalAlpha=0.75; x.drawImage(im,(c.width-w)/2,(c.height-h)/2,w,h);
+      if(base && !await demander("Remplacer le fond actuel par ce plan ?","Remplacer")) return;
+      base=new Image(); base.onload=()=>{ commit(); toast("Plan importé en fond : dessine par-dessus"); }; base.src=c.toDataURL("image/jpeg",0.85); }
+    catch(e){ toast("Impossible de lire ce fichier : "+e.message); } }; }
+  const ro=$("#skRot"); if(ro) ro.onclick=()=>{ const s=(one()&&one().sy)?one():S.skDernier; if(!s||!strokes.includes(s)){ toast("Pose d'abord un symbole (ou sélectionne-le)"); return; } s.r=((s.r||0)+1)%4; commit(); };
   const tm=$("#skTexteMain"); if(tm) tm.onclick=()=>{ texteMain=!texteMain; tm.classList.toggle("on",texteMain); if(texteMain){ texte=null; toast("Touche le dessin à l'endroit voulu, puis écris au stylet dans la case"); } };
   const rd=$("#skRedo"); if(rd) rd.onclick=()=>{ if(!refaire.length) return; const sn=refaire.pop(); hist.push(sn); strokes=JSON.parse(sn); sels=[]; restaure=true; commit(); };
   $$("[data-pen]").forEach(b=>b.onclick=()=>{ choisirPen(b);
@@ -4838,7 +4971,7 @@ async function tabletteRejoindre(){
   envoyer();
   const m=document.createElement("div"); m.id="tabIpad";
   m.innerHTML=`<div class="tab-bar"><b>📲 ${esc(C.titre||"Dessin")}</b><span id="tabIEtat" class="hint">relié au PC</span><span class="spacer"></span><button class="btn primary" id="tabFin">Terminé</button></div>
-    ${barreOutils(true).replace(/id="sk/g,'id="tk').replace(/<button class="btn small" data-pen="erase"[^>]*>[^<]*<\/button>/,"").replace(/<button class="btn small" id="tkTexteMain"[^>]*>[^<]*<\/button>/,"").replace(/<button class="btn small" id="tkRedo">↷<\/button>/,"").replace(/<button class="btn small" data-pen="eraseObj"[^>]*>[^<]*<\/button>/,"").replace('id="tkClear">Effacer tout','id="tkClear">Effacer mes traits').replace(/<button class="btn small" id="tkTablette"[^>]*>[^<]*<\/button>/,"")}
+    ${barreOutils(true).replace(/id="sk/g,'id="tk').replace(/<button class="btn small" data-pen="erase"[^>]*>[^<]*<\/button>/,"").replace(/<button class="btn small" id="tkTexteMain"[^>]*>[^<]*<\/button>/,"").replace(/<button class="btn small" id="tkRedo">↷<\/button>/,"").replace(/<button class="btn small" data-pen="eraseObj"[^>]*>[^<]*<\/button>/,"").replace('id="tkClear">Effacer tout','id="tkClear">Effacer mes traits').replace(/<button class="btn small" id="tkTablette"[^>]*>[^<]*<\/button>/,"").replace(/<div class="sk-grp sk-symgrp">[\s\S]*?<\/div><!--sym-->/,"")}
     <div class="tab-zone"><canvas id="tabCv"></canvas></div>`;
   document.body.appendChild(m);
   const cv=$("#tabCv"), ctx=cv.getContext("2d"); bloquerGestesTactiles(cv); let fond=null, traits=[], cur=null, pen="#1b2f5e", penOnly=false;

@@ -227,7 +227,7 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 #pave .pv-g button:active,#pave .pv-b button:active{background:#dfe6f5} #pave .pv-b{display:grid;grid-template-columns:1fr 1.4fr;gap:6px;margin-top:6px} #pave .pv-b button{height:44px;border-radius:10px;border:1px solid #c9d1e3;background:#fff;font-weight:700}
 #pave .pv-ok{background:var(--navy)!important;color:#fff;border-color:var(--navy)!important} input.pave-cible{outline:3px solid var(--navy);outline-offset:1px}
 .rep-num{display:inline-flex;gap:4px;margin-left:8px} .rep-num .btn{min-width:40px;min-height:40px;font-weight:800} .obs-det>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.corb-ph{margin-top:10px} .corb-ph>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:8px;font-weight:700;color:var(--navy)} .photo.corb img{opacity:.75}
+.ph-dossier{display:inline-flex;margin-top:10px} .corb-ph{margin-top:10px} .corb-ph>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:8px;font-weight:700;color:var(--navy)} .photo.corb img{opacity:.75}
 .cl-wifi{margin-top:8px;padding:8px 10px;border-radius:8px;background:#e8f0ff;color:var(--navy)}
 /* barre de dessin à onglets (19/11/2026) */
 .sk-ipad{flex-direction:column;align-items:stretch;gap:8px}
@@ -2913,6 +2913,10 @@ function initPhotos(o=S.ouv, rendu=renderOuverture){
   $$("[data-phdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer cette photo ?\n\nElle reste 30 jours dans « ♻ Photos supprimées » si tu en as besoin.","Supprimer")) return;
     const [ph]=o.photos.splice(+b.dataset.phdel,1); if(ph) o.photos_corbeille.unshift({...ph, supprime_le:new Date().toISOString()}); save(); const y=scrollY; rendu(); scrollTo(0,y); });
   const boite=inp.closest(".photos");
+  /* 📁 Photos du dossier (19/11) : ouvre « NOM – date › Photos » sur le Drive (toutes les photos, même supprimées de l'appli) */
+  if(boite && S.dossier){ const dv=S.dossier.drive||{}, id=dv.photos||dv.dossier;
+    boite.insertAdjacentHTML("afterend", id ? `<a class="btn small ph-dossier" href="https://drive.google.com/drive/folders/${id}" target="_blank" rel="noopener">📁 Photos du dossier (Drive)</a>`
+      : `<span class="hint ph-dossier">📁 Les photos seront rangées dans le dossier du client sur le Drive au premier enregistrement (☁ Drive ou retour à la liste).</span>`); }
   if(boite && o.photos_corbeille.length){ const jours=x=>Math.max(0,30-Math.floor((Date.now()-new Date(x.supprime_le).getTime())/86400000));
     boite.insertAdjacentHTML("afterend",`<details class="corb-ph"><summary>♻ Photos supprimées (${o.photos_corbeille.length}) <span class="hint">– gardées 30 jours</span></summary>
       <div class="photos" style="margin-top:8px">${o.photos_corbeille.map((x,k)=>`<figure class="photo corb"><img src="${x.img}" alt="Photo supprimée ${k+1}"><figcaption class="hint">${esc(x.txt||"")} · encore ${jours(x)} j</figcaption>
@@ -4420,19 +4424,19 @@ async function envoyerDossierDrive(d){
   const pdf=await genererPDF(d); envoyerDossierDrive.dernierPDF=pdf;
   // « clemence:envoye » : déjà envoyé à Clémence par le bouton de l'appli → le programme Google ne le recopie pas
   const f=await deposerDrive(base+".pdf", pdf, sous, `Métré Foissac – circuit:${circuit} – ${d.type_document||""}${d.clemence&&d.clemence.envoye?" – clemence:envoye":""}`);
-  // photos pour les poseurs : chaque nouvelle photo (ou photo annotée) est aussi rangée en JPG dans le dossier du client
+  // photos : chaque nouvelle photo (ou photo annotée) est aussi rangée en JPG dans « NOM – date › Photos » (19/11 : sous-dossier ; jamais effacées du Drive)
+  let ph=sous; try{ ph=await dossierDrive("Photos", sous);
+    const vieilles=(await gdrive("https://www.googleapis.com/drive/v3/files?pageSize=200&fields=files(id)&q="+encodeURIComponent(`'${sous}' in parents and mimeType contains 'image/' and trashed=false`))).files||[];
+    for(const v of vieilles){ try{ await gdrive(`https://www.googleapis.com/drive/v3/files/${v.id}?addParents=${ph}&removeParents=${sous}&fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:"{}"}); }catch(e){} }   // anciennes photos rangées aussi
+  }catch(e){ ph=sous; }
+  const nomPh=x=>(x||"photo").replace(/[\\/:*?"<>|\n]+/g," ").slice(0,60);
   for(const o of d.ouvertures) for(const [k,p] of (o.photos||[]).entries()){ if(p.drive || !p.img) continue;
     try{ const blob=await (await fetch(p.img)).blob();
-      await deposerDrive(`${base} – ${o.num_poseur?"N°"+o.num_poseur+" ":""}${(o.repere||"ouverture").replace(/[\\/:*?"<>|]+/g," ")} – photo ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
-  if(d.clim && d.clim.tableau && d.clim.tableau.img && !d.clim.tableau.drive){ try{ const blob=await (await fetch(d.clim.tableau.img)).blob(); await deposerDrive(`${base} – CLIM – Tableau électrique.jpg`, blob, sous); d.clim.tableau.drive=true; }catch(e){} }
-  for(const [k,p] of ((d.pt&&d.pt.photos)||[]).entries()){ if(p.drive || !p.img) continue;
-    try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – PORTAIL – ${(p.txt||"photo").replace(/[\\/:*?"<>|\n]+/g," ").slice(0,60)} – ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
-  for(const [k,p] of ((d.vb&&d.vb.photos)||[]).entries()){ if(p.drive || !p.img) continue;
-    try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – VOLETS BATTANTS – ${(p.txt||"photo").replace(/[\\/:*?"<>|\n]+/g," ").slice(0,60)} – ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
-  for(const [k,p] of ((d.pp&&d.pp.photos)||[]).entries()){ if(p.drive || !p.img) continue;
-    try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – PORTES PALIÈRES – ${(p.txt||"photo").replace(/[\\/:*?"<>|\n]+/g," ").slice(0,60)} – ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
-  for(const [k,p] of ((d.clim&&d.clim.photos)||[]).entries()){ if(p.drive || !p.img) continue;
-    try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – CLIM – ${(p.txt||"photo").replace(/[\\/:*?"<>|\n]+/g," ").slice(0,60)} – ${k+1}.jpg`, blob, sous); p.drive=true; }catch(e){} }
+      await deposerDrive(`${base} – ${o.num_poseur?"N°"+o.num_poseur+" ":""}${(o.repere||"ouverture").replace(/[\\/:*?"<>|]+/g," ")} – photo ${k+1}.jpg`, blob, ph); p.drive=true; }catch(e){} }
+  if(d.clim && d.clim.tableau && d.clim.tableau.img && !d.clim.tableau.drive){ try{ const blob=await (await fetch(d.clim.tableau.img)).blob(); await deposerDrive(`${base} – CLIM – Tableau électrique.jpg`, blob, ph); d.clim.tableau.drive=true; }catch(e){} }
+  for(const [cle,lib] of [["pt","PORTAIL"],["vb","VOLETS BATTANTS"],["pp","PORTES PALIÈRES"],["clim","CLIM"],["vt","VITRAGE"],["sav","SAV"]])
+    for(const [k,p] of ((d[cle]&&d[cle].photos)||[]).entries()){ if(p.drive || !p.img) continue;
+      try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – ${lib} – ${nomPh(p.txt)} – ${k+1}.jpg`, blob, ph); p.drive=true; }catch(e){} }
   // métré rattaché à un autre client : on retire l'ancien PDF / JSON de l'ancien dossier (sinon doublon dans le Drive)
   if(d.drive_ancien && d.drive_ancien.dossier && d.drive_ancien.dossier!==sous){ for(const ext of [".json",".pdf"]){ try{
       const q=`name='${q_(d.drive_ancien.base+ext)}' and trashed=false and '${d.drive_ancien.dossier}' in parents`;
@@ -4440,7 +4444,7 @@ async function envoyerDossierDrive(d){
       if(ex) await gdrive(`https://www.googleapis.com/drive/v3/files/${ex.id}?fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:true})});
     }catch(e){} } }
   delete d.drive_ancien;
-  d.drive={le:(fj&&fj.modifiedTime)||new Date().toISOString(), dossier:sous, lien:f.webViewLink||"", base, sig:empreinte(d)}; delete d.drive_attente;
+  d.drive={le:(fj&&fj.modifiedTime)||new Date().toISOString(), dossier:sous, photos:ph, lien:f.webViewLink||"", base, sig:empreinte(d)}; delete d.drive_attente;
   await DB.put(d,true);
   return f;
 }

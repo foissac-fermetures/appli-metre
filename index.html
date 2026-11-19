@@ -4214,9 +4214,12 @@ async function envoyerClemence(){
     await envoyerDossierDrive(d);                       // ta copie dans « Appli métré – Dossiers » (PDF à jour)
     const pdf=envoyerDossierDrive.dernierPDF||await genererPDF(d);
     const f=await deposerNouveau(nom, pdf, cible.id, `Métré Foissac – envoyé depuis l'appli – ${d.type_document||""}`);
+    if(!f||!f.id) throw new Error("Google Drive n'a pas confirmé le dépôt");
     d.clemence.envois.push({le:new Date().toISOString(), nom:f.name||nom, dossier:cible.nom, id:f.id, lien:f.webViewLink||""});
     await DB.put(d); renderDossier(); toast(`✓ Envoyé à Clémence : ${f.name||nom} → ${cible.nom}`);
-  }catch(e){ toast(/Failed to fetch/i.test(e.message)?"Réseau coupé : rien n'a été envoyé, réessaie":"Envoi à Clémence impossible : "+e.message); renderDossier(); }
+  }catch(e){   // 19/11 : échec bien visible (SAV Chartendrault jamais arrivé) + on ne garde pas « envoyé »
+    d.clemence.envoye=envoisClemence(d).length>0; try{ await DB.put(d); }catch(_){} renderDossier();
+    await demander(`⚠ Le PDF N'EST PAS arrivé chez Clémence (ECHANGES › ${cible.nom}).\n\n${/Failed to fetch|network/i.test(e.message)?"Réseau coupé.":"Erreur : "+e.message}\n\nRéessaie avec le bouton « 📨 Envoyer à Clémence » dès que tu as du réseau.`,"Compris"); }
 }
 
 /* Choix bien visible Devis / Métré définitif (écrit dans « Document ») */

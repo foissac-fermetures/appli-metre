@@ -2489,7 +2489,8 @@ function initSketch(o=S.ouv, cle="croquis"){
     const sty=SK_STYLES.find(x=>x[0]===(S.skStyle||"stylo"))||SK_STYLES[0], m=[0,0.6,1,1.6,2.4][S.skEp||2];
     cur=pen==="erase"?{c:"erase",w:Math.round((16+14*m)/Z*10)/10,pts:[pt(e)]}:{c:pen,w:Math.round(sty[2]*m*10)/10,o:sty[3],pts:[pt(e)]}; strokes.push(cur); refaire=[]; e.preventDefault(); };
   let gommeObj=false;
-  function gommer(x,y){ const h=toucher(x,y); if(h){ strokes=strokes.filter(s=>s!==h); sels=sels.filter(s=>s!==h); redraw(); gommeObj="modifie"; } }
+  function gommer(x,y){ const h=toucher(x,y); if(h){ strokes=strokes.filter(s=>s!==h); sels=sels.filter(s=>s!==h); redraw(); gommeObj="modifie"; }
+    else if(base && !S.skAvisImg){ S.skAvisImg=1; toast("Cette partie du dessin date d'avant la mise à jour : c'est une image. Pour l'effacer, prends « ◻ Gomme » (onglet Dessin)"); } }
   /* Texte au stylet : une case s'ouvre à l'endroit touché ; on y écrit à l'Apple Pencil et l'iPad (Griffonner) le transforme en texte tapé */
   function ouvrirTexteMain(e, px, py){
     const wrap=cv.parentElement; if(getComputedStyle(wrap).position==="static") wrap.style.position="relative";
@@ -2591,7 +2592,10 @@ function initSketch(o=S.ouv, cle="croquis"){
     texte=null; texteMain=false; $("#skTexteMain")?.classList.remove("on"); if(pen.startsWith("erase")){ const p1=$("[data-pen]:not([data-pen^='erase'])"); if(p1) choisirPen(p1,true); S.skForme="edit"; }
     toast("Touche le texte à modifier, puis une couleur, une taille ou « G gras » (glisse pour le déplacer)"); });
   const quitterEdit=()=>{ if(sels.length){ sels=[]; redraw(); majBoutonSel(); } };
-  const choisirPen=(b,garderPlan)=>{ if(!garderPlan) stopPlan(); pen=b.dataset.pen; texte=null; texteMain=false; $("#skTexteMain")?.classList.remove("on"); $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); $$("[data-pen]").forEach(x=>x.classList.toggle("on",x===b)); };
+  const choisirPen=(b,garderPlan)=>{ if(!garderPlan) stopPlan(); pen=b.dataset.pen;
+    if(pen.startsWith("erase")){   // 19/11 : la gomme doit gommer, même si « Modifier », un symbole ou un texte était encore actif
+      S.skPose=null; S.skTrait=null; $$("[data-sksym]").forEach(x=>x.classList.remove("on"));
+      if(S.skForme==="edit"||(S.skForme&&S.skForme!=="")){ S.skForme=""; $$("[data-forme]").forEach(x=>x.classList.toggle("on",x.dataset.forme==="")); $$("[data-skselt],[data-skedit]").forEach(x=>x.classList.remove("on")); sels=[]; lasso=null; redraw(); } } texte=null; texteMain=false; $("#skTexteMain")?.classList.remove("on"); $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); $$("[data-pen]").forEach(x=>x.classList.toggle("on",x===b)); };
   $$("[data-skstyle]").forEach(b=>b.onclick=()=>{ S.skStyle=b.dataset.skstyle; $$("[data-skstyle]").forEach(x=>x.classList.toggle("on",x===b)); if(pen.startsWith("erase")){ const p1=$("[data-pen]:not([data-pen^='erase'])"); if(p1) choisirPen(p1); } });
   $$("[data-skep]").forEach(b=>b.onclick=()=>{ S.skEp=+b.dataset.skep; $$("[data-skep]").forEach(x=>x.classList.toggle("on",x===b)); });
   const cp=$("#skPerso"); if(cp) cp.oninput=()=>{ cp.parentElement.dataset.pen=cp.value; cp.parentElement.style.background=cp.value; choisirPen(cp.parentElement); if(sels.length){ sels.forEach(s=>s.c=cp.value); commit(); } };

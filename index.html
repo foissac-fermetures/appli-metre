@@ -231,7 +231,7 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .sk-lbl{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#6b7a99;width:100%}
 .sk-tool{min-height:58px;min-width:84px;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 10px;font-size:13px;line-height:1.1}
 .sk-tool b{font-size:22px;line-height:1} .sk-tool.on{background:var(--navy);color:#fff;border-color:var(--navy)}
-.sk-planaide{width:100%;margin:0} .sk-sep{width:1px;height:30px;background:#c9d1e3;margin:0 4px} .sk-ipad .sk-c.on{box-shadow:0 0 0 3px var(--navy)} .sk-sym.on{background:var(--navy);color:#fff} .gc-det>summary{cursor:pointer;min-height:40px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sk-planaide{width:100%;margin:0} .sk-zoom{display:inline-flex;gap:4px} .sk-zv{font-size:14px!important;min-width:92px} .sk-zv.on{background:var(--navy);color:#fff} .sk-sep{width:1px;height:30px;background:#c9d1e3;margin:0 4px} .sk-ipad .sk-c.on{box-shadow:0 0 0 3px var(--navy)} .sk-sym.on{background:var(--navy);color:#fff} .gc-det>summary{cursor:pointer;min-height:40px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 input.f-err,select.f-err,.chip.f-err,.modgrid.f-err,#chgPose.f-err{border-color:#d3232f!important;background:#fdecec!important;box-shadow:0 0 0 2px rgba(211,35,47,.25)}
 input.f-warn,select.f-warn,.chip.f-warn,.modgrid.f-warn{border-color:#e08a00!important;background:#fff4e0!important;box-shadow:0 0 0 2px rgba(224,138,0,.25)}
 .modgrid.f-err,.modgrid.f-warn{border:2px solid;border-radius:10px;padding:4px} .pb-det>summary,.acc-det>summary{cursor:pointer;min-height:40px;display:flex;align-items:center;gap:10px;flex-wrap:wrap} .acc-det{border:1.5px solid var(--line);border-radius:10px;padding:6px 10px;margin-top:6px} .acc-det[open]{border-color:var(--navy)}
@@ -2290,6 +2290,7 @@ function barreOutils(avecCouleurs=true, x={}){
   const sym=g=>SK_SYMBOLES.filter(z=>z[2]===g).map(([k,l])=>`<button class="btn sk-tool sk-sym" data-sksym="${k}" title="${l} : touche le bouton puis l'endroit du dessin${g==="men"?" (près d'un mur : elle s'y colle)":""}"><b>${SK_ICONES[k]||"•"}</b>${l}</button>`).join("");
   return `<div class="sk-ipad${x.vec?" sk-vec":""}">
     <div class="sk-tabs">${tab("dessin","✏️ Dessin")}${tab("plan","🏠 Plan")}${tab("sym","🔣 Symboles")}${tab("texte","🔤 Texte")}${tab("regl","⚙️ Plus")}<span class="sk-tabs-sp"></span>
+      <span class="sk-zoom"><button class="btn small" id="skZm" title="Dézoomer">－</button><button class="btn small sk-zv" id="skZv" title="Zoom : molette de la souris sur le dessin, ou 2 doigts sur la tablette. Toucher ici = revenir à 100 %">🔍 100 %</button><button class="btn small" id="skZp" title="Zoomer">＋</button></span><!--zoom-->
       <button class="btn small sk-und" id="skUndo" title="Annuler">↶</button><button class="btn small" id="skRedo">↷</button></div>
     <div ${pane("dessin")}>
       ${x.couleurs?`<div class="sk-grp">${x.couleurs}</div>`:avecCouleurs?`<div class="sk-grp">${SK_COULEURS.map(([c,n],i)=>`<button class="sk-c${i===0?" on":""}" data-pen="${c}" title="${n}" aria-label="${n}" style="background:${c}"></button>`).join("")}<label class="sk-c sk-perso" title="Autre couleur"><input type="color" id="skPerso" value="#1b2f5e"></label></div>`:""}
@@ -2408,21 +2409,29 @@ function initSketch(o=S.ouv, cle="croquis"){
   function drawSel(){ sels=sels.filter(s=>strokes.includes(s)); ctx.save(); ctx.setLineDash([10,8]); ctx.strokeStyle="#e07b00"; ctx.lineWidth=2*ratio/1.2;
     sels.forEach(s=>{ const [x1,y1,x2,y2]=bbox(s); ctx.strokeRect(x1-8,y1-8,x2-x1+16,y2-y1+16); });
     if(lasso){ ctx.strokeStyle="#1f4fd8"; const [x1,y1]=lasso.a,[x2,y2]=lasso.b; ctx.fillStyle="rgba(31,79,216,.08)"; ctx.fillRect(x1,y1,x2-x1,y2-y1); ctx.strokeRect(x1,y1,x2-x1,y2-y1); }
-    ctx.setLineDash([]); const s=one(); if(s&&s.f) poignees(s).forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(x,y,13*ratio/1.2,0,Math.PI*2); ctx.fillStyle="#fff"; ctx.fill(); ctx.strokeStyle="#e07b00"; ctx.lineWidth=3*ratio/1.2; ctx.stroke(); }); ctx.restore(); }
+    ctx.setLineDash([]); const s=one(); if(s&&s.f) poignees(s).forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(x,y,13*ratio/1.2/Z,0,Math.PI*2); ctx.fillStyle="#fff"; ctx.fill(); ctx.strokeStyle="#e07b00"; ctx.lineWidth=3*ratio/1.2; ctx.stroke(); }); ctx.restore(); }
   function majBoutonSel(){ const d=$("#skDelSel"); if(!d) return; d.disabled=!sels.length; d.textContent=sels.length>1?`🗑 Supprimer la sélection (${sels.length})`:"🗑 Supprimer la sélection"; }
   let base=null;
-  function redraw(avecSel=true){ ctx.clearRect(0,0,cv.width,cv.height); if(base) ctx.drawImage(base,0,0,cv.width,cv.height); strokes.forEach(drawStroke); if(avecSel) drawSel(); }
+  /* Zoom (19/11/2026) : Z = grossissement, OX/OY = décalage (pixels de la toile). Molette = zoom sous la souris, 2 doigts = zoom + déplacement */
+  let Z=1, OX=0, OY=0;
+  function redraw(avecSel=true){ ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height); ctx.setTransform(Z,0,0,Z,OX,OY);
+    if(base) ctx.drawImage(base,0,0,cv.width,cv.height); strokes.forEach(drawStroke); if(avecSel) drawSel();
+    if(Z>1){ ctx.setLineDash([]); ctx.strokeStyle="rgba(27,47,94,.25)"; ctx.lineWidth=2/Z; ctx.strokeRect(0,0,cv.width,cv.height); } ctx.setTransform(1,0,0,1,0,0); }
+  function vueEntiere(fn){ const sv=[Z,OX,OY]; Z=1; OX=0; OY=0; redraw(false); const r=fn(); [Z,OX,OY]=sv; redraw(); return r; }   // PNG / PDF toujours sans zoom
+  function borner(){ Z=Math.max(1,Math.min(8,Z)); OX=Math.min(0,Math.max(cv.width*(1-Z),OX)); OY=Math.min(0,Math.max(cv.height*(1-Z),OY)); }
+  function zoomer(nz, sx, sy){ const wx=(sx-OX)/Z, wy=(sy-OY)/Z; Z=nz; OX=sx-wx*Z; OY=sy-wy*Z; borner(); redraw(); const zv=$("#skZv"); if(zv){ zv.textContent=`🔍 ${Math.round(Z*100)} %`; zv.classList.toggle("on",Z>1); } }
   const arr=v=>Math.round(v*10)/10;
   /* Annuler / Refaire : un instantané par modification (traits, gomme, déplacement, texte…) */
   let hist=[], restaure=false; const snap=()=>JSON.stringify(strokes);
-  function commit(){ if(!restaure){ const sn=snap(); if(hist[hist.length-1]!==sn){ hist.push(sn); if(hist.length>60) hist.shift(); refaire=[]; } } restaure=false; redraw(false); o[cle]=strokes.length||base?cv.toDataURL("image/png"):"";
+  function commit(){ if(!restaure){ const sn=snap(); if(hist[hist.length-1]!==sn){ hist.push(sn); if(hist.length>60) hist.shift(); refaire=[]; } } restaure=false; o[cle]=strokes.length||base?vueEntiere(()=>cv.toDataURL("image/png")):"";
     if(V){ o[vk]=strokes.map(s=>s.pts?{c:s.c,w:s.w,o:s.o,pts:s.pts.map(p=>[arr(p[0]),arr(p[1]),Math.round((p[2]||0.5)*100)/100])}:JSON.parse(JSON.stringify(s))); o[bk]=base?base.src:""; }
     save(); redraw(); majBoutonSel(); }
   if(V && Array.isArray(o[vk])){ strokes=JSON.parse(JSON.stringify(o[vk])).filter(s=>s.f!=="sym"); if(strokes.length<o[vk].length) setTimeout(commit,300); if(o[bk]){ base=new Image(); base.onload=()=>redraw(); base.src=o[bk]; } }
   else if(o[cle]){ base=new Image(); base.onload=()=>redraw(); base.src=o[cle]; }
-  const pt=e=>{ const r=cv.getBoundingClientRect(); return [(e.clientX-r.left)*ratio,(e.clientY-r.top)*ratio, e.pressure||0.5]; };
+  const ecran=e=>{ const r=cv.getBoundingClientRect(); return [(e.clientX-r.left)*ratio,(e.clientY-r.top)*ratio]; };
+  const pt=e=>{ const [x,y]=ecran(e); return [(x-OX)/Z,(y-OY)/Z, e.pressure||0.5]; };
   /* trouver la forme / l'étiquette touchée (la plus récente d'abord ; le contour avant l'intérieur) */
-  function toucher(x,y){ const tol=(S.skDoigt?34:22)*ratio/1.2, sy=strokes.filter(s=>s.sy).reverse().find(s=>{ const [a,b,c,d]=bbox(s); return x>a&&x<c&&y>b&&y<d; }); if(sy) return sy;
+  function toucher(x,y){ const tol=(S.skDoigt?34:22)*ratio/1.2/Z, sy=strokes.filter(s=>s.sy).reverse().find(s=>{ const [a,b,c,d]=bbox(s); return x>a&&x<c&&y>b&&y<d; }); if(sy) return sy;
     const L=strokes.filter(s=>s.f||s.t).reverse();
     const dSeg=(s)=>{ const [x1,y1]=s.a,[x2,y2]=s.b, dx=x2-x1, dy=y2-y1, l2=dx*dx+dy*dy||1, t=Math.max(0,Math.min(1,((x-x1)*dx+(y-y1)*dy)/l2)); return Math.hypot(x-(x1+t*dx),y-(y1+t*dy)); };
     const bord=s=>{ if(s.t){ const k=TXT_K[s.fs]||1; return Math.abs(x-s.x)<Math.max(50,s.t.length*14*k)*ratio/1.2 && Math.abs(y-s.y)<26*k*ratio/1.2; }
@@ -2435,26 +2444,50 @@ function initSketch(o=S.ouv, cle="croquis"){
       if(s.f==="rect"||s.f==="esc") return x>x1&&x<x2&&y>y1&&y<y2; const rx=(x2-x1)/2||1, ry=(y2-y1)/2||1; return Math.hypot((x-x1-rx)/rx,(y-y1-ry)/ry)<1; };
     const main=s=>s.pts&&s.c!=="erase"&&s.pts.some((p,i)=>i&&dSeg({a:s.pts[i-1],b:p})<tol);
     return L.find(bord) || strokes.slice().reverse().find(main) || L.find(dedans) || null; }
-  cv.onpointerdown=e=>{ if(penOnly && e.pointerType==="touch") return;
+  (cv._zl||[]).forEach(([t,f,o])=>cv.removeEventListener(t,f,o)); cv._zl=[];   // pas de doublon si le croquis est réinitialisé
+  const onZ=(t,f,o)=>{ cv.addEventListener(t,f,o); cv._zl.push([t,f,o]); };
+  const doigts=new Map(); let pince=null, glisse=null;
+  function debutPince(){ const [a,b]=[...doigts.values()]; pince={d:Math.hypot(a[0]-b[0],a[1]-b[1])||1, z:Z, m:[(a[0]+b[0])/2,(a[1]+b[1])/2], ox:OX, oy:OY};
+    if(cur){ strokes=strokes.filter(x=>x!==cur); cur=null; } lasso=null; act=null; gommeObj=false; redraw(); }
+  onZ("pointerdown",e=>{ if(e.pointerType!=="touch") return; doigts.set(e.pointerId,ecran(e)); if(doigts.size===2){ debutPince(); e.stopImmediatePropagation(); } },true);
+  onZ("pointermove",e=>{ if(!doigts.has(e.pointerId)) return; doigts.set(e.pointerId,ecran(e));
+    if(pince && doigts.size>=2){ const [a,b]=[...doigts.values()], d=Math.hypot(a[0]-b[0],a[1]-b[1]), m=[(a[0]+b[0])/2,(a[1]+b[1])/2], nz=Math.max(1,Math.min(8,pince.z*d/pince.d));
+      const wx=(pince.m[0]-pince.ox)/pince.z, wy=(pince.m[1]-pince.oy)/pince.z; Z=nz; OX=m[0]-wx*Z; OY=m[1]-wy*Z; borner(); redraw(); const zv=$("#skZv"); if(zv){ zv.textContent=`🔍 ${Math.round(Z*100)} %`; zv.classList.toggle("on",Z>1); }
+      e.stopImmediatePropagation(); e.preventDefault(); } },true);
+  const finDoigt=e=>{ if(!doigts.has(e.pointerId)) return; doigts.delete(e.pointerId); if(pince){ if(doigts.size<2) pince=null; e.stopImmediatePropagation(); } };
+  ["pointerup","pointercancel"].forEach(t=>onZ(t,finDoigt,true));
+  onZ("wheel",e=>{ const [sx,sy]=ecran(e);
+    const souris=e.ctrlKey || e.deltaMode===1 || (e.deltaX===0 && Math.abs(e.deltaY)>=40 && Number.isInteger(e.deltaY));
+    if(souris){ e.preventDefault(); zoomer(Z*Math.pow(1.0018,-e.deltaY*(e.ctrlKey?4:1)), sx, sy); }
+    else if(Z>1){ e.preventDefault(); OX-=e.deltaX*ratio; OY-=e.deltaY*ratio; borner(); redraw(); } },{passive:false});
+  /* déplacer la vue zoomée : clic molette (souris), ou un doigt quand « Stylet seulement » est actif */
+  onZ("pointerdown",e=>{ if(Z>1 && (e.button===1 || (penOnly && e.pointerType==="touch" && doigts.size===1))){ glisse={p:ecran(e), ox:OX, oy:OY, id:e.pointerId}; try{ cv.setPointerCapture(e.pointerId); }catch(_){} e.preventDefault(); e.stopImmediatePropagation(); } },true);
+  onZ("pointermove",e=>{ if(!glisse||e.pointerId!==glisse.id||pince) return; const [x,y]=ecran(e); OX=glisse.ox+x-glisse.p[0]; OY=glisse.oy+y-glisse.p[1]; borner(); redraw(); e.stopImmediatePropagation(); },true);
+  ["pointerup","pointercancel"].forEach(t=>onZ(t,e=>{ if(glisse&&e.pointerId===glisse.id){ glisse=null; e.stopImmediatePropagation(); } },true));
+  onZ("auxclick",e=>{ if(e.button===1) e.preventDefault(); });
+  const zc=()=>[cv.width/2,cv.height/2];
+  const zp=$("#skZp"), zm=$("#skZm"), zvb=$("#skZv");
+  if(zp) zp.onclick=()=>zoomer(Z*1.5,...zc()); if(zm) zm.onclick=()=>zoomer(Z/1.5,...zc()); if(zvb) zvb.onclick=()=>zoomer(1,0,0);
+  cv.onpointerdown=e=>{ if(pince) return; if(penOnly && e.pointerType==="touch") return;
     if(S.skPose){ const [x,y]=pt(e); const sObj={sy:S.skPose, x, y, r:0, z:1};
-      if(SK_MEN_W[S.skPose]){ const w=murProche(x,y,48*ratio/1.2); if(w){ sObj.x=w.p[0]; sObj.y=w.p[1]; sObj.r=Math.round(w.ang/(Math.PI/2)*1000)/1000; sObj.ep=w.s.e||16; } } strokes.push(sObj); S.skDernier=sObj; refaire=[]; commit(); if(!S.skPoseGarde){ S.skPose=null; $$("[data-sksym]").forEach(b=>b.classList.remove("on")); } e.preventDefault(); return; }
+      if(SK_MEN_W[S.skPose]){ const w=murProche(x,y,48*ratio/1.2/Z); if(w){ sObj.x=w.p[0]; sObj.y=w.p[1]; sObj.r=Math.round(w.ang/(Math.PI/2)*1000)/1000; sObj.ep=w.s.e||16; } } strokes.push(sObj); S.skDernier=sObj; refaire=[]; commit(); if(!S.skPoseGarde){ S.skPose=null; $$("[data-sksym]").forEach(b=>b.classList.remove("on")); } e.preventDefault(); return; }
     if(texte){ const [x,y]=pt(e); strokes.push({t:texte.t, c:texte.lib?texte.c:(S.skTxtC||texte.c), x, y, ...styleTxt()}); if($("#skTxtLibre")&&$("#skTxtLibre").value.trim()===texte.t) $("#skTxtLibre").value=""; texte=null; $$("[data-sktxt]").forEach(b=>b.classList.remove("on")); commit(); e.preventDefault(); return; }
     try{ cv.setPointerCapture(e.pointerId); }catch(_){}
     S.skDoigt=e.pointerType==="touch"; const fo=S.skForme||"", [px,py]=pt(e);
     if(V && fo==="edit"){ e.preventDefault();
-      const s1=one(); if(s1&&s1.f){ const h=poignees(s1).findIndex(([x,y])=>Math.hypot(x-px,y-py)<26*ratio/1.2); if(h>=0){ act={h}; return; } }
+      const s1=one(); if(s1&&s1.f){ const h=poignees(s1).findIndex(([x,y])=>Math.hypot(x-px,y-py)<26*ratio/1.2/Z); if(h>=0){ act={h}; return; } }
       if(base && !strokes.some(s=>s.f||s.t||s.pts)) toast("Ce dessin a été fait avant la mise à jour : c'est une image, on ne peut pas en choisir les morceaux (bouton « Effacer l'ancien dessin »)");
       const hit=toucher(px,py);
       if(hit){ if(S.skMulti){ const k=sels.indexOf(hit); if(k>=0) sels.splice(k,1); else sels.push(hit); } else if(!sels.includes(hit)) sels=[hit]; act=sels.includes(hit)?{m:[px,py]}:null; }
       else { if(!S.skMulti) sels=[]; lasso={a:[px,py],b:[px,py]}; }
       redraw(); majBoutonSel(); majStyleTxt(); const ti=$("#skTxtLibre"), s=one(); if(ti){ ti.value=s&&s.t?s.t:""; ti.placeholder=s&&s.t?"":"Écrire un texte (ex. Chambre 1, 3,20 m, passage combles…)"; } return; }
     if(texteMain){ e.preventDefault(); ouvrirTexteMain(e, px, py); return; }
-    if(S.skPlan==="cote"){ e.preventDefault(); const w=murProche(px,py,34*ratio/1.2); if(w) demanderCotes([w.s],null); else toast("Touche un mur"); return; }
+    if(S.skPlan==="cote"){ e.preventDefault(); const w=murProche(px,py,34*ratio/1.2/Z); if(w) demanderCotes([w.s],null); else toast("Touche un mur"); return; }
     if(S.skPlan){ e.preventDefault(); const a=aimant([px,py]); cur= S.skPlan==="escalier" ? {f:"esc",c:"#1b2f5e",a,b:a.slice()} : S.skPlan==="piece" ? {f:"pieceTmp",a,b:a.slice()} : {f:"mur",c:"#1b2f5e",e:S.skPlan==="cloison"?7:16,a,b:a.slice()}; strokes.push(cur); refaire=[]; return; }
     if(pen==="eraseObj"){ e.preventDefault(); gommeObj=true; gommer(px,py); return; }
     if(fo && fo!=="edit" && pen!=="erase" && V){ cur={f:fo,c:pen,a:[px,py],b:[px,py]}; strokes.push(cur); refaire=[]; e.preventDefault(); return; }
     const sty=SK_STYLES.find(x=>x[0]===(S.skStyle||"stylo"))||SK_STYLES[0], m=[0,0.6,1,1.6,2.4][S.skEp||2];
-    cur=pen==="erase"?{c:"erase",w:16+14*m,pts:[pt(e)]}:{c:pen,w:Math.round(sty[2]*m*10)/10,o:sty[3],pts:[pt(e)]}; strokes.push(cur); refaire=[]; e.preventDefault(); };
+    cur=pen==="erase"?{c:"erase",w:Math.round((16+14*m)/Z*10)/10,pts:[pt(e)]}:{c:pen,w:Math.round(sty[2]*m*10)/10,o:sty[3],pts:[pt(e)]}; strokes.push(cur); refaire=[]; e.preventDefault(); };
   let gommeObj=false;
   function gommer(x,y){ const h=toucher(x,y); if(h){ strokes=strokes.filter(s=>s!==h); sels=sels.filter(s=>s!==h); redraw(); gommeObj="modifie"; } }
   /* Texte au stylet : une case s'ouvre à l'endroit touché ; on y écrit à l'Apple Pencil et l'iPad (Griffonner) le transforme en texte tapé */
@@ -2468,7 +2501,7 @@ function initSketch(o=S.ouv, cle="croquis"){
     inp.onkeydown=ev=>{ if(ev.key==="Enter"){ ev.preventDefault(); fin(true); } if(ev.key==="Escape") fin(false); };
     inp.onblur=()=>setTimeout(()=>fin(true),150);
   }
-  cv.onpointermove=e=>{
+  cv.onpointermove=e=>{ if(pince) return;
     if(gommeObj){ const [x,y]=pt(e); gommer(x,y); e.preventDefault(); return; }
     if(lasso){ lasso.b=pt(e).slice(0,2); redraw(); e.preventDefault(); return; }
     const sel=act&&act.m?null:one();
@@ -2514,7 +2547,7 @@ function initSketch(o=S.ouv, cle="croquis"){
   /* ---------- Plan de maison (19/11/2026) : murs, cloisons, pièce en un geste, escalier, ouvertures collées, cotes à la demande ---------- */
   function projMur(p,s){ const [x1,y1]=s.a,[x2,y2]=s.b, dx=x2-x1, dy=y2-y1, l2=dx*dx+dy*dy||1, t=Math.max(0,Math.min(1,((p[0]-x1)*dx+(p[1]-y1)*dy)/l2)), q=[x1+t*dx,y1+t*dy]; return {p:q, d:Math.hypot(p[0]-q[0],p[1]-q[1]), t, ang:Math.atan2(dy,dx), s}; }
   function murProche(x,y,tol){ let b=null; strokes.forEach(s=>{ if(s.f!=="mur") return; const r=projMur([x,y],s); if(r.d<tol && (!b||r.d<b.d)) b=r; }); return b; }
-  function aimant(p,sauf){ const tol=26*ratio/1.2; let best=null, bd=tol;
+  function aimant(p,sauf){ const tol=26*ratio/1.2/Z; let best=null, bd=tol;
     strokes.forEach(s=>{ if(s.f!=="mur"||s===sauf) return; [s.a,s.b].forEach(q=>{ const d=Math.hypot(q[0]-p[0],q[1]-p[1]); if(d<bd){ bd=d; best=[q[0],q[1]]; } }); });
     if(best) return best; const w=strokes.filter(s=>s.f==="mur"&&s!==sauf).map(s=>projMur(p,s)).filter(r=>r.d<tol*0.7).sort((a,b)=>a.d-b.d)[0];
     return w? w.p.slice() : [p[0],p[1]]; }
@@ -2563,7 +2596,7 @@ function initSketch(o=S.ouv, cle="croquis"){
   $$("[data-skep]").forEach(b=>b.onclick=()=>{ S.skEp=+b.dataset.skep; $$("[data-skep]").forEach(x=>x.classList.toggle("on",x===b)); });
   const cp=$("#skPerso"); if(cp) cp.oninput=()=>{ cp.parentElement.dataset.pen=cp.value; cp.parentElement.style.background=cp.value; choisirPen(cp.parentElement); if(sels.length){ sels.forEach(s=>s.c=cp.value); commit(); } };
   /* lien iPad : le PC reçoit les traits dessinés sur la tablette */
-  S.skDistant={ ajouter(s){ strokes.push(s); commit(); return s; }, retirer(s){ strokes=strokes.filter(x=>x!==s); commit(); }, w:()=>cv.width, h:()=>cv.height, png:()=>{ const c=document.createElement("canvas"); c.width=cv.width; c.height=cv.height; const x=c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,c.width,c.height); x.drawImage(cv,0,0); return c.toDataURL("image/jpeg",0.8); } };   // fond blanc (sinon noir en JPEG)
+  S.skDistant={ ajouter(s){ strokes.push(s); commit(); return s; }, retirer(s){ strokes=strokes.filter(x=>x!==s); commit(); }, w:()=>cv.width, h:()=>cv.height, png:()=>vueEntiere(()=>{ const c=document.createElement("canvas"); c.width=cv.width; c.height=cv.height; const x=c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,c.width,c.height); x.drawImage(cv,0,0); return c.toDataURL("image/jpeg",0.8); }) };   // fond blanc (sinon noir en JPEG)
   const bt=$("#skTablette"); if(bt) bt.onclick=tabletteDemarrer;
   const rz=$("#skRedresse input"); if(rz) rz.onchange=()=>{ S.skRedresse=rz.checked; $("#skRedresse").classList.toggle("on",rz.checked); toast(rz.checked?"Traits redressés : tes traits presque droits deviennent droits":"Traits laissés tels quels"); };
   $$("[data-sksym]").forEach(b=>b.onclick=()=>{ const k=b.dataset.sksym, on=!b.classList.contains("on"); $$("[data-sksym]").forEach(x=>x.classList.remove("on")); S.skPose=null; S.skTrait=null; stopPlan();
@@ -5116,7 +5149,7 @@ async function tabletteRejoindre(){
   envoyer();
   const m=document.createElement("div"); m.id="tabIpad";
   m.innerHTML=`<div class="tab-bar"><b>📲 ${esc(C.titre||"Dessin")}</b><span id="tabIEtat" class="hint">relié au PC</span><span class="spacer"></span><button class="btn primary" id="tabFin">Terminé</button></div>
-    ${barreOutils(true).replace(/id="sk/g,'id="tk').replace(/<button class="btn small" data-pen="erase"[^>]*>[^<]*<\/button>/,"").replace(/<button class="btn small" id="tkTexteMain"[^>]*>[^<]*<\/button>/,"").replace(/<button class="btn small" id="tkRedo">↷<\/button>/,"").replace(/<button class="btn small" data-pen="eraseObj"[^>]*>[^<]*<\/button>/,"").replace('id="tkClear">Effacer tout','id="tkClear">Effacer mes traits').replace(/<button class="btn small" id="tkTablette"[^>]*>[^<]*<\/button>/,"").replace(/<div class="sk-grp sk-symgrp">[\s\S]*?<\/div><!--sym-->/,"").replace(/<button class="sk-tab[^"]*" data-skonglet="(plan|sym|texte)">[^<]*<\/button>/g,"").replace(/<label class="chip[^"]*" id="tkRedresse"[\s\S]*?<\/label>/,"")}
+    ${barreOutils(true).replace(/id="sk/g,'id="tk').replace(/<button class="btn small" data-pen="erase"[^>]*>[^<]*<\/button>/,"").replace(/<button class="btn small" id="tkTexteMain"[^>]*>[^<]*<\/button>/,"").replace(/<button class="btn small" id="tkRedo">↷<\/button>/,"").replace(/<button class="btn small" data-pen="eraseObj"[^>]*>[^<]*<\/button>/,"").replace('id="tkClear">Effacer tout','id="tkClear">Effacer mes traits').replace(/<button class="btn small" id="tkTablette"[^>]*>[^<]*<\/button>/,"").replace(/<div class="sk-grp sk-symgrp">[\s\S]*?<\/div><!--sym-->/,"").replace(/<button class="sk-tab[^"]*" data-skonglet="(plan|sym|texte)">[^<]*<\/button>/g,"").replace(/<span class="sk-zoom">[\s\S]*?<\/span><!--zoom-->/,"").replace(/<label class="chip[^"]*" id="tkRedresse"[\s\S]*?<\/label>/,"")}
     <div class="tab-zone"><canvas id="tabCv"></canvas></div>`;
   document.body.appendChild(m);
   m.querySelectorAll(".sk-pane").forEach(p=>p.classList.toggle("hide",p.dataset.pane!=="dessin")); m.querySelectorAll("[data-skonglet]").forEach(b=>b.classList.toggle("on",b.dataset.skonglet==="dessin"));

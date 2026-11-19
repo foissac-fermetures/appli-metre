@@ -218,6 +218,7 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .sk-rel{border:2px solid var(--navy);border-radius:10px;padding:8px 10px;margin:8px 0;background:#f7f9fd} .sk-rel-h{display:flex;gap:10px;align-items:center;margin-bottom:6px} .sk-rel-h button{margin-left:auto}
 .sk-rel-c{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:12px;align-items:start} .sk-rel-svg{width:100%;background:#fff;border:1px solid var(--line);border-radius:8px} .sk-rel-etape{font-weight:700;color:var(--navy)}
 @media (max-width:700px){ .sk-rel-c{grid-template-columns:1fr} }
+.cl-wifi{margin-top:8px;padding:8px 10px;border-radius:8px;background:#e8f0ff;color:var(--navy)}
 /* barre de dessin à onglets (19/11/2026) */
 .sk-ipad{flex-direction:column;align-items:stretch;gap:8px}
 .sk-tabs{display:flex;gap:6px;flex-wrap:wrap;align-items:center} .sk-tabs-sp{flex:1}
@@ -2705,7 +2706,7 @@ function pagesPhotos(d, o, head){
    tableau des pièces (+ variantes), observation, schémas étage / bas à main levée, photos (pièces, tableau électrique).
    Le PDF reproduit la même mise en page pour Clémence. */
 const CLIM_MODELES = ["TAKAO Plus","TAKAO M3","TAKAO Design","Console","Gainable","Cassette"];
-const CLIM_OPTIONS = ["NAVI CLIM","Wi-Fi (Cozytouch)","Télécommande filaire","Pompe de relevage"];
+const CLIM_OPTIONS = ["Télécommande filaire","Pompe de relevage"];   // Wi-Fi : case « Connectable Wi-Fi » (Navi Clim + hub comptés tout seuls)
 const CLIM_TEMPS = ["½ jour","1 jour","1,5 jour","2 jours","2,5 jours","3 jours","4 jours","5 jours"];
 const CLIM_HAUTEUR = ["SOL","Support mural","Toit terrasse","Balcon"];
 const CLIM_RAL = ["IVOIRE","BLANC","MARRON","GRIS","NOIR","Sans goulotte"];
@@ -2718,9 +2719,12 @@ const climUnites = c => Array.from({length:climNbUE(c)},(_,i)=>`Unité ${i+1}`);
 function climUE(c,n){ if(!c["ue"+n]) c["ue"+n]={h_sol:"", cable:""}; return c["ue"+n]; }
 /* Légende des couleurs du schéma clim (stylos) et étiquettes reprises du schéma Numbers de Nicolas */
 const CLIM_LEGENDE = [
-  {c:"#111111", l:"Murs / pièces"}, {c:"#1f4fd8", l:"Unité intérieure (split)"}, {c:"#7b2cbf", l:"Console"},
-  {c:"#d3232f", l:"Groupe extérieur"}, {c:"#1f9d3a", l:"Goulotte / liaisons"}, {c:"#e07b00", l:"Tableau électrique / câble 3G"},
-  {c:"#00a3c4", l:"Évacuation des condensats"}, {c:"#8a8f99", l:"Menuiserie"} ];
+  {c:"#1f9d3a", l:"Goulotte / liaisons"}, {c:"#e07b00", l:"Tableau électrique / câble 3G"}, {c:"#00a3c4", l:"Évacuation des condensats"} ];   // 19/11 : murs, split, console, groupe, menuiserie retirés (outils Plan / Symboles)
+/* Clim connectable en Wi-Fi (19/11/2026) : 1 Navi Clim par unité intérieure (split, console) + 1 hub par groupe extérieur utilisé */
+function climWifi(c, avecVar=false){ if(!c||!c.wifi) return null; const L=(c.lignes||[]).filter(l=>avecVar?l.variante:!l.variante);
+  return {navi:L.filter(l=>/^(split|console)/i.test(l.type||"")).length, hub:new Set(L.map(l=>l.unite||"Unité 1")).size}; }
+function climWifiTexte(c){ const w=climWifi(c); if(!w) return ""; const v=climWifi(c,true), pl=(n,a,b)=>`${n} ${n>1?b:a}`;
+  return `${pl(w.navi,"Navi Clim","Navi Clim")} (1 par split / console) + ${pl(w.hub,"hub","hubs")} (1 par groupe extérieur)${v&&(v.navi||v.hub)&&(c.lignes||[]).some(l=>l.variante)?` – variante : + ${v.navi} Navi Clim`:""}`; }
 const CLIM_ETIQUETTES = [["Split","#1f4fd8"],["Console","#7b2cbf"],["Groupe extérieur","#d3232f"],["Goulotte","#1f9d3a"],["Tableau","#e07b00"],["Pompe de relevage","#00a3c4"],["Menuiserie","#8a8f99"],["Chauffe-eau","#111111"]];
 const CLIM_TABLEAU_PLACE = ["Oui, assez de place pour se rebrancher","Non, prévoir un petit tableau indépendant à côté","À vérifier par l'électricien"];
 /* Schémas : 2 au départ (renommables : RDC, étage…), « + Schéma » jusqu'à 6 */
@@ -2940,7 +2944,8 @@ function renderClim(t){
     <div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap"><button class="btn primary" id="clSepGrp">Un devis par groupe extérieur (Unité 1, Unité 2…)</button><button class="btn" id="clSepGo">Mettre la sélection (${(S.climSel||new Set()).size}) dans un nouveau devis…</button></div></div>`:""}
   <div class="grid g2">
     <div class="card"><h2><span class="num">1</span>Installation</h2>
-      <div class="checks">${F.chk("clim.mono","Mono split",c.mono)}${F.chk("clim.multi","Multi split",c.multi)}</div>
+      <div class="checks">${F.chk("clim.mono","Mono split",c.mono)}${F.chk("clim.multi","Multi split",c.multi)}${F.chk("clim.wifi","📶 Connectable Wi-Fi",c.wifi)}</div>
+      <div id="clWifi" class="cl-wifi${c.wifi?"":" hide"}">📶 À prévoir : <b>${esc(climWifiTexte(c))}</b></div>
       <div class="grid g2" style="margin-top:10px">${txt("clim.modele","Modèle",c.modele,"dlClimMod")}${txt("clim.option","Option",c.option,"dlClimOpt")}
         ${txt("clim.annee","Année de la maison",c.annee,"",'inputmode="numeric"')}${txt("clim.temps_pose","Temps de pose (estimation)",c.temps_pose,"dlClimTps")}</div></div>
     <div class="card"><h2><span class="num">2</span>Unités extérieures <small style="font-weight:400;text-transform:none">– ${climNbUE(c)} groupe(s)</small></h2><div class="grid g2">
@@ -2998,6 +3003,8 @@ function renderClim(t){
   $$("[data-clvar]").forEach(b=>b.onclick=()=>{ const l=c.lignes[+b.dataset.clvar]; l.variante=!l.variante; save(); re(); });
   $$("[data-clcalc]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.clcalc; S.climCalc = S.climCalc===i ? null : i; $("#climCalc"+i).classList.toggle("hide"); });
   $$("[data-clsch]").forEach(b=>b.onclick=()=>{ S.climSch=b.dataset.clsch; re(); });
+  const majWifi=()=>setTimeout(()=>{ const w=$("#clWifi"); if(!w) return; w.classList.toggle("hide",!c.wifi); w.innerHTML=`📶 À prévoir : <b>${esc(climWifiTexte(c))}</b>`; },0);
+  t.addEventListener("change",majWifi); t.addEventListener("click",e=>{ if(e.target.closest("button")) majWifi(); });
   const sn=$("#clSchNom"); if(sn) sn.oninput=()=>{ c.sch_noms=c.sch_noms||{}; c.sch_noms[schK]=sn.value.trim(); save(); const b=$(`[data-clsch="${schK}"]`); if(b) b.textContent=nomSchema(c,schK)+(c[schK]?" ✓":""); };
   const sa=$("#clSchAdd"); if(sa) sa.onclick=()=>{ c.sch_extra=c.sch_extra||[]; let i=3; while(climSchemas(c).includes("schema_"+i)) i++; const k="schema_"+i; c.sch_extra.push(k); c[k]=""; S.climSch=k; save(); re(); };
   const sdu=$("#clSchDup"); if(sdu) sdu.onclick=()=>{ c.sch_extra=c.sch_extra||[]; let i=3; while(climSchemas(c).includes("schema_"+i)) i++; const k="schema_"+i;
@@ -3044,10 +3051,10 @@ function pagesClim(d){
   const cartes=[...P.map((l,i)=>carte(l,i+1,false)), ...V.map((l,i)=>carte(l,"V"+(i+1),true))];
   let h=`<div class="pg cl-pg">${head("Métré climatisation")}
     <div class="cl-haut">
-      <table class="pt pdt cl-t"><tr class="pdir"><th colspan="2">INSTALLATION</th></tr>${tr("Type",c.multi?"Multi split":c.mono?"Mono split":"")}${tr("Modèle",esc(c.modele))}${tr("Option",esc(c.option))}${tr("Année de la maison",esc(c.annee))}
+      <table class="pt pdt cl-t"><tr class="pdir"><th colspan="2">INSTALLATION</th></tr>${tr("Type",c.multi?"Multi split":c.mono?"Mono split":"")}${tr("Modèle",esc(c.modele))}${tr("Option",esc(c.option))}${tr("Connectable Wi-Fi",c.wifi?"<b>OUI</b>":"")}${tr("Année de la maison",esc(c.annee))}
         ${tr("Unités intérieures",`${P.length}${V.length?` (+ ${V.length} en variante)`:""}`)}${tr("Puissance totale conseillée",pTot?`≈ ${String(Math.round(pTot*10)/10).replace(".",",")} kW <small>(indicatif)</small>`:"")}${tr("Temps de pose estimé",esc(c.temps_pose))}</table>
       <div>${ue}</div>
-      <table class="pt pdt cl-t"><tr class="pdir"><th colspan="2">FINITIONS ET À PRÉVOIR</th></tr>${tr("Dalle béton",oui(c.dalle))}${tr("Supports muraux",oui(c.supports))}${tr("Goulottes extérieures",esc(c.ral_ext))}${tr("Goulottes intérieures",esc(c.ral_int))}
+      <table class="pt pdt cl-t"><tr class="pdir"><th colspan="2">FINITIONS ET À PRÉVOIR</th></tr>${tr("Dalle béton",oui(c.dalle))}${tr("Supports muraux",oui(c.supports))}${tr("Goulottes extérieures",esc(c.ral_ext))}${tr("Goulottes intérieures",esc(c.ral_int))}${tr("Wi-Fi à prévoir",c.wifi?`<b>${esc(climWifiTexte(c))}</b>`:"")}
         ${tr("Tableau électrique",c.tableau&&c.tableau.place?`<span class="${/^Non/.test(c.tableau.place)?"cl-non":"cl-oui"}">${esc(c.tableau.place)}</span>`:"")}</table>
     </div>
     ${c.observation?`<div class="cl-obs"><b>Observation :</b> ${esc(c.observation).replace(/\n/g,"<br>")}</div>`:""}

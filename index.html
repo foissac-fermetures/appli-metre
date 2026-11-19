@@ -3972,7 +3972,7 @@ async function dossierDefinitif(racine){
   const f=r.files.find(x=>/m[ée]tr[ée]s?\s*d[ée]finitif/i.test(x.name.replace(/\s+/g," ")));
   return f ? f.id : dossierDrive(DRIVE_DEFINITIF, racine);
 }
-const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/calendar.events.readonly";   // Drive + lecture de l'agenda
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/gmail.send";   // Drive + lecture de l'agenda + envoi du mail à Roxane (19/11)   // Drive + lecture de l'agenda
 const LIB_H2C = "lib/html2canvas.min.js";   // copiés à côté de l'appli (fonctionne hors ligne)
 const LIB_PDF = "lib/jspdf.umd.min.js";
 
@@ -3993,9 +3993,9 @@ function demanderJeton(){ return new Promise((ok,ko)=>{
   if(jetonValide()) return ok(G_JETON);
   if(!G_CLIENT) return ko(new Error("Google pas encore prêt, réessaie dans 2 secondes"));
   G_CLIENT.callback=r=>{ if(r.error) return ko(new Error(r.error)); G_JETON=r.access_token; G_FIN=Date.now()+r.expires_in*1000;
-    try{ localStorage.setItem("g_jeton",JSON.stringify({t:G_JETON,f:G_FIN,s:DRIVE_SCOPE})); localStorage.setItem("g_ok3","1"); }catch(e){} ok(G_JETON); };
+    try{ localStorage.setItem("g_jeton",JSON.stringify({t:G_JETON,f:G_FIN,s:DRIVE_SCOPE})); localStorage.setItem("g_ok4","1"); }catch(e){} ok(G_JETON); };
   G_CLIENT.error_callback=e=>ko(new Error(e.type==="popup_closed"?"fenêtre Google fermée":"connexion Google impossible"));
-  G_CLIENT.requestAccessToken({prompt: localStorage.getItem("g_ok3") ? "" : "consent"});
+  G_CLIENT.requestAccessToken({prompt: localStorage.getItem("g_ok4") ? "" : "consent"});
 }); }
 async function gdrive(url, opt={}){
   url+=(url.includes("?")?"&":"?")+"supportsAllDrives=true"; // plus de « corpora=allDrives » : résultats parfois incomplets → doublons (16/11)
@@ -4215,11 +4215,39 @@ async function envoyerClemence(){
     const pdf=envoyerDossierDrive.dernierPDF||await genererPDF(d);
     const f=await deposerNouveau(nom, pdf, cible.id, `Métré Foissac – envoyé depuis l'appli – ${d.type_document||""}`);
     if(!f||!f.id) throw new Error("Google Drive n'a pas confirmé le dépôt");
+    if(cible===CLEMENCE.clim) d.clemence._mail=await mailRoxane(d, f, deja.length>0);
     d.clemence.envois.push({le:new Date().toISOString(), nom:f.name||nom, dossier:cible.nom, id:f.id, lien:f.webViewLink||""});
-    await DB.put(d); renderDossier(); toast(`✓ Envoyé à Clémence : ${f.name||nom} → ${cible.nom}`);
+    const ml=d.clemence._mail; delete d.clemence._mail; if(ml) d.clemence.envois[d.clemence.envois.length-1].mail=ml.ok?"Roxane":"échec";
+    await DB.put(d); renderDossier(); toast(`✓ Envoyé : ${f.name||nom} → ${cible.nom}${ml&&ml.ok?" · mail envoyé à Roxane":""}`);
+    if(ml && !ml.ok && await demander(`Le devis est bien déposé dans DEVIS CLIM, mais le mail à Roxane n'est pas parti (${ml.err}).\n\nOuvrir le mail tout prêt pour l'envoyer toi-même ?`,"Ouvrir le mail","Plus tard")) location.href=ml.mailto;
   }catch(e){   // 19/11 : échec bien visible (SAV Chartendrault jamais arrivé) + on ne garde pas « envoyé »
     d.clemence.envoye=envoisClemence(d).length>0; try{ await DB.put(d); }catch(_){} renderDossier();
     await demander(`⚠ Le PDF N'EST PAS arrivé chez Clémence (ECHANGES › ${cible.nom}).\n\n${/Failed to fetch|network/i.test(e.message)?"Réseau coupé.":"Erreur : "+e.message}\n\nRéessaie avec le bouton « 📨 Envoyer à Clémence » dès que tu as du réseau.`,"Compris"); }
+}
+
+/* Mail à Roxane (secrétaire de Sarlat, devis clim) après chaque dépôt dans ECHANGES › DEVIS CLIM – 19/11/2026 */
+const ROXANE = {nom:"Roxane", mail:"contact24@foissacfermetures.fr"};
+function texteMailRoxane(d, f, modif){
+  const cl=(d.client.nom||"").trim()||"sans nom", lieu=((String(d.adresse_chantier||"").match(/\b\d{5}\s+([^\n,]+)/)||[])[1]||"").trim();   // la commune du chantier
+  const objet=modif?`Modification devis clim – ${cl}`:`Devis clim à faire – ${cl}`;
+  const lignes=[`Bonjour Roxane,`, ``,
+    modif?`Je t'ai déposé une modification du devis clim de ${cl}${lieu?" ("+lieu+")":""} dans notre dossier ECHANGES NICOLAS › DEVIS CLIM.`
+         :`Je t'ai déposé un devis clim à faire pour ${cl}${lieu?" ("+lieu+")":""} dans notre dossier ECHANGES NICOLAS › DEVIS CLIM.`,
+    `Fichier : ${f.name||""}`, f.webViewLink?`Lien direct : ${f.webViewLink}`:"", ``,
+    `Si tu as la moindre question, n'hésite pas à m'appeler.`, ``, `Merci beaucoup et bonne journée !`, ``, `Nicolas`, `Foissac Fermetures`].filter((x,i,a)=>x!==""||a[i-1]!=="");
+  return {objet, corps:lignes.join("\n")};
+}
+async function mailRoxane(d, f, modif){
+  const {objet, corps}=texteMailRoxane(d, f, modif), mailto=`mailto:${ROXANE.mail}?subject=${encodeURIComponent(objet)}&body=${encodeURIComponent(corps)}`;
+  try{
+    const b64=t=>btoa(unescape(encodeURIComponent(t)));
+    const brut=[`To: ${ROXANE.mail}`, `Subject: =?UTF-8?B?${b64(objet)}?=`, "MIME-Version: 1.0", "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", b64(corps)].join("\r\n");
+    const raw=b64(brut).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+    const r=await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send",{method:"POST",headers:{Authorization:"Bearer "+G_JETON,"Content-Type":"application/json"},body:JSON.stringify({raw})});
+    if(!r.ok){ let m="Gmail "+r.status; try{ const j=await r.json(); m=(j.error&&j.error.message)||m; }catch(_){}
+      if(r.status===401||r.status===403){ try{ localStorage.removeItem("g_ok4"); localStorage.removeItem("g_jeton"); }catch(_){} } throw new Error(m.slice(0,140)); }
+    return {ok:true};
+  }catch(e){ return {ok:false, err:e.message, mailto}; }
 }
 
 /* Choix bien visible Devis / Métré définitif (écrit dans « Document ») */
@@ -4279,7 +4307,7 @@ async function majBandeauDrive(n){
    → au premier toucher sur l'accueil (ou sur « Retour »), on la renouvelle en silence puis on synchronise. */
 let G_RENOUV=0;
 document.addEventListener("pointerdown", e=>{
-  if(!driveDispo() || !navigator.onLine || jetonValide() || !G_CLIENT || !localStorage.getItem("g_ok3")) return;
+  if(!driveDispo() || !navigator.onLine || jetonValide() || !G_CLIENT || !localStorage.getItem("g_ok4")) return;
   if(!(S.view==="home" || e.target.closest?.("#btnBack,#hSync,#driveBandeau"))) return;
   if(Date.now()-G_RENOUV<5*60000) return; G_RENOUV=Date.now();
   demanderJeton().then(()=>{ S.syncAuto=Date.now(); synchroAccueil(false); }).catch(()=>{});
@@ -4406,7 +4434,7 @@ async function chargerAgenda(forcer){
   await demanderJeton();
   const t0=new Date(); t0.setHours(0,0,0,0); const t1=new Date(t0.getTime()+8*86400e3);
   const r=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&maxResults=60&timeMin=${t0.toISOString()}&timeMax=${t1.toISOString()}`,{headers:{Authorization:"Bearer "+G_JETON}});
-  if(!r.ok){ if(r.status===403||r.status===401){ try{ localStorage.removeItem("g_ok3"); }catch(e){} } throw new Error("Agenda "+r.status); }
+  if(!r.ok){ if(r.status===403||r.status===401){ try{ localStorage.removeItem("g_ok4"); }catch(e){} } throw new Error("Agenda "+r.status); }
   const j=await r.json();
   const rdv=(j.items||[]).filter(e=>e.status!=="cancelled" && (e.location || /^\s*RDV\b/i.test(e.summary||""))).map(e=>({
     id:e.id, titre:e.summary||"", lieu:(e.location||"").replace(/\n/g,", ").replace(/,\s*France$/,""), desc:e.description||"",

@@ -1158,11 +1158,29 @@ function questionsOuverture(o, d=S.dossier){
     if(j) add("identique",tL+"x"+tH+"|"+rp,`Même repère « ${o.repere} » et mêmes cotes que ${j.num_poseur?"la n°"+j.num_poseur:"une autre ouverture"} : c'est voulu (2 identiques) ?`,{lib:"Non, copie à modifier",champ:"repere"}); }
   const vl=d?.vr?vrLie(d,o):null, vL=vl?num(vl.tab_l)??num(vl.fab_l):null;
   if(vL!=null && tL!=null && Math.abs(vL-tL)>150) add("volet",vL+"|"+tL,`Volet roulant de ${vL} de large pour une fenêtre de ${tL} : c'est juste ?`,{lib:"Non, je corrige",go:"vr"});
+  /* ---- 2e série (19/11/2026, idées tirées des guides de prise de cotes / autocontrôle) ---- */
+  if(o.pose==="tunnel" && ((f.L!=null&&tL!=null&&f.L>=tL)||(f.H!=null&&tH!=null&&f.H>=tH)))
+    add("tunnel_jeu",`${f.L}x${f.H}|${tL}x${tH}`,`Pose tunnel : fabrication ${f.L??"?"} × ${f.H??"?"} pas plus petite que le tableau ${tL??"?"} × ${tH??"?"} (il faut du jeu) : sûr ?`,{lib:"Non, je corrige",champ:"fab_force."});
+  if(estDefinitif(d||{}) && tL!=null && tH!=null) add("trois_points",`${tL}x${tH}`,`Cotes ${tL} × ${tH} prises en 3 points (haut, milieu, bas) en gardant la plus petite ?`,{lib:"Non, je recontrôle",champ:"cotes."});
+  { const d1=num(o.diag1), d2=num(o.diag2); if(d1!=null && d2!=null && Math.abs(d1-d2)>10) add("diagonales",`${d1}|${d2}`,`Écart de diagonales de ${Math.abs(d1-d2)} mm : tableau pas d'équerre, c'est prévu (fabrication / calage) ?`,{lib:"Non, je corrige",champ:"cotes."}); }
+  if((num(o.quantite)||1)>1) add("quantite",`${o.quantite}|${tL}x${tH}`,`Quantité ${o.quantite}${o.repere?` sur « ${o.repere} »`:""} : les ${o.quantite} ont bien les mêmes cotes ?`,{lib:"Non, je les sépare",champ:"quantite"});
+  const vitBas = !porte && (pfLike || ((fam==="fixe"||fam==="coulissant"||fam==="galandage") && (aSeuil(o)||num(o.allege)!=null&&num(o.allege)<900)) || (num(o.allege)!=null && num(o.allege)<900));
+  if(vitBas && !/feuillet|44[.,]2|33[.,]2|s[ée]curit|stadip|sp ?\d|tremp/i.test(o.vitrage||"")) add("vitrage_bas",o.vitrage||"-",`Vitrage à moins de 90 cm du sol : vitrage de sécurité (feuilleté) prévu ?`,{lib:"Non, je le mets",champ:"vitrage"});
+  if(/s[ée]jour|salon|chambre|cuisine|salle . manger|bureau/i.test(o.repere||"") && !o.gv && !autres.some(x=>(x.repere||"").trim().toLowerCase()===rp && x.gv))
+    add("aeration",rp,`Pas de grille de ventilation en « ${o.repere} » : la maison a une VMC / pas besoin ?`,{lib:"Non, j'ajoute une grille",champ:"gv"});
+  if(fam==="of" && /cuisine/i.test(o.repere||"")) add("evier",String(o.modele),`Fenêtre de cuisine : l'ouvrant passe bien au-dessus du robinet / de l'évier ?`,{lib:"Non (soufflet / OB ?)",champ:"modele"});
+  if(vl && d?.vr){ const v=d.vr, moto=vrMotorise(vl,v), larg=num(vl.fab_l)??vL;
+    if(moto && !vrSolaire(vl,v) && !vrUsine(vl)) add("vr_elec",vl.electricite||"-",`Volet motorisé : il y a bien une alimentation électrique à côté${vl.electricite?` (${vl.electricite})`:""} ?`,{lib:"Non, à prévoir",go:"vr"});
+    if(!moto && larg!=null && larg>2000) add("vr_lourd",larg,`Volet de ${larg} de large en manuel : c'est bien voulu (pas de moteur) ?`,{lib:"Non, je le motorise",go:"vr"});
+    const cv=(vl.couleur_tablier||vl.couleur_coffre||"").trim(), cm=(o.couleur_ext||o.couleur_int||"").trim(), mot=x=>x.toLowerCase().split(/[\s(/-]+/)[0];
+    if(cv && cm && mot(cv)!==mot(cm)) add("vr_couleur",cv+"|"+cm,`Volet « ${cv} » sur une menuiserie « ${cm} » : c'est voulu ?`,{lib:"Non, je corrige",go:vrUsine(vl)?null:"vr",champ:"volet"}); }
+  if(o.gc?.etage && d && !(d.prevoir||[]).some(x=>/chafaud|nacelle|chelle/i.test(x)) && (d.ouvertures||[]).find(x=>x.gc?.etage)===o)
+    add("acces",String((d.prevoir||[]).length),`Ouverture à l'étage et aucun matériel d'accès prévu : pas besoin de nacelle / échafaudage / échelle ?`,{lib:"Non, j'en prévois",go:"client"});
   return Q; }
 function questionsDossier(d){ normaliser(d); return d.ouvertures.flatMap((o,i)=>questionsOuverture(o,d).map(q=>({...q, ou:`${o.num_poseur?"N°"+o.num_poseur+" ":""}${o.repere||"Ouverture "+(i+1)}`, go:{ouv:o.id}}))); }
 function repondreQ(o, k, oui){ const q=questionsOuverture(o).find(x=>x.k===k); if(!q) return;
   if(oui){ (o.qok||(o.qok={}))[k]=q.sig; save(); majControle(); return; }
-  if(q.non.go==="vr"){ save(); S.tab="vr"; renderDossier(); toast("Corrige la largeur du volet roulant"); return; }
+  if(q.non.go){ save(); S.tab=q.non.go; renderDossier(); scrollTo(0,0); toast(q.non.go==="vr"?"Corrige le volet roulant ici":q.non.go==="client"?"Coche le matériel d'accès dans « À prévoir pour la pose »":"Corrige ici"); return; }
   if(q.non.fix){ const msg=q.non.fix(); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); toast(msg); return; }
   const el=q.non.champ&&$(`[data-k^="${q.non.champ}"]`); if(el){ const det=el.closest("details"); if(det) det.open=true; el.scrollIntoView({block:"center"}); el.classList.add("f-warn"); try{ el.focus(); }catch(_){} } toast("Corrige ici"); }
 function controleDossier(d){
@@ -1772,6 +1790,7 @@ function renderOuverture(){
 
   <div class="card"><h2><span class="num">3</span>Dimensions (mm)</h2>
     <div class="checks" style="margin-bottom:8px">${F.chk("tab_impossible","Cotes tableau pas possibles (accès extérieur impossible, il faudrait une échelle…)",o.tab_impossible)}</div>
+    <div class="row diag-row" style="gap:10px;align-items:end;margin-bottom:8px;flex-wrap:wrap"><span class="hint" style="align-self:center">Diagonales du tableau (facultatif, pour l'équerre) :</span>${F.numb("diag1","Diagonale 1 (mm)",o.diag1??"")}${F.numb("diag2","Diagonale 2 (mm)",o.diag2??"")}</div>
     ${o.pose==="neuf"?`<div class="enduit-banner">Pose en neuf : toutes les dimensions sont relevées <b>ENDUIT COMPRIS</b>.</div>`:""}
     ${blocForme(o)}${formeDe(o)?`<div class="hint">Fixe de forme : la fabrication est celle du dessin ci-dessus (pas de cotes tableau ni hors tout).</div>`:`<div class="cotes">${cotesBox("L","Largeur – vue en plan",P.schemaL)}${cotesBox("H","Hauteur – vue en coupe",P.schemaH)}</div>`}
     ${listeElarg(o.gamme)?`<div style="margin-top:14px"><div class="hint" style="font-weight:700;color:var(--navy);margin-bottom:6px">ÉLARGISSEURS (vue de l'intérieur)</div><div class="grid g3">

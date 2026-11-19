@@ -4155,6 +4155,29 @@ function chargerScript(src){ return new Promise((ok,ko)=>{
   s.onload=()=>{ s.dataset.ok=1; ok(); }; s.onerror=()=>ko(new Error("hors ligne")); document.head.appendChild(s); }); }
 const driveDispo = () => location.protocol==="https:" && /github\.io$/.test(location.hostname);
 
+/* Connexion Google « par redirection » (19/11/2026, voir CLAUDE.md du dépôt) : dans Bluefy (navigateur iPad qui sait faire du
+   Bluetooth, pour le télémètre), la petite fenêtre Google reste blanche. On part donc chez Google et on revient ici avec le jeton
+   dans l'adresse (#access_token=…). Adresse de retour déclarée dans Google Cloud (client OAuth) : https://foissac-fermetures.github.io/appli-metre/ */
+const G_REDIRECT_URI = location.origin + "/appli-metre/";
+const gParRedirection = () => { const ua=navigator.userAgent||"", ios=/iPad|iPhone|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1); return (ios && !!navigator.bluetooth) || localStorage.getItem("g_redirect")==="1"; };
+(function(){ const h=location.hash||""; if(!/access_token=|error=/.test(h)) return;
+  try{ const P=new URLSearchParams(h.slice(1)), att=JSON.parse(localStorage.getItem("g_redir")||"null"); localStorage.removeItem("g_redir");
+    let q="";
+    if(att && P.get("state")===att.state){
+      if(P.get("access_token")){ const t=P.get("access_token"), f=Date.now()+(+P.get("expires_in")||3600)*1000; localStorage.setItem("g_jeton",JSON.stringify({t,f,s:DRIVE_SCOPE})); localStorage.setItem("g_ok4","1"); localStorage.setItem("g_redir_msg","ok"); }
+      else localStorage.setItem("g_redir_msg","erreur : "+(P.get("error")||"?"));
+      if(att.ouvrir) q="?ouvrir="+encodeURIComponent(att.ouvrir); }
+    history.replaceState(null,"",location.pathname+q);
+  }catch(e){ try{ history.replaceState(null,"",location.pathname); }catch(_){} } })();
+setTimeout(()=>{ try{ const m=localStorage.getItem("g_redir_msg"); if(!m) return; localStorage.removeItem("g_redir_msg"); toast(m==="ok"?"Connecté à Google ✓ – tu peux refaire ton action (Actualiser, devis signé, envoi…)":"Connexion Google pas faite ("+m+")"); }catch(_){} }, 1800);
+function gPartirChezGoogle(){
+  const state=Math.random().toString(36).slice(2)+Date.now().toString(36), ouvrirId=(typeof S!=="undefined"&&S.view==="dossier"&&S.dossier)?S.dossier.id:"";
+  try{ if(ouvrirId) DB.put(S.dossier); }catch(_){}
+  localStorage.setItem("g_redir",JSON.stringify({state,ouvrir:ouvrirId}));
+  const P={client_id:GOOGLE_CLIENT_ID, redirect_uri:G_REDIRECT_URI, response_type:"token", scope:DRIVE_SCOPE, include_granted_scopes:"true", state};
+  if(!localStorage.getItem("g_ok4")) P.prompt="consent";
+  toast("Connexion à Google…"); setTimeout(()=>{ location.href="https://accounts.google.com/o/oauth2/v2/auth?"+new URLSearchParams(P); }, 400);
+}
 let G_JETON=null, G_FIN=0, G_CLIENT=null;
 try{ const j=JSON.parse(localStorage.getItem("g_jeton")||"null"); if(j && j.s===DRIVE_SCOPE && j.f>Date.now()+60000){ G_JETON=j.t; G_FIN=j.f; } }catch(e){}
 function prechargerGoogle(){ if(driveDispo() && navigator.onLine) chargerScript("https://accounts.google.com/gsi/client").then(()=>{
@@ -4164,6 +4187,7 @@ function jetonValide(){ return G_JETON && Date.now()<G_FIN-60000; }
 /* Doit être appelé dans le clic (sinon la fenêtre Google est bloquée). */
 function demanderJeton(){ return new Promise((ok,ko)=>{
   if(jetonValide()) return ok(G_JETON);
+  if(gParRedirection()){ gPartirChezGoogle(); return ko(new Error("connexion Google en cours…")); }
   if(!G_CLIENT) return ko(new Error("Google pas encore prêt, réessaie dans 2 secondes"));
   G_CLIENT.callback=r=>{ if(r.error) return ko(new Error(r.error)); G_JETON=r.access_token; G_FIN=Date.now()+r.expires_in*1000;
     try{ localStorage.setItem("g_jeton",JSON.stringify({t:G_JETON,f:G_FIN,s:DRIVE_SCOPE})); localStorage.setItem("g_ok4","1"); }catch(e){} ok(G_JETON); };

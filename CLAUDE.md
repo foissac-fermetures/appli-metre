@@ -33,6 +33,8 @@ Et dans `sw.js` (racine) : l'événement `activate` ne supprime **que** les cach
 
 - Journal d'utilisation (19/11/2026) : carnet commun `localStorage["journal-usage"]` rempli par le CRM (`crm/import.js`), la Mini DAO (`dao/index.html`) et le métré (`index.html`, `window.journalUsage`) — boutons / onglets / commandes, jamais de donnée client. Le métré l'envoie (`envoyerJournalUsage()`, seulement si Google est déjà connecté) dans Mon Drive › Appli métré – Dossiers › « Journal d'utilisation (applis).json », lu par la revue des logiciels du 1er et du 16. À conserver.
 
+- Connexion Google par redirection (19/11/2026) : `gParRedirection()` (iPad + `navigator.bluetooth` = Bluefy) → `gPartirChezGoogle()` part sur accounts.google.com et revient sur `https://foissac-fermetures.github.io/appli-metre/#access_token=…` (adresse déclarée dans le client OAuth Google Cloud). La petite fenêtre Google reste blanche dans Bluefy : ne pas supprimer.
+
 ## Nicolas
 
 Répondre en français, simplement. Avant une nouvelle fonction, lui proposer une liste d'options à cocher. Tester avant de dire que c'est fait.

@@ -142,3 +142,44 @@
         if (!r && n1.length >= 3) { const M = rows.filter(x => norm(x.client).split(" ").includes(n1)); if (M.length === 1) r = M[0]; }
         if (r) openDossier(r.id); else { const qi = q$("#q"); if (qi) { qi.value = cible; qi.dispatchEvent(new Event("input")); } toast("Client « " + cible + " » : pas trouvé tel quel, voici la recherche"); } }, 500); } }
 })();
+
+/* ---------- Journal d'utilisation (19/11/2026, projet « Réorganisation des logiciels », voir CLAUDE.md du dépôt) ----------
+   Carnet commun aux 3 applis (même adresse) : localStorage « journal-usage ». Note seulement les boutons, onglets
+   et commandes utilisés et leur enchaînement — jamais de nom de client, de numéro ni de texte saisi.
+   L'appli de métré l'envoie dans Mon Drive › Appli métré – Dossiers › « Journal d'utilisation (applis).json ». */
+(function(){
+  const APP="crm", LS="journal-usage";
+  const pad=n=>String(n).padStart(2,"0"), now=()=>{ const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+" "+d.toTimeString().slice(0,8); };
+  const ua=navigator.userAgent||"", APPAREIL=(/iPad/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1))?"ipad":/iPhone|Android.*Mobile/.test(ua)?"tel":/Mac/.test(ua)?"mac":"pc";
+  const SESS=Math.random().toString(36).slice(2,6);
+  const clean=k=>String(k).replace(/[\r\n"\\]/g," ").replace(/\s+/g," ").trim().slice(0,60);
+  let buf=[];
+  function flush(){ if(!buf.length) return; try{ const L=JSON.parse(localStorage.getItem(LS)||"[]"); localStorage.setItem(LS, JSON.stringify(L.concat(buf).slice(-20000))); buf=[]; }catch(_){ buf=buf.slice(-500); } }
+  function log(k){ k=clean(k); if(!k) return; buf.push(now()+" "+APP+" "+APPAREIL+" "+k+" ~"+SESS); if(buf.length>=40) flush(); }
+  function where(el){ const s=el.closest("#drawer,#qk,[id^='v-'],aside[id],section[id],.snav,header,#resa"); return s?(s.id||s.tagName.toLowerCase()):"page"; }
+  function key(el){
+    if(el.dataset&&el.dataset.qa) return "recherche→"+el.dataset.qa;
+    if(el.dataset&&el.dataset.fqa) return "fiche→"+el.dataset.fqa;
+    if(el.dataset&&el.dataset.qkqa) return "ctrlk→"+el.dataset.qkqa;
+    if(el.dataset&&el.dataset.recid) return "récents:client";
+    if(el.classList&&el.classList.contains("lien")) return "fiche→"+(/dao\//.test(el.getAttribute("href")||"")?"plan":"metre");
+    if(el.classList&&el.classList.contains("tab")&&el.id) return "onglet:"+el.id.replace(/^t-/,"");
+    const w=where(el);
+    if(el.id) return w+":"+el.id;
+    if(el.tagName==="TR") return w+":ligne";
+    const ds=Object.keys(el.dataset||{}).filter(k=>k!=="id"&&k!=="g");
+    if(ds.length) return w+":"+ds[0];
+    let t=(el.getAttribute("aria-label")||el.textContent||"").replace(/\s+/g," ").trim();
+    if(!t||t.length>30||/\d{2}/.test(t)||el.closest("[data-id]")) t=el.tagName.toLowerCase()+(el.closest("[data-id]")?"-carte":"");
+    return w+":"+t;
+  }
+  document.addEventListener("click",e=>{ const el=e.target.closest&&e.target.closest("button,a,summary,select,tr[data-id],[data-id],[role=button],[data-cmd],[data-tab],.tab,.tool,.item,input[type=checkbox],input[type=radio]"); if(el) try{ log(key(el)); }catch(_){} },true);
+  { let had=false; const q=document.getElementById("q"); if(q) q.addEventListener("input",()=>{ const has=!!q.value.trim(); if(has&&!had) log("recherche:frappe"); had=has; }); }
+  document.addEventListener("keydown",e=>{ if((e.ctrlKey||e.metaKey)&&/^k$/i.test(e.key)) log("raccourci:Ctrl+K"); else if(e.key==="Enter"&&e.target&&e.target.id==="q") log("recherche:Entrée"); else if(e.key==="Enter"&&e.target&&e.target.id==="qkin") log("ctrlk:Entrée"); },true);
+  { const u=new URLSearchParams(location.search); if(u.get("client")) log("arrivée:lien-client"); }
+  log("ouverture");
+  setInterval(flush,30000);
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") flush(); });
+  window.addEventListener("pagehide",flush);
+  window.journalUsage={ log, flush };
+})();

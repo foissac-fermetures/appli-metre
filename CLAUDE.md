@@ -31,6 +31,8 @@ Et dans `sw.js` (racine) : l'événement `activate` ne supprime **que** les cach
 - Métré (`index.html` racine) : `ouvrirDepuisLienCRM()` lit `?client=` (ouvre le métré le plus récent du client, sinon propose de le créer depuis le fichier du CRM) ; bouton `#tabCRM` « 📇 Fiche CRM » → `crm/?client=<nom>`.
 - Mini DAO (`dao/index.html`) : `RETOUR_CLIENT` ; avec `retour=crm`, le bouton ↩ Retour revient sur `../crm/?client=<nom>`.
 
+- Journal d'utilisation (19/11/2026) : carnet commun `localStorage["journal-usage"]` rempli par le CRM (`crm/import.js`), la Mini DAO (`dao/index.html`) et le métré (`index.html`, `window.journalUsage`) — boutons / onglets / commandes, jamais de donnée client. Le métré l'envoie (`envoyerJournalUsage()`, seulement si Google est déjà connecté) dans Mon Drive › Appli métré – Dossiers › « Journal d'utilisation (applis).json », lu par la revue des logiciels du 1er et du 16. À conserver.
+
 ## Nicolas
 
 Répondre en français, simplement. Avant une nouvelle fonction, lui proposer une liste d'options à cocher. Tester avant de dire que c'est fait.

@@ -2145,6 +2145,42 @@ if("serviceWorker" in navigator && location.protocol==="https:" && /github\.io$/
 // Accès réservé aux tests automatiques (inactif sauf si window.__daoTest est posé avant le chargement)
 if(window.__daoTest) window.__dao={ get ents(){return ents;}, get cmd(){return cmd;}, get selected(){return [...selected];}, get layers(){return layers;}, get symOpts(){return symOpts;},
   W2S:p=>W2S(p), setView:v=>{ Object.assign(view,v); renderAll(); }, zoomExtents:()=>zoomExtents(), addEnt:e=>addEnt(e), SYMS, symThumb };
+/* ---------- Journal d'utilisation (19/11/2026, projet « Réorganisation des logiciels », voir CLAUDE.md du dépôt) ----------
+   Carnet commun aux 3 applis (même adresse) : localStorage « journal-usage ». Note seulement les boutons, onglets
+   et commandes utilisés et leur enchaînement — jamais de nom de client, de numéro ni de texte saisi.
+   L'appli de métré l'envoie dans Mon Drive › Appli métré – Dossiers › « Journal d'utilisation (applis).json ». */
+(function(){
+  const APP="plan", LS="journal-usage";
+  const pad=n=>String(n).padStart(2,"0"), now=()=>{ const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+" "+d.toTimeString().slice(0,8); };
+  const ua=navigator.userAgent||"", APPAREIL=(/iPad/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1))?"ipad":/iPhone|Android.*Mobile/.test(ua)?"tel":/Mac/.test(ua)?"mac":"pc";
+  const SESS=Math.random().toString(36).slice(2,6);
+  const clean=k=>String(k).replace(/[\r\n"\\]/g," ").replace(/\s+/g," ").trim().slice(0,60);
+  let buf=[];
+  function flush(){ if(!buf.length) return; try{ const L=JSON.parse(localStorage.getItem(LS)||"[]"); localStorage.setItem(LS, JSON.stringify(L.concat(buf).slice(-20000))); buf=[]; }catch(_){ buf=buf.slice(-500); } }
+  function log(k){ k=clean(k); if(!k) return; buf.push(now()+" "+APP+" "+APPAREIL+" "+k+" ~"+SESS); if(buf.length>=40) flush(); }
+  function where(el){ const s=el.closest("nav,header,#selBar,#dimMenu,#symopts,#hopts,#topts,.modal,#iaPanel,#visuView,footer"); return s?(s.id||s.tagName.toLowerCase()):"page"; }
+  function key(el){
+    if(el.dataset&&el.dataset.cmd) return "outil:"+el.dataset.cmd;
+    const w=where(el);
+    if(el.id) return w+":"+el.id;
+    if(el.tagName==="TR") return w+":ligne";
+    const ds=Object.keys(el.dataset||{}).filter(k=>k!=="id"&&k!=="g");
+    if(ds.length) return w+":"+ds[0];
+    let t=(el.getAttribute("aria-label")||el.textContent||"").replace(/\s+/g," ").trim();
+    if(!t||t.length>30||/\d{2}/.test(t)||el.closest("[data-id]")) t=el.tagName.toLowerCase()+(el.closest("[data-id]")?"-carte":"");
+    return w+":"+t;
+  }
+  document.addEventListener("click",e=>{ const el=e.target.closest&&e.target.closest("button,a,summary,select,tr[data-id],[data-id],[role=button],[data-cmd],[data-tab],.tab,.tool,.item,input[type=checkbox],input[type=radio]"); if(el) try{ log(key(el)); }catch(_){} },true);
+  { const c=document.getElementById("cmd"); if(c) c.addEventListener("keydown",e=>{ if(e.key!=="Enter") return; const v=(c.value||"").trim().toUpperCase(); if(/^[A-Z]{1,9}$/.test(v)) log("commande:"+v); else if(v) log("commande:valeur"); else log("commande:entrée"); },true); }
+  document.addEventListener("keydown",e=>{ if((e.ctrlKey||e.metaKey)&&/^[szy]$/i.test(e.key)) log("raccourci:Ctrl+"+e.key.toUpperCase()); else if(/^F\d$/.test(e.key)) log("raccourci:"+e.key); },true);
+  { const u=new URLSearchParams(location.search); if(u.get("retour")) log("arrivée:depuis-"+(u.get("retour")==="crm"?"crm":u.get("retour")==="accueil"?"accueil-metre":"metre")); }
+  log("ouverture");
+  setInterval(flush,30000);
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") flush(); });
+  window.addEventListener("pagehide",flush);
+  window.journalUsage={ log, flush };
+})();
+
 // ---------- Démarrage ----------
 load();
 { const cl=(URLP.get("client")||"").trim(); if(cl){ ouvrirPlanClient(cl); try{ URLP.delete("client"); history.replaceState(null,"",location.pathname+(URLP.toString()?"?"+URLP:"")); }catch(e){} } }

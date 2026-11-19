@@ -231,7 +231,7 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .sk-lbl{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#6b7a99;width:100%}
 .sk-tool{min-height:58px;min-width:84px;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 10px;font-size:13px;line-height:1.1}
 .sk-tool b{font-size:22px;line-height:1} .sk-tool.on{background:var(--navy);color:#fff;border-color:var(--navy)}
-.sk-planaide{width:100%;margin:0} .sk-sym.on{background:var(--navy);color:#fff} .gc-det>summary{cursor:pointer;min-height:40px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sk-planaide{width:100%;margin:0} .sk-sep{width:1px;height:30px;background:#c9d1e3;margin:0 4px} .sk-ipad .sk-c.on{box-shadow:0 0 0 3px var(--navy)} .sk-sym.on{background:var(--navy);color:#fff} .gc-det>summary{cursor:pointer;min-height:40px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 input.f-err,select.f-err,.chip.f-err,.modgrid.f-err,#chgPose.f-err{border-color:#d3232f!important;background:#fdecec!important;box-shadow:0 0 0 2px rgba(211,35,47,.25)}
 input.f-warn,select.f-warn,.chip.f-warn,.modgrid.f-warn{border-color:#e08a00!important;background:#fff4e0!important;box-shadow:0 0 0 2px rgba(224,138,0,.25)}
 .modgrid.f-err,.modgrid.f-warn{border:2px solid;border-radius:10px;padding:4px} .pb-det>summary,.acc-det>summary{cursor:pointer;min-height:40px;display:flex;align-items:center;gap:10px;flex-wrap:wrap} .acc-det{border:1.5px solid var(--line);border-radius:10px;padding:6px 10px;margin-top:6px} .acc-det[open]{border-color:var(--navy)}
@@ -1832,7 +1832,7 @@ function renderOuverture(){
   </div>
 
   <details class="card skdet" id="skDet" ${o.croquis?"open":""}><summary><h2 style="display:inline"><span class="num">12</span>Croquis à main levée <small style="font-weight:400;text-transform:none">– pour les cas particuliers</small></h2></summary>
-    ${barreOutils(true)}
+    ${barreOutils(true,{vec:true})}
     <div class="sketch-wrap"><canvas class="sketch" id="sketch"></canvas></div>
     <div class="hint" style="margin-top:6px">Dessine au stylet (Apple Pencil), au doigt ou à la souris. Avec l'Apple Pencil, « Stylet seulement » s'active tout seul : tu peux poser la main. « ✍︎ Texte au stylet » : touche le dessin et écris, l'iPad le transforme en texte.</div></details>
 
@@ -2288,15 +2288,14 @@ function barreOutils(avecCouleurs=true, x={}){
   const tab=(k,l)=>`<button class="sk-tab${ong(k)?" on":""}" data-skonglet="${k}">${l}</button>`;
   const outil=(k,ic,l,t)=>`<button class="btn sk-tool" data-skplan="${k}" title="${t}"><b>${ic}</b>${l}</button>`;
   const sym=g=>SK_SYMBOLES.filter(z=>z[2]===g).map(([k,l])=>`<button class="btn sk-tool sk-sym" data-sksym="${k}" title="${l} : touche le bouton puis l'endroit du dessin${g==="men"?" (près d'un mur : elle s'y colle)":""}"><b>${SK_ICONES[k]||"•"}</b>${l}</button>`).join("");
-  return `<div class="sk-ipad">
-    <div class="sk-tabs">${tab("dessin","✏️ Dessin")}${tab("plan","🏠 Plan")}${tab("sym","🔣 Symboles")}${x.texte?tab("texte","🔤 Texte"):""}${tab("regl","⚙️ Plus")}<span class="sk-tabs-sp"></span>
+  return `<div class="sk-ipad${x.vec?" sk-vec":""}">
+    <div class="sk-tabs">${tab("dessin","✏️ Dessin")}${tab("plan","🏠 Plan")}${tab("sym","🔣 Symboles")}${tab("texte","🔤 Texte")}${tab("regl","⚙️ Plus")}<span class="sk-tabs-sp"></span>
       <button class="btn small sk-und" id="skUndo" title="Annuler">↶</button><button class="btn small" id="skRedo">↷</button></div>
     <div ${pane("dessin")}>
       ${x.couleurs?`<div class="sk-grp">${x.couleurs}</div>`:avecCouleurs?`<div class="sk-grp">${SK_COULEURS.map(([c,n],i)=>`<button class="sk-c${i===0?" on":""}" data-pen="${c}" title="${n}" aria-label="${n}" style="background:${c}"></button>`).join("")}<label class="sk-c sk-perso" title="Autre couleur"><input type="color" id="skPerso" value="#1b2f5e"></label></div>`:""}
       <div class="sk-grp">${SK_STYLES.map(([k,l])=>`<button class="btn small${st===k?" on":""}" data-skstyle="${k}">${l}</button>`).join("")}</div>
       <div class="sk-grp"><span class="hint">Épaisseur</span>${[1,2,3,4].map(n=>`<button class="sk-ep${ep===n?" on":""}" data-skep="${n}" aria-label="Épaisseur ${n}"><i style="height:${n*2+1}px"></i></button>`).join("")}</div>
       <div class="sk-grp"><button class="btn small" data-pen="eraseObj" title="Efface le trait entier touché">🧽 Gomme trait</button><button class="btn small" data-pen="erase" title="Efface comme une gomme">◻ Gomme</button>
-        <button class="btn small" id="skTexteMain" title="Touche le dessin puis écris au stylet : l'iPad transforme ton écriture en texte">✍︎ Texte au stylet</button>
         <label class="chip${S.skRedresse!==false?" on":""}" id="skRedresse" title="Traits presque droits → bien droits ; rectangles et ronds griffonnés → formes propres"><input type="checkbox"${S.skRedresse!==false?" checked":""}>📐 Redresser mes traits</label></div>
       ${x.formes?`<div class="sk-grp sk-formes">${x.formes}</div>`:""}</div>
     <div class="sk-grp sk-symgrp"><div ${pane("plan")}>
@@ -2304,11 +2303,17 @@ function barreOutils(avecCouleurs=true, x={}){
       <div class="sk-grp"><span class="sk-lbl">Ouvertures</span>${sym("men")}<button class="btn sk-tool" data-skrot title="Tourner le dernier symbole (collé à un mur : change le côté d'ouverture)"><b>⟳</b>Tourner</button><button class="btn sk-tool" data-skflip title="Changer le côté des paumelles"><b>⇋</b>Charnière</button></div>
       <div class="sk-grp"><span class="sk-lbl">Cotes</span><label class="chip${S.skCotes?" on":""}" id="skCotes" title="Après chaque mur ou pièce, demande la longueur (télémètre ou clavier) – tu peux passer"><input type="checkbox"${S.skCotes?" checked":""}>Demander la cote après chaque mur</label>
         ${outil("cote","📏","Coter un mur","Touche un mur, puis vise au télémètre ou tape la longueur")}<button class="btn sk-tool primary" id="skReleve" title="Mesurer les murs au télémètre (ou à la main) : le plan de la pièce se dessine tout seul"><b>📡</b>Relever la pièce</button></div>
-      <div class="sk-grp"><span class="sk-lbl">Autres</span>${x.formes?`<button class="btn sk-tool" data-skedit title="Toucher un élément pour le déplacer, l'agrandir, le supprimer"><b>✥</b>Déplacer</button>`:""}<button class="btn sk-tool" data-skgomme title="Touche un mur, une fenêtre… pour l'effacer"><b>🧽</b>Effacer</button><button class="btn sk-tool" id="skImport" title="Mettre en fond un plan (photo, capture, PDF – ex. scan LiDAR magicplan)"><b>🖼</b>Importer un plan</button><input type="file" id="skImportF" accept="image/*,application/pdf" hidden></div>
+      <div class="sk-grp"><span class="sk-lbl">Autres</span>${x.formes||x.vec?`<button class="btn sk-tool" data-skedit title="Toucher un élément pour le déplacer, l'agrandir, le supprimer"><b>✥</b>Déplacer</button>`:""}<button class="btn sk-tool" data-skgomme title="Touche un mur, une fenêtre… pour l'effacer"><b>🧽</b>Effacer</button><button class="btn sk-tool" id="skImport" title="Mettre en fond un plan (photo, capture, PDF – ex. scan LiDAR magicplan)"><b>🖼</b>Importer un plan</button><input type="file" id="skImportF" accept="image/*,application/pdf" hidden></div>
       <div class="hint sk-planaide">Les cotes ne sont jamais obligatoires : un simple dessin pour avoir l'idée des pièces suffit.</div></div>
       <div ${pane("sym")}><div class="sk-grp">${sym("clim")}<button class="btn sk-tool" data-skrot title="Tourner d'un quart de tour le dernier symbole posé (ou celui sélectionné)"><b>⟳</b>Tourner</button></div>
         <div class="hint">Touche un symbole puis l'endroit du dessin. Les fenêtres et portes sont dans l'onglet 🏠 Plan.</div></div></div><!--sym-->
-    ${x.texte?`<div ${pane("texte")}>${x.texte}</div>`:""}
+    <div ${pane("texte")}><div class="sk-grp"><span class="sk-lbl">Style du texte <small style="text-transform:none;font-weight:400">– choisis avant d'écrire, ou touche « Modifier un texte » puis le texte</small></span>
+        ${SK_COULEURS.map(([c,n])=>`<button class="sk-c${(S.skTxtC||"")===c?" on":""}" data-txtc="${c}" title="Texte ${n}" aria-label="Texte ${n}" style="background:${c}"></button>`).join("")}<label class="sk-c sk-perso" title="Autre couleur de texte"><input type="color" id="skTxtPerso" value="${S.skTxtC||"#111111"}"></label>
+        <span class="sk-sep"></span>${[["p","A","Petit",13],["m","A","Moyen",18],["g","A","Grand",25]].map(([k,l,t,f])=>`<button class="btn small sk-tt${(S.skTxtT||"m")===k?" on":""}" data-txtt="${k}" title="${t}" style="font-size:${f}px;min-width:46px">${l}</button>`).join("")}
+        <button class="btn small${S.skTxtG!==false?" on":""}" data-txtg title="Gras / normal" style="font-weight:900;min-width:56px">G gras</button><span class="sk-sep"></span>
+        <button class="btn sk-tool" data-skselt title="Touche un texte du dessin pour changer sa couleur, sa taille, le gras ou le déplacer"><b>✥</b>Modifier un texte</button>
+        <button class="btn small" id="skTexteMain" title="Touche le dessin puis écris au stylet : l'iPad transforme ton écriture en texte">✍︎ Texte au stylet</button></div>
+      ${x.texte||""}</div>
     <div ${pane("regl")}><div class="sk-grp"><label class="chip" id="skPenOnly"><input type="checkbox">Stylet seulement</label><button class="btn small" id="skTablette" title="Dessiner sur l'iPad pendant que le dessin s'affiche ici">📲 Dessiner sur l'iPad</button><button class="btn small danger" id="skClear">Effacer tout</button></div></div>
     <div id="skRelPanel" class="sk-rel hide"></div></div>`;
 }
@@ -2362,7 +2367,9 @@ function initSketch(o=S.ouv, cle="croquis"){
   bloquerGestesTactiles(cv);
   const W=1600;
   /* Mode vectoriel (schémas clim) : les traits, formes et étiquettes sont gardés tels quels → on peut les reprendre (déplacer, agrandir, supprimer) plus tard */
-  const V=!!$("[data-forme]"), vk=cle+"_vec", bk=cle+"_fond";
+  const V=!!$("[data-forme]")||!!$(".sk-ipad.sk-vec"), vk=cle+"_vec", bk=cle+"_fond";   // 19/11 : croquis des ouvertures aussi en vectoriel (textes modifiables plus tard)
+  if(!$("[data-forme]") && S.skForme && S.skForme!=="edit") S.skForme="";
+  const TXT_K={p:0.72,m:1,g:1.5}, txtFs=s=>30*ratio/1.2*(TXT_K[s.fs]||1);
   let sels=[], act=null, lasso=null;   // objets sélectionnés, action en cours (déplacer / poignée), cadre de sélection
   const one=()=>sels.length===1?sels[0]:null;
   function size(){ const r=cv.getBoundingClientRect(); cv.width=W; cv.height=Math.round(W*r.height/r.width); ratio=cv.width/r.width; redraw(); }
@@ -2379,7 +2386,7 @@ function initSketch(o=S.ouv, cle="croquis"){
       const an=Math.atan2(arr[1]-dep[1],arr[0]-dep[0]), T=Math.min(20*k,L*0.15); ctx.strokeStyle="#d3232f"; ctx.lineWidth=3*k; ctx.beginPath(); ctx.moveTo(dep[0],dep[1]); ctx.lineTo(arr[0],arr[1]);
       ctx.moveTo(arr[0],arr[1]); ctx.lineTo(arr[0]-T*Math.cos(an-0.5),arr[1]-T*Math.sin(an-0.5)); ctx.moveTo(arr[0],arr[1]); ctx.lineTo(arr[0]-T*Math.cos(an+0.5),arr[1]-T*Math.sin(an+0.5)); ctx.stroke();
       ctx.beginPath(); ctx.arc(dep[0],dep[1],4.5*k,0,Math.PI*2); ctx.fillStyle="#d3232f"; ctx.fill(); return; }
-    if(s.t){ const fs=Math.round(30*ratio/1.2); ctx.font=`700 ${fs}px Arial,sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.lineJoin="round";
+    if(s.t){ const fs=Math.round(txtFs(s)); ctx.font=`${s.n?400:700} ${fs}px Arial,sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.lineJoin="round";
       ctx.lineWidth=fs/4; ctx.strokeStyle="#fff"; ctx.strokeText(s.t,s.x,s.y); ctx.fillStyle=s.c; ctx.fillText(s.t,s.x,s.y); return; }
     if(s.f){ const [x1,y1]=s.a, [x2,y2]=s.b; ctx.strokeStyle=s.c; ctx.lineWidth=4*ratio/1.2; ctx.lineCap=ctx.lineJoin="round"; ctx.beginPath();
       if(s.f==="rect") ctx.rect(Math.min(x1,x2),Math.min(y1,y2),Math.abs(x2-x1),Math.abs(y2-y1));
@@ -2395,7 +2402,7 @@ function initSketch(o=S.ouv, cle="croquis"){
   /* poignées de la forme sélectionnée */
   function poignees(s){ if(s.t||s.sy) return []; const [x1,y1]=s.a,[x2,y2]=s.b; return (s.f==="ligne"||s.f==="fleche"||s.f==="mur") ? [[x1,y1],[x2,y2]] : [[x1,y1],[x2,y1],[x1,y2],[x2,y2]]; }
   function bbox(s){ if(s.sy){ const e=58*(s.z||1)*ratio/1.2*1.1; return [s.x-e,s.y-e,s.x+e,s.y+e]; }
-    if(s.t){ const fs=30*ratio/1.2, w=Math.max(60,s.t.length*fs*0.6); return [s.x-w/2,s.y-fs/2,s.x+w/2,s.y+fs/2]; }
+    if(s.t){ const fs=txtFs(s), w=Math.max(60,s.t.length*fs*0.6); return [s.x-w/2,s.y-fs/2,s.x+w/2,s.y+fs/2]; }
     if(s.pts){ const xs=s.pts.map(p=>p[0]), ys=s.pts.map(p=>p[1]); return [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]; }
     return [Math.min(s.a[0],s.b[0]),Math.min(s.a[1],s.b[1]),Math.max(s.a[0],s.b[0]),Math.max(s.a[1],s.b[1])]; }
   function drawSel(){ sels=sels.filter(s=>strokes.includes(s)); ctx.save(); ctx.setLineDash([10,8]); ctx.strokeStyle="#e07b00"; ctx.lineWidth=2*ratio/1.2;
@@ -2418,7 +2425,7 @@ function initSketch(o=S.ouv, cle="croquis"){
   function toucher(x,y){ const tol=(S.skDoigt?34:22)*ratio/1.2, sy=strokes.filter(s=>s.sy).reverse().find(s=>{ const [a,b,c,d]=bbox(s); return x>a&&x<c&&y>b&&y<d; }); if(sy) return sy;
     const L=strokes.filter(s=>s.f||s.t).reverse();
     const dSeg=(s)=>{ const [x1,y1]=s.a,[x2,y2]=s.b, dx=x2-x1, dy=y2-y1, l2=dx*dx+dy*dy||1, t=Math.max(0,Math.min(1,((x-x1)*dx+(y-y1)*dy)/l2)); return Math.hypot(x-(x1+t*dx),y-(y1+t*dy)); };
-    const bord=s=>{ if(s.t) return Math.abs(x-s.x)<Math.max(50,s.t.length*14)*ratio/1.2 && Math.abs(y-s.y)<26*ratio/1.2;
+    const bord=s=>{ if(s.t){ const k=TXT_K[s.fs]||1; return Math.abs(x-s.x)<Math.max(50,s.t.length*14*k)*ratio/1.2 && Math.abs(y-s.y)<26*k*ratio/1.2; }
       if(s.f==="mur") return dSeg(s)<tol+(s.e||16)*ratio/2.4;
       if(s.f==="ligne"||s.f==="fleche") return dSeg(s)<tol;
       const x1=Math.min(s.a[0],s.b[0]), x2=Math.max(s.a[0],s.b[0]), y1=Math.min(s.a[1],s.b[1]), y2=Math.max(s.a[1],s.b[1]);
@@ -2431,7 +2438,7 @@ function initSketch(o=S.ouv, cle="croquis"){
   cv.onpointerdown=e=>{ if(penOnly && e.pointerType==="touch") return;
     if(S.skPose){ const [x,y]=pt(e); const sObj={sy:S.skPose, x, y, r:0, z:1};
       if(SK_MEN_W[S.skPose]){ const w=murProche(x,y,48*ratio/1.2); if(w){ sObj.x=w.p[0]; sObj.y=w.p[1]; sObj.r=Math.round(w.ang/(Math.PI/2)*1000)/1000; sObj.ep=w.s.e||16; } } strokes.push(sObj); S.skDernier=sObj; refaire=[]; commit(); if(!S.skPoseGarde){ S.skPose=null; $$("[data-sksym]").forEach(b=>b.classList.remove("on")); } e.preventDefault(); return; }
-    if(texte){ const [x,y]=pt(e); strokes.push({t:texte.t, c:texte.c, x, y}); if($("#skTxtLibre")&&$("#skTxtLibre").value.trim()===texte.t) $("#skTxtLibre").value=""; texte=null; $$("[data-sktxt]").forEach(b=>b.classList.remove("on")); commit(); e.preventDefault(); return; }
+    if(texte){ const [x,y]=pt(e); strokes.push({t:texte.t, c:texte.lib?texte.c:(S.skTxtC||texte.c), x, y, ...styleTxt()}); if($("#skTxtLibre")&&$("#skTxtLibre").value.trim()===texte.t) $("#skTxtLibre").value=""; texte=null; $$("[data-sktxt]").forEach(b=>b.classList.remove("on")); commit(); e.preventDefault(); return; }
     try{ cv.setPointerCapture(e.pointerId); }catch(_){}
     S.skDoigt=e.pointerType==="touch"; const fo=S.skForme||"", [px,py]=pt(e);
     if(V && fo==="edit"){ e.preventDefault();
@@ -2440,7 +2447,7 @@ function initSketch(o=S.ouv, cle="croquis"){
       const hit=toucher(px,py);
       if(hit){ if(S.skMulti){ const k=sels.indexOf(hit); if(k>=0) sels.splice(k,1); else sels.push(hit); } else if(!sels.includes(hit)) sels=[hit]; act=sels.includes(hit)?{m:[px,py]}:null; }
       else { if(!S.skMulti) sels=[]; lasso={a:[px,py],b:[px,py]}; }
-      redraw(); majBoutonSel(); const ti=$("#skTxtLibre"), s=one(); if(ti){ ti.value=s&&s.t?s.t:""; ti.placeholder=s&&s.t?"":"Écrire un texte (ex. Chambre 1, 3,20 m, passage combles…)"; } return; }
+      redraw(); majBoutonSel(); majStyleTxt(); const ti=$("#skTxtLibre"), s=one(); if(ti){ ti.value=s&&s.t?s.t:""; ti.placeholder=s&&s.t?"":"Écrire un texte (ex. Chambre 1, 3,20 m, passage combles…)"; } return; }
     if(texteMain){ e.preventDefault(); ouvrirTexteMain(e, px, py); return; }
     if(S.skPlan==="cote"){ e.preventDefault(); const w=murProche(px,py,34*ratio/1.2); if(w) demanderCotes([w.s],null); else toast("Touche un mur"); return; }
     if(S.skPlan){ e.preventDefault(); const a=aimant([px,py]); cur= S.skPlan==="escalier" ? {f:"esc",c:"#1b2f5e",a,b:a.slice()} : S.skPlan==="piece" ? {f:"pieceTmp",a,b:a.slice()} : {f:"mur",c:"#1b2f5e",e:S.skPlan==="cloison"?7:16,a,b:a.slice()}; strokes.push(cur); refaire=[]; return; }
@@ -2457,7 +2464,7 @@ function initSketch(o=S.ouv, cle="croquis"){
     inp.className="sk-txtmain"; inp.placeholder="Écris ici au stylet…"; inp.setAttribute("autocomplete","off");
     inp.style.left=Math.max(0,Math.min(r.width-260,(e.clientX-r.left)-20)+(r.left-wr.left))+"px"; inp.style.top=Math.max(0,(e.clientY-r.top)-24+(r.top-wr.top))+"px";
     wrap.appendChild(inp); setTimeout(()=>inp.focus(),30);
-    let fait=false; const fin=ok=>{ if(fait) return; fait=true; const v=inp.value.trim(); inp.remove(); if(ok&&v){ strokes.push({t:v, c:pen.startsWith("erase")?"#111111":pen, x:px+Math.min(240*ratio, v.length*9*ratio), y:py}); refaire=[]; commit(); } };
+    let fait=false; const fin=ok=>{ if(fait) return; fait=true; const v=inp.value.trim(); inp.remove(); if(ok&&v){ strokes.push({...styleTxt(), t:v, c:S.skTxtC||(pen.startsWith("erase")?"#111111":pen), x:px+Math.min(240*ratio, v.length*9*ratio), y:py}); refaire=[]; commit(); } };
     inp.onkeydown=ev=>{ if(ev.key==="Enter"){ ev.preventDefault(); fin(true); } if(ev.key==="Escape") fin(false); };
     inp.onblur=()=>setTimeout(()=>fin(true),150);
   }
@@ -2533,9 +2540,23 @@ function initSketch(o=S.ouv, cle="croquis"){
     if(pen.startsWith("erase")){ const p1=$("[data-pen]:not([data-pen^='erase'])"); if(p1) choisirPen(p1,true); }
     toast({piece:"Glisse d'un coin de la pièce au coin opposé",mur:"Glisse pour tracer le mur (il s'accroche aux autres)",cloison:"Glisse pour tracer la cloison",escalier:"Glisse dans le sens de la montée",cote:"Touche le mur à coter"}[k]); });
   const cq=$("#skCotes input"); if(cq) cq.onchange=()=>{ S.skCotes=cq.checked; $("#skCotes").classList.toggle("on",cq.checked); toast(cq.checked?"Après chaque mur, je te demande la cote (tu peux passer)":"Plus de cote demandée : dessin libre"); };
-  $$("[data-skedit]").forEach(b=>b.onclick=()=>{ stopPlan(); $("[data-forme='edit']")?.click(); });
+  $$("[data-skedit]").forEach(b=>b.onclick=()=>{ stopPlan(); const fe=$("[data-forme='edit']"); if(fe){ fe.click(); return; } S.skForme=S.skForme==="edit"?"":"edit"; b.classList.toggle("on",S.skForme==="edit"); if(S.skForme!=="edit"){ sels=[]; redraw(); } else toast("Touche un élément pour le déplacer (ou entoure-en plusieurs)"); });
   $$("[data-skgomme]").forEach(b=>b.onclick=()=>{ stopPlan(); const g=$("[data-pen='eraseObj']"); if(g){ choisirPen(g); toast("Touche l'élément à effacer"); } });
   $$("[data-skflip]").forEach(b=>b.onclick=()=>{ const s=(one()&&one().sy)?one():S.skDernier; if(!s||!strokes.includes(s)){ toast("Pose d'abord une porte (ou sélectionne-la)"); return; } s.m=-(s.m||1); commit(); });
+  /* ---------- Style du texte (19/11/2026) : couleur, taille, gras ; s'applique aussi au(x) texte(s) sélectionné(s) ---------- */
+  function styleTxt(){ const o={}; if((S.skTxtT||"m")!=="m") o.fs=S.skTxtT; if(S.skTxtG===false) o.n=1; return o; }
+  function majStyleTxt(){ const t=one()&&one().t?one():null; if(!t) return;
+    $$("[data-txtc]").forEach(b=>b.classList.toggle("on",b.dataset.txtc===t.c)); $$("[data-txtt]").forEach(b=>b.classList.toggle("on",b.dataset.txtt===(t.fs||"m"))); $$("[data-txtg]").forEach(b=>b.classList.toggle("on",!t.n)); }
+  const appliqueTxt=f=>{ const T=sels.filter(s=>s.t); if(T.length){ T.forEach(f); commit(); } return T.length; };
+  const choixTxtC=c=>{ S.skTxtC=c; $$("[data-txtc]").forEach(b=>b.classList.toggle("on",b.dataset.txtc===c)); if(!appliqueTxt(s=>s.c=c)) toast("Couleur du texte choisie : les prochains textes seront de cette couleur"); };
+  $$("[data-txtc]").forEach(b=>b.onclick=()=>choixTxtC(b.dataset.txtc));
+  const tpe=$("#skTxtPerso"); if(tpe) tpe.oninput=()=>choixTxtC(tpe.value);
+  $$("[data-txtt]").forEach(b=>b.onclick=()=>{ S.skTxtT=b.dataset.txtt; $$("[data-txtt]").forEach(x=>x.classList.toggle("on",x===b)); appliqueTxt(s=>{ if(S.skTxtT==="m") delete s.fs; else s.fs=S.skTxtT; }); });
+  $$("[data-txtg]").forEach(b=>b.onclick=()=>{ S.skTxtG=S.skTxtG===false; b.classList.toggle("on",S.skTxtG); appliqueTxt(s=>{ if(S.skTxtG) delete s.n; else s.n=1; }); });
+  $$("[data-skselt]").forEach(b=>b.onclick=()=>{ stopPlan(); const fe=$("[data-forme='edit']"); if(fe){ fe.click(); return; }
+    const on=S.skForme!=="edit"; S.skForme=on?"edit":""; b.classList.toggle("on",on); if(!on){ sels=[]; redraw(); return; }
+    texte=null; texteMain=false; $("#skTexteMain")?.classList.remove("on"); if(pen.startsWith("erase")){ const p1=$("[data-pen]:not([data-pen^='erase'])"); if(p1) choisirPen(p1,true); S.skForme="edit"; }
+    toast("Touche le texte à modifier, puis une couleur, une taille ou « G gras » (glisse pour le déplacer)"); });
   const quitterEdit=()=>{ if(sels.length){ sels=[]; redraw(); majBoutonSel(); } };
   const choisirPen=(b,garderPlan)=>{ if(!garderPlan) stopPlan(); pen=b.dataset.pen; texte=null; texteMain=false; $("#skTexteMain")?.classList.remove("on"); $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); $$("[data-pen]").forEach(x=>x.classList.toggle("on",x===b)); };
   $$("[data-skstyle]").forEach(b=>b.onclick=()=>{ S.skStyle=b.dataset.skstyle; $$("[data-skstyle]").forEach(x=>x.classList.toggle("on",x===b)); if(pen.startsWith("erase")){ const p1=$("[data-pen]:not([data-pen^='erase'])"); if(p1) choisirPen(p1); } });
@@ -2623,7 +2644,7 @@ function initSketch(o=S.ouv, cle="croquis"){
   const rd=$("#skRedo"); if(rd) rd.onclick=()=>{ if(!refaire.length) return; const sn=refaire.pop(); hist.push(sn); strokes=JSON.parse(sn); sels=[]; restaure=true; commit(); };
   $$("[data-pen]").forEach(b=>b.onclick=()=>{ choisirPen(b);
     if(sels.length && !pen.startsWith("erase")){ sels.forEach(s=>s.c=pen); commit(); return; }   // en mode Modifier : changer la couleur de la sélection
-    if(S.skForme==="edit"){ S.skForme=""; $$("[data-forme]").forEach(x=>x.classList.toggle("on",x.dataset.forme==="")); quitterEdit(); } });
+    if(S.skForme==="edit"){ S.skForme=""; $$("[data-forme]").forEach(x=>x.classList.toggle("on",x.dataset.forme==="")); $$("[data-skselt],[data-skedit]").forEach(x=>x.classList.remove("on")); quitterEdit(); } });
   $$("[data-forme]").forEach(b=>b.onclick=()=>{ stopPlan(); S.skForme=b.dataset.forme; texte=null; $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); $$("[data-forme]").forEach(x=>x.classList.toggle("on",x===b));
     if(S.skForme!=="edit") quitterEdit(); else toast("Touche un objet (ou entoure-en plusieurs en glissant sur une zone vide) : glisse pour déplacer, 🗑 pour supprimer");
     if(pen.startsWith("erase") && S.skForme!=="edit"){ const p1=$("[data-pen]:not([data-pen^='erase'])"); if(p1) p1.click(); } });
@@ -2636,7 +2657,7 @@ function initSketch(o=S.ouv, cle="croquis"){
   const fd=$("#skFond"); if(fd){ fd.classList.toggle("hide",!base); fd.onclick=async()=>{ if(!await demander("Effacer l'ancien dessin (image figée) ? Les formes et textes ajoutés depuis restent.","Effacer")) return; base=null; fd.classList.add("hide"); commit(); }; }
   const ds=$("#skDelSel"); if(ds){ ds.disabled=true; ds.onclick=()=>{ if(!sels.length) return; strokes=strokes.filter(s=>!sels.includes(s)); sels=[]; commit(); }; }
   const mu=$("#skMulti input"); if(mu){ mu.checked=!!S.skMulti; $("#skMulti").classList.toggle("on",!!S.skMulti); mu.onchange=()=>{ S.skMulti=mu.checked; $("#skMulti").classList.toggle("on",mu.checked); }; }
-  $$("[data-sktxt]").forEach(b=>b.onclick=()=>{ const on=!b.classList.contains("on"); $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); texte=on?{t:b.dataset.sktxt, c:b.dataset.c||pen}:null; b.classList.toggle("on",on); if(on) toast("Touche le schéma à l'endroit voulu"); });
+  $$("[data-sktxt]").forEach(b=>b.onclick=()=>{ const on=!b.classList.contains("on"); $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); texte=on?{t:b.dataset.sktxt, c:b.dataset.c||pen, lib:!!b.dataset.c}:null; b.classList.toggle("on",on); if(on) toast("Touche le schéma à l'endroit voulu"); });
   $("#skUndo").onclick=()=>{ if(hist.length<2){ if(hist.length===1&&strokes.length){ refaire.push(hist.pop()); hist=[ "[]" ]; strokes=[]; sels=[]; restaure=true; commit(); } return; } refaire.push(hist.pop()); strokes=JSON.parse(hist[hist.length-1]); sels=[]; restaure=true; commit(); };
   $("#skClear").onclick=async()=>{ if(!await demander("Effacer tout le croquis ?","Effacer")) return; strokes=[]; base=null; sels=[]; commit(); o[cle]=""; save(); };
   const po=$("#skPenOnly input"); po.checked=penOnly; $("#skPenOnly").classList.toggle("on",penOnly); po.onchange=()=>{ penOnly=S.skPenOnly=po.checked; $("#skPenOnly").classList.toggle("on",penOnly); };
@@ -5095,7 +5116,7 @@ async function tabletteRejoindre(){
   envoyer();
   const m=document.createElement("div"); m.id="tabIpad";
   m.innerHTML=`<div class="tab-bar"><b>📲 ${esc(C.titre||"Dessin")}</b><span id="tabIEtat" class="hint">relié au PC</span><span class="spacer"></span><button class="btn primary" id="tabFin">Terminé</button></div>
-    ${barreOutils(true).replace(/id="sk/g,'id="tk').replace(/<button class="btn small" data-pen="erase"[^>]*>[^<]*<\/button>/,"").replace(/<button class="btn small" id="tkTexteMain"[^>]*>[^<]*<\/button>/,"").replace(/<button class="btn small" id="tkRedo">↷<\/button>/,"").replace(/<button class="btn small" data-pen="eraseObj"[^>]*>[^<]*<\/button>/,"").replace('id="tkClear">Effacer tout','id="tkClear">Effacer mes traits').replace(/<button class="btn small" id="tkTablette"[^>]*>[^<]*<\/button>/,"").replace(/<div class="sk-grp sk-symgrp">[\s\S]*?<\/div><!--sym-->/,"").replace(/<button class="sk-tab[^"]*" data-skonglet="(plan|sym)">[^<]*<\/button>/g,"").replace(/<label class="chip[^"]*" id="tkRedresse"[\s\S]*?<\/label>/,"")}
+    ${barreOutils(true).replace(/id="sk/g,'id="tk').replace(/<button class="btn small" data-pen="erase"[^>]*>[^<]*<\/button>/,"").replace(/<button class="btn small" id="tkTexteMain"[^>]*>[^<]*<\/button>/,"").replace(/<button class="btn small" id="tkRedo">↷<\/button>/,"").replace(/<button class="btn small" data-pen="eraseObj"[^>]*>[^<]*<\/button>/,"").replace('id="tkClear">Effacer tout','id="tkClear">Effacer mes traits').replace(/<button class="btn small" id="tkTablette"[^>]*>[^<]*<\/button>/,"").replace(/<div class="sk-grp sk-symgrp">[\s\S]*?<\/div><!--sym-->/,"").replace(/<button class="sk-tab[^"]*" data-skonglet="(plan|sym|texte)">[^<]*<\/button>/g,"").replace(/<label class="chip[^"]*" id="tkRedresse"[\s\S]*?<\/label>/,"")}
     <div class="tab-zone"><canvas id="tabCv"></canvas></div>`;
   document.body.appendChild(m);
   m.querySelectorAll(".sk-pane").forEach(p=>p.classList.toggle("hide",p.dataset.pane!=="dessin")); m.querySelectorAll("[data-skonglet]").forEach(b=>b.classList.toggle("on",b.dataset.skonglet==="dessin"));

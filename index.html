@@ -220,6 +220,12 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 @media (max-width:700px){ .sk-rel-c{grid-template-columns:1fr} }
 .cl-config{flex-wrap:wrap} .cl-config button{display:inline-flex;flex-direction:column;align-items:center;line-height:1.1;min-height:48px} .cl-config small{font-size:11px;opacity:.7}
 .ctl-q{margin-top:6px;display:flex;flex-direction:column;gap:6px} .ctl-qi{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#fff6d6;border:1px solid #f0c94a;border-radius:10px;padding:6px 10px} .ctl-qi span{flex:1;min-width:200px;font-weight:600;color:#6b4e00} .ctl-qi .btn{min-height:40px}
+#pave{position:fixed;right:10px;bottom:70px;z-index:80;width:228px;background:#fff;border:1px solid #c9d1e3;border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.25);padding:8px;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+#pave .pv-h{display:flex;align-items:center;gap:6px;margin-bottom:6px} #pave .pv-h b{flex:1;font-size:12px;color:var(--navy);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#pave .pv-h button{width:36px;height:32px;border:1px solid #c9d1e3;border-radius:8px;background:#f4f6fb;font-size:16px}
+#pave .pv-g{display:grid;grid-template-columns:repeat(3,1fr);gap:6px} #pave .pv-g button{height:48px;border:1px solid #c9d1e3;border-radius:10px;background:#f7f9fd;font-size:22px;font-weight:700;color:var(--navy)}
+#pave .pv-g button:active,#pave .pv-b button:active{background:#dfe6f5} #pave .pv-b{display:grid;grid-template-columns:1fr 1.4fr;gap:6px;margin-top:6px} #pave .pv-b button{height:44px;border-radius:10px;border:1px solid #c9d1e3;background:#fff;font-weight:700}
+#pave .pv-ok{background:var(--navy)!important;color:#fff;border-color:var(--navy)!important} input.pave-cible{outline:3px solid var(--navy);outline-offset:1px}
 .cl-wifi{margin-top:8px;padding:8px 10px;border-radius:8px;background:#e8f0ff;color:var(--navy)}
 /* barre de dessin à onglets (19/11/2026) */
 .sk-ipad{flex-direction:column;align-items:stretch;gap:8px}
@@ -235,6 +241,7 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .sk-tool b{font-size:22px;line-height:1} .sk-tool.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 .sk-planaide{width:100%;margin:0} .sk-zoom{display:inline-flex;gap:4px} .sk-zv{font-size:14px!important;min-width:92px} .sk-zv.on{background:var(--navy);color:#fff} .sk-sep{width:1px;height:30px;background:#c9d1e3;margin:0 4px} .sk-ipad .sk-c.on{box-shadow:0 0 0 3px var(--navy)} .sk-sym.on{background:var(--navy);color:#fff} .gc-det>summary{cursor:pointer;min-height:40px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 input.f-err,select.f-err,.chip.f-err,.modgrid.f-err,#chgPose.f-err{border-color:#d3232f!important;background:#fdecec!important;box-shadow:0 0 0 2px rgba(211,35,47,.25)}
+input.f-todo,select.f-todo{border-color:#e0b800!important;background:#fff9d6!important;box-shadow:0 0 0 2px rgba(224,184,0,.3)}
 input.f-warn,select.f-warn,.chip.f-warn,.modgrid.f-warn{border-color:#e08a00!important;background:#fff4e0!important;box-shadow:0 0 0 2px rgba(224,138,0,.25)}
 .modgrid.f-err,.modgrid.f-warn{border:2px solid;border-radius:10px;padding:4px} .pb-det>summary,.acc-det>summary{cursor:pointer;min-height:40px;display:flex;align-items:center;gap:10px;flex-wrap:wrap} .acc-det{border:1.5px solid var(--line);border-radius:10px;padding:6px 10px;margin-top:6px} .acc-det[open]{border-color:var(--navy)}
 .fo-bloc{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)} .fo-grid{display:flex;flex-wrap:wrap;gap:6px}
@@ -730,6 +737,7 @@ const casesTelemetre = el => [...document.querySelectorAll(estCoteMM(el)?'#app i
 function parler(t){ if(!TLM.voix || !window.speechSynthesis) return; try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang="fr-FR"; u.rate=1.1; speechSynthesis.speak(u); }catch(e){} }
 const vibrer = ms => { try{ navigator.vibrate&&navigator.vibrate(ms); }catch(e){} };
 const webBT = () => !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
+if(webBT()) TLM.mode="telemetre";   // 19/11 : dans Bluefy, toujours en mode télémètre (plus besoin de toucher « Télémètre »)
 function glmDistance(dv){   // DataView d'une indication → mètres (ou null)
   if(dv.byteLength>=11 && dv.getUint8(0)===0xC0 && dv.getUint8(1)===0x55 && dv.getUint8(3)===0x06){ const m=dv.getFloat32(7,true); if(m>0.02 && m<200) return m; }
   return null; }
@@ -757,18 +765,54 @@ document.addEventListener("pointerdown", e=>{ if(TLM.suite && !e.target.closest(
 function changerModeMesure(m){ TLM.mode=m; try{ localStorage.setItem("mode_mesure",m); }catch(e){} majPastilleTLM();
   toast(m==="telemetre"?"Mode télémètre : touche une case de cote puis mesure avec le GLM":"Mode manuel : saisie au clavier"); }
 async function commandeGLM(octets){ try{ if(TLM.car) await TLM.car.writeValue(new Uint8Array(octets)); }catch(e){ TLM.etat="Commande refusée : appuie sur le bouton du télémètre"; majPastilleTLM(); } }
+async function reconnecterGLM(){   // appareil déjà autorisé : sans fenêtre de choix (si le navigateur le permet)
+  if(!webBT()||TLM.car||!navigator.bluetooth.getDevices) return false;
+  try{ const dev=(await navigator.bluetooth.getDevices()).find(d=>/GLM|Bosch/i.test(d.name||"")); if(!dev) return false; await brancherGLM(dev); return true; }catch(e){ return false; } }
 async function connecterGLM(){
-  try{ TLM.etat="Recherche du télémètre…"; majPastilleTLM();
+  try{ TLM.etat="Recherche du télémètre…"; majPastilleTLM(); TLM.coEnCours=true;
+    if(await reconnecterGLM()) return;
     const dev=await navigator.bluetooth.requestDevice({filters:[{services:[GLM_SVC]},{namePrefix:"GLM"},{namePrefix:"Bosch"}], optionalServices:[GLM_SVC]});
+    await brancherGLM(dev);
+  }catch(e){ TLM.etat=/cancel|chosen/i.test(e.message)?"Aucun télémètre choisi":"Connexion impossible : "+e.message; majPastilleTLM(); }
+  finally{ TLM.coEnCours=false; }
+}
+async function brancherGLM(dev){
     TLM.dev=dev; dev.addEventListener("gattserverdisconnected", ()=>{ TLM.car=null; TLM.etat="Télémètre déconnecté"; majPastilleTLM(); });
     const srv=await dev.gatt.connect(), svc=await srv.getPrimaryService(GLM_SVC), car=await svc.getCharacteristic(GLM_CAR);
     car.addEventListener("characteristicvaluechanged", e=>{ const m=glmDistance(e.target.value); if(m!=null) recevoirMesure(m); });
     await car.startNotifications(); TLM.car=car; TLM.etat="";
     commandeGLM([0xC0,0x55,0x02,0x01,0x00,0x1A]);   // demande l'envoi automatique de chaque mesure faite sur l'appareil
     majPastilleTLM(); toast("Télémètre connecté : touche une case, vise, appuie sur le bouton du GLM");
-  }catch(e){ TLM.etat=/cancel|chosen/i.test(e.message)?"Aucun télémètre choisi":"Connexion impossible : "+e.message; majPastilleTLM(); }
 }
+setTimeout(()=>reconnecterGLM(), 800);
+/* 1er toucher d'une case de cote dans Bluefy, télémètre pas encore relié : on lance la connexion tout de suite */
+document.addEventListener("pointerup", e=>{ if(webBT() && TLM.mode==="telemetre" && !TLM.car && !TLM.coEnCours && !TLM.autoTente && estCaseCote(e.target)){ TLM.autoTente=true; connecterGLM(); } }, true);
 const estCaseCote = el => el && el.matches && el.matches('#app input[inputmode="decimal"],#app input[inputmode="numeric"]') && !el.disabled;
+/* Pavé numérique compact (19/11/2026) : sur tablette, les cases de chiffres ouvrent un petit pavé à droite au lieu du grand clavier → on voit la feuille.
+   La case passe en lecture seule le temps de la saisie (pas de clavier iPad) ; « ⌨ » rend le clavier normal pour cette case. */
+const PAVE={el:null};
+const tactile=()=>{ try{ return matchMedia("(pointer:coarse)").matches; }catch(e){ return false; } };
+const paveActif=()=>{ try{ return localStorage.getItem("pave_off")!=="1"; }catch(e){ return true; } };
+document.addEventListener("pointerdown", e=>{ const el=e.target; if(!tactile()||!paveActif()||!estCaseCote(el)||el.dataset.clavier==="1") return; if(!el.dataset.pave){ el.dataset.pave="1"; el.readOnly=true; } }, true);
+document.addEventListener("focusin", e=>{ const el=e.target; if(el && el.dataset && el.dataset.pave==="1") ouvrirPave(el); else if(PAVE.el && !e.target.closest?.("#pave")) fermerPave(); });
+function lacherCase(el){ if(el&&el.dataset.pave){ el.readOnly=false; delete el.dataset.pave; el.classList.remove("pave-cible"); } }
+function fermerPave(){ lacherCase(PAVE.el); PAVE.el=null; $("#pave")?.remove(); }
+function ouvrirPave(el){ if(PAVE.el&&PAVE.el!==el) lacherCase(PAVE.el); PAVE.el=el; el.classList.add("pave-cible");
+  let p=$("#pave"); if(!p){ p=document.createElement("div"); p.id="pave"; document.body.appendChild(p);
+    p.innerHTML=`<div class="pv-h"><b id="pvLib"></b><button data-pv="kb" title="Clavier normal pour cette case">⌨</button><button data-pv="x" title="Fermer">✕</button></div>
+      <div class="pv-g">${["7","8","9","4","5","6","1","2","3",",","0","⌫"].map(t=>`<button data-pv="${t}">${t}</button>`).join("")}</div>
+      <div class="pv-b"><button data-pv="clr">Effacer</button><button data-pv="next" class="pv-ok">Suivant ⏎</button></div>`;
+    p.addEventListener("pointerdown", ev=>{ const b=ev.target.closest("[data-pv]"); ev.preventDefault(); if(b) toucheePave(b.dataset.pv); });
+    p.addEventListener("click", ev=>{ const b=ev.target.closest("[data-pv]"); if(b&&b.dataset.pv==="kb"){ const c=PAVE.el; if(!c) return; fermerPave(); c.dataset.clavier="1"; c.blur(); c.focus(); } }); }
+  const lab=el.closest("label"); $("#pvLib").textContent=(lab?libelleCase(el):"")||"Cote";
+  $("[data-pv=',']",p).style.visibility=el.getAttribute("inputmode")==="numeric"?"hidden":""; }
+document.addEventListener("focusout", e=>{ if(e.target===PAVE.el) setTimeout(()=>{ if(PAVE.el && document.activeElement!==PAVE.el) fermerPave(); },120); });
+function toucheePave(t){ const el=PAVE.el; if(!el) return; if(!el.isConnected){ fermerPave(); return; } if(t==="kb") return; if(t==="x"){ el.blur(); fermerPave(); return; }
+  let v=el.value; if(t==="⌫") v=v.slice(0,-1); else if(t==="clr") v=""; else if(t==="next"){ allerSuivantPave(el); return; } else { if(t===","&&/[,.]/.test(v)) return; v+=t; }
+  el.value=v; el.dispatchEvent(new Event("input",{bubbles:true})); }
+function allerSuivantPave(el){ const L=[...document.querySelectorAll('#app input[inputmode="decimal"],#app input[inputmode="numeric"]')].filter(x=>x.offsetParent&&!x.disabled);
+  const n=L[L.indexOf(el)+1]; el.dispatchEvent(new Event("change",{bubbles:true})); if(!n){ el.blur(); fermerPave(); return; }
+  if(n.dataset.clavier!=="1"){ n.dataset.pave="1"; n.readOnly=true; } n.scrollIntoView({block:"center",behavior:"smooth"}); n.focus(); }
 document.addEventListener("focusin", e=>{ if(estCaseCote(e.target)){ if(TLM.serieEl!==e.target) TLM.serie=[]; TLM.cible=e.target; if(TLM.mode==="telemetre"){ $$(".tlm-cible").forEach(x=>x.classList.remove("tlm-cible")); e.target.classList.add(auMetre(e.target)?"tlm-metre":"tlm-cible"); if(auMetre(e.target)) toast("Cette cote se prend au mètre : tape-la au clavier"); } } });
 /* Fin des cotes d'une ouverture : le bouton du GLM (ou la pastille) crée la suivante, comme celle-ci */
 function fenetreSuivanteTLM(){ TLM.suite=false; if(S.view!=="ouverture"||!S.ouv||!S.dossier){ majPastilleTLM(); return; }
@@ -925,6 +969,10 @@ function calcGC(o){
   r.hProp = Math.max(0, hautMin-ap);
   return r;
 }
+const BALCONNET_HMIN = 450;   // 19/11 : minimum 450 (au lieu de 400)
+/* « À l'étage » coché → repère « Étage bureau » ; décoché → on retire « Étage » (19/11) */
+function etageRepere(o){ const r=(o.repere||"").trim(), sans=r.replace(/^[ÉéEe]tage\s*[-–:]?\s*/,"");
+  o.repere = o.gc?.etage ? ("Étage"+(sans?" "+sans.charAt(0).toLowerCase()+sans.slice(1):"")) : (sans? sans.charAt(0).toUpperCase()+sans.slice(1):""); }
 function controleGC(o, E, W){
   const g=o.gc||{}, T=CAT.garde_corps?.types?.[g.type], c=calcGC(o);
   if(c.requis && !g.deja_pose && !g.client_pose && !poigneeACle(o) && (!g.type || g.type==="grille")) E.push(`Appui à ${num(g.appui_h)??num(o.allege)} mm (< 900) à l'étage : chiffrer un garde-corps (sauf s'il est déjà posé, si le client s'engage à le poser, ou avec une poignée à clé)`);
@@ -937,6 +985,7 @@ function controleGC(o, E, W){
   if(T?.max?.H && H!=null && H>T.max.H) E.push(`Garde-corps : hauteur ${H} > maxi ${T.max.H} mm (LAHFER)`);
   if(g.type!=="grille" && L==null) W.push("Garde-corps : largeur manquante");
   if(g.type==="balconnet" && H==null) W.push("Garde-corps : hauteur manquante");
+  if(g.type==="balconnet" && H!=null && H<BALCONNET_HMIN) E.push(`Garde-corps : balconnet de ${H} mm, ${BALCONNET_HMIN} mm minimum`);
   if(g.type==="balconnet" && c.hProp!=null && H!=null && H < c.hProp) E.push(`Garde-corps trop bas : il faut au moins ${c.hProp} mm (haut à ${c.haut} mm du sol)`);
   if(g.type==="barre" && c.requis && c.hProp!=null){ const hb=num((g.modele.match(/H(\d{3})/)||[])[1]) || 40;
     if(c.hProp-hb > 110) W.push(`Barre d'appui : vide de ${c.hProp-hb} mm sous la barre (> 110 mm) → prendre un modèle H250/H350 ou un balconnet`); }
@@ -1096,6 +1145,8 @@ function controleOuverture(o, d=S.dossier){
   if([tL,tH,f.L,f.H].some(x=>x!=null && x%5!==0)) W.push("Cote qui n'est pas un multiple de 5 ?");
   if(!sansOP && vt.length>=2 && !vt.some(x=>x.includes("OP"))) E.push("Plusieurs vantaux mais pas d'ouvrant principal (OP) ?");
   if(o.appui_bas && seuilSansAppui(o)) E.push("Appui bas ET seuil cochés ?");
+  if(!porte && num(o.allege)>0 && !aSeuil(o) && !o.appui_bas && (["of","fixe","coulissant","galandage","soufflet"].includes(fam)||!md)) E.push("Profil appui bas (ou dormant en périphérique) à renseigner : il y a une allège");
+  if(o.pose==="feuillure" && o.depose_totale && !num((o.cotes?.L||[])[3])) E.push("Largeur du dormant à relever (dépose totale en feuillure)");
   controleGC(o, E, W);
   controleERP(o, E, W);
   if(aileRecouvrement(o)){ if(o.pose!=="tunnel") W.push("Ailes de recouvrement : prévues pour la pose en tunnel"); if(!o.delignage) W.push("Ailes de recouvrement : préciser le délignage (ou « sans délignage »)"); }
@@ -1164,10 +1215,9 @@ function questionsOuverture(o, d=S.dossier){
   if(estDefinitif(d||{}) && tL!=null && tH!=null) add("trois_points",`${tL}x${tH}`,`Cotes ${tL} × ${tH} prises en 3 points (haut, milieu, bas) en gardant la plus petite ?`,{lib:"Non, je recontrôle",champ:"cotes."});
   { const d1=num(o.diag1), d2=num(o.diag2); if(d1!=null && d2!=null && Math.abs(d1-d2)>10) add("diagonales",`${d1}|${d2}`,`Écart de diagonales de ${Math.abs(d1-d2)} mm : tableau pas d'équerre, c'est prévu (fabrication / calage) ?`,{lib:"Non, je corrige",champ:"cotes."}); }
   if((num(o.quantite)||1)>1) add("quantite",`${o.quantite}|${tL}x${tH}`,`Quantité ${o.quantite}${o.repere?` sur « ${o.repere} »`:""} : les ${o.quantite} ont bien les mêmes cotes ?`,{lib:"Non, je les sépare",champ:"quantite"});
-  const vitBas = !porte && (pfLike || ((fam==="fixe"||fam==="coulissant"||fam==="galandage") && (aSeuil(o)||num(o.allege)!=null&&num(o.allege)<900)) || (num(o.allege)!=null && num(o.allege)<900));
-  if(vitBas && !/feuillet|44[.,]2|33[.,]2|s[ée]curit|stadip|sp ?\d|tremp/i.test(o.vitrage||"")) add("vitrage_bas",o.vitrage||"-",`Vitrage à moins de 90 cm du sol : vitrage de sécurité (feuilleté) prévu ?`,{lib:"Non, je le mets",champ:"vitrage"});
-  if(/s[ée]jour|salon|chambre|cuisine|salle . manger|bureau/i.test(o.repere||"") && !o.gv && !autres.some(x=>(x.repere||"").trim().toLowerCase()===rp && x.gv))
-    add("aeration",rp,`Pas de grille de ventilation en « ${o.repere} » : la maison a une VMC / pas besoin ?`,{lib:"Non, j'ajoute une grille",champ:"gv"});
+  const sbPlein = num(o.sb)>0 && !/vitr/i.test(o.sb_type||"");   // soubassement plein (panneau) : pas de vitrage en partie basse
+  const vitBas = !!o.gc?.etage && !porte && !sbPlein && (pfLike || fam==="coulissant" || fam==="galandage" || (fam==="fixe" && (aSeuil(o)||(num(o.allege)!=null&&num(o.allege)<900))));   // 19/11 : à l'étage + soubassement vitré seulement
+  if(vitBas && !/feuillet|44[.,]2|33[.,]2|s[ée]curit|stadip|sp ?\d|tremp/i.test(o.vitrage||"")) add("vitrage_bas",o.vitrage||"-",`À l'étage avec un soubassement vitré : vitrage de sécurité (feuilleté) prévu ?`,{lib:"Non, je le mets",champ:"vitrage"});
   if(fam==="of" && /cuisine/i.test(o.repere||"")) add("evier",String(o.modele),`Fenêtre de cuisine : l'ouvrant passe bien au-dessus du robinet / de l'évier ?`,{lib:"Non (soufflet / OB ?)",champ:"modele"});
   if(vl && d?.vr){ const v=d.vr, moto=vrMotorise(vl,v), larg=num(vl.fab_l)??vL;
     if(moto && !vrSolaire(vl,v) && !vrUsine(vl)) add("vr_elec",vl.electricite||"-",`Volet motorisé : il y a bien une alimentation électrique à côté${vl.electricite?` (${vl.electricite})`:""} ?`,{lib:"Non, à prévoir",go:"vr"});
@@ -1321,7 +1371,8 @@ const GAMME_SEMI = { "PVC - REHAU PORTEO":"semi_fixe_porteo" };
 function listeSemiFixe(g){ return GAMME_SEMI[g] ? CAT[GAMME_SEMI[g]] : null; }
 function nbVantaux(o){ const md=modeleDe(o); if(md) return md.vantaux; return [o.vantaux.G,o.vantaux.M,o.vantaux.D].filter(Boolean).length; }
 function aSemiFixe(o){ const md=modeleDe(o); return !!listeSemiFixe(o.gamme) && nbVantaux(o)>=2 && !["coulissant","galandage"].includes(md?.famille); }
-function listeGV(g){ return CAT.gv; }   // même liste pour toutes les gammes (Nicolas)
+const GV_SANS=["Pas de grille de ventilation – à la demande du client","Pas de grille de ventilation – VMC double flux"];
+function listeGV(g){ return [...CAT.gv, ...GV_SANS]; }   // 19/11 : la case reste jaune tant que rien n'est choisi   // même liste pour toutes les gammes (Nicolas)
 function listeVitrages(g){ if(g==="ALU - LALOI") return CAT.vitrages_laloi; const fr=FRN(g).vitrages; return fr || CAT.vitrage_composition; }
 /* 18/11/2026 : avec un seuil (alu standard, alu plat, 40 mm, PMR… ou seuil du fournisseur) → ni allège ni appui bas à remplir */
 /* 18/11/2026 : restes cachés (copie « Comme celle-ci », ancien modèle) retirés tout seuls */
@@ -1412,6 +1463,7 @@ function refreshLive(k){
   if(S.view==="ouverture"){
     if(k==="gamme"||k==="renovation"||k==="applique_neuf"||k==="depose_totale"||k==="tapee_persienne"||(k.startsWith("vantaux.")&&!modeleDe(S.ouv))){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(String(k).startsWith("erp.")){ if(["erp.actif","erp.ap","erp.ap_type","erp.groom"].includes(k)) syncAccessoiresERP(S.ouv); const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
+    if(k==="gc.etage") etageRepere(S.ouv);
     if(["seuil_std","seuil_plat","seuil_type","seuil_encastre","appui_bas","gc.etage","gc.deja_pose","gc.client_pose","poignee","poignee_modele","vitrage","clair_voulu"].includes(k)){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(k==="accessoires"){ S.accOuvert=S.ouv.id; const sm=$(".acc-det>summary .hint"); if(sm){ const a=S.ouv.accessoires||[]; sm.textContent=a.length?`${a.length} choisi(s) : ${a.join(", ")}`:"aucun – touche pour choisir"; } }
     if(k==="dormant_aile"||k==="delignage"){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
@@ -1555,7 +1607,7 @@ function renderDossier(){
       <small class="clem-etat">${der?`✓ Envoyé le ${new Date(der.le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} → ${esc(der.dossier)}${E.length>1?` (${E.length} envois)`:""}`:`→ ECHANGES › ${esc(cibleClemence(d).nom)}`}</small>`; })()}</div>
   </div>
   <div class="row" style="margin-bottom:12px">
-    <div class="tabs" style="margin:0">${T.filter(([k])=>ongletsVisibles(d).includes(k)).map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?"on":""}">${l}</button>`).join("")}<button id="tabAdd" class="tab-add" title="Ajouter un portail, des volets, une clim…">+ Ajouter…</button><button id="tabDAO" class="tab-add" title="Dessiner le plan de ce client dans la Mini DAO (le PDF « Plan … » sera joint à ce métré)">📐 Dessiner le plan</button><button id="tabCRM" class="tab-add" title="Ouvrir la fiche de ce client dans le CRM">📇 Fiche CRM</button></div>
+    <div class="tabs" style="margin:0">${T.filter(([k])=>ongletsVisibles(d).includes(k)).map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?"on":""}">${l}</button>`).join("")}<button id="tabAdd" class="tab-add" title="Ajouter un portail, des volets, une clim…">+ Ajouter…</button><button id="tabDAO" class="tab-add" title="Dessiner le plan de ce client dans la Mini DAO (le PDF « Plan … » sera joint à ce métré)">📐 Dessiner le plan</button></div>
     <span class="spacer"></span>
     ${aSAV(d)?"":`<button class="btn small" id="dVar">Variante PVC / Alu / Bois</button>`}
     <button class="btn small" id="dPrint">Imprimer / PDF</button>
@@ -1565,7 +1617,6 @@ function renderDossier(){
   $$("[data-tab]").forEach(b=>b.onclick=()=>{ S.tab=b.dataset.tab; renderDossier(); });
   $("#tabAdd").onclick=()=>ajouterAuMetre(d);
   $("#tabDAO").onclick=async()=>{ clearTimeout(S.saveT); await DB.put(d); location.href="dao/?client="+encodeURIComponent((d.client&&d.client.nom||"").trim())+"&retour="+encodeURIComponent(d.id); };   // Mini DAO (voir CLAUDE.md du dépôt)
-  $("#tabCRM").onclick=async()=>{ clearTimeout(S.saveT); await DB.put(d); location.href="crm/?client="+encodeURIComponent((d.client&&d.client.nom||"").trim()); };   // lien direct vers le CRM (19/11/2026, voir CLAUDE.md du dépôt)
   $$("[data-circuit]").forEach(b=>b.onclick=()=>choisirCircuit(b.dataset.circuit));
   $("#dClem").onclick=envoyerClemence; $("#dPrint").onclick=imprimer; $("#dSave").onclick=enregistrerDrive; if($("#dVar")) $("#dVar").onclick=ouvrirVariante;
   const t=$("#tab"), FIC=CAT.fic;
@@ -1790,23 +1841,25 @@ function renderOuverture(){
     ${F.sel("couleur_ext",FRN(o.gamme).lib_ext||"Couleur extérieure",groupesCouleur(o.gamme,"ext"),o.couleur_ext)}
     ${FRN(o.gamme).profils?`<div style="grid-column:span 2">${F.sel("profil",FRN(o.gamme).lib_profil||"Profil / gamme du fournisseur",FRN(o.gamme).profils,o.profil)}</div>`:""}
     ${FRN(o.gamme).essences?F.sel("essence","Essence de bois",FRN(o.gamme).essences,o.essence):""}
-    <div style="grid-column:span 2">${dImp?`<label class="f">Dormant / aile <span class="fabhint">(imposé : ${raisonDormant(o)})</span><select disabled><option>${esc(dImp)}</option></select></label>`
-          :F.sel("dormant_aile",`Dormant / aile${poseRehauDediee(o)?` <span class="fabhint">(${nomPoseRehau(o)})</span>`:""}`,listeDormants(o),o.dormant_aile)}</div>
-    ${aileRecouvrement(o)?`<div style="grid-column:span 2">${F.sel("delignage","Délignage de l'aile de recouvrement",DELIGNAGES,o.delignage)}</div>
-      <div class="hint" style="grid-column:span 2;align-self:end">Menuiserie en tunnel (tableau − 10) ; les ailes de ${largeurAile(o)} mm recouvrent le mur${o.delignage&&o.delignage!=="Sans délignage"?" sauf côté délignés":""}.</div>`:""}
   </div>${listeModeles(o.gamme)?`<div style="margin-top:14px"><div class="hint" style="margin-bottom:6px">Modèle de menuiserie ${modeleDe(o)?`: <b style="color:var(--navy)">${esc(modeleDe(o).nom)}</b>`:"(touche l'image)"}</div>
     ${modeleDe(o)&&!S.modOuvert?`<div class="modgrid"><button class="on" data-modchg="1">${imgModele(modeleDe(o),o.gamme)}<small>${esc(modeleDe(o).nom)}</small></button>
       <button data-modchg="1" style="justify-content:center;width:auto;padding:0 16px;font-weight:700">Changer de modèle</button></div>`
     :listeModeles(o.gamme).map(gr=>`<div class="modfam"><span>${esc(gr.groupe)}</span><div class="modgrid">${gr.items.map(m=>`<button data-mod="${m.id}" class="${o.modele===m.id?"on":""}" title="${esc(m.nom)}">${imgModele(m,o.gamme)}<small>${esc(m.nom.replace(/Ouvrant à la française caché/,"OF caché").replace(/avec bandeau serrure et seuil PMR|avec serrure et seuil PMR/,"").replace(/\s+/g," "))}</small></button>`).join("")}</div></div>`).join("")}</div>`:""}
   <datalist id="dlPieces">${listePiecesDL()}</datalist></div>
 
-  <div class="card"><h2><span class="num">2</span>Pose et dépose</h2><div class="checks">
+  <div class="card"><h2><span class="num">2</span>Pose, dépose et dormant</h2><div class="checks">
     ${POSES_RENO.includes(o.pose)&&!o.applique_neuf?F.chk("renovation","Pose en rénovation (sur cadre existant)",o.renovation):""}
     ${o.pose!=="libre"?F.chk("tapee_persienne","Tapées de persienne",o.tapee_persienne):""}
     ${POSES_APPLIQUE.includes(o.pose)&&!o.renovation?F.chk("applique_neuf","Pose en applique",o.applique_neuf):""}
     ${o.pose==="neuf_depose"&&!o.renovation?`<label class="chip on" title="Toujours vrai en neuf avec dépose"><input type="checkbox" checked disabled>Dépose totale (d'office)</label>`:(o.renovation?"":F.chk("depose_totale","Dépose totale",o.depose_totale))}
     ${F.chk("deligner","Déligner les cochonnets",o.deligner)}${F.chk("depose_seuil","Dépose du seuil ou appui",o.depose_seuil)}
+  </div><div class="grid g4" style="margin-top:12px">
+    <div style="grid-column:span 2">${dImp?`<label class="f">Dormant / aile <span class="fabhint">(imposé : ${raisonDormant(o)})</span><select disabled><option>${esc(dImp)}</option></select></label>`
+          :F.sel("dormant_aile",`Dormant / aile${poseRehauDediee(o)?` <span class="fabhint">(${nomPoseRehau(o)})</span>`:""}`,listeDormants(o),o.dormant_aile)}</div>
+    ${aileRecouvrement(o)?`<div style="grid-column:span 2">${F.sel("delignage","Délignage de l'aile de recouvrement",DELIGNAGES,o.delignage)}</div>
+      <div class="hint" style="grid-column:span 2;align-self:end">Menuiserie en tunnel (tableau − 10) ; les ailes de ${largeurAile(o)} mm recouvrent le mur${o.delignage&&o.delignage!=="Sans délignage"?" sauf côté délignés":""}.</div>`:""}
   </div></div>
+
 
   <div class="card"><h2><span class="num">3</span>Dimensions (mm)</h2>
     <div class="checks" style="margin-bottom:8px">${F.chk("tab_impossible","Cotes tableau pas possibles (accès extérieur impossible, il faudrait une échelle…)",o.tab_impossible)}</div>
@@ -1990,7 +2043,7 @@ const CTL_CASES = [
   [/^Largeur (tableau|\d|:)|Cote tableau|Cotes tableau pas prises/,["cotes.L.","tab_impossible"]],[/^Hauteur (tableau|\d|:)|Cote tableau/,["cotes.H."]],[/Cote de fabrication|multiple de 5/,["cotes.","fab_force."]],
   [/^Couleur|Finition intérieure/,["couleur_int"]],[/^Couleur|Finition extérieure/,["couleur_ext"]],
   [/Modèle de menuiserie|Le modèle a/,["@.modgrid"]],[/vantaux|ouvrant principal/,["vantaux."]],[/Type de pose/,["@#chgPose"]],
-  [/Allège/,["allege"]],[/Appui bas|appui bas/,["appui_bas"]],[/[Ss]euil/,["seuil_"]],[/Compensateur/,["comp."]],
+  [/Allège/,["allege"]],[/Largeur du dormant/,["cotes.L.3"]],[/Garde-corps/,["gc."]],[/Appui bas|appui bas/,["appui_bas"]],[/[Ss]euil/,["seuil_"]],[/Compensateur/,["comp."]],
   [/[Dd]ormant|Ailes de recouvrement/,["dormant_aile","delignage"]],[/[Vv]itrage/,["vitrage"]],[/Grille de ventilation/,["gv"]],[/Petits bois/,["petits_bois"]],
   [/[Cc]ylindre/,["cylindre","cle."]],[/semi-fixe/,["semi_fixe"]],[/Soubassement/,["sb"]],[/Élargisseur/,["elarg."]],
   [/Appui à \d+ mm/,["allege","gc.appui_h","gc.deja_pose","gc.client_pose"]],[/^Garde-corps/,["gc.modele","gc.finition","gc.L","gc.H","gc.fixation","@.gc-grid"]],[/^Forme|^Pignon|^Plein cintre|^Triangle décalé|partie plate/,["forme."]] ];
@@ -2001,7 +2054,13 @@ function colorerCases(c){
       if(/^Forme /.test(msg) && k==="forme."){ const fk=Object.keys(FORME_LIB).sort((a,b)=>FORME_LIB[b].length-FORME_LIB[a].length).find(x=>msg.includes(FORME_LIB[x].toLowerCase())); if(fk) els=$$(`[data-k="forme.${fk}"]`); }
       els.forEach(e=>{ const t=e.type==="checkbox"?(e.closest(".chip")||e):e; if(cl==="f-warn"&&t.classList.contains("f-err")) return; t.classList.remove("f-warn"); t.classList.add(cl);
         const det=t.closest("details"); if(det) det.open=true; }); }); }); };
-  c.E.forEach(m=>marque(m,"f-err")); c.W.forEach(m=>marque(m,"f-warn")); }
+  c.E.forEach(m=>marque(m,"f-err")); c.W.forEach(m=>marque(m,"f-warn"));
+  $$(".f-todo").forEach(x=>x.classList.remove("f-todo")); casesJaunes(S.ouv).forEach(sel=>$$(sel).forEach(e=>{ if(!e.classList.contains("f-err")&&!e.classList.contains("f-warn")) e.classList.add("f-todo"); })); }
+/* Cases jaunes = à renseigner, même pour dire « rien » (19/11) : grille de ventilation, finition intérieure */
+function casesJaunes(o){ if(!o) return []; const J=[];
+  if(!o.gv) J.push('[data-k="gv"]');
+  const f0=(o.finitions?.int_l||[])[0]||{}; if(!f0.t) J.push('[data-k="finitions.int_l.0.t"]','[data-k="finitions.int_l.0.c"]'); else if(!/^Pas de finition/i.test(f0.t) && !f0.c) J.push('[data-k="finitions.int_l.0.c"]');
+  return J; }
 function majControle(){
   const c=controleOuverture(S.ouv), el=$("#ctl"); if(!el) return; colorerCases(c);
   el.innerHTML = !c.E.length&&!c.W.length ? `<span class="badge b-ok">Contrôle OK</span> <span class="hint">Aucune anomalie détectée sur cette ouverture.</span>`
@@ -2010,7 +2069,8 @@ function majControle(){
         <button class="btn small" id="ctlTog">${S.ctlOpen?"Réduire":"Détails"}</button></div>
       ${S.ctlOpen?`<ul>${c.E.map(x=>`<li class="err">${esc(x)}</li>`).join("")}${c.W.map(x=>`<li class="warn">${esc(x)}</li>`).join("")}</ul>`:""}`;
   const t=$("#ctlTog"); if(t) t.onclick=()=>{ S.ctlOpen=!S.ctlOpen; majControle(); };
-  const Q=questionsOuverture(S.ouv);
+  const md=modeleDe(S.ouv), pret=Object.values(S.ouv.vantaux||{}).some(Boolean) || ["fixe","porte"].includes(md?.famille) || !!formeDe(S.ouv);   // 19/11 : pas pendant la saisie des cotes
+  const Q=pret?questionsOuverture(S.ouv):[];
   if(Q.length){ el.insertAdjacentHTML("beforeend",`<div class="ctl-q">${Q.map(q=>`<div class="ctl-qi"><span>❓ ${esc(q.q)}</span><button class="btn small" data-qoui="${q.k}">✔ Oui</button><button class="btn small" data-qnon="${q.k}">${esc(q.non.lib)}</button></div>`).join("")}</div>`);
     $$("[data-qoui]").forEach(b=>b.onclick=()=>repondreQ(S.ouv,b.dataset.qoui,true)); $$("[data-qnon]").forEach(b=>b.onclick=()=>repondreQ(S.ouv,b.dataset.qnon,false)); }
 }
@@ -2827,7 +2887,7 @@ function initGC(){
   $$("[data-gctype]").forEach(b=>b.onclick=()=>{ const t=b.dataset.gctype, y=scrollY; if(o.gc.type!==t){ Object.assign(o.gc,{type:t, modele:"", fixation:(CAT.garde_corps.types[t]?.fixations||[])[0]||""}); if(t&&!o.gc.finition) o.gc.finition="Thermolaquée blanc RAL 9016"; } save(); renderOuverture(); scrollTo(0,y); });
   const p=$("#gcProp"); if(p) p.onclick=()=>{ const c=calcGC(o), tL=num(coteTab(o,"L")), y=scrollY;
     if(tL!=null) o.gc.L=String(o.gc.type==="barre"?tL+100:tL-10);   // balconnet entre tableaux : tableau − 10 ; barre d'appui : tableau + 2 × 50 de débord
-    if(o.gc.type==="balconnet" && c.hProp!=null) o.gc.H=String(Math.min(CAT.garde_corps.types.balconnet.max.H, Math.ceil(c.hProp/10)*10));
+    if(o.gc.type==="balconnet" && c.hProp!=null) o.gc.H=String(Math.min(CAT.garde_corps.types.balconnet.max.H, Math.max(BALCONNET_HMIN, Math.ceil(c.hProp/10)*10)));
     save(); renderOuverture(); scrollTo(0,y); toast(tL==null?"Saisis d'abord la largeur tableau":"Cotes proposées – à vérifier"); };
 }
 
@@ -4155,29 +4215,6 @@ function chargerScript(src){ return new Promise((ok,ko)=>{
   s.onload=()=>{ s.dataset.ok=1; ok(); }; s.onerror=()=>ko(new Error("hors ligne")); document.head.appendChild(s); }); }
 const driveDispo = () => location.protocol==="https:" && /github\.io$/.test(location.hostname);
 
-/* Connexion Google « par redirection » (19/11/2026, voir CLAUDE.md du dépôt) : dans Bluefy (navigateur iPad qui sait faire du
-   Bluetooth, pour le télémètre), la petite fenêtre Google reste blanche. On part donc chez Google et on revient ici avec le jeton
-   dans l'adresse (#access_token=…). Adresse de retour déclarée dans Google Cloud (client OAuth) : https://foissac-fermetures.github.io/appli-metre/ */
-const G_REDIRECT_URI = location.origin + "/appli-metre/";
-const gParRedirection = () => { const ua=navigator.userAgent||"", ios=/iPad|iPhone|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1); return (ios && !!navigator.bluetooth) || localStorage.getItem("g_redirect")==="1"; };
-(function(){ const h=location.hash||""; if(!/access_token=|error=/.test(h)) return;
-  try{ const P=new URLSearchParams(h.slice(1)), att=JSON.parse(localStorage.getItem("g_redir")||"null"); localStorage.removeItem("g_redir");
-    let q="";
-    if(att && P.get("state")===att.state){
-      if(P.get("access_token")){ const t=P.get("access_token"), f=Date.now()+(+P.get("expires_in")||3600)*1000; localStorage.setItem("g_jeton",JSON.stringify({t,f,s:DRIVE_SCOPE})); localStorage.setItem("g_ok4","1"); localStorage.setItem("g_redir_msg","ok"); }
-      else localStorage.setItem("g_redir_msg","erreur : "+(P.get("error")||"?"));
-      if(att.ouvrir) q="?ouvrir="+encodeURIComponent(att.ouvrir); }
-    history.replaceState(null,"",location.pathname+q);
-  }catch(e){ try{ history.replaceState(null,"",location.pathname); }catch(_){} } })();
-setTimeout(()=>{ try{ const m=localStorage.getItem("g_redir_msg"); if(!m) return; localStorage.removeItem("g_redir_msg"); toast(m==="ok"?"Connecté à Google ✓ – tu peux refaire ton action (Actualiser, devis signé, envoi…)":"Connexion Google pas faite ("+m+")"); }catch(_){} }, 1800);
-function gPartirChezGoogle(){
-  const state=Math.random().toString(36).slice(2)+Date.now().toString(36), ouvrirId=(typeof S!=="undefined"&&S.view==="dossier"&&S.dossier)?S.dossier.id:"";
-  try{ if(ouvrirId) DB.put(S.dossier); }catch(_){}
-  localStorage.setItem("g_redir",JSON.stringify({state,ouvrir:ouvrirId}));
-  const P={client_id:GOOGLE_CLIENT_ID, redirect_uri:G_REDIRECT_URI, response_type:"token", scope:DRIVE_SCOPE, include_granted_scopes:"true", state};
-  if(!localStorage.getItem("g_ok4")) P.prompt="consent";
-  toast("Connexion à Google…"); setTimeout(()=>{ location.href="https://accounts.google.com/o/oauth2/v2/auth?"+new URLSearchParams(P); }, 400);
-}
 let G_JETON=null, G_FIN=0, G_CLIENT=null;
 try{ const j=JSON.parse(localStorage.getItem("g_jeton")||"null"); if(j && j.s===DRIVE_SCOPE && j.f>Date.now()+60000){ G_JETON=j.t; G_FIN=j.f; } }catch(e){}
 function prechargerGoogle(){ if(driveDispo() && navigator.onLine) chargerScript("https://accounts.google.com/gsi/client").then(()=>{
@@ -4187,7 +4224,6 @@ function jetonValide(){ return G_JETON && Date.now()<G_FIN-60000; }
 /* Doit être appelé dans le clic (sinon la fenêtre Google est bloquée). */
 function demanderJeton(){ return new Promise((ok,ko)=>{
   if(jetonValide()) return ok(G_JETON);
-  if(gParRedirection()){ gPartirChezGoogle(); return ko(new Error("connexion Google en cours…")); }
   if(!G_CLIENT) return ko(new Error("Google pas encore prêt, réessaie dans 2 secondes"));
   G_CLIENT.callback=r=>{ if(r.error) return ko(new Error(r.error)); G_JETON=r.access_token; G_FIN=Date.now()+r.expires_in*1000;
     try{ localStorage.setItem("g_jeton",JSON.stringify({t:G_JETON,f:G_FIN,s:DRIVE_SCOPE})); localStorage.setItem("g_ok4","1"); }catch(e){} ok(G_JETON); };
@@ -4442,66 +4478,6 @@ async function envoyerJournal(d){ const L=(d.journal_attente||[]); if(!L.length)
   tout.push(...L.map(e=>({...base,...e}))); if(tout.length>5000) tout=tout.slice(-5000);
   await deposerDrive(JOURNAL_NOM, new Blob([JSON.stringify(tout,null,1)],{type:"application/json"}), racine, "Journal des corrections de l'appli de métré (erreurs à l'envoi, « Non » aux questions, modifications après envoi)");
   d.journal_attente=[]; }
-/* ---------- Journal d'utilisation (19/11/2026, projet « Réorganisation des logiciels », voir CLAUDE.md du dépôt) ----------
-   Carnet commun aux 3 applis (même adresse) : localStorage « journal-usage ». Note seulement les boutons, onglets
-   et commandes utilisés et leur enchaînement — jamais de nom de client, de numéro ni de texte saisi.
-   L'appli de métré l'envoie dans Mon Drive › Appli métré – Dossiers › « Journal d'utilisation (applis).json ». */
-(function(){
-  const APP="metre", LS="journal-usage";
-  const pad=n=>String(n).padStart(2,"0"), now=()=>{ const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+" "+d.toTimeString().slice(0,8); };
-  const ua=navigator.userAgent||"", APPAREIL=(/iPad/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1))?"ipad":/iPhone|Android.*Mobile/.test(ua)?"tel":/Mac/.test(ua)?"mac":"pc";
-  const SESS=Math.random().toString(36).slice(2,6);
-  const clean=k=>String(k).replace(/[\r\n"\\]/g," ").replace(/\s+/g," ").trim().slice(0,60);
-  let buf=[];
-  function flush(){ if(!buf.length) return; try{ const L=JSON.parse(localStorage.getItem(LS)||"[]"); localStorage.setItem(LS, JSON.stringify(L.concat(buf).slice(-20000))); buf=[]; }catch(_){ buf=buf.slice(-500); } }
-  function log(k){ k=clean(k); if(!k) return; buf.push(now()+" "+APP+" "+APPAREIL+" "+k+" ~"+SESS); if(buf.length>=40) flush(); }
-  function where(el){ const m=el.closest(".modal[id]"); if(m) return m.id; return (typeof S!=="undefined"&&S&&S.view)?S.view+(S.view==="dossier"&&S.tab?"/"+S.tab:""):"page"; }
-  function key(el){
-    if(el.dataset&&el.dataset.tab) return "onglet:"+el.dataset.tab;
-    if(el.classList&&el.classList.contains("item")) return where(el)+":carte";
-    const w=where(el);
-    if(el.id) return w+":"+el.id;
-    if(el.tagName==="TR") return w+":ligne";
-    const ds=Object.keys(el.dataset||{}).filter(k=>k!=="id"&&k!=="g");
-    if(ds.length) return w+":"+ds[0];
-    let t=(el.getAttribute("aria-label")||el.textContent||"").replace(/\s+/g," ").trim();
-    if(!t||t.length>30||/\d{2}/.test(t)||el.closest("[data-id]")) t=el.tagName.toLowerCase()+(el.closest("[data-id]")?"-carte":"");
-    return w+":"+t;
-  }
-  document.addEventListener("click",e=>{ const el=e.target.closest&&e.target.closest("button,a,summary,select,tr[data-id],[data-id],[role=button],[data-cmd],[data-tab],.tab,.tool,.item,input[type=checkbox],input[type=radio]"); if(el) try{ log(key(el)); }catch(_){} },true);
-  { const u=new URLSearchParams(location.search); if(u.get("client")) log("arrivée:depuis-crm"); else if(u.get("ouvrir")) log("arrivée:retour-dao"); }
-  log("ouverture");
-  setInterval(flush,30000);
-  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") flush(); });
-  window.addEventListener("pagehide",flush);
-  window.journalUsage={ log, flush };
-})();
-
-/* Envoi du journal d'utilisation (carnet commun CRM / Mini DAO / métré) dans le Drive – 19/11/2026, voir CLAUDE.md du dépôt.
-   Seulement si Google est déjà connecté (jamais de fenêtre de connexion pour ça), au plus toutes les 20 minutes. */
-const USAGE_NOM = "Journal d'utilisation (applis).json";
-let usageEnvoi=false;
-async function envoyerJournalUsage(){
-  if(usageEnvoi||!driveDispo()||!navigator.onLine||!jetonValide()) return;
-  try{ if(window.journalUsage) journalUsage.flush(); }catch(_){}
-  let L=[]; try{ L=JSON.parse(localStorage.getItem("journal-usage")||"[]"); }catch(_){ return; }
-  if(!Array.isArray(L)||!L.length) return;
-  const dernier=+localStorage.getItem("journal-usage-envoi")||0; if(Date.now()-dernier<20*60e3 && L.length<1500) return;
-  usageEnvoi=true;
-  try{
-    const racine=DOSSIERS_CONNUS.racine, q=`name='${q_(USAGE_NOM)}' and trashed=false and '${racine}' in parents`;
-    const ex=(await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id)&q="+encodeURIComponent(q))).files[0];
-    let tout=[]; if(ex){ const r=await fetch(`https://www.googleapis.com/drive/v3/files/${ex.id}?alt=media&supportsAllDrives=true`,{headers:{Authorization:"Bearer "+G_JETON}}); if(!r.ok) throw new Error("lecture "+r.status); tout=await r.json(); }
-    if(!Array.isArray(tout)) tout=[];
-    const limite=new Date(Date.now()-90*864e5).toISOString().slice(0,10);
-    tout=tout.concat(L).filter(x=>typeof x==="string"&&x.slice(0,10)>=limite); if(tout.length>60000) tout=tout.slice(-60000);
-    await deposerDrive(USAGE_NOM, new Blob([JSON.stringify(tout)],{type:"application/json"}), racine, "Journal d'utilisation du CRM, de la Mini DAO et de l'appli de métré (boutons et onglets utilisés, sans données client) – lu par Claude pour la revue des logiciels");
-    try{ const L2=JSON.parse(localStorage.getItem("journal-usage")||"[]"); localStorage.setItem("journal-usage", JSON.stringify(L2.slice(L.length))); localStorage.setItem("journal-usage-envoi", String(Date.now())); }catch(_){}
-  }catch(e){ /* réseau ou Drive indisponible : on réessaiera plus tard */ }
-  finally{ usageEnvoi=false; }
-}
-setTimeout(envoyerJournalUsage, 20000); setInterval(envoyerJournalUsage, 10*60e3);
-document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") envoyerJournalUsage(); });
 /* qui reçoit le métré : Roxane pour un métré clim seul (DEVIS CLIM), Clémence sinon – 19/11 */
 const destinataire = d => cibleClemence(d)===CLEMENCE.clim ? "Roxane" : "Clémence";
 
@@ -5410,34 +5386,7 @@ DB.open().then(async()=>{ await normaliserTout();
   /* Retour de la Mini DAO (« ↩ Retour ») : ?ouvrir=<id du métré> rouvre ce métré – voir CLAUDE.md du dépôt */
   let ouvrir=null; try{ ouvrir=new URLSearchParams(location.search).get("ouvrir"); if(ouvrir) history.replaceState(null,"",location.pathname); }catch(e){}
   const d=ouvrir ? (await DB.all()).find(x=>x.id===ouvrir) : null;
-  if(d){ S.dossier=d; S.tab="client"; renderDossier(); } else if(!(await ouvrirDepuisLienCRM())) renderHome(); });
-/* Lien direct depuis le CRM (19/11/2026, voir CLAUDE.md du dépôt) : ?client=<nom>&retour=crm ouvre le métré le plus récent
-   de ce client, ou propose d'en créer un, rempli avec le fichier du CRM. */
-const normNomCRM = s => String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9 ]/g," ").replace(/\b(M|MR|MME|MLLE|MONSIEUR|MADAME)\b/g," ").replace(/\s+/g," ").trim();
-async function ouvrirDepuisLienCRM(){
-  let nom="";
-  try{ const P=new URLSearchParams(location.search); nom=(P.get("client")||"").trim(); if(P.get("client")!=null||P.get("retour")!=null) history.replaceState(null,"",location.pathname); }catch(e){}
-  if(!nom) return false;
-  const n=normNomCRM(nom), n1=n.split(" ")[0]||"";
-  const ds=(await DB.all()).sort((a,b)=>(b.modifie||b.cree||"").localeCompare(a.modifie||a.cree||""));
-  let L=ds.filter(d=>normNomCRM(d.client&&d.client.nom)===n);
-  if(!L.length && n1.length>=3){ const M=ds.filter(d=>normNomCRM(d.client&&d.client.nom).split(" ").includes(n1)); if(new Set(M.map(cleClient)).size===1) L=M; }
-  const ouvrir=d=>{ S.dossier=d; S.tab="client"; renderDossier(); };
-  if(L.length){
-    const def=L.find(d=>estDefinitif(d));
-    if(def){ ouvrir(def); toast(`Métré définitif de ${def.client.nom} ouvert`); return true; }   // le définitif existe déjà : on y va
-    await renderHome();
-    const choix=await demander(`${L[0].client.nom} a déjà ${L.length>1?L.length+" métrés":"un métré"} de devis. Que veux-tu faire ?`,"Commencer le métré définitif","Ouvrir le métré existant");
-    if(choix){ const d=await creerRendezVous(L[0].client.nom, ["menuiseries"], null, true); if(d && typeof ouvrirDevisSigne==="function") setTimeout(ouvrirDevisSigne,300); return true; }
-    ouvrir(L[0]); if(L.length>1) toast(`${L.length} métrés pour ${nom} : le plus récent est ouvert (les autres sont dans l'accueil)`); return true; }
-  // aucun métré pour ce client : la fenêtre habituelle « Nouveau rendez-vous » (devis ou métré définitif), puis remplissage depuis le fichier du CRM
-  await renderHome();
-  const d=await nouveauRendezVous({nom, crm:false}); if(!d) return true;
-  try{ const C=await chargerCRM(false), CL=(C&&C.clients)||[]; let c=CL.find(x=>normNomCRM(x.nom)===n);
-    if(!c && n1.length>=3){ const M=CL.filter(x=>normNomCRM(x.nom).split(" ").includes(n1)); if(M.length===1) c=M[0]; }
-    if(c){ const dr=d.client.date_rdv; remplirDepuisCRM(d,c); if(estDefinitif(d)) d.client.date_rdv=dr; await DB.put(d); if(S.dossier===d && S.view==="dossier") renderDossier(); } }catch(e){}
-  return true;
-}
+  if(d){ S.dossier=d; S.tab="client"; renderDossier(); } else renderHome(); });
 /* Mises à jour de l'appli : les anciens métrés sont convertis une fois sur l'appareil SANS être comptés comme « modifiés »
    (sinon un autre appareil verrait sa version écrasée par cette conversion) */
 async function normaliserTout(){ try{ for(const d of await DB.all()){ const avant=empreinte(d), synchro=d.drive&&d.drive.sig===avant; normaliser(d); const apres=empreinte(d);

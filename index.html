@@ -5398,14 +5398,21 @@ async function ouvrirDepuisLienCRM(){
   const ds=(await DB.all()).sort((a,b)=>(b.modifie||b.cree||"").localeCompare(a.modifie||a.cree||""));
   let L=ds.filter(d=>normNomCRM(d.client&&d.client.nom)===n);
   if(!L.length && n1.length>=3){ const M=ds.filter(d=>normNomCRM(d.client&&d.client.nom).split(" ").includes(n1)); if(new Set(M.map(cleClient)).size===1) L=M; }
-  if(L.length){ S.dossier=L[0]; S.tab="client"; renderDossier(); if(L.length>1) toast(`${L.length} métrés pour ${nom} : le plus récent est ouvert (les autres sont dans l'accueil)`); return true; }
+  const ouvrir=d=>{ S.dossier=d; S.tab="client"; renderDossier(); };
+  if(L.length){
+    const def=L.find(d=>estDefinitif(d));
+    if(def){ ouvrir(def); toast(`Métré définitif de ${def.client.nom} ouvert`); return true; }   // le définitif existe déjà : on y va
+    await renderHome();
+    const choix=await demander(`${L[0].client.nom} a déjà ${L.length>1?L.length+" métrés":"un métré"} de devis. Que veux-tu faire ?`,"Commencer le métré définitif","Ouvrir le métré existant");
+    if(choix){ const d=await creerRendezVous(L[0].client.nom, ["menuiseries"], null, true); if(d && typeof ouvrirDevisSigne==="function") setTimeout(ouvrirDevisSigne,300); return true; }
+    ouvrir(L[0]); if(L.length>1) toast(`${L.length} métrés pour ${nom} : le plus récent est ouvert (les autres sont dans l'accueil)`); return true; }
+  // aucun métré pour ce client : la fenêtre habituelle « Nouveau rendez-vous » (devis ou métré définitif), puis remplissage depuis le fichier du CRM
   await renderHome();
-  if(!(await demander(`Pas encore de métré pour « ${nom} ». Le créer maintenant ?`,"Créer le métré","Non"))) return true;
-  let d=nouveauDossier(); d.client.nom=nom;
+  const d=await nouveauRendezVous({nom, crm:false}); if(!d) return true;
   try{ const C=await chargerCRM(false), CL=(C&&C.clients)||[]; let c=CL.find(x=>normNomCRM(x.nom)===n);
     if(!c && n1.length>=3){ const M=CL.filter(x=>normNomCRM(x.nom).split(" ").includes(n1)); if(M.length===1) c=M[0]; }
-    if(c){ d.client.nom=""; d=remplirDepuisCRM(d,c); } }catch(e){}
-  await DB.put(d); S.dossier=d; S.tab="client"; renderDossier(); toast(`Métré créé pour ${d.client.nom}`); return true;
+    if(c){ const dr=d.client.date_rdv; remplirDepuisCRM(d,c); if(estDefinitif(d)) d.client.date_rdv=dr; await DB.put(d); if(S.dossier===d && S.view==="dossier") renderDossier(); } }catch(e){}
+  return true;
 }
 /* Mises à jour de l'appli : les anciens métrés sont convertis une fois sur l'appareil SANS être comptés comme « modifiés »
    (sinon un autre appareil verrait sa version écrasée par cette conversion) */

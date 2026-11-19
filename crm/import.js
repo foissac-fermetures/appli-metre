@@ -41,6 +41,8 @@
 .qab.lien{border-style:dashed}
 .fqa{position:sticky;top:0;z-index:3;display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:8px 10px;margin:-4px 0 4px;border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:0 4px 12px rgba(0,0,0,.08)}
 .fqa .qab{font-size:.84rem;padding:5px 11px}
+.fqa.mob{display:none}
+@media (max-width:760px){.fqa.mob{display:flex}.fcr>.fqa:not(.mob){display:none}}
 .fqa .sep{width:1px;align-self:stretch;background:var(--line);margin:0 2px}
 .qaflash{outline:3px solid var(--c-rdv);outline-offset:3px;border-radius:8px}
 .search .qkbtn{margin-left:6px;font-size:.8rem;padding:4px 10px;align-self:center}
@@ -97,7 +99,9 @@
     return out; };
   const _renderDrawer = renderDrawer;
   renderDrawer = function () { const out = _renderDrawer.apply(this, arguments);
-    try { const r = findRow(openId), f = q$("#drawer .fcr"); if (r && f && !f.querySelector(".fqa")) f.insertAdjacentHTML("afterbegin", fqaBar(r)); } catch(_){}
+    try { const r = findRow(openId), f = q$("#drawer .fcr"); if (r && f && !f.querySelector(".fqa")) f.insertAdjacentHTML("afterbegin", fqaBar(r));
+      /* téléphone (écran étroit, fiche sur une seule colonne) : la même barre juste sous le nom du client, sinon elle est tout en bas des coordonnées */
+      const l = q$("#drawer .fcl"); if (r && l && !l.querySelector(".fqa")) { const top = l.querySelector(".fcl-top"); const html = fqaBar(r).replace('class="fqa"', 'class="fqa mob"'); if (top) top.insertAdjacentHTML("afterend", html); else l.insertAdjacentHTML("afterbegin", html); } } catch(_){}
     return out; };
   const _openDossier = openDossier;
   openDossier = function (id) { recentPush(id); return _openDossier.apply(this, arguments); };

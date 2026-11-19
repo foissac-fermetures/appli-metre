@@ -227,6 +227,7 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 #pave .pv-g button:active,#pave .pv-b button:active{background:#dfe6f5} #pave .pv-b{display:grid;grid-template-columns:1fr 1.4fr;gap:6px;margin-top:6px} #pave .pv-b button{height:44px;border-radius:10px;border:1px solid #c9d1e3;background:#fff;font-weight:700}
 #pave .pv-ok{background:var(--navy)!important;color:#fff;border-color:var(--navy)!important} input.pave-cible{outline:3px solid var(--navy);outline-offset:1px}
 .rep-num{display:inline-flex;gap:4px;margin-left:8px} .rep-num .btn{min-width:40px;min-height:40px;font-weight:800} .obs-det>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.corb-ph{margin-top:10px} .corb-ph>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:8px;font-weight:700;color:var(--navy)} .photo.corb img{opacity:.75}
 .cl-wifi{margin-top:8px;padding:8px 10px;border-radius:8px;background:#e8f0ff;color:var(--navy)}
 /* barre de dessin à onglets (19/11/2026) */
 .sk-ipad{flex-direction:column;align-items:stretch;gap:8px}
@@ -1231,7 +1232,7 @@ function questionsOuverture(o, d=S.dossier){
 function questionsDossier(d){ normaliser(d); return d.ouvertures.flatMap((o,i)=>questionsOuverture(o,d).map(q=>({...q, ou:`${o.num_poseur?"N°"+o.num_poseur+" ":""}${o.repere||"Ouverture "+(i+1)}`, go:{ouv:o.id}}))); }
 /* ---------- Journal des corrections (19/11/2026) : ce que Nicolas corrige après un envoi, ses « Non » et les erreurs vues à l'envoi.
    Instantané pris à chaque envoi ; au renvoi (modif) on compare → entrées envoyées dans « Journal des corrections (appli métré).json » sur le Drive. ---------- */
-const JR_IGN=/^(photos|croquis|croquis_vec|croquis_fond|qok|drive|modifie|_e|_conflit|clemence|journal_attente|id|num_poseur|obs_v2)(\.|$)/;
+const JR_IGN=/^(photos|photos_corbeille|croquis|croquis_vec|croquis_fond|qok|drive|modifie|_e|_conflit|clemence|journal_attente|id|num_poseur|obs_v2)(\.|$)/;
 const JR_LIB={gamme:"Gamme",modele:"Modèle",couleur_int:"Couleur intérieure",couleur_ext:"Couleur extérieure",couleur_dormant:"Couleur dormant",vitrage:"Vitrage",allege:"Allège",appui_bas:"Appui bas",seuil_std:"Seuil",seuil_plat:"Seuil plat",seuil_encastre:"Seuil encastré",seuil_type:"Type de seuil",repere:"Repère",quantite:"Quantité",pose:"Type de pose",gv:"Grille de ventilation",poignee:"Poignée",dormant_aile:"Dormant / aile",ob_type:"Oscillo-battant",sens_porte:"Sens de la porte",cylindre:"Cylindre",semi_fixe:"Semi-fixe"};
 function instantaneDossier(d){ const plat=(o,pre,out)=>{ for(const [k,v] of Object.entries(o||{})){ const p=pre?pre+"."+k:k; if(JR_IGN.test(p)||JR_IGN.test(k)) continue;
     if(v&&typeof v==="object"&&!Array.isArray(v)) plat(v,p,out); else if(Array.isArray(v)&&v.some(x=>x&&typeof x==="object")) v.forEach((x,i)=>plat(x,p+"."+i,out)); else out[p]=Array.isArray(v)?v.join(", "):v; } return out; };
@@ -2907,7 +2908,16 @@ function initPhotos(o=S.ouv, rendu=renderOuverture){
   inp.onchange=async()=>{ const fs=[...inp.files]; if(!fs.length) return; toast("Ajout de la photo…");
     for(const f of fs){ try{ o.photos.push({id:uid(), img:await reduirePhoto(f), txt:""}); }catch(e){ toast("Photo illisible"); } }
     save(); const y=scrollY; rendu(); scrollTo(0,y); };
-  $$("[data-phdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer cette photo ?","Supprimer")) return; o.photos.splice(+b.dataset.phdel,1); save(); const y=scrollY; rendu(); scrollTo(0,y); });
+  /* Corbeille des photos (19/11/2026) : une photo supprimée est gardée 30 jours dans o.photos_corbeille, « ♻ Remettre » la replace */
+  const J30=30*24*3600*1000; o.photos_corbeille=(o.photos_corbeille||[]).filter(x=>Date.now()-new Date(x.supprime_le).getTime()<J30);
+  $$("[data-phdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer cette photo ?\n\nElle reste 30 jours dans « ♻ Photos supprimées » si tu en as besoin.","Supprimer")) return;
+    const [ph]=o.photos.splice(+b.dataset.phdel,1); if(ph) o.photos_corbeille.unshift({...ph, supprime_le:new Date().toISOString()}); save(); const y=scrollY; rendu(); scrollTo(0,y); });
+  const boite=inp.closest(".photos");
+  if(boite && o.photos_corbeille.length){ const jours=x=>Math.max(0,30-Math.floor((Date.now()-new Date(x.supprime_le).getTime())/86400000));
+    boite.insertAdjacentHTML("afterend",`<details class="corb-ph"><summary>♻ Photos supprimées (${o.photos_corbeille.length}) <span class="hint">– gardées 30 jours</span></summary>
+      <div class="photos" style="margin-top:8px">${o.photos_corbeille.map((x,k)=>`<figure class="photo corb"><img src="${x.img}" alt="Photo supprimée ${k+1}"><figcaption class="hint">${esc(x.txt||"")} · encore ${jours(x)} j</figcaption>
+        <button class="btn small primary" data-phremet="${k}">♻ Remettre</button></figure>`).join("")}</div></details>`);
+    $$("[data-phremet]").forEach(b=>b.onclick=()=>{ const [ph]=o.photos_corbeille.splice(+b.dataset.phremet,1); if(!ph) return; delete ph.supprime_le; o.photos.push(ph); save(); const y=scrollY; rendu(); scrollTo(0,y); toast("Photo remise"); }); }
   $$("[data-phedit]").forEach(b=>b.onclick=()=>annoterPhoto(+b.dataset.phedit, o, rendu));
 }
 function annoterPhoto(k, o=S.ouv, rendu=renderOuverture){

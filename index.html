@@ -1607,7 +1607,7 @@ function renderDossier(){
       <small class="clem-etat">${der?`✓ Envoyé le ${new Date(der.le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} → ${esc(der.dossier)}${E.length>1?` (${E.length} envois)`:""}`:`→ ECHANGES › ${esc(cibleClemence(d).nom)}`}</small>`; })()}</div>
   </div>
   <div class="row" style="margin-bottom:12px">
-    <div class="tabs" style="margin:0">${T.filter(([k])=>ongletsVisibles(d).includes(k)).map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?"on":""}">${l}</button>`).join("")}<button id="tabAdd" class="tab-add" title="Ajouter un portail, des volets, une clim…">+ Ajouter…</button><button id="tabDAO" class="tab-add" title="Dessiner le plan de ce client dans la Mini DAO (le PDF « Plan … » sera joint à ce métré)">📐 Dessiner le plan</button></div>
+    <div class="tabs" style="margin:0">${T.filter(([k])=>ongletsVisibles(d).includes(k)).map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?"on":""}">${l}</button>`).join("")}<button id="tabAdd" class="tab-add" title="Ajouter un portail, des volets, une clim…">+ Ajouter…</button><button id="tabDAO" class="tab-add" title="Dessiner le plan de ce client dans la Mini DAO (le PDF « Plan … » sera joint à ce métré)">📐 Dessiner le plan</button><button id="tabCRM" class="tab-add" title="Ouvrir la fiche de ce client dans le CRM">📇 Fiche CRM</button></div>
     <span class="spacer"></span>
     ${aSAV(d)?"":`<button class="btn small" id="dVar">Variante PVC / Alu / Bois</button>`}
     <button class="btn small" id="dPrint">Imprimer / PDF</button>
@@ -1617,6 +1617,7 @@ function renderDossier(){
   $$("[data-tab]").forEach(b=>b.onclick=()=>{ S.tab=b.dataset.tab; renderDossier(); });
   $("#tabAdd").onclick=()=>ajouterAuMetre(d);
   $("#tabDAO").onclick=async()=>{ clearTimeout(S.saveT); await DB.put(d); location.href="dao/?client="+encodeURIComponent((d.client&&d.client.nom||"").trim())+"&retour="+encodeURIComponent(d.id); };   // Mini DAO (voir CLAUDE.md du dépôt)
+  $("#tabCRM").onclick=async()=>{ clearTimeout(S.saveT); await DB.put(d); location.href="crm/?client="+encodeURIComponent((d.client&&d.client.nom||"").trim()); };   // lien direct vers le CRM (19/11/2026, voir CLAUDE.md du dépôt)
   $$("[data-circuit]").forEach(b=>b.onclick=()=>choisirCircuit(b.dataset.circuit));
   $("#dClem").onclick=envoyerClemence; $("#dPrint").onclick=imprimer; $("#dSave").onclick=enregistrerDrive; if($("#dVar")) $("#dVar").onclick=ouvrirVariante;
   const t=$("#tab"), FIC=CAT.fic;
@@ -4215,6 +4216,29 @@ function chargerScript(src){ return new Promise((ok,ko)=>{
   s.onload=()=>{ s.dataset.ok=1; ok(); }; s.onerror=()=>ko(new Error("hors ligne")); document.head.appendChild(s); }); }
 const driveDispo = () => location.protocol==="https:" && /github\.io$/.test(location.hostname);
 
+/* Connexion Google « par redirection » (19/11/2026, voir CLAUDE.md du dépôt) : dans Bluefy (navigateur iPad qui sait faire du
+   Bluetooth, pour le télémètre), la petite fenêtre Google reste blanche. On part donc chez Google et on revient ici avec le jeton
+   dans l'adresse (#access_token=…). Adresse de retour déclarée dans Google Cloud (client OAuth) : https://foissac-fermetures.github.io/appli-metre/ */
+const G_REDIRECT_URI = location.origin + "/appli-metre/";
+const gParRedirection = () => { const ua=navigator.userAgent||"", ios=/iPad|iPhone|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1); return (ios && !!navigator.bluetooth) || localStorage.getItem("g_redirect")==="1"; };
+(function(){ const h=location.hash||""; if(!/access_token=|error=/.test(h)) return;
+  try{ const P=new URLSearchParams(h.slice(1)), att=JSON.parse(localStorage.getItem("g_redir")||"null"); localStorage.removeItem("g_redir");
+    let q="";
+    if(att && P.get("state")===att.state){
+      if(P.get("access_token")){ const t=P.get("access_token"), f=Date.now()+(+P.get("expires_in")||3600)*1000; localStorage.setItem("g_jeton",JSON.stringify({t,f,s:DRIVE_SCOPE})); localStorage.setItem("g_ok4","1"); localStorage.setItem("g_redir_msg","ok"); }
+      else localStorage.setItem("g_redir_msg","erreur : "+(P.get("error")||"?"));
+      if(att.ouvrir) q="?ouvrir="+encodeURIComponent(att.ouvrir); }
+    history.replaceState(null,"",location.pathname+q);
+  }catch(e){ try{ history.replaceState(null,"",location.pathname); }catch(_){} } })();
+setTimeout(()=>{ try{ const m=localStorage.getItem("g_redir_msg"); if(!m) return; localStorage.removeItem("g_redir_msg"); toast(m==="ok"?"Connecté à Google ✓ – tu peux refaire ton action (Actualiser, devis signé, envoi…)":"Connexion Google pas faite ("+m+")"); }catch(_){} }, 1800);
+function gPartirChezGoogle(){
+  const state=Math.random().toString(36).slice(2)+Date.now().toString(36), ouvrirId=(typeof S!=="undefined"&&S.view==="dossier"&&S.dossier)?S.dossier.id:"";
+  try{ if(ouvrirId) DB.put(S.dossier); }catch(_){}
+  localStorage.setItem("g_redir",JSON.stringify({state,ouvrir:ouvrirId}));
+  const P={client_id:GOOGLE_CLIENT_ID, redirect_uri:G_REDIRECT_URI, response_type:"token", scope:DRIVE_SCOPE, include_granted_scopes:"true", state};
+  if(!localStorage.getItem("g_ok4")) P.prompt="consent";
+  toast("Connexion à Google…"); setTimeout(()=>{ location.href="https://accounts.google.com/o/oauth2/v2/auth?"+new URLSearchParams(P); }, 400);
+}
 let G_JETON=null, G_FIN=0, G_CLIENT=null;
 try{ const j=JSON.parse(localStorage.getItem("g_jeton")||"null"); if(j && j.s===DRIVE_SCOPE && j.f>Date.now()+60000){ G_JETON=j.t; G_FIN=j.f; } }catch(e){}
 function prechargerGoogle(){ if(driveDispo() && navigator.onLine) chargerScript("https://accounts.google.com/gsi/client").then(()=>{
@@ -4224,6 +4248,7 @@ function jetonValide(){ return G_JETON && Date.now()<G_FIN-60000; }
 /* Doit être appelé dans le clic (sinon la fenêtre Google est bloquée). */
 function demanderJeton(){ return new Promise((ok,ko)=>{
   if(jetonValide()) return ok(G_JETON);
+  if(gParRedirection()){ gPartirChezGoogle(); return ko(new Error("connexion Google en cours…")); }
   if(!G_CLIENT) return ko(new Error("Google pas encore prêt, réessaie dans 2 secondes"));
   G_CLIENT.callback=r=>{ if(r.error) return ko(new Error(r.error)); G_JETON=r.access_token; G_FIN=Date.now()+r.expires_in*1000;
     try{ localStorage.setItem("g_jeton",JSON.stringify({t:G_JETON,f:G_FIN,s:DRIVE_SCOPE})); localStorage.setItem("g_ok4","1"); }catch(e){} ok(G_JETON); };
@@ -4478,6 +4503,66 @@ async function envoyerJournal(d){ const L=(d.journal_attente||[]); if(!L.length)
   tout.push(...L.map(e=>({...base,...e}))); if(tout.length>5000) tout=tout.slice(-5000);
   await deposerDrive(JOURNAL_NOM, new Blob([JSON.stringify(tout,null,1)],{type:"application/json"}), racine, "Journal des corrections de l'appli de métré (erreurs à l'envoi, « Non » aux questions, modifications après envoi)");
   d.journal_attente=[]; }
+/* ---------- Journal d'utilisation (19/11/2026, projet « Réorganisation des logiciels », voir CLAUDE.md du dépôt) ----------
+   Carnet commun aux 3 applis (même adresse) : localStorage « journal-usage ». Note seulement les boutons, onglets
+   et commandes utilisés et leur enchaînement — jamais de nom de client, de numéro ni de texte saisi.
+   L'appli de métré l'envoie dans Mon Drive › Appli métré – Dossiers › « Journal d'utilisation (applis).json ». */
+(function(){
+  const APP="metre", LS="journal-usage";
+  const pad=n=>String(n).padStart(2,"0"), now=()=>{ const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+" "+d.toTimeString().slice(0,8); };
+  const ua=navigator.userAgent||"", APPAREIL=(/iPad/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1))?"ipad":/iPhone|Android.*Mobile/.test(ua)?"tel":/Mac/.test(ua)?"mac":"pc";
+  const SESS=Math.random().toString(36).slice(2,6);
+  const clean=k=>String(k).replace(/[\r\n"\\]/g," ").replace(/\s+/g," ").trim().slice(0,60);
+  let buf=[];
+  function flush(){ if(!buf.length) return; try{ const L=JSON.parse(localStorage.getItem(LS)||"[]"); localStorage.setItem(LS, JSON.stringify(L.concat(buf).slice(-20000))); buf=[]; }catch(_){ buf=buf.slice(-500); } }
+  function log(k){ k=clean(k); if(!k) return; buf.push(now()+" "+APP+" "+APPAREIL+" "+k+" ~"+SESS); if(buf.length>=40) flush(); }
+  function where(el){ const m=el.closest(".modal[id]"); if(m) return m.id; return (typeof S!=="undefined"&&S&&S.view)?S.view+(S.view==="dossier"&&S.tab?"/"+S.tab:""):"page"; }
+  function key(el){
+    if(el.dataset&&el.dataset.tab) return "onglet:"+el.dataset.tab;
+    if(el.classList&&el.classList.contains("item")) return where(el)+":carte";
+    const w=where(el);
+    if(el.id) return w+":"+el.id;
+    if(el.tagName==="TR") return w+":ligne";
+    const ds=Object.keys(el.dataset||{}).filter(k=>k!=="id"&&k!=="g");
+    if(ds.length) return w+":"+ds[0];
+    let t=(el.getAttribute("aria-label")||el.textContent||"").replace(/\s+/g," ").trim();
+    if(!t||t.length>30||/\d{2}/.test(t)||el.closest("[data-id]")) t=el.tagName.toLowerCase()+(el.closest("[data-id]")?"-carte":"");
+    return w+":"+t;
+  }
+  document.addEventListener("click",e=>{ const el=e.target.closest&&e.target.closest("button,a,summary,select,tr[data-id],[data-id],[role=button],[data-cmd],[data-tab],.tab,.tool,.item,input[type=checkbox],input[type=radio]"); if(el) try{ log(key(el)); }catch(_){} },true);
+  { const u=new URLSearchParams(location.search); if(u.get("client")) log("arrivée:depuis-crm"); else if(u.get("ouvrir")) log("arrivée:retour-dao"); }
+  log("ouverture");
+  setInterval(flush,30000);
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") flush(); });
+  window.addEventListener("pagehide",flush);
+  window.journalUsage={ log, flush };
+})();
+
+/* Envoi du journal d'utilisation (carnet commun CRM / Mini DAO / métré) dans le Drive – 19/11/2026, voir CLAUDE.md du dépôt.
+   Seulement si Google est déjà connecté (jamais de fenêtre de connexion pour ça), au plus toutes les 20 minutes. */
+const USAGE_NOM = "Journal d'utilisation (applis).json";
+let usageEnvoi=false;
+async function envoyerJournalUsage(){
+  if(usageEnvoi||!driveDispo()||!navigator.onLine||!jetonValide()) return;
+  try{ if(window.journalUsage) journalUsage.flush(); }catch(_){}
+  let L=[]; try{ L=JSON.parse(localStorage.getItem("journal-usage")||"[]"); }catch(_){ return; }
+  if(!Array.isArray(L)||!L.length) return;
+  const dernier=+localStorage.getItem("journal-usage-envoi")||0; if(Date.now()-dernier<20*60e3 && L.length<1500) return;
+  usageEnvoi=true;
+  try{
+    const racine=DOSSIERS_CONNUS.racine, q=`name='${q_(USAGE_NOM)}' and trashed=false and '${racine}' in parents`;
+    const ex=(await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id)&q="+encodeURIComponent(q))).files[0];
+    let tout=[]; if(ex){ const r=await fetch(`https://www.googleapis.com/drive/v3/files/${ex.id}?alt=media&supportsAllDrives=true`,{headers:{Authorization:"Bearer "+G_JETON}}); if(!r.ok) throw new Error("lecture "+r.status); tout=await r.json(); }
+    if(!Array.isArray(tout)) tout=[];
+    const limite=new Date(Date.now()-90*864e5).toISOString().slice(0,10);
+    tout=tout.concat(L).filter(x=>typeof x==="string"&&x.slice(0,10)>=limite); if(tout.length>60000) tout=tout.slice(-60000);
+    await deposerDrive(USAGE_NOM, new Blob([JSON.stringify(tout)],{type:"application/json"}), racine, "Journal d'utilisation du CRM, de la Mini DAO et de l'appli de métré (boutons et onglets utilisés, sans données client) – lu par Claude pour la revue des logiciels");
+    try{ const L2=JSON.parse(localStorage.getItem("journal-usage")||"[]"); localStorage.setItem("journal-usage", JSON.stringify(L2.slice(L.length))); localStorage.setItem("journal-usage-envoi", String(Date.now())); }catch(_){}
+  }catch(e){ /* réseau ou Drive indisponible : on réessaiera plus tard */ }
+  finally{ usageEnvoi=false; }
+}
+setTimeout(envoyerJournalUsage, 20000); setInterval(envoyerJournalUsage, 10*60e3);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") envoyerJournalUsage(); });
 /* qui reçoit le métré : Roxane pour un métré clim seul (DEVIS CLIM), Clémence sinon – 19/11 */
 const destinataire = d => cibleClemence(d)===CLEMENCE.clim ? "Roxane" : "Clémence";
 
@@ -5386,7 +5471,34 @@ DB.open().then(async()=>{ await normaliserTout();
   /* Retour de la Mini DAO (« ↩ Retour ») : ?ouvrir=<id du métré> rouvre ce métré – voir CLAUDE.md du dépôt */
   let ouvrir=null; try{ ouvrir=new URLSearchParams(location.search).get("ouvrir"); if(ouvrir) history.replaceState(null,"",location.pathname); }catch(e){}
   const d=ouvrir ? (await DB.all()).find(x=>x.id===ouvrir) : null;
-  if(d){ S.dossier=d; S.tab="client"; renderDossier(); } else renderHome(); });
+  if(d){ S.dossier=d; S.tab="client"; renderDossier(); } else if(!(await ouvrirDepuisLienCRM())) renderHome(); });
+/* Lien direct depuis le CRM (19/11/2026, voir CLAUDE.md du dépôt) : ?client=<nom>&retour=crm ouvre le métré le plus récent
+   de ce client, ou propose d'en créer un, rempli avec le fichier du CRM. */
+const normNomCRM = s => String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9 ]/g," ").replace(/\b(M|MR|MME|MLLE|MONSIEUR|MADAME)\b/g," ").replace(/\s+/g," ").trim();
+async function ouvrirDepuisLienCRM(){
+  let nom="";
+  try{ const P=new URLSearchParams(location.search); nom=(P.get("client")||"").trim(); if(P.get("client")!=null||P.get("retour")!=null) history.replaceState(null,"",location.pathname); }catch(e){}
+  if(!nom) return false;
+  const n=normNomCRM(nom), n1=n.split(" ")[0]||"";
+  const ds=(await DB.all()).sort((a,b)=>(b.modifie||b.cree||"").localeCompare(a.modifie||a.cree||""));
+  let L=ds.filter(d=>normNomCRM(d.client&&d.client.nom)===n);
+  if(!L.length && n1.length>=3){ const M=ds.filter(d=>normNomCRM(d.client&&d.client.nom).split(" ").includes(n1)); if(new Set(M.map(cleClient)).size===1) L=M; }
+  const ouvrir=d=>{ S.dossier=d; S.tab="client"; renderDossier(); };
+  if(L.length){
+    const def=L.find(d=>estDefinitif(d));
+    if(def){ ouvrir(def); toast(`Métré définitif de ${def.client.nom} ouvert`); return true; }   // le définitif existe déjà : on y va
+    await renderHome();
+    const choix=await demander(`${L[0].client.nom} a déjà ${L.length>1?L.length+" métrés":"un métré"} de devis. Que veux-tu faire ?`,"Commencer le métré définitif","Ouvrir le métré existant");
+    if(choix){ const d=await creerRendezVous(L[0].client.nom, ["menuiseries"], null, true); if(d && typeof ouvrirDevisSigne==="function") setTimeout(ouvrirDevisSigne,300); return true; }
+    ouvrir(L[0]); if(L.length>1) toast(`${L.length} métrés pour ${nom} : le plus récent est ouvert (les autres sont dans l'accueil)`); return true; }
+  // aucun métré pour ce client : la fenêtre habituelle « Nouveau rendez-vous » (devis ou métré définitif), puis remplissage depuis le fichier du CRM
+  await renderHome();
+  const d=await nouveauRendezVous({nom, crm:false}); if(!d) return true;
+  try{ const C=await chargerCRM(false), CL=(C&&C.clients)||[]; let c=CL.find(x=>normNomCRM(x.nom)===n);
+    if(!c && n1.length>=3){ const M=CL.filter(x=>normNomCRM(x.nom).split(" ").includes(n1)); if(M.length===1) c=M[0]; }
+    if(c){ const dr=d.client.date_rdv; remplirDepuisCRM(d,c); if(estDefinitif(d)) d.client.date_rdv=dr; await DB.put(d); if(S.dossier===d && S.view==="dossier") renderDossier(); } }catch(e){}
+  return true;
+}
 /* Mises à jour de l'appli : les anciens métrés sont convertis une fois sur l'appareil SANS être comptés comme « modifiés »
    (sinon un autre appareil verrait sa version écrasée par cette conversion) */
 async function normaliserTout(){ try{ for(const d of await DB.all()){ const avant=empreinte(d), synchro=d.drive&&d.drive.sig===avant; normaliser(d); const apres=empreinte(d);

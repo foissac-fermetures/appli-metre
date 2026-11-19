@@ -2103,7 +2103,8 @@ function explodeSel(){ const ids=[...selected]; let n=0; pushUndo(); for(const e
    Rien ne se perd : le dessin en cours est rangé dans « Mes plans » avant d'ouvrir celui du client. */
 const URLP = (()=>{ try{ return new URLSearchParams(location.search); }catch(e){ return new URLSearchParams(""); } })();
 const RETOUR = (URLP.get("retour")||"").trim();
-function retourUrl(){ if(!RETOUR) return null; if(RETOUR==="accueil") return "../"; if(RETOUR==="crm") return "../crm/"; return "../?ouvrir="+encodeURIComponent(RETOUR); }
+const RETOUR_CLIENT = (URLP.get("client")||"").trim();   // retour au CRM sur la fiche de ce client (19/11/2026)
+function retourUrl(){ if(!RETOUR) return null; if(RETOUR==="accueil") return "../"; if(RETOUR==="crm") return "../crm/"+(RETOUR_CLIENT?"?client="+encodeURIComponent(RETOUR_CLIENT):""); return "../?ouvrir="+encodeURIComponent(RETOUR); }
 function garderDessinEnCours(){ // range le dessin actuel dans « Mes plans » (mise à jour s'il y est déjà, sinon « Brouillon … »)
   if(!ents.length) return; const l=libGet(), data=planData(), p=planId && l.find(x=>x.id===planId);
   if(p){ p.data=data; p.date=data.date; }

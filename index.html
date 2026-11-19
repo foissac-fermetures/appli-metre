@@ -1555,7 +1555,7 @@ function renderDossier(){
       <small class="clem-etat">${der?`✓ Envoyé le ${new Date(der.le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} → ${esc(der.dossier)}${E.length>1?` (${E.length} envois)`:""}`:`→ ECHANGES › ${esc(cibleClemence(d).nom)}`}</small>`; })()}</div>
   </div>
   <div class="row" style="margin-bottom:12px">
-    <div class="tabs" style="margin:0">${T.filter(([k])=>ongletsVisibles(d).includes(k)).map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?"on":""}">${l}</button>`).join("")}<button id="tabAdd" class="tab-add" title="Ajouter un portail, des volets, une clim…">+ Ajouter…</button><button id="tabDAO" class="tab-add" title="Dessiner le plan de ce client dans la Mini DAO (le PDF « Plan … » sera joint à ce métré)">📐 Dessiner le plan</button></div>
+    <div class="tabs" style="margin:0">${T.filter(([k])=>ongletsVisibles(d).includes(k)).map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?"on":""}">${l}</button>`).join("")}<button id="tabAdd" class="tab-add" title="Ajouter un portail, des volets, une clim…">+ Ajouter…</button><button id="tabDAO" class="tab-add" title="Dessiner le plan de ce client dans la Mini DAO (le PDF « Plan … » sera joint à ce métré)">📐 Dessiner le plan</button><button id="tabCRM" class="tab-add" title="Ouvrir la fiche de ce client dans le CRM">📇 Fiche CRM</button></div>
     <span class="spacer"></span>
     ${aSAV(d)?"":`<button class="btn small" id="dVar">Variante PVC / Alu / Bois</button>`}
     <button class="btn small" id="dPrint">Imprimer / PDF</button>
@@ -1565,6 +1565,7 @@ function renderDossier(){
   $$("[data-tab]").forEach(b=>b.onclick=()=>{ S.tab=b.dataset.tab; renderDossier(); });
   $("#tabAdd").onclick=()=>ajouterAuMetre(d);
   $("#tabDAO").onclick=async()=>{ clearTimeout(S.saveT); await DB.put(d); location.href="dao/?client="+encodeURIComponent((d.client&&d.client.nom||"").trim())+"&retour="+encodeURIComponent(d.id); };   // Mini DAO (voir CLAUDE.md du dépôt)
+  $("#tabCRM").onclick=async()=>{ clearTimeout(S.saveT); await DB.put(d); location.href="crm/?client="+encodeURIComponent((d.client&&d.client.nom||"").trim()); };   // lien direct vers le CRM (19/11/2026, voir CLAUDE.md du dépôt)
   $$("[data-circuit]").forEach(b=>b.onclick=()=>choisirCircuit(b.dataset.circuit));
   $("#dClem").onclick=envoyerClemence; $("#dPrint").onclick=imprimer; $("#dSave").onclick=enregistrerDrive; if($("#dVar")) $("#dVar").onclick=ouvrirVariante;
   const t=$("#tab"), FIC=CAT.fic;
@@ -5325,7 +5326,27 @@ DB.open().then(async()=>{ await normaliserTout();
   /* Retour de la Mini DAO (« ↩ Retour ») : ?ouvrir=<id du métré> rouvre ce métré – voir CLAUDE.md du dépôt */
   let ouvrir=null; try{ ouvrir=new URLSearchParams(location.search).get("ouvrir"); if(ouvrir) history.replaceState(null,"",location.pathname); }catch(e){}
   const d=ouvrir ? (await DB.all()).find(x=>x.id===ouvrir) : null;
-  if(d){ S.dossier=d; S.tab="client"; renderDossier(); } else renderHome(); });
+  if(d){ S.dossier=d; S.tab="client"; renderDossier(); } else if(!(await ouvrirDepuisLienCRM())) renderHome(); });
+/* Lien direct depuis le CRM (19/11/2026, voir CLAUDE.md du dépôt) : ?client=<nom>&retour=crm ouvre le métré le plus récent
+   de ce client, ou propose d'en créer un, rempli avec le fichier du CRM. */
+const normNomCRM = s => String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9 ]/g," ").replace(/\b(M|MR|MME|MLLE|MONSIEUR|MADAME)\b/g," ").replace(/\s+/g," ").trim();
+async function ouvrirDepuisLienCRM(){
+  let nom="";
+  try{ const P=new URLSearchParams(location.search); nom=(P.get("client")||"").trim(); if(P.get("client")!=null||P.get("retour")!=null) history.replaceState(null,"",location.pathname); }catch(e){}
+  if(!nom) return false;
+  const n=normNomCRM(nom), n1=n.split(" ")[0]||"";
+  const ds=(await DB.all()).sort((a,b)=>(b.modifie||b.cree||"").localeCompare(a.modifie||a.cree||""));
+  let L=ds.filter(d=>normNomCRM(d.client&&d.client.nom)===n);
+  if(!L.length && n1.length>=3){ const M=ds.filter(d=>normNomCRM(d.client&&d.client.nom).split(" ").includes(n1)); if(new Set(M.map(cleClient)).size===1) L=M; }
+  if(L.length){ S.dossier=L[0]; S.tab="client"; renderDossier(); if(L.length>1) toast(`${L.length} métrés pour ${nom} : le plus récent est ouvert (les autres sont dans l'accueil)`); return true; }
+  await renderHome();
+  if(!(await demander(`Pas encore de métré pour « ${nom} ». Le créer maintenant ?`,"Créer le métré","Non"))) return true;
+  let d=nouveauDossier(); d.client.nom=nom;
+  try{ const C=await chargerCRM(false), CL=(C&&C.clients)||[]; let c=CL.find(x=>normNomCRM(x.nom)===n);
+    if(!c && n1.length>=3){ const M=CL.filter(x=>normNomCRM(x.nom).split(" ").includes(n1)); if(M.length===1) c=M[0]; }
+    if(c){ d.client.nom=""; d=remplirDepuisCRM(d,c); } }catch(e){}
+  await DB.put(d); S.dossier=d; S.tab="client"; renderDossier(); toast(`Métré créé pour ${d.client.nom}`); return true;
+}
 /* Mises à jour de l'appli : les anciens métrés sont convertis une fois sur l'appareil SANS être comptés comme « modifiés »
    (sinon un autre appareil verrait sa version écrasée par cette conversion) */
 async function normaliserTout(){ try{ for(const d of await DB.all()){ const avant=empreinte(d), synchro=d.drive&&d.drive.sig===avant; normaliser(d); const apres=empreinte(d);

@@ -276,6 +276,8 @@ dans l'appli de métré installée, `dao/` est dans la portée du manifeste du m
 | Mini DAO | `?client=` : rouvre « Plan <client> » s'il existe dans Mes plans, sinon nouveau plan déjà nommé et client dans le cartouche. Le dessin en cours est d'abord rangé dans Mes plans (« Brouillon … » s'il n'avait pas de nom) : rien n'est perdu. | `ouvrirPlanClient()`, `garderDessinEnCours()` |
 | Mini DAO | Bouton **↩ Retour** (seulement si `?retour=`) : enregistre le plan (demande le nom la 1re fois), attend le rangement Google Drive (PDF dans 09 - Plan), puis revient. Si Drive échoue, on reste ; un 2e appui revient quand même. | `revenir()`, `rangerDrive()` renvoie `true/false` |
 
+| Mini DAO | (19/11/2026) Avec `?retour=crm&client=<nom>` (bouton 📐 Plan de la fiche CRM), ↩ Retour revient sur la fiche de ce client dans le CRM (`RETOUR_CLIENT`). | `retourUrl()` |
+
 Intérêt : le PDF « Plan <client>.pdf » est dans « 09 - Plan » avant le retour, donc l'appli de métré le joint au PDF du métré.
 Tests (Playwright, adresse github.io simulée + faux Drive) : accueil → DAO → retour ; métré → Dessiner → 💾 → retour au même métré ;
 2e passage = même plan rouvert, fichiers Drive remplacés (pas de doublon) ; CRM → DAO → retour CRM ; DAO seule = pas de bouton Retour.

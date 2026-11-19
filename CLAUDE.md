@@ -25,6 +25,12 @@ Cherchez `Mini DAO` / `CLAUDE.md` dans `index.html` :
 Et dans `sw.js` (racine) : l'événement `activate` ne supprime **que** les caches dont le nom commence par `metre-`
 (sinon la Mini DAO perd sa copie hors ligne à chaque mise à jour du métré). Garder `x.startsWith("metre-")`.
 
+## Liens directs CRM ↔ métré ↔ Mini DAO (19/11/2026, projet « Réorganisation des logiciels »)
+
+- CRM (`crm/import.js`, bloc « raccourcis ») : boutons d'action sur les lignes, barre d'actions en haut de la fiche avec **📏 Métré** → `../?client=<nom>&retour=crm` et **📐 Plan** → `../dao/?client=<nom>&retour=crm`, recherche Ctrl+K, « Récents », et `?client=<nom>` qui ouvre la fiche du client. Ne pas mettre ces ajouts dans `crm/index.html` (régénéré).
+- Métré (`index.html` racine) : `ouvrirDepuisLienCRM()` lit `?client=` (ouvre le métré le plus récent du client, sinon propose de le créer depuis le fichier du CRM) ; bouton `#tabCRM` « 📇 Fiche CRM » → `crm/?client=<nom>`.
+- Mini DAO (`dao/index.html`) : `RETOUR_CLIENT` ; avec `retour=crm`, le bouton ↩ Retour revient sur `../crm/?client=<nom>`.
+
 ## Nicolas
 
 Répondre en français, simplement. Avant une nouvelle fonction, lui proposer une liste d'options à cocher. Tester avant de dire que c'est fait.

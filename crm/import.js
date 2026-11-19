@@ -22,3 +22,123 @@
   a.title = "Ouvrir la Mini DAO (dessin 2D)"; a.style.textDecoration = "none";
   after.after(a);
 })();
+/* ---------------------------------------------------------------------------------------------
+   Version en ligne : raccourcis (19/11/2026, projet « Réorganisation des logiciels »).
+   Ici (et pas dans index.html) car index.html est régénéré depuis la version claude.ai du CRM.
+   - boutons 📅 RDV · 📞 · 💬 SMS · 🔁 Relance · ✉️ Mail sur chaque ligne de la liste des dossiers ;
+   - barre d'actions fixe en haut de la fiche client, avec les liens directs 📏 Métré et 📐 Plan ;
+   - recherche rapide Ctrl+K (ou bouton 🔍) depuis tous les onglets, Entrée = ouvrir la fiche ;
+   - « Récents » : les 5 derniers clients ouverts ;
+   - ?client=<nom> à l'ouverture : ouvre directement la fiche de ce client (retour du métré / de la Mini DAO).
+   --------------------------------------------------------------------------------------------- */
+(function () {
+  if (typeof renderList !== "function" || typeof renderDrawer !== "function" || typeof openDossier !== "function") return;
+  const css = document.createElement("style");
+  css.textContent = `.qa{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.qab{font:inherit;font-size:.76rem;padding:3px 9px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--ink);cursor:pointer;text-decoration:none;line-height:1.5;white-space:nowrap}
+.qab:hover,.qab:focus-visible{border-color:var(--c-rdv);color:var(--c-rdv)}
+.qab.rdv{border-color:color-mix(in srgb,var(--c-rdv) 55%,var(--line))}
+.qab.lien{border-style:dashed}
+.fqa{position:sticky;top:0;z-index:3;display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:8px 10px;margin:-4px 0 4px;border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.fqa .qab{font-size:.84rem;padding:5px 11px}
+.fqa .sep{width:1px;align-self:stretch;background:var(--line);margin:0 2px}
+.qaflash{outline:3px solid var(--c-rdv);outline-offset:3px;border-radius:8px}
+.search .qkbtn{margin-left:6px;font-size:.8rem;padding:4px 10px;align-self:center}
+.recbar{flex-basis:100%;display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-top:-4px}
+.qk{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:10vh 12px 12px}
+.qk[hidden]{display:none}
+.qkbox{width:min(640px,100%);background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.35);padding:12px;display:grid;gap:8px;max-height:80vh;overflow:auto}
+#qkin{font:inherit;font-size:1.05rem;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);width:100%;box-sizing:border-box}
+.qkh{font-size:.8rem;color:var(--muted);padding:2px 4px}
+.qki{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:8px 10px;border:1px solid transparent;border-radius:8px;cursor:pointer}
+.qki:hover{border-color:var(--line)}
+.qki.on{border-color:var(--c-rdv);background:color-mix(in srgb,var(--c-rdv) 8%,transparent)}
+.qki .qa{grid-column:1/-1;margin-top:0}
+.qkn{display:flex;flex-direction:column;min-width:0}.qkn b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qkhelp{font-size:.75rem;color:var(--muted);text-align:right}
+@media (max-width:700px){.recbar{display:none}.search .qkbtn{display:none}}`;
+  document.head.appendChild(css);
+  const q$ = s => document.querySelector(s);
+  const findRow = id => rows.find(r => r.id === id);
+  const tel = r => { const t = (r.tel || "").replace(/\s/g, ""); return /\d{6}/.test(t) ? t : ""; };
+  const nomLien = r => encodeURIComponent((r.client || "").trim());
+  const lienMetre = r => "../?client=" + nomLien(r) + "&retour=crm";
+  const lienPlan = r => "../dao/?client=" + nomLien(r) + "&retour=crm";
+
+  /* -- boutons d'action -- */
+  function qaRow(r){ const t = tel(r);
+    return `<div class="qa"><button type="button" class="qab rdv" data-qa="rdv" title="Noter un rendez-vous">📅 RDV</button>${t ? `<a class="qab" href="tel:${esc(t)}" title="Appeler">📞 Appeler</a><button type="button" class="qab" data-qa="sms" title="Préparer un SMS">💬 SMS</button>` : ""}<button type="button" class="qab" data-qa="rel" title="Noter une relance">🔁 Relance</button><button type="button" class="qab" data-qa="mail" title="Écrire un mail">✉️ Mail</button></div>`; }
+  function fqaBar(r){ const t = tel(r);
+    return `<div class="fqa" aria-label="Actions rapides"><button type="button" class="qab rdv" data-fqa="rdv">📅 RDV</button>${t ? `<a class="qab" href="tel:${esc(t)}">📞 Appeler</a><button type="button" class="qab" data-fqa="sms">💬 SMS</button>` : ""}<button type="button" class="qab" data-fqa="rel">🔁 Relance</button><button type="button" class="qab" data-fqa="mail">✉️ Mail</button>${(r.pdf_devis || []).length ? `<button type="button" class="qab" data-resa="${esc(r.id)}">📐 Plan de réservation</button>` : ""}<span class="sep"></span><a class="qab lien" href="${lienMetre(r)}" title="Ouvrir le métré de ce client dans l'appli de métré (ou le créer)">📏 Métré</a><a class="qab lien" href="${lienPlan(r)}" title="Ouvrir le plan de ce client dans la Mini DAO (ou le créer)">📐 Plan</a></div>`; }
+  function qaShow(el){ if (!el) return false; for (let p = el.parentElement; p; p = p.parentElement) if (p.tagName === "DETAILS") p.open = true;
+    const box = el.closest("fieldset, .relblk, .fcard") || el; box.scrollIntoView({ block: "center", behavior: "smooth" });
+    box.classList.add("qaflash"); setTimeout(() => box.classList.remove("qaflash"), 1400);
+    setTimeout(() => { try { el.focus({ preventScroll: true }); } catch(_){} }, 350); return true; }
+  function qaGo(kind){ const r = findRow(openId); if (!r) return;
+    if (kind === "rdv") { if (!qaShow(q$("#rdvd"))) toast("Pas de rendez-vous à noter sur ce dossier"); }
+    else if (kind === "rel") { if (!qaShow(q$("#mrc"))) toast("Pas de relance à noter sur ce dossier"); }
+    else if (kind === "sms") { if (smsFor === r.id) { const b = q$("#smsbox"); if (b) b.scrollIntoView({ block: "center", behavior: "smooth" }); } else { const b = q$("#smsb"); if (b) b.click(); else toast("Pas de numéro pour un SMS"); } }
+    else if (kind === "mail") { if (cmFor === r.id) { const b = q$("#cmbox"); if (b) b.scrollIntoView({ block: "center", behavior: "smooth" }); } else { const b = q$("#cmb"); if (b) b.click(); else toast("Pas d'adresse mail"); } } }
+  function quickAct(id, kind){ openDossier(id); setTimeout(() => qaGo(kind), 80); }
+  document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-fqa]"); if (!b) return; e.preventDefault(); e.stopPropagation(); qaGo(b.dataset.fqa); }, true);
+
+  /* -- récents -- */
+  function recentsGet(){ try { return JSON.parse(localStorage.getItem("crm-recents") || "[]").filter(id => rows.some(r => r.id === id)); } catch(_){ return []; } }
+  function recentPush(id){ try { const a = [id].concat(JSON.parse(localStorage.getItem("crm-recents") || "[]").filter(x => x !== id)).slice(0, 8); localStorage.setItem("crm-recents", JSON.stringify(a)); } catch(_){} }
+  function renderRecbar(){ const el = q$("#recbar"); if (!el) return; const L = recentsGet().slice(0, 5).map(findRow).filter(Boolean);
+    el.hidden = !L.length; el.innerHTML = L.length ? `<span class="sub">Récents :</span>` + L.map(r => `<button type="button" class="qab" data-recid="${esc(r.id)}">${esc(r.client)}</button>`).join("") : "";
+    el.querySelectorAll("[data-recid]").forEach(b => b.onclick = () => openDossier(b.dataset.recid)); }
+
+  /* -- on habille la liste et la fiche après chaque affichage -- */
+  const _renderList = renderList;
+  renderList = function () { const out = _renderList.apply(this, arguments);
+    try { document.querySelectorAll("#rows tr[data-id]").forEach(tr => { const td = tr.querySelector("td"); const r = findRow(tr.dataset.id); if (!td || !r || td.querySelector(".qa")) return; td.insertAdjacentHTML("beforeend", qaRow(r));
+      td.querySelectorAll("button[data-qa]").forEach(b => b.onclick = e => { e.stopPropagation(); e.preventDefault(); quickAct(tr.dataset.id, b.dataset.qa); }); }); renderRecbar(); } catch(_){}
+    return out; };
+  const _renderDrawer = renderDrawer;
+  renderDrawer = function () { const out = _renderDrawer.apply(this, arguments);
+    try { const r = findRow(openId), f = q$("#drawer .fcr"); if (r && f && !f.querySelector(".fqa")) f.insertAdjacentHTML("afterbegin", fqaBar(r)); } catch(_){}
+    return out; };
+  const _openDossier = openDossier;
+  openDossier = function (id) { recentPush(id); return _openDossier.apply(this, arguments); };
+
+  /* -- recherche rapide Ctrl+K -- */
+  let qkSel = 0, qkList = [];
+  function qkFind(s){ s = s.trim().toLowerCase(); if (!s) return recentsGet().slice(0, 5).map(findRow).filter(Boolean);
+    const sd = s.replace(/\s/g, ""), out = [];
+    for (const r of rows) { const name = (r.client || "").toLowerCase(), hay = [r.client, aliasOf(r), r.lieu, r.adr, r.proj].join(" ").toLowerCase(), t = (r.tel || "").replace(/\s/g, "");
+      const sc = name.startsWith(s) ? 3 : name.includes(s) ? 2 : hay.includes(s) ? 1 : (/\d{3}/.test(sd) && t.includes(sd)) ? 1 : 0;
+      if (sc) out.push([sc, r]); }
+    return out.sort((a, b) => b[0] - a[0] || (a[1].client || "").localeCompare(b[1].client || "")).slice(0, 8).map(x => x[1]); }
+  function qkClose(){ const o = q$("#qk"); if (o) o.hidden = true; }
+  function qkRender(){ const s = q$("#qkin").value; qkList = qkFind(s);
+    q$("#qkres").innerHTML = (s.trim() ? "" : `<div class="qkh">${qkList.length ? "Derniers clients ouverts" : "Tape un nom, une commune ou un téléphone"}</div>`) + (qkList.length ? qkList.map((r, i) => { const st = status(r), t = tel(r), S = ST[st] || { c: "", l: "" };
+      return `<div class="qki ${i === qkSel ? "on" : ""}" data-qkid="${esc(r.id)}"><div class="qkn"><b>${esc(r.client)}</b><span class="sub">${esc(r.lieu || "—")}${r.proj ? " · " + esc(r.proj) : ""}</span></div><span class="pill ${S.c}">${S.l}</span><div class="qa"><button type="button" class="qab rdv" data-qkqa="rdv">📅 RDV</button>${t ? `<a class="qab" href="tel:${esc(t)}" title="Appeler">📞</a><button type="button" class="qab" data-qkqa="sms" title="SMS">💬</button>` : ""}<button type="button" class="qab" data-qkqa="rel" title="Relance">🔁</button><button type="button" class="qab" data-qkqa="mail" title="Mail">✉️</button><a class="qab lien" href="${lienMetre(r)}">📏 Métré</a><a class="qab lien" href="${lienPlan(r)}">📐 Plan</a></div></div>`; }).join("") : (s.trim() ? `<div class="qkh">Aucun client trouvé</div>` : ""));
+    const on = q$("#qkres .qki.on"); if (on) on.scrollIntoView({ block: "nearest" }); }
+  function qkOpen(){ let o = q$("#qk");
+    if (!o) { document.body.insertAdjacentHTML("beforeend", `<div id="qk" class="qk" hidden><div class="qkbox" role="dialog" aria-label="Recherche rapide"><input id="qkin" type="search" placeholder="Nom, commune, téléphone…" autocomplete="off"><div id="qkres"></div><div class="qkhelp">↑ ↓ pour choisir · Entrée = ouvrir la fiche · Échap = fermer</div></div></div>`); o = q$("#qk");
+      o.addEventListener("click", e => { if (e.target === o) qkClose(); });
+      q$("#qkin").addEventListener("input", () => { qkSel = 0; qkRender(); });
+      q$("#qkin").addEventListener("keydown", e => {
+        if (e.key === "ArrowDown") { e.preventDefault(); qkSel = Math.min(qkSel + 1, qkList.length - 1); qkRender(); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); qkSel = Math.max(qkSel - 1, 0); qkRender(); }
+        else if (e.key === "Enter") { e.preventDefault(); const r = qkList[qkSel]; if (r) { qkClose(); openDossier(r.id); } }
+        else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); qkClose(); } });
+      q$("#qkres").addEventListener("click", e => { const it = e.target.closest("[data-qkid]"); if (!it || e.target.closest("a")) return; const b = e.target.closest("[data-qkqa]"); e.preventDefault(); qkClose(); if (b) quickAct(it.dataset.qkid, b.dataset.qkqa); else openDossier(it.dataset.qkid); }); }
+    o.hidden = false; const i = q$("#qkin"); i.value = ""; qkSel = 0; qkRender(); setTimeout(() => i.focus(), 20); }
+  document.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === "k" || e.key === "K")) { e.preventDefault(); const o = q$("#qk"); if (o && !o.hidden) qkClose(); else qkOpen(); } }, true);
+  { const sq = q$(".search"), qi = q$("#q");
+    if (sq && qi && !q$("#qkbtn")) { qi.placeholder = qi.placeholder.replace(/…$/, "… (Entrée = ouvrir)");
+      sq.insertAdjacentHTML("beforeend", `<button type="button" class="qab qkbtn" id="qkbtn" title="Recherche rapide, depuis n'importe quel onglet">🔍 Ctrl+K</button>`);
+      sq.insertAdjacentHTML("afterend", `<div id="recbar" class="recbar" hidden></div>`); q$("#qkbtn").onclick = qkOpen; }
+    if (qi) qi.addEventListener("keydown", e => { if (e.key !== "Enter" || !qi.value.trim()) return; const l = filtered(); if (l.length) { e.preventDefault(); openDossier(l[0].id); } }); }
+
+  /* -- ?client=<nom> : ouvrir la fiche de ce client (retour du métré ou de la Mini DAO) -- */
+  { let cible = ""; try { const P = new URLSearchParams(location.search); cible = (P.get("client") || "").trim(); if (cible) { P.delete("client"); history.replaceState(null, "", location.pathname + (P.toString() ? "?" + P : "") + location.hash); } } catch(_){}
+    if (cible) { const norm = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/[^A-Z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+      const n = norm(cible), n1 = n.split(" ")[0] || ""; let essais = 0;
+      const t = setInterval(() => { essais++; if (!rows.length) { if (essais > 60) clearInterval(t); return; } clearInterval(t);
+        let r = rows.find(x => norm(x.client) === n || norm(aliasOf(x)) === n);
+        if (!r && n1.length >= 3) { const M = rows.filter(x => norm(x.client).split(" ").includes(n1)); if (M.length === 1) r = M[0]; }
+        if (r) openDossier(r.id); else { const qi = q$("#q"); if (qi) { qi.value = cible; qi.dispatchEvent(new Event("input")); } toast("Client « " + cible + " » : pas trouvé tel quel, voici la recherche"); } }, 500); } }
+})();

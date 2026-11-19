@@ -1178,7 +1178,26 @@ function questionsOuverture(o, d=S.dossier){
     add("acces",String((d.prevoir||[]).length),`Ouverture à l'étage et aucun matériel d'accès prévu : pas besoin de nacelle / échafaudage / échelle ?`,{lib:"Non, j'en prévois",go:"client"});
   return Q; }
 function questionsDossier(d){ normaliser(d); return d.ouvertures.flatMap((o,i)=>questionsOuverture(o,d).map(q=>({...q, ou:`${o.num_poseur?"N°"+o.num_poseur+" ":""}${o.repere||"Ouverture "+(i+1)}`, go:{ouv:o.id}}))); }
+/* ---------- Journal des corrections (19/11/2026) : ce que Nicolas corrige après un envoi, ses « Non » et les erreurs vues à l'envoi.
+   Instantané pris à chaque envoi ; au renvoi (modif) on compare → entrées envoyées dans « Journal des corrections (appli métré).json » sur le Drive. ---------- */
+const JR_IGN=/^(photos|croquis|croquis_vec|croquis_fond|qok|drive|modifie|_e|_conflit|clemence|journal_attente|id|num_poseur|obs_v2)(\.|$)/;
+const JR_LIB={gamme:"Gamme",modele:"Modèle",couleur_int:"Couleur intérieure",couleur_ext:"Couleur extérieure",couleur_dormant:"Couleur dormant",vitrage:"Vitrage",allege:"Allège",appui_bas:"Appui bas",seuil_std:"Seuil",seuil_plat:"Seuil plat",seuil_encastre:"Seuil encastré",seuil_type:"Type de seuil",repere:"Repère",quantite:"Quantité",pose:"Type de pose",gv:"Grille de ventilation",poignee:"Poignée",dormant_aile:"Dormant / aile",ob_type:"Oscillo-battant",sens_porte:"Sens de la porte",cylindre:"Cylindre",semi_fixe:"Semi-fixe"};
+function instantaneDossier(d){ const plat=(o,pre,out)=>{ for(const [k,v] of Object.entries(o||{})){ const p=pre?pre+"."+k:k; if(JR_IGN.test(p)||JR_IGN.test(k)) continue;
+    if(v&&typeof v==="object"&&!Array.isArray(v)) plat(v,p,out); else if(Array.isArray(v)&&v.some(x=>x&&typeof x==="object")) v.forEach((x,i)=>plat(x,p+"."+i,out)); else out[p]=Array.isArray(v)?v.join(", "):v; } return out; };
+  return {ouv:Object.fromEntries((d.ouvertures||[]).map(o=>[o.id,plat(o,"",{})])), vr:Object.fromEntries((d.vr?.lignes||[]).map(l=>[l.id,plat(l,"",{})]))}; }
+function libChamp(o,p){ const m=p.match(/^cotes\.([LH])\.(\d)$/); if(m&&o) return (m[1]==="L"?"Largeur ":"Hauteur ")+(libCote(o,m[1],+m[2])||"").toLowerCase();
+  const k=p.split(".")[0]; return JR_LIB[p]||JR_LIB[k]||p.replace(/[._]/g," "); }
+function valJ(o,p,v){ if(v===true) return "oui"; if(v===false||v==null||v==="") return "—"; if(p==="modele"&&o) return nomModele(o,v); return String(v); }
+function diffDossier(avant, d){ const now=instantaneDossier(d), E=[];
+  for(const o of d.ouvertures||[]){ const a=avant.ouv?.[o.id], n=now.ouv[o.id], ou=`${o.num_poseur?"N°"+o.num_poseur+" ":""}${o.repere||"ouverture"}`; if(!a){ E.push({quoi:"ajout",ou,texte:"ouverture ajoutée après l'envoi"}); continue; }
+    for(const p of new Set([...Object.keys(a),...Object.keys(n)])){ const x=a[p]??"", y=n[p]??""; if(String(x)===String(y)) continue; E.push({quoi:"modif",ou,champ:libChamp(o,p),cle:p,avant:valJ(o,p,x),apres:valJ(o,p,y)}); } }
+  for(const id of Object.keys(avant.ouv||{})) if(!(d.ouvertures||[]).some(o=>o.id===id)) E.push({quoi:"suppression",ou:"ouverture",texte:"ouverture supprimée après l'envoi"});
+  for(const l of d.vr?.lignes||[]){ const a=avant.vr?.[l.id], n=now.vr[l.id]; if(!a) continue; for(const p of Object.keys(n)) if(String(a[p]??"")!==String(n[p]??"")) E.push({quoi:"modif",ou:`Volet ${l.repere||""}`.trim(),champ:p.replace(/_/g," "),cle:"vr."+p,avant:String(a[p]??"—"),apres:String(n[p]??"—")}); }
+  return E.slice(0,80); }
+function journaliser(d, e){ const L=d.journal_attente||(d.journal_attente=[]); e.le=e.le||new Date().toISOString();
+  if(!L.some(x=>x.quoi===e.quoi&&x.ou===e.ou&&(x.texte||x.cle)===(e.texte||e.cle)&&x.apres===e.apres)) L.push(e); }
 function repondreQ(o, k, oui){ const q=questionsOuverture(o).find(x=>x.k===k); if(!q) return;
+  if(!oui && S.dossier) journaliser(S.dossier,{quoi:"question",ou:`${o.num_poseur?"N°"+o.num_poseur+" ":""}${o.repere||"ouverture"}`,cle:k,texte:q.q,apres:q.non.lib});
   if(oui){ (o.qok||(o.qok={}))[k]=q.sig; save(); majControle(); return; }
   if(q.non.go){ save(); S.tab=q.non.go; renderDossier(); scrollTo(0,0); toast(q.non.go==="vr"?"Corrige le volet roulant ici":q.non.go==="client"?"Coche le matériel d'accès dans « À prévoir pour la pose »":"Corrige ici"); return; }
   if(q.non.fix){ const msg=q.non.fix(); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); toast(msg); return; }
@@ -4353,6 +4372,7 @@ async function envoyerClemence(){
   if(errs.length){
     const txt=`⚠ Attention : ${errs.length} erreur${errs.length>1?"s":""} à corriger avant d'envoyer à ${qui} :\n\n`
       +errs.slice(0,12).map(x=>`• ${x.ou} : ${x.e}`).join("\n")+(errs.length>12?`\n… et ${errs.length-12} autre(s)`:"")+`\n\nTu veux corriger maintenant ?`;
+    if(typeof journaliser==="function") errs.slice(0,20).forEach(x=>journaliser(d,{quoi:"erreur",ou:x.ou,texte:x.e}));   // journal des corrections (19/11)
     if(await demander(txt,"Corriger maintenant","Envoyer quand même")){ allerErreur(errs[0].go); toast(`Corrige les points en rouge, puis renvoie à ${qui}`); return; }
   }
   /* 1 bis) questions Oui / Non pas encore validées (19/11) */
@@ -4376,6 +4396,9 @@ async function envoyerClemence(){
     if(!f||!f.id) throw new Error("Google Drive n'a pas confirmé le dépôt");
     if(cible===CLEMENCE.clim) d.clemence._mail=await mailRoxane(d, f, deja.length>0);
     d.clemence.envois.push({le:new Date().toISOString(), nom:f.name||nom, dossier:cible.nom, id:f.id, lien:f.webViewLink||""});
+    try{ if(typeof diffDossier==="function"){   // journal des corrections : ce qui a changé depuis l'envoi précédent, puis nouvel instantané
+      if(d.clemence.inst) diffDossier(JSON.parse(d.clemence.inst), d).forEach(e=>journaliser(d,e));
+      d.clemence.inst=JSON.stringify(instantaneDossier(d)); await envoyerJournal(d); } }catch(_){}
     const ml=d.clemence._mail; delete d.clemence._mail; if(ml) d.clemence.envois[d.clemence.envois.length-1].mail=ml.ok?"Roxane":"échec";
     await DB.put(d); renderDossier(); toast(`✓ Envoyé : ${f.name||nom} → ${cible.nom}${ml&&ml.ok?" · mail envoyé à Roxane":""}`);
     if(ml && !ml.ok && await demander(`Le devis est bien déposé dans DEVIS CLIM, mais le mail à Roxane n'est pas parti (${ml.err}).\n\nOuvrir le mail tout prêt pour l'envoyer toi-même ?`,"Ouvrir le mail","Plus tard")) location.href=ml.mailto;
@@ -4383,6 +4406,17 @@ async function envoyerClemence(){
     d.clemence.envoye=envoisClemence(d).length>0; try{ await DB.put(d); }catch(_){} renderDossier();
     await demander(`⚠ Le PDF N'EST PAS arrivé chez ${qui} (ECHANGES › ${cible.nom}).\n\n${/Failed to fetch|network/i.test(e.message)?"Réseau coupé.":"Erreur : "+e.message}\n\nRéessaie avec le bouton « 📨 Envoyer à ${qui} » dès que tu as du réseau.`,"Compris"); }
 }
+/* Journal des corrections (19/11/2026) : Mon Drive › Appli métré – Dossiers › « Journal des corrections (appli métré).json » – lu par Claude pour le bilan du lundi */
+const JOURNAL_NOM = "Journal des corrections (appli métré).json";
+async function envoyerJournal(d){ const L=(d.journal_attente||[]); if(!L.length) return;
+  const racine=DOSSIERS_CONNUS.racine, q=`name='${q_(JOURNAL_NOM)}' and trashed=false and '${racine}' in parents`;
+  const ex=(await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id)&q="+encodeURIComponent(q))).files[0];
+  let tout=[]; if(ex){ try{ const r=await fetch(`https://www.googleapis.com/drive/v3/files/${ex.id}?alt=media&supportsAllDrives=true`,{headers:{Authorization:"Bearer "+G_JETON}}); if(r.ok) tout=await r.json(); }catch(_){} }
+  if(!Array.isArray(tout)) tout=[];
+  const base={client:(d.client.nom||"").trim(), devis:d.devis_nom||"", document:d.type_document||"", dossier:d.id};
+  tout.push(...L.map(e=>({...base,...e}))); if(tout.length>5000) tout=tout.slice(-5000);
+  await deposerDrive(JOURNAL_NOM, new Blob([JSON.stringify(tout,null,1)],{type:"application/json"}), racine, "Journal des corrections de l'appli de métré (erreurs à l'envoi, « Non » aux questions, modifications après envoi)");
+  d.journal_attente=[]; }
 /* qui reçoit le métré : Roxane pour un métré clim seul (DEVIS CLIM), Clémence sinon – 19/11 */
 const destinataire = d => cibleClemence(d)===CLEMENCE.clim ? "Roxane" : "Clémence";
 

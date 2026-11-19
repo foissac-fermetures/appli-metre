@@ -219,6 +219,7 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .sk-rel-c{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:12px;align-items:start} .sk-rel-svg{width:100%;background:#fff;border:1px solid var(--line);border-radius:8px} .sk-rel-etape{font-weight:700;color:var(--navy)}
 @media (max-width:700px){ .sk-rel-c{grid-template-columns:1fr} }
 .cl-config{flex-wrap:wrap} .cl-config button{display:inline-flex;flex-direction:column;align-items:center;line-height:1.1;min-height:48px} .cl-config small{font-size:11px;opacity:.7}
+.ctl-q{margin-top:6px;display:flex;flex-direction:column;gap:6px} .ctl-qi{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#fff6d6;border:1px solid #f0c94a;border-radius:10px;padding:6px 10px} .ctl-qi span{flex:1;min-width:200px;font-weight:600;color:#6b4e00} .ctl-qi .btn{min-height:40px}
 .cl-wifi{margin-top:8px;padding:8px 10px;border-radius:8px;background:#e8f0ff;color:var(--navy)}
 /* barre de dessin à onglets (19/11/2026) */
 .sk-ipad{flex-direction:column;align-items:stretch;gap:8px}
@@ -1100,7 +1101,7 @@ function controleOuverture(o, d=S.dossier){
   if(aileRecouvrement(o)){ if(o.pose!=="tunnel") W.push("Ailes de recouvrement : prévues pour la pose en tunnel"); if(!o.delignage) W.push("Ailes de recouvrement : préciser le délignage (ou « sans délignage »)"); }
   if(o.comp&&o.comp.type){ if(compH(o)==null) E.push("Compensateur : hauteur (mm) manquante"); if(!o.comp.compris) W.push("Compensateur : préciser s'il est compris ou non dans la hauteur de fabrication"); if(o.comp.type.startsWith("Autre") && !/compensateur/i.test(o.obs_libre||"")) W.push("Compensateur « autre » : préciser la section dans les observations"); if(seuilEncastre(o)) W.push("Compensateur ET seuil encastré : vérifier"); }
   if(seuilEncastre(o) && num(o.fab_force.H)!=null) W.push("Seuil encastré : hauteur saisie à la main, vérifier que les 40 mm sont compris");
-  if(!porte && fam!=="fixe" && tH!=null && tH>=1950 && !o.appui_bas && !aSeuil(o)) W.push("Hauteur ≥ 1950 sans seuil (porte-fenêtre ?)");
+  if(!porte && fam!=="fixe" && fam!=="of" && tH!=null && tH>=1950 && !o.appui_bas && !aSeuil(o)) W.push("Hauteur ≥ 1950 sans seuil (porte-fenêtre ?)");
   if(sdbClair(o) && !o.clair_voulu) E.push("Salle de bain / WC en vitrage clair ? (coche « Vitrage clair à la demande du client » si c'est voulu)");
   if(o.repere && !porte && fam!=="pf" && !aSeuil(o) && !o.allege && !(tH>=1950)) W.push("Allège manquante ?");
   if([o.couleur_int,o.couleur_ext].some(c=>/à préciser/i.test(c||"")) && !/ral|plax|foil|kaleido/i.test(o.obs_libre||"")) W.push("Couleur hors standard : préciser la référence (RAL / plaxage) dans les observations");
@@ -1129,6 +1130,41 @@ function controleOuverture(o, d=S.dossier){
   comparerDevis(o, d, E, W);
   return {E,W};
 }
+/* ---------- Questions Oui / Non (19/11/2026) : incohérences probables à valider (ex. porte-fenêtre de 1600 de haut, copie oubliée) ----------
+   o.qok[clé] = valeurs au moment du « Oui » : si les cotes changent, la question revient. */
+function modeleEquiv(o, fam, nbV){ const L=listeModeles(o.gamme), cur=modeleDe(o); if(!L||!cur) return null; const tous=L.flatMap(g=>g.items), nv=nbV??cur.vantaux;
+  const essai=fam==="of"?cur.id.replace(/^pf/,"f"):fam==="pf"?cur.id.replace(/^f/,"pf"):cur.id.replace(/\d/,String(nv));
+  const m=tous.find(x=>x.id===essai&&x.famille===fam&&x.vantaux===nv)||tous.find(x=>x.famille===fam&&x.vantaux===nv); return m&&m.id!==cur.id?m.id:null; }
+const nomModele=(o,id)=>{ const L=listeModeles(o.gamme)||[]; for(const g of L){ const m=g.items.find(x=>x.id===id); if(m) return m.nom; } return id; };
+function majoritaire(vals){ const n={}; vals.forEach(v=>{ if(v) n[v]=(n[v]||0)+1; }); const k=Object.keys(n).sort((a,b)=>n[b]-n[a])[0]; return k?{v:k, n:n[k], tot:vals.filter(Boolean).length}:null; }
+function questionsOuverture(o, d=S.dossier){
+  const Q=[], ok=o.qok||{}, md=modeleDe(o), fam=md?.famille, f=calcFab(o), tL=num(coteTab(o,"L")), tH=num(coteTab(o,"H")), H=f.H??tH, L=f.L??tL;
+  const vt=[o.vantaux.G,o.vantaux.M,o.vantaux.D].filter(Boolean), nbV=md?md.vantaux:vt.length, porte=fam==="porte";
+  const glisse=["coulissant","galandage","fixe","soufflet"].includes(fam), pfLike=fam==="pf"||(!porte&&!glisse&&aSeuil(o));
+  const add=(k,sig,q,non)=>{ sig=String(sig); if(ok[k]===sig) return; Q.push({k,sig,q,non}); };
+  if(pfLike && H!=null && H<1700){ const id=fam==="pf"?modeleEquiv(o,"of"):null;
+    add("pf_bas",H,`Hauteur ${H} : c'est bien une porte-fenêtre ?`,{lib:id?`Non → ${nomModele(o,id)}`:"Non, c'est une fenêtre",fix:()=>{ if(id) o.modele=id; o.seuil_std=o.seuil_plat=false; o.seuil_type=""; if(o.seuil_encastre) o.seuil_encastre=false; return id?`Passée en « ${nomModele(o,id)} » (seuil retiré) : vérifie l'allège`:"Seuil retiré : c'est une fenêtre, vérifie l'allège"; }}); }
+  if(fam==="of" && !pfLike && H!=null && H>=1950 && !num(o.allege)){ const id=modeleEquiv(o,"pf");
+    add("of_haut",H,`Hauteur ${H} sans allège : c'est bien une fenêtre (pas une porte-fenêtre) ?`,{lib:id?`Non → ${nomModele(o,id)}`:"Non, porte-fenêtre",fix:()=>{ if(id){ o.modele=id; return `Passée en « ${nomModele(o,id)} » : choisis le seuil (bloc 7)`; } return "Coche le seuil (bloc 7) pour en faire une porte-fenêtre"; }, champ:"seuil"}); }
+  if(porte && H!=null && H<1900) add("porte_basse",H,`Porte de ${H} de haut : c'est juste ?`,{lib:"Non, je corrige",champ:"cotes."});
+  if(!porte && !glisse && nbV===1 && L!=null && L>1000){ const id=md?modeleEquiv(o,fam,2):null;
+    add("vantail_large",L,`Un seul vantail de ${L} de large : sûr ? (2 vantaux ?)`,{lib:id?`Non → ${nomModele(o,id)}`:"Non, 2 vantaux",fix:id?()=>{ o.modele=id; return `Passée en « ${nomModele(o,id)} » : vérifie la répartition des vantaux`; }:null, champ:"vantaux."}); }
+  const autres=(d?.ouvertures||[]).filter(x=>x!==o);
+  if(o.gamme && autres.length>=2){ const m=majoritaire(autres.map(x=>x.gamme)); if(m && m.v!==o.gamme && m.n/m.tot>=0.6) add("gamme_diff",o.gamme+"|"+m.v,`Celle-ci est en ${o.gamme}, les autres en ${m.v} : c'est voulu ?`,{lib:"Non, je corrige",champ:"gamme"}); }
+  if((o.couleur_int||o.couleur_ext) && autres.length>=2){ const cle=x=>[x.couleur_int||"",x.couleur_ext||""].join(" / "), m=majoritaire(autres.map(x=>(x.couleur_int||x.couleur_ext)?cle(x):"")), mo=autres.find(x=>cle(x)===m?.v);
+    if(m && m.v!==cle(o) && m.n/m.tot>=0.6) add("couleur_diff",cle(o)+"|"+m.v,`Couleur ${cle(o)}, les autres en ${m.v} : c'est voulu ?`,{lib:mo&&mo.gamme===o.gamme?"Non → même couleur que les autres":"Non, je corrige",fix:mo&&mo.gamme===o.gamme?()=>{ o.couleur_int=mo.couleur_int; o.couleur_ext=mo.couleur_ext; if(mo.couleur_dormant!=null) o.couleur_dormant=mo.couleur_dormant; return "Couleur remise comme les autres ouvertures"; }:null, champ:"couleur_"}); }
+  const rp=(o.repere||"").trim().toLowerCase();
+  if(rp && tL!=null && tH!=null){ const j=autres.find(x=>(x.repere||"").trim().toLowerCase()===rp && num(coteTab(x,"L"))===tL && num(coteTab(x,"H"))===tH && (x.modele||"")===(o.modele||""));
+    if(j) add("identique",tL+"x"+tH+"|"+rp,`Même repère « ${o.repere} » et mêmes cotes que ${j.num_poseur?"la n°"+j.num_poseur:"une autre ouverture"} : c'est voulu (2 identiques) ?`,{lib:"Non, copie à modifier",champ:"repere"}); }
+  const vl=d?.vr?vrLie(d,o):null, vL=vl?num(vl.tab_l)??num(vl.fab_l):null;
+  if(vL!=null && tL!=null && Math.abs(vL-tL)>150) add("volet",vL+"|"+tL,`Volet roulant de ${vL} de large pour une fenêtre de ${tL} : c'est juste ?`,{lib:"Non, je corrige",go:"vr"});
+  return Q; }
+function questionsDossier(d){ normaliser(d); return d.ouvertures.flatMap((o,i)=>questionsOuverture(o,d).map(q=>({...q, ou:`${o.num_poseur?"N°"+o.num_poseur+" ":""}${o.repere||"Ouverture "+(i+1)}`, go:{ouv:o.id}}))); }
+function repondreQ(o, k, oui){ const q=questionsOuverture(o).find(x=>x.k===k); if(!q) return;
+  if(oui){ (o.qok||(o.qok={}))[k]=q.sig; save(); majControle(); return; }
+  if(q.non.go==="vr"){ save(); S.tab="vr"; renderDossier(); toast("Corrige la largeur du volet roulant"); return; }
+  if(q.non.fix){ const msg=q.non.fix(); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); toast(msg); return; }
+  const el=q.non.champ&&$(`[data-k^="${q.non.champ}"]`); if(el){ const det=el.closest("details"); if(det) det.open=true; el.scrollIntoView({block:"center"}); el.classList.add("f-warn"); try{ el.focus(); }catch(_){} } toast("Corrige ici"); }
 function controleDossier(d){
   const E=[],W=[];
   if(!d.client.nom) E.push("Nom du client manquant");
@@ -1935,6 +1971,9 @@ function majControle(){
         <button class="btn small" id="ctlTog">${S.ctlOpen?"Réduire":"Détails"}</button></div>
       ${S.ctlOpen?`<ul>${c.E.map(x=>`<li class="err">${esc(x)}</li>`).join("")}${c.W.map(x=>`<li class="warn">${esc(x)}</li>`).join("")}</ul>`:""}`;
   const t=$("#ctlTog"); if(t) t.onclick=()=>{ S.ctlOpen=!S.ctlOpen; majControle(); };
+  const Q=questionsOuverture(S.ouv);
+  if(Q.length){ el.insertAdjacentHTML("beforeend",`<div class="ctl-q">${Q.map(q=>`<div class="ctl-qi"><span>❓ ${esc(q.q)}</span><button class="btn small" data-qoui="${q.k}">✔ Oui</button><button class="btn small" data-qnon="${q.k}">${esc(q.non.lib)}</button></div>`).join("")}</div>`);
+    $$("[data-qoui]").forEach(b=>b.onclick=()=>repondreQ(S.ouv,b.dataset.qoui,true)); $$("[data-qnon]").forEach(b=>b.onclick=()=>repondreQ(S.ouv,b.dataset.qnon,false)); }
 }
 
 /* ---------- Dessin automatique de la menuiserie (vue de l'intérieur) ----------
@@ -2305,7 +2344,7 @@ function barreOutils(avecCouleurs=true, x={}){
       <div class="sk-grp"><span class="sk-lbl">Ouvertures</span>${sym("men")}<button class="btn sk-tool" data-skrot title="Tourner le dernier symbole (collé à un mur : change le côté d'ouverture)"><b>⟳</b>Tourner</button><button class="btn sk-tool" data-skflip title="Changer le côté des paumelles"><b>⇋</b>Charnière</button></div>
       <div class="sk-grp"><span class="sk-lbl">Cotes</span><label class="chip${S.skCotes?" on":""}" id="skCotes" title="Après chaque mur ou pièce, demande la longueur (télémètre ou clavier) – tu peux passer"><input type="checkbox"${S.skCotes?" checked":""}>Demander la cote après chaque mur</label>
         ${outil("cote","📏","Coter un mur","Touche un mur, puis vise au télémètre ou tape la longueur")}<button class="btn sk-tool primary" id="skReleve" title="Mesurer les murs au télémètre (ou à la main) : le plan de la pièce se dessine tout seul"><b>📡</b>Relever la pièce</button></div>
-      <div class="sk-grp"><span class="sk-lbl">Autres</span>${x.formes||x.vec?`<button class="btn sk-tool" data-skedit title="Toucher un élément pour le déplacer, l'agrandir, le supprimer"><b>✥</b>Déplacer</button>`:""}<button class="btn sk-tool" data-skgomme title="Touche un mur, une fenêtre… pour l'effacer"><b>🧽</b>Effacer</button><button class="btn sk-tool" id="skImport" title="Mettre en fond un plan (photo, capture, PDF – ex. scan LiDAR magicplan)"><b>🖼</b>Importer un plan</button><input type="file" id="skImportF" accept="image/*,application/pdf" hidden></div>
+      <div class="sk-grp"><span class="sk-lbl">Autres</span>${x.formes||x.vec?`<button class="btn sk-tool" data-skedit title="Toucher un mur, un trait, un symbole : tirer les ronds orange pour allonger / raccourcir, glisser pour déplacer, ou taper la longueur du mur"><b>✥</b>Modifier</button>`:""}<button class="btn sk-tool" data-skgomme title="Touche un mur, une fenêtre… pour l'effacer"><b>🧽</b>Effacer</button><button class="btn sk-tool" id="skImport" title="Mettre en fond un plan (photo, capture, PDF – ex. scan LiDAR magicplan)"><b>🖼</b>Importer un plan</button><input type="file" id="skImportF" accept="image/*,application/pdf" hidden></div>
       <div class="hint sk-planaide">Les cotes ne sont jamais obligatoires : un simple dessin pour avoir l'idée des pièces suffit.</div></div>
       <div ${pane("sym")}><div class="sk-grp">${sym("clim")}<button class="btn sk-tool" data-skrot title="Tourner d'un quart de tour le dernier symbole posé (ou celui sélectionné)"><b>⟳</b>Tourner</button></div>
         <div class="hint">Touche un symbole puis l'endroit du dessin. Les fenêtres et portes sont dans l'onglet 🏠 Plan.</div></div></div><!--sym-->
@@ -2402,7 +2441,7 @@ function initSketch(o=S.ouv, cle="croquis"){
     else for(let i=1;i<s.pts.length;i++){ const a=s.pts[i-1], b=s.pts[i]; ctx.lineWidth=(s.c==="erase"?(s.w||30):s.w?s.w*(0.55+(b[2]||0.5)*0.9):(1.5+b[2]*4))*k; ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); }
     ctx.globalCompositeOperation="source-over"; }
   /* poignées de la forme sélectionnée */
-  function poignees(s){ if(s.t||s.sy) return []; const [x1,y1]=s.a,[x2,y2]=s.b; return (s.f==="ligne"||s.f==="fleche"||s.f==="mur") ? [[x1,y1],[x2,y2]] : [[x1,y1],[x2,y1],[x1,y2],[x2,y2]]; }
+  function poignees(s){ if(s.t||s.sy) return []; if(s.pts) return (s.pts.length<=8&&s.c!=="erase")?s.pts.map(p=>[p[0],p[1]]):[]; const [x1,y1]=s.a,[x2,y2]=s.b; return (s.f==="ligne"||s.f==="fleche"||s.f==="mur") ? [[x1,y1],[x2,y2]] : [[x1,y1],[x2,y1],[x1,y2],[x2,y2]]; }
   function bbox(s){ if(s.sy){ const e=58*(s.z||1)*ratio/1.2*1.1; return [s.x-e,s.y-e,s.x+e,s.y+e]; }
     if(s.t){ const fs=txtFs(s), w=Math.max(60,s.t.length*fs*0.6); return [s.x-w/2,s.y-fs/2,s.x+w/2,s.y+fs/2]; }
     if(s.pts){ const xs=s.pts.map(p=>p[0]), ys=s.pts.map(p=>p[1]); return [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]; }
@@ -2410,7 +2449,7 @@ function initSketch(o=S.ouv, cle="croquis"){
   function drawSel(){ sels=sels.filter(s=>strokes.includes(s)); ctx.save(); ctx.setLineDash([10,8]); ctx.strokeStyle="#e07b00"; ctx.lineWidth=2*ratio/1.2;
     sels.forEach(s=>{ const [x1,y1,x2,y2]=bbox(s); ctx.strokeRect(x1-8,y1-8,x2-x1+16,y2-y1+16); });
     if(lasso){ ctx.strokeStyle="#1f4fd8"; const [x1,y1]=lasso.a,[x2,y2]=lasso.b; ctx.fillStyle="rgba(31,79,216,.08)"; ctx.fillRect(x1,y1,x2-x1,y2-y1); ctx.strokeRect(x1,y1,x2-x1,y2-y1); }
-    ctx.setLineDash([]); const s=one(); if(s&&s.f) poignees(s).forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(x,y,13*ratio/1.2/Z,0,Math.PI*2); ctx.fillStyle="#fff"; ctx.fill(); ctx.strokeStyle="#e07b00"; ctx.lineWidth=3*ratio/1.2; ctx.stroke(); }); ctx.restore(); }
+    ctx.setLineDash([]); const s=one(); if(s&&(s.f||s.pts)) poignees(s).forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(x,y,13*ratio/1.2/Z,0,Math.PI*2); ctx.fillStyle="#fff"; ctx.fill(); ctx.strokeStyle="#e07b00"; ctx.lineWidth=3*ratio/1.2; ctx.stroke(); }); ctx.restore(); }
   function majBoutonSel(){ const d=$("#skDelSel"); if(!d) return; d.disabled=!sels.length; d.textContent=sels.length>1?`🗑 Supprimer la sélection (${sels.length})`:"🗑 Supprimer la sélection"; }
   let base=null;
   /* Zoom (19/11/2026) : Z = grossissement, OX/OY = décalage (pixels de la toile). Molette = zoom sous la souris, 2 doigts = zoom + déplacement */
@@ -2476,12 +2515,12 @@ function initSketch(o=S.ouv, cle="croquis"){
     try{ cv.setPointerCapture(e.pointerId); }catch(_){}
     S.skDoigt=e.pointerType==="touch"; const fo=S.skForme||"", [px,py]=pt(e);
     if(V && fo==="edit"){ e.preventDefault();
-      const s1=one(); if(s1&&s1.f){ const h=poignees(s1).findIndex(([x,y])=>Math.hypot(x-px,y-py)<26*ratio/1.2/Z); if(h>=0){ act={h}; return; } }
+      const s1=one(); if(s1&&(s1.f||s1.pts)){ const h=poignees(s1).findIndex(([x,y])=>Math.hypot(x-px,y-py)<26*ratio/1.2/Z); if(h>=0){ act={h, lies:s1.f==="mur"?murLies(s1,h===0?"a":"b"):null}; return; } }
       if(base && !strokes.some(s=>s.f||s.t||s.pts)) toast("Ce dessin a été fait avant la mise à jour : c'est une image, on ne peut pas en choisir les morceaux (bouton « Effacer l'ancien dessin »)");
       const hit=toucher(px,py);
       if(hit){ if(S.skMulti){ const k=sels.indexOf(hit); if(k>=0) sels.splice(k,1); else sels.push(hit); } else if(!sels.includes(hit)) sels=[hit]; act=sels.includes(hit)?{m:[px,py]}:null; }
       else { if(!S.skMulti) sels=[]; lasso={a:[px,py],b:[px,py]}; }
-      redraw(); majBoutonSel(); majStyleTxt(); const ti=$("#skTxtLibre"), s=one(); if(ti){ ti.value=s&&s.t?s.t:""; ti.placeholder=s&&s.t?"":"Écrire un texte (ex. Chambre 1, 3,20 m, passage combles…)"; } return; }
+      redraw(); majBoutonSel(); majStyleTxt(); majLongueur(); const ti=$("#skTxtLibre"), s=one(); if(ti){ ti.value=s&&s.t?s.t:""; ti.placeholder=s&&s.t?"":"Écrire un texte (ex. Chambre 1, 3,20 m, passage combles…)"; } return; }
     if(texteMain){ e.preventDefault(); ouvrirTexteMain(e, px, py); return; }
     if(S.skPlan==="cote"){ e.preventDefault(); const w=murProche(px,py,34*ratio/1.2/Z); if(w) demanderCotes([w.s],null); else toast("Touche un mur"); return; }
     if(S.skPlan){ e.preventDefault(); const a=aimant([px,py]); cur= S.skPlan==="escalier" ? {f:"esc",c:"#1b2f5e",a,b:a.slice()} : S.skPlan==="piece" ? {f:"pieceTmp",a,b:a.slice()} : {f:"mur",c:"#1b2f5e",e:S.skPlan==="cloison"?7:16,a,b:a.slice()}; strokes.push(cur); refaire=[]; return; }
@@ -2508,11 +2547,12 @@ function initSketch(o=S.ouv, cle="croquis"){
     if(lasso){ lasso.b=pt(e).slice(0,2); redraw(); e.preventDefault(); return; }
     const sel=act&&act.m?null:one();
     if(act&&act.m){ const [x,y]=pt(e), dx=x-act.m[0], dy=y-act.m[1]; act.m=[x,y];
-      sels.forEach(s=>{ if(s.t||s.sy){ s.x+=dx; s.y+=dy; } else if(s.pts) s.pts.forEach(p=>{ p[0]+=dx; p[1]+=dy; }); else { s.a=[s.a[0]+dx,s.a[1]+dy]; s.b=[s.b[0]+dx,s.b[1]+dy]; } });
+      sels.forEach(s=>{ if(s.t||s.sy){ s.x+=dx; s.y+=dy; if(s.cm) s.bouge=1; } else if(s.pts) s.pts.forEach(p=>{ p[0]+=dx; p[1]+=dy; }); else { s.a=[s.a[0]+dx,s.a[1]+dy]; s.b=[s.b[0]+dx,s.b[1]+dy]; } });
       redraw(); e.preventDefault(); return; }
     if(act&&sel){ const [x,y]=pt(e);
-      if(false){}
-      else if(sel.f==="ligne"||sel.f==="fleche"||sel.f==="mur"){ let [nx,ny]=[x,y]; const o2=act.h===0?sel.b:sel.a; if(Math.abs(ny-o2[1])<Math.abs(nx-o2[0])*0.15) ny=o2[1]; else if(Math.abs(nx-o2[0])<Math.abs(ny-o2[1])*0.15) nx=o2[0]; if(act.h===0) sel.a=[nx,ny]; else sel.b=[nx,ny]; }
+      if(sel.pts){ const p=sel.pts[act.h], v=sel.pts[act.h-1]||sel.pts[act.h+1]; let nx=x, ny=y; if(v){ if(Math.abs(ny-v[1])<Math.abs(nx-v[0])*0.15) ny=v[1]; else if(Math.abs(nx-v[0])<Math.abs(ny-v[1])*0.15) nx=v[0]; } p[0]=nx; p[1]=ny; }
+      else if(sel.f==="ligne"||sel.f==="fleche"||sel.f==="mur"){ let [nx,ny]=[x,y]; const o2=act.h===0?sel.b:sel.a; if(Math.abs(ny-o2[1])<Math.abs(nx-o2[0])*0.15) ny=o2[1]; else if(Math.abs(nx-o2[0])<Math.abs(ny-o2[1])*0.15) nx=o2[0]; if(act.h===0) sel.a=[nx,ny]; else sel.b=[nx,ny];
+        if(act.lies) act.lies.forEach(([w,c])=>w[c]=[nx,ny]); }
       else { const h=act.h; if(h===0) sel.a=[x,y]; else if(h===1){ sel.b=[x,sel.b[1]]; sel.a=[sel.a[0],y]; } else if(h===2){ sel.a=[x,sel.a[1]]; sel.b=[sel.b[0],y]; } else sel.b=[x,y]; }
       redraw(); e.preventDefault(); return; }
     if(!cur) return;
@@ -2562,10 +2602,36 @@ function initSketch(o=S.ouv, cle="croquis"){
       <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><input id="cqVal" type="text" inputmode="decimal" placeholder="ex. 3,45" style="width:150px;font-size:18px;min-height:44px"><button class="btn primary" id="cqOk">OK</button><button class="btn" id="cqPass">Passer</button><button class="btn" id="cqStop">✕ Pas de cote</button></div>`;
     const v=$("#cqVal"), ok=()=>{ const x=parseFloat(String(v.value).replace(",",".")); if(!x){ v.focus(); return; } poserCote(x<50?Math.round(x*1000):Math.round(x)); };
     v.onkeydown=e=>{ if(e.key==="Enter") ok(); }; $("#cqOk").onclick=ok; $("#cqPass").onclick=()=>{ FQ.shift(); prochaineCote(); }; $("#cqStop").onclick=finCotes; if(!TLM.car) setTimeout(()=>v.focus(),50); }
-  function poserCote(mm){ const q=FQ.shift(); if(q && mm>0 && strokes.includes(q.m)){ const m=q.m, k=ratio/1.2, mx=(m.a[0]+m.b[0])/2, my=(m.a[1]+m.b[1])/2; let nx=-(m.b[1]-m.a[1]), ny=m.b[0]-m.a[0]; const l=Math.hypot(nx,ny)||1; nx/=l; ny/=l;
-      if(q.centre){ if(nx*(mx-q.centre[0])+ny*(my-q.centre[1])<0){ nx=-nx; ny=-ny; } } else if(ny>0.3||(Math.abs(ny)<=0.3&&nx>0)){ nx=-nx; ny=-ny; }
-      const tx=fmtM(mm), fs=30*k, d=(m.e||16)*k/2+12*k+Math.abs(nx)*tx.length*fs*0.3+Math.abs(ny)*fs*0.6; strokes.push({t:tx, c:"#d3232f", x:mx+nx*d, y:my+ny*d}); refaire=[]; commit(); parler&&parler(`${mm}`); }
+  function posCote(m, tx, centre){ const k=ratio/1.2, mx=(m.a[0]+m.b[0])/2, my=(m.a[1]+m.b[1])/2; let nx=-(m.b[1]-m.a[1]), ny=m.b[0]-m.a[0]; const l=Math.hypot(nx,ny)||1; nx/=l; ny/=l;
+    if(centre){ if(nx*(mx-centre[0])+ny*(my-centre[1])<0){ nx=-nx; ny=-ny; } } else if(ny>0.3||(Math.abs(ny)<=0.3&&nx>0)){ nx=-nx; ny=-ny; }
+    const fs=30*k, d=(m.e||16)*k/2+12*k+Math.abs(nx)*tx.length*fs*0.3+Math.abs(ny)*fs*0.6; return [mx+nx*d, my+ny*d]; }
+  function centrePiece(m){ const vu=new Set([m]), file=[m]; while(file.length){ const w=file.pop(); ["a","b"].forEach(c=>murLies(w,c).forEach(([x])=>{ if(!vu.has(x)){ vu.add(x); file.push(x); } })); }   // murs reliés entre eux = la pièce
+    if(vu.size<3) return null; const P=[...vu].flatMap(w=>[w.a,w.b]); return [P.reduce((a,p)=>a+p[0],0)/P.length, P.reduce((a,p)=>a+p[1],0)/P.length]; }
+  function coterMur(m, mm, centre){ m.L=mm; if(!m.id) m.id=uid(); const tx=fmtM(mm); let t=strokes.find(s=>s.t&&s.cm===m.id); const [x,y]=posCote(m,tx,centre||centrePiece(m));
+    if(t){ t.t=tx; if(!t.bouge){ t.x=x; t.y=y; } } else strokes.push({t:tx, c:"#d3232f", x, y, cm:m.id}); }
+  function poserCote(mm){ const q=FQ.shift(); if(q && mm>0 && strokes.includes(q.m)){ coterMur(q.m, mm, q.centre); refaire=[]; commit(); parler&&parler(`${mm}`); }
     prochaineCote(); }
+  /* Modifier la longueur d'un mur (19/11/2026) : à l'échelle des murs déjà cotés ; les murs accrochés suivent */
+  const murLies=(m,c)=>{ const p=m[c]; return strokes.filter(w=>w!==m&&w.f==="mur").flatMap(w=>["a","b"].filter(k=>Math.hypot(w[k][0]-p[0],w[k][1]-p[1])<1.5).map(k=>[w,k])); };
+  function echelleMurs(sauf){ const R=strokes.filter(w=>w.f==="mur"&&w.L>0&&w!==sauf).map(w=>Math.hypot(w.b[0]-w.a[0],w.b[1]-w.a[1])/w.L); return R.length?R.reduce((a,b)=>a+b,0)/R.length:null; }
+  function appliquerLongueur(m, mm){ const k=echelleMurs(m);
+    if(k){ const dx=m.b[0]-m.a[0], dy=m.b[1]-m.a[1], l=Math.hypot(dx,dy)||1, nb=[m.a[0]+dx/l*mm*k, m.a[1]+dy/l*mm*k], ddx=nb[0]-m.b[0], ddy=nb[1]-m.b[1], lies=murLies(m,"b"), bouges=new Set();
+      lies.forEach(([w,c])=>{ const wx=w.b[0]-w.a[0], wy=w.b[1]-w.a[1], wl=Math.hypot(wx,wy)||1, perp=Math.abs((wx*dx+wy*dy)/(wl*l))<0.3;
+        if(perp){ const autre=c==="a"?"b":"a", suite=murLies(w,autre).filter(([x])=>x!==m);   // mur d'équerre : il glisse en entier, la pièce reste d'équerre
+          w.a=[w.a[0]+ddx,w.a[1]+ddy]; w.b=[w.b[0]+ddx,w.b[1]+ddy]; suite.forEach(([x,cc])=>{ x[cc]=[x[cc][0]+ddx,x[cc][1]+ddy]; bouges.add(x); }); }
+        else w[c]=nb.slice(); bouges.add(w); });
+      m.b=nb; bouges.forEach(w=>{ const t=w.id&&strokes.find(s=>s.t&&s.cm===w.id); if(t&&!t.bouge){ const [x,y]=posCote(w,t.t,centrePiece(w)); t.x=x; t.y=y; } });
+    }
+    coterMur(m, mm, null); refaire=[]; commit(); majLongueur();
+    toast(k?`Mur mis à ${fmtM(mm)} (à l'échelle des autres murs cotés)`:`Cote posée : ce mur sert d'échelle pour les prochains`); }
+  function longTLM(m){ const s=one(); if(s&&s.f==="mur") appliquerLongueur(s, Math.round(m*1000)); }
+  function majLongueur(){ if(!rp || RL || FQ.length) return; const m=one();
+    if(!(V && S.skForme==="edit" && m && m.f==="mur")){ if(rp.dataset.lg){ rp.classList.add("hide"); rp.innerHTML=""; delete rp.dataset.lg; if(TLM.releve===longTLM) TLM.releve=null; } return; }
+    rp.dataset.lg=1; rp.classList.remove("hide"); TLM.releve=longTLM; const ech=echelleMurs(m);
+    rp.innerHTML=`<div class="sk-rel-h"><b>📏 Longueur de ce mur</b><span class="hint">${ech?"il s'allonge ou se raccourcit à l'échelle des murs déjà cotés":"aucun autre mur coté : cette cote servira d'échelle"} · ou tire les ronds orange</span></div>
+      <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><input id="lgVal" type="text" inputmode="decimal" value="${m.L?String(m.L/1000).replace(".",","):""}" placeholder="ex. 3,20" style="width:150px;font-size:18px;min-height:44px"><span class="hint">m${TLM.car?" – ou vise au télémètre":""}</span><button class="btn primary" id="lgOk">Appliquer</button></div>`;
+    const v=$("#lgVal"), ok=()=>{ const x=parseFloat(String(v.value).replace(",",".")); if(!x){ v.focus(); return; } appliquerLongueur(m, x<50?Math.round(x*1000):Math.round(x)); };
+    v.onkeydown=e=>{ if(e.key==="Enter") ok(); }; $("#lgOk").onclick=ok; }
   const majPlan=()=>{ $$("[data-skplan]").forEach(b=>b.classList.toggle("on",b.dataset.skplan===S.skPlan)); };
   const stopPlan=()=>{ if(S.skPlan){ S.skPlan=null; majPlan(); } };
   S.skPlan=null; majPlan();
@@ -2575,7 +2641,7 @@ function initSketch(o=S.ouv, cle="croquis"){
     if(pen.startsWith("erase")){ const p1=$("[data-pen]:not([data-pen^='erase'])"); if(p1) choisirPen(p1,true); }
     toast({piece:"Glisse d'un coin de la pièce au coin opposé",mur:"Glisse pour tracer le mur (il s'accroche aux autres)",cloison:"Glisse pour tracer la cloison",escalier:"Glisse dans le sens de la montée",cote:"Touche le mur à coter"}[k]); });
   const cq=$("#skCotes input"); if(cq) cq.onchange=()=>{ S.skCotes=cq.checked; $("#skCotes").classList.toggle("on",cq.checked); toast(cq.checked?"Après chaque mur, je te demande la cote (tu peux passer)":"Plus de cote demandée : dessin libre"); };
-  $$("[data-skedit]").forEach(b=>b.onclick=()=>{ stopPlan(); const fe=$("[data-forme='edit']"); if(fe){ fe.click(); return; } S.skForme=S.skForme==="edit"?"":"edit"; b.classList.toggle("on",S.skForme==="edit"); if(S.skForme!=="edit"){ sels=[]; redraw(); } else toast("Touche un élément pour le déplacer (ou entoure-en plusieurs)"); });
+  $$("[data-skedit]").forEach(b=>b.onclick=()=>{ stopPlan(); const fe=$("[data-forme='edit']"); if(fe){ if(S.skForme==="edit"){ $("[data-forme='']")?.click(); b.classList.remove("on"); } else { fe.click(); b.classList.add("on"); } return; } S.skForme=S.skForme==="edit"?"":"edit"; b.classList.toggle("on",S.skForme==="edit"); if(S.skForme!=="edit"){ sels=[]; redraw(); majLongueur(); } else toast("Touche un élément pour le déplacer (ou entoure-en plusieurs)"); });
   $$("[data-skgomme]").forEach(b=>b.onclick=()=>{ stopPlan(); const g=$("[data-pen='eraseObj']"); if(g){ choisirPen(g); toast("Touche l'élément à effacer"); } });
   $$("[data-skflip]").forEach(b=>b.onclick=()=>{ const s=(one()&&one().sy)?one():S.skDernier; if(!s||!strokes.includes(s)){ toast("Pose d'abord une porte (ou sélectionne-la)"); return; } s.m=-(s.m||1); commit(); });
   /* ---------- Style du texte (19/11/2026) : couleur, taille, gras ; s'applique aussi au(x) texte(s) sélectionné(s) ---------- */
@@ -2592,11 +2658,11 @@ function initSketch(o=S.ouv, cle="croquis"){
     const on=S.skForme!=="edit"; S.skForme=on?"edit":""; b.classList.toggle("on",on); if(!on){ sels=[]; redraw(); return; }
     texte=null; texteMain=false; $("#skTexteMain")?.classList.remove("on"); if(pen.startsWith("erase")){ const p1=$("[data-pen]:not([data-pen^='erase'])"); if(p1) choisirPen(p1,true); S.skForme="edit"; }
     toast("Touche le texte à modifier, puis une couleur, une taille ou « G gras » (glisse pour le déplacer)"); });
-  const quitterEdit=()=>{ if(sels.length){ sels=[]; redraw(); majBoutonSel(); } };
+  const quitterEdit=()=>{ if(sels.length){ sels=[]; redraw(); majBoutonSel(); } majLongueur(); };
   const choisirPen=(b,garderPlan)=>{ if(!garderPlan) stopPlan(); pen=b.dataset.pen;
     if(pen.startsWith("erase")){   // 19/11 : la gomme doit gommer, même si « Modifier », un symbole ou un texte était encore actif
       S.skPose=null; S.skTrait=null; $$("[data-sksym]").forEach(x=>x.classList.remove("on"));
-      if(S.skForme==="edit"||(S.skForme&&S.skForme!=="")){ S.skForme=""; $$("[data-forme]").forEach(x=>x.classList.toggle("on",x.dataset.forme==="")); $$("[data-skselt],[data-skedit]").forEach(x=>x.classList.remove("on")); sels=[]; lasso=null; redraw(); } } texte=null; texteMain=false; $("#skTexteMain")?.classList.remove("on"); $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); $$("[data-pen]").forEach(x=>x.classList.toggle("on",x===b)); };
+      if(S.skForme==="edit"||(S.skForme&&S.skForme!=="")){ S.skForme=""; $$("[data-forme]").forEach(x=>x.classList.toggle("on",x.dataset.forme==="")); $$("[data-skselt],[data-skedit]").forEach(x=>x.classList.remove("on")); sels=[]; lasso=null; redraw(); majLongueur(); } } texte=null; texteMain=false; $("#skTexteMain")?.classList.remove("on"); $$("[data-sktxt]").forEach(x=>x.classList.remove("on")); $$("[data-pen]").forEach(x=>x.classList.toggle("on",x===b)); };
   $$("[data-skstyle]").forEach(b=>b.onclick=()=>{ S.skStyle=b.dataset.skstyle; $$("[data-skstyle]").forEach(x=>x.classList.toggle("on",x===b)); if(pen.startsWith("erase")){ const p1=$("[data-pen]:not([data-pen^='erase'])"); if(p1) choisirPen(p1); } });
   $$("[data-skep]").forEach(b=>b.onclick=()=>{ S.skEp=+b.dataset.skep; $$("[data-skep]").forEach(x=>x.classList.toggle("on",x===b)); });
   const cp=$("#skPerso"); if(cp) cp.oninput=()=>{ cp.parentElement.dataset.pen=cp.value; cp.parentElement.style.background=cp.value; choisirPen(cp.parentElement); if(sels.length){ sels.forEach(s=>s.c=cp.value); commit(); } };
@@ -4269,6 +4335,12 @@ async function envoyerClemence(){
     const txt=`⚠ Attention : ${errs.length} erreur${errs.length>1?"s":""} à corriger avant d'envoyer à ${qui} :\n\n`
       +errs.slice(0,12).map(x=>`• ${x.ou} : ${x.e}`).join("\n")+(errs.length>12?`\n… et ${errs.length-12} autre(s)`:"")+`\n\nTu veux corriger maintenant ?`;
     if(await demander(txt,"Corriger maintenant","Envoyer quand même")){ allerErreur(errs[0].go); toast(`Corrige les points en rouge, puis renvoie à ${qui}`); return; }
+  }
+  /* 1 bis) questions Oui / Non pas encore validées (19/11) */
+  const qs=typeof questionsDossier==="function"?questionsDossier(d):[];
+  if(qs.length){
+    const txt=`❓ ${qs.length} question${qs.length>1?"s":""} à valider avant d'envoyer :\n\n`+qs.slice(0,10).map(q=>`• ${q.ou} : ${q.q}`).join("\n")+(qs.length>10?`\n… et ${qs.length-10} autre(s)`:"")+`\n\nTu veux y répondre maintenant ?`;
+    if(await demander(txt,"Répondre maintenant","Envoyer quand même")){ allerErreur(qs[0].go); toast("Réponds Oui / Non en bas, dans le contrôle"); return; }
   }
   /* 2) confirmation de l'envoi */
   const msg=`Envoyer « ${nom} » à ${qui}, dans ECHANGES › ${cible.nom} ?${cible===CLEMENCE.clim?"\n\n📧 Un mail la prévient juste après.":""}`

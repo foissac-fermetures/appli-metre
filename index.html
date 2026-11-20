@@ -5653,7 +5653,9 @@ async function synchroniserMetres(manuel=false){
         if(L.drive && L.drive.le && new Date(L.drive.le).getTime() >= tF-5000) continue;     // c'est notre propre envoi (ou plus ancien)
         const nonEnvoye = L.drive_attente || !L.drive || L.drive.sig!==empreinte(L);
         // modifié des deux côtés : la modification la plus récente gagne (celle de l'autre appareil si elle est postérieure à la dernière retouche ici)
-        if(nonEnvoye && !(L.modifie && new Date(L.modifie).getTime() < tF-5000)){
+        /* 20/11/2026 : des modifications pas encore envoyées depuis cet appareil ne sont JAMAIS écrasées toutes seules, même si l'autre version est plus récente
+           (cas « Clémence » : photo + poteaux 150 faits sur l'iPad hors réseau, portail supprimé ensuite sur le PC). On garde les deux et Nicolas choisit. */
+        if(nonEnvoye){
           /* modifié ici ET sur un autre appareil : on ne choisit plus tout seul (18/11/2026). La version du Drive est gardée à côté, rien ne repart vers le Drive tant que Nicolas n'a pas choisi. */
           R.drive={...(R.drive||{}), le:f.modifiedTime, dossier:(f.parents||[])[0]||R.drive?.dossier, base:f.name.replace(/\.json$/i,"")}; delete R.drive_attente; delete R._conflit;
           L._conflit={le:f.modifiedTime, R}; await DB.put(L,true); res.conflits.push(L.client?.nom||"Sans nom"); importes.add(R.id); continue; }

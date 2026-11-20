@@ -160,7 +160,7 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .vb-gd select{width:100%;font-size:15px;padding:6px 4px} .vb-gd th{font-size:13px}
 .vb-gt .vb-h{background:#eef3fa} .vb-gt .vb-v{background:#fff4e5} .vb-fl{font-size:22px;line-height:1;font-weight:700} .vb-gt input::placeholder{font-size:20px;opacity:.45}
 .vb-img{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:10px} .vb-img img{width:100%;border:1px solid #d6dbe6;border-radius:8px;background:#fff}
-.pt-des{position:relative;max-width:760px;margin:0 auto} .pt-des img{width:100%;display:block;border:1px solid #d6dbe6;border-radius:8px;background:#fff}
+.pt-des{position:relative;max-width:820px;margin:0 auto} .pt-des img,.pt-des svg{width:100%;height:auto;display:block;border:1px solid #d6dbe6;border-radius:8px;background:#fff}
 .pt-c{position:absolute;transform:translate(-50%,-50%);background:#fff;border:1.5px solid #1f4fd8;color:#1f4fd8;font-weight:700;font-size:13px;padding:1px 6px;border-radius:4px;white-space:nowrap;min-width:34px;text-align:center}
 .pt-c small{font-weight:400;color:#555}
 .obs-gr{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px 18px} .obs-t{font-size:12px;font-weight:700;color:var(--navy,#1b2f5e);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
@@ -2984,7 +2984,8 @@ const climSchemas = c => ["schema_etage","schema_bas",...(c.sch_extra||[])].filt
 const nomSchema = (c,k) => (c.sch_noms&&c.sch_noms[k]) || CLIM_SCH_DEF[k] || `Schéma ${climSchemas(c).indexOf(k)+1}`;
 /* ---------- Nouveau rendez-vous : un seul bouton, « Qu'est-ce qu'on mesure ? » (17/11/2026) ----------
    Crée le bon dossier client avec les bons devis : menuiseries / VR / portail / VB / portes palières ensemble, la clim TOUJOURS à part. */
-const TYPES_RDV = [["menuiseries","🪟 Menuiseries"],["vr","Volets roulants"],["pt","Portail / portillon"],["vb","Volets battants"],["pp","Portes palières (HUET)"],["vt","🪟 Remplacement de vitrage"],["clim","❄️ Climatisation (devis à part)"],["sav","🔧 SAV (fiche à part)"]];
+/* 20/11 : chaque type a son petit logo – en ajouter un pour tout nouveau type */
+const TYPES_RDV = [["menuiseries","🪟 Menuiseries"],["vr","🎚️ Volets roulants"],["pt","🏡 Portail / portillon"],["vb","🏠 Volets battants"],["pp","🚪 Portes palières (HUET)"],["vt","🪟 Remplacement de vitrage"],["clim","❄️ Climatisation (devis à part)"],["sav","🔧 SAV (fiche à part)"]];
 function initTypes(d, types){
   d.types=[...new Set([...(d.types||[]), ...types.filter(t=>t!=="clim"&&t!=="sav")])];
   if(types.includes("pt") && !aPT(d)){ d.pt=d.pt||nouveauPT(); if(!d.pt.elements.length) d.pt.elements.push(nouvelElementPT("BATTANT")); }
@@ -3126,11 +3127,24 @@ async function climUnDevisParGroupe(d){
 }
 
 const legendeClimHTML = () => `<div class="clim-leg">${CLIM_LEGENDE.map(x=>`<span><i style="background:${x.c}"></i>${esc(x.l)}</span>`).join("")}</div>`;
-const nouvelleClim = () => ({ mono:false, multi:false, modele:"", option:"", annee:"", temps_pose:"",
+const nouvelleClim = () => ({ mono:false, multi:false, modele:"TAKAO Plus", fournisseur:"Partedis", mes:"Chauffe-Clim", option:"", annee:"", temps_pose:"",
   ue1:{h_sol:"", cable:""}, ue2:{h_sol:"", cable:""}, dalle:false, supports:false, ral_ext:"", ral_int:"",
   lignes:[], observation:"", schema_etage:"", schema_bas:"", photos:[], tableau:{img:"", txt:"", place:""} });
 const nouvelleLigneClim = (variante=false) => ({ id:uid(), piece:"", volume:"", surface:"", vitrage:"Double", isol_murs:"", isol_plafond:"", isol_combles:"",
-  type:"Split", pompe:false, unite:"Unité 1", distance:"", variante, L:"", l:"", h:"" });
+  type:"Split", pompe:false, unite:"Unité 1", distance:"", variante, L:"", l:"", h:"", surf_sol:"", modele_ui:"", couleur:"Blanc mat", denivele:"" });
+/* ---------- Atlantic (19-20/11/2026) : Nicolas vend du Takao Plus (muraux), des consoles Takao, peu de gainables ; fournisseur Partedis ; mise en service Chauffe-Clim ----------
+   Références relevées dans la documentation commerciale Atlantic Takao Plus (muraux blanc mat / noir mat, consoles compactes KVCA). */
+const ATL_MURAUX = [[1.5,"873323","873324"],[2.0,"873319","873325"],[2.5,"873320","873326"],[3.4,"873321","873327"],[4.2,"873322","873328"]];
+const ATL_CONSOLES = [[2.5,"873227"],[3.5,"873228"],[4.0,"873229"]];
+const kwFr = p => String(p).replace(".",",");
+const CLIM_COULEURS_UI = ["Blanc mat","Noir mat"];
+const CLIM_FOURNISSEURS = ["Partedis"], CLIM_MES = ["Chauffe-Clim","Atlantic","Nous-mêmes"];
+function climModelesUI(l){ if(l.type==="Split") return ATL_MURAUX.map(([p])=>`Takao Plus ${kwFr(p)} kW`); if(l.type==="Console") return ATL_CONSOLES.map(([p])=>`Console Takao ${kwFr(p)} kW`); return []; }
+function climKwModele(l){ const m=String(l.modele_ui||"").match(/(\d+(?:[.,]\d+)?)\s*kW/i); return m?parseFloat(m[1].replace(",",".")):null; }
+function climRef(l){ const p=climKwModele(l); if(p==null) return ""; if(l.type==="Split"){ const r=ATL_MURAUX.find(x=>x[0]===p); return r?(l.couleur==="Noir mat"?r[2]:r[1]):""; } if(l.type==="Console"){ const r=ATL_CONSOLES.find(x=>x[0]===p); return r?r[1]:""; } return ""; }
+function climConseil(l){ const p=puissanceClim(l); if(p==null) return null; const L=l.type==="Split"?ATL_MURAUX.map(x=>x[0]):l.type==="Console"?ATL_CONSOLES.map(x=>x[0]):null; if(!L) return {p, kw:null};
+  const kw=L.find(x=>x>=p-0.05); return {p, kw:kw??L[L.length-1], trop:kw==null, modele:l.type==="Split"?`Takao Plus ${kwFr(kw??L[L.length-1])} kW`:`Console Takao ${kwFr(kw??L[L.length-1])} kW`}; }
+function texteConseil(l){ const c=climConseil(l); if(!c) return ""; return c.kw!=null?`≈ ${kwFr(c.p)} kW calculés → <b>${esc(c.modele)}</b>${c.trop?" <span class='cl-non'>(pièce trop grande pour un seul appareil ?)</span>":""}`:`≈ ${kwFr(c.p)} kW (indicatif)`; }
 const climLignes = d => (d.clim?.lignes||[]).filter(l=>!l.variante);
 const climVariantes = d => (d.clim?.lignes||[]).filter(l=>l.variante);
 const aClim = d => !!(d.clim && (d.clim.lignes.length || d.clim.modele));
@@ -3144,7 +3158,7 @@ function dessinPieceClim(l){ const L=num(l.L)||4, W=num(l.l)||3, r=Math.min(110/
     <path d="M${ux+14},${uy+5} L${x+w+30},${uy+5} L${x+w+30},${y+hh+18}" fill="none" stroke="#1f9d3a" stroke-width="2" stroke-dasharray="5 3"/>
     <rect x="${x+w+18}" y="${y+hh+16}" width="26" height="18" rx="2" fill="#d3232f"/><text x="${x+w+31}" y="${y+hh+28}" text-anchor="middle" font-size="8" fill="#fff" font-weight="700">UE</text>
     ${l.distance!==""&&l.distance!=null?`<text x="${x+w+34}" y="${(uy+y+hh+18)/2}" font-size="10" font-weight="700" fill="#1f9d3a">${esc(l.distance)} m</text>`:""}${l.pompe?`<text x="${x+2}" y="${y+hh+12}" font-size="8" fill="#00a3c4">+ pompe de relevage</text>`:""}</svg>`; }
-function puissanceClim(l){ const v=num(l.volume); if(v==null) return null;
+function puissanceClim(l){ const v=num(l.volume)??(num(l.surf_sol)!=null?Math.round(num(l.surf_sol)*(num(l.h)||2.5)*10)/10:null); if(v==null) return null;   // 20/11 : surface × hauteur (2,5 m par défaut) si pas de volume
   let w=35; if(l.vitrage==="Simple") w+=5; if(!num(l.isol_murs)) w+=5; if((num(l.isol_plafond)||0)<100 && (num(l.isol_combles)||0)<100) w+=5;
   return Math.round(v*w/100)/10; }
 function controleClim(d){
@@ -3160,12 +3174,18 @@ function controleClim(d){
     if(!ue.h_sol) W.push(`${pre}hauteur du sol de l'unité extérieure ${n} non renseignée`);
     if(!num(ue.cable)) W.push(`${pre}longueur de câble au tableau (unité ${n}) non renseignée`); });
   { const cf=climConfig(c), n1=climNbInt(d); if(cf && n1 && climNbUE(c)===1 && n1!==cf) W.push(`${climTypeNom(cf)} choisi mais ${n1} unité(s) intérieure(s) sur l'unité 1 (${climTypeNom(n1)} ?)`); }
-  climUnites(c).forEach(u=>{ const n=climLignes(d).filter(l=>l.unite===u).length; if(n>6) W.push(`${u} : ${n} unités intérieures (6 maximum : hexa-split)`); });
+  climUnites(c).forEach(u=>{ const L=climLignes(d).filter(l=>(l.unite||"Unité 1")===u), n=L.length;
+    if(n>5) W.push(`${u} : ${n} unités intérieures – Atlantic : 5 maximum par groupe (AOYG 36 KBTA5)`);
+    if(n===2 && L.some(l=>l.type==="Split"&&climKwModele(l)===4.2)) E.push(`${u} : Takao Plus 4,2 kW pas compatible avec le groupe bi-split (AOYG 14 KBTA2)`);
+    if(n===1){ const l=L[0], nom=l.piece||"pièce"; if(num(l.distance)>20) E.push(`${nom} : liaison de ${l.distance} m – Takao Plus mono-split : 20 m maximum`); if(num(l.denivele)>15) E.push(`${nom} : dénivelé de ${l.denivele} m – mono-split : 15 m maximum`); }
+    else if(n>1) L.forEach(l=>{ if(num(l.denivele)>70) E.push(`${l.piece||"pièce"} : dénivelé de ${l.denivele} m – multi-split : 70 m maximum`); }); });
+  climLignes(d).forEach((l,i)=>{ if(["Split","Console"].includes(l.type) && !l.modele_ui) W.push(`${l.piece||"pièce "+(i+1)} : modèle Atlantic (puissance) non choisi`); });
+  if(!c.mes) W.push("Mise en service : préciser qui la fait (Chauffe-Clim ?)");
   c.lignes.forEach((l,i)=>{ const nom=`${l.variante?"Variante – ":""}${l.piece||"pièce "+(i+1)}`;
     if(!l.piece) W.push(`Ligne ${i+1} : pièce non renseignée`);
     if(num(l.volume)==null) W.push(`${nom} : volume (m³) manquant`);
     if(num(l.distance)==null) W.push(`${nom} : distance unité intérieure / extérieure manquante`);
-    else if(num(l.distance)>15) W.push(`${nom} : liaison de ${l.distance} m (au-delà de 15 m, vérifier la longueur maxi et le complément de gaz)`); });
+    else if(num(l.distance)>15 && num(l.distance)<=20) W.push(`${nom} : liaison de ${l.distance} m (groupe préchargé pour 15 m : complément de gaz à prévoir)`); });
   return {E,W};
 }
 
@@ -3181,8 +3201,10 @@ function renderClim(t){
         <label class="f">Pièce<div class="rep-in"><input data-k="${k}piece" value="${esc(l.piece)}" list="dlPiecesClim">${boutonRep(k+"piece")}</div></label>
         <label class="f">Volume (m³)<div class="row" style="gap:6px;flex-wrap:nowrap"><input data-k="${k}volume" inputmode="decimal" value="${esc(l.volume)}"><button class="btn small" data-clcalc="${i}" title="Calculer avec longueur × largeur × hauteur">L×l×h</button></div></label>
         ${F.numb(k+"surface","Surface vitrée de la pièce (m²)",l.surface)}${F.sel(k+"vitrage","Vitrage",["Simple","Double"],l.vitrage)}
-        ${F.numb(k+"isol_murs","Isolation des murs (cm)",l.isol_murs)}${F.numb(k+"isol_plafond","Isolation du plafond (cm)",l.isol_plafond)}${F.numb(k+"isol_combles","Isolation des combles (cm)",l.isol_combles)}${F.sel(k+"type","Type",CLIM_TYPES,l.type)}
-        ${F.sel(k+"unite","Groupement sur l'unité",climUnites(c),l.unite)}${F.numb(k+"distance","Distance unité int. → unité ext. (m)",l.distance)}
+        ${F.numb(k+"isol_murs","Isolation des murs (cm)",l.isol_murs)}${F.numb(k+"isol_plafond","Isolation du plafond (cm)",l.isol_plafond)}${F.numb(k+"isol_combles","Isolation des combles (cm)",l.isol_combles)}${F.numb(k+"surf_sol","Surface de la pièce (m²)",l.surf_sol)}
+        ${F.sel(k+"type","Type",CLIM_TYPES,l.type)}${climModelesUI(l).length?F.sel(k+"modele_ui","Modèle Atlantic",climModelesUI(l),l.modele_ui):F.text(k+"modele_ui","Modèle Atlantic",l.modele_ui)}${l.type==="Split"?F.sel(k+"couleur","Couleur",CLIM_COULEURS_UI,l.couleur):"<div></div>"}
+        <div class="hint" style="align-self:end" id="climC${i}">${texteConseil(l)}${climConseil(l)?.modele&&climConseil(l).modele!==l.modele_ui?` <button class="btn small" data-clconseil="${i}">Prendre</button>`:""}</div>
+        ${F.sel(k+"unite","Groupement sur l'unité",climUnites(c),l.unite)}${F.numb(k+"distance","Distance unité int. → unité ext. (m)",l.distance)}${F.numb(k+"denivele","Dénivelé avec le groupe (m)",l.denivele)}
         <div class="checks" style="align-self:end">${F.chk(k+"pompe","Pompe de relevage",l.pompe)}</div>
       </div>
       <div class="grid g4 clim-calc ${S.climCalc===i?"":"hide"}" id="climCalc${i}" style="margin-top:8px">${F.numb(k+"L","Longueur (m)",l.L)}${F.numb(k+"l","Largeur (m)",l.l)}${F.numb(k+"h","Hauteur sous plafond (m)",l.h)}<div class="hint" style="align-self:end">Le volume se calcule tout seul.</div></div></div>`; };
@@ -3199,6 +3221,8 @@ function renderClim(t){
       <div class="hint" id="clConfAide" style="margin:4px 0 8px">Mono 1 · Bi 2 · Tri 3 · Quadri 4 · Penta 5 · Hexa 6 unités intérieures${(()=>{ const n=climNbInt(d); return n?` – <b>d'après les pièces : ${n} sur l'unité 1 → ${climTypeNom(n)}</b>`:""; })()}</div>
       <div class="checks">${F.chk("clim.wifi","📶 Connectable Wi-Fi",c.wifi)}</div>
       <div id="clWifi" class="cl-wifi${c.wifi?"":" hide"}">📶 À prévoir : <b>${esc(climWifiTexte(c))}</b></div>
+      <div class="grid g2" style="margin-top:10px">${txt("clim.fournisseur","Fournisseur (Atlantic)",c.fournisseur??"Partedis","dlClimFrn")}${txt("clim.mes","Mise en service par",c.mes??"Chauffe-Clim","dlClimMes")}</div>
+      <datalist id="dlClimFrn">${CLIM_FOURNISSEURS.map(x=>`<option value="${x}">`).join("")}</datalist><datalist id="dlClimMes">${CLIM_MES.map(x=>`<option value="${x}">`).join("")}</datalist>
       <div class="grid g2" style="margin-top:10px">${txt("clim.modele","Modèle",c.modele,"dlClimMod")}${txt("clim.option","Option",c.option,"dlClimOpt")}
         ${txt("clim.annee","Année de la maison",c.annee,"",'inputmode="numeric"')}${txt("clim.temps_pose","Temps de pose (estimation)",c.temps_pose,"dlClimTps")}</div></div>
     <div class="card"><h2><span class="num">2</span>Unités extérieures <small style="font-weight:400;text-transform:none">– ${climNbUE(c)} groupe(s)</small></h2><div class="grid g2">
@@ -3255,6 +3279,7 @@ function renderClim(t){
   $$("[data-cldel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer cette pièce ?","Supprimer")) return; c.lignes.splice(+b.dataset.cldel,1); save(); re(); });
   $$("[data-cldup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.cldup, n=JSON.parse(JSON.stringify(c.lignes[i])); n.id=uid(); c.lignes.splice(i+1,0,n); save(); re(); });
   $$("[data-clvar]").forEach(b=>b.onclick=()=>{ const l=c.lignes[+b.dataset.clvar]; l.variante=!l.variante; save(); re(); });
+  brancherConseil();
   $$("[data-clcalc]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.clcalc; S.climCalc = S.climCalc===i ? null : i; $("#climCalc"+i).classList.toggle("hide"); });
   $$("[data-clsch]").forEach(b=>b.onclick=()=>{ S.climSch=b.dataset.clsch; re(); });
   const majWifi=()=>setTimeout(()=>{ const w=$("#clWifi"); if(!w) return; w.classList.toggle("hide",!c.wifi); w.innerHTML=`📶 À prévoir : <b>${esc(climWifiTexte(c))}</b>`; },0);
@@ -3277,11 +3302,14 @@ function renderClim(t){
   $$("[data-tabedit]").forEach(b=>b.onclick=()=>annoterPhoto(0, {photos:[c.tableau]}, re));
 }
 /* Mise à jour sans tout redessiner (garde le curseur dans la case) */
+function brancherConseil(){ $$("[data-clconseil]").forEach(b=>b.onclick=()=>{ const l=S.dossier.clim.lignes[+b.dataset.clconseil], cs=climConseil(l); if(!cs?.modele) return; l.modele_ui=cs.modele; save(); const y=scrollY; renderDossier(); scrollTo(0,y); toast(`${cs.modele} choisi`); }); }
 function majClim(k){
   const d=S.dossier, c=d.clim; if(!c) return; const m=String(k).match(/^clim\.lignes\.(\d+)\.(\w+)/);
   if(m){ const i=+m[1], l=c.lignes[i];
     if(["L","l","h"].includes(m[2])){ const v=[l.L,l.l,l.h].map(num); if(v.every(x=>x!=null)){ l.volume=String(Math.round(v[0]*v[1]*v[2]*10)/10); const inp=$(`[data-k="clim.lignes.${i}.volume"]`); if(inp) inp.value=l.volume; save(); } }
-    const z=$("#climP"+i), p=puissanceClim(l); if(z) z.textContent=p!=null?`≈ ${String(p).replace(".",",")} kW (indicatif)`:""; }
+    const z=$("#climP"+i), p=puissanceClim(l); if(z) z.textContent=p!=null?`≈ ${String(p).replace(".",",")} kW (indicatif)`:"";
+    if(m[2]==="type"){ l.modele_ui=""; save(); const y=scrollY; renderDossier(); scrollTo(0,y); return; }
+    const zc=$("#climC"+i); if(zc){ const cs=climConseil(l); zc.innerHTML=texteConseil(l)+(cs?.modele&&cs.modele!==l.modele_ui?` <button class="btn small" data-clconseil="${i}">Prendre</button>`:""); brancherConseil(); } }
 }
 
 /* ---------- PDF : même présentation que la feuille Numbers ---------- */
@@ -3300,12 +3328,12 @@ function pagesClim(d){
   const carte=(l,n,variante)=>{ const p=puissanceClim(l), dims=[l.L,l.l,l.h].some(x=>x)?`${esc(l.L||"?")} × ${esc(l.l||"?")} × ${esc(l.h||"?")} m`:"";
     const isol=[["murs",l.isol_murs],["plafond",l.isol_plafond],["combles",l.isol_combles]].filter(x=>x[1]!==""&&x[1]!=null).map(([k,v])=>`${k} ${esc(v)}`).join(" · ");
     return `<div class="cl-carte${variante?" var":""}"><div class="cl-ch"><span class="cl-n">${n}</span><b>${esc(l.piece||"Pièce sans nom")}</b>${variante?`<span class="cl-badge v">VARIANTE</span>`:""}<span class="cl-badge">${esc(l.type||"type ?")}</span><span class="cl-badge ue">${esc(l.unite||"Unité 1")}</span></div>
-      <div class="cl-cb">${dessinPieceClim(l)}<table class="cl-mini">${tr("Dimensions (L × l × h)",dims)}${tr("Volume",l.volume!==""?esc(l.volume)+" m³":"")}${tr("Surface vitrée",[l.surface!==""?esc(l.surface)+" m²":"", l.vitrage?"vitrage "+esc(l.vitrage).toLowerCase():""].filter(Boolean).join(" – "))}
+      <div class="cl-cb">${dessinPieceClim(l)}<table class="cl-mini">${tr("Modèle Atlantic",l.modele_ui?`<b>${esc(l.modele_ui)}</b>${l.type==="Split"?" – "+esc(l.couleur||"Blanc mat").toLowerCase():""}${climRef(l)?` <small>(réf. ${climRef(l)})</small>`:""}`:"")}${tr("Dimensions (L × l × h)",dims)}${tr("Surface de la pièce",l.surf_sol!==""&&l.surf_sol!=null?esc(l.surf_sol)+" m²":"")}${tr("Dénivelé avec le groupe",l.denivele?esc(l.denivele)+" m":"")}${tr("Volume",l.volume!==""?esc(l.volume)+" m³":"")}${tr("Surface vitrée",[l.surface!==""?esc(l.surface)+" m²":"", l.vitrage?"vitrage "+esc(l.vitrage).toLowerCase():""].filter(Boolean).join(" – "))}
         ${tr("Isolation (cm)",isol)}${tr("Distance jusqu'au groupe",l.distance!==""?`<b>${esc(l.distance)} m</b>`:"")}${tr("Pompe de relevage",oui(l.pompe))}${tr("Puissance conseillée",p!=null?`≈ ${String(p).replace(".",",")} kW <small>(indicatif)</small>`:"")}</table></div></div>`; };
   const cartes=[...P.map((l,i)=>carte(l,i+1,false)), ...V.map((l,i)=>carte(l,"V"+(i+1),true))];
   let h=`<div class="pg cl-pg">${head("Métré climatisation")}
     <div class="cl-haut">
-      <table class="pt pdt cl-t"><tr class="pdir"><th colspan="2">INSTALLATION</th></tr>${tr("Type",(()=>{ const cf=climConfig(c), n1=climNbInt(d); return cf?`<b>${climTypeNom(cf)}</b> (${cf} unité${cf>1?"s":""} intérieure${cf>1?"s":""})`:n1?`${climTypeNom(n1)} <small>(d'après les pièces)</small>`:c.multi?"Multi-split":""; })())}${tr("Modèle",esc(c.modele))}${tr("Option",esc(c.option))}${tr("Connectable Wi-Fi",c.wifi?"<b>OUI</b>":"")}${tr("Année de la maison",esc(c.annee))}
+      <table class="pt pdt cl-t"><tr class="pdir"><th colspan="2">INSTALLATION</th></tr>${tr("Marque / gamme",`Atlantic – ${esc(c.modele||"TAKAO Plus")}`)}${tr("Fournisseur",esc(c.fournisseur??"Partedis"))}${tr("Mise en service",c.mes??"Chauffe-Clim"?`<b>${esc(c.mes??"Chauffe-Clim")}</b>`:"")}${tr("Type",(()=>{ const cf=climConfig(c), n1=climNbInt(d); return cf?`<b>${climTypeNom(cf)}</b> (${cf} unité${cf>1?"s":""} intérieure${cf>1?"s":""})`:n1?`${climTypeNom(n1)} <small>(d'après les pièces)</small>`:c.multi?"Multi-split":""; })())}${tr("Modèle",esc(c.modele))}${tr("Option",esc(c.option))}${tr("Connectable Wi-Fi",c.wifi?"<b>OUI</b>":"")}${tr("Année de la maison",esc(c.annee))}
         ${tr("Unités intérieures",`${P.length}${V.length?` (+ ${V.length} en variante)`:""}`)}${tr("Puissance totale conseillée",pTot?`≈ ${String(Math.round(pTot*10)/10).replace(".",",")} kW <small>(indicatif)</small>`:"")}${tr("Temps de pose estimé",esc(c.temps_pose))}</table>
       <div>${ue}</div>
       <table class="pt pdt cl-t"><tr class="pdir"><th colspan="2">FINITIONS ET À PRÉVOIR</th></tr>${tr("Dalle béton",oui(c.dalle))}${tr("Supports muraux",oui(c.supports))}${tr("Goulottes extérieures",esc(c.ral_ext))}${tr("Goulottes intérieures",esc(c.ral_int))}${tr("Wi-Fi à prévoir",c.wifi?`<b>${esc(climWifiTexte(c))}</b>`:"")}
@@ -3724,10 +3752,11 @@ const motorisePT = e => e.moto==="Électrique" || e.moto==="Solaire";
 const texteMotoPT = e => motorisePT(e) ? [e.moto, e.moto_marque, e.moto_type, e.moto_modele].filter(Boolean).join(" · ") : "";
 const PT_OPTIONS = ["Crapaudine","Digi code","Télécommande supplémentaire","Pilier à sceller 100 par 100","Pilier à sceller 150 par 150","Pilier à visser 100 par 100","Pilier à visser 150 par 150"];
 const PT_DIM = ["ENTRE PILE","Fabrication"];
-const PT_DEDUCTION = 100;   // feuille de Nicolas : « Si portail battant −100 mm / si portail coulissant −100 mm »
+const PT_DEDUCTION = 0;   // 20/11 : Nicolas – la fabrication est TOUJOURS la largeur entre piliers, on ne déduit pas de jeu (avant : −100 mm)
+const PT_H_MODES = ["Hauteur pilier − 130 mm","Hauteur choisie par le client"], PT_H_RETRAIT = 130;
 const nouveauPT = () => ({ ref:"", jours:"", elements:[], photos:[] });
 const nouvelElementPT = (type="BATTANT") => ({ id:uid(), type, modele:"", couleur:"", finition:"", lames:"", poignee:"", moto:"", sens:"", dim:"ENTRE PILE", inegaux:false, vantail_p:"",
-  moto_type:"", moto_marque:"", moto_modele:"", L:"", H:"", h_pilier:"", l_pilier:"", options:[], gond_pente:false, pente_l:"", pente_h:"", traverse:"", plan_resa:false, refoulement:"", obs:"" });
+  moto_type:"", moto_marque:"", moto_modele:"", L:"", H:"", h_pilier:"", l_pilier:"", options:[], gond_pente:false, pente_l:"", pente_h:"", traverse:"", traverse_l:"", h_mode:PT_H_MODES[0], plan_resa:false, refoulement:"", obs:"" });
 /* ---------- Fiche SAV (18/11/2026) : même fiche que celle de M. Souladier (05/11/2026), à remplir chez le client ----------
    Toujours un document à part (comme la clim). PDF : une page A4 « FICHE SAV · … » (client, résumé, fournitures, intervention / désordres, photos). */
 const SAV_TITRES = ["Révision des menuiseries","Réglage menuiserie","Volet roulant en panne","Volet battant à reprendre","Porte d'entrée à régler","Vitrage cassé / fêlé","Infiltration d'eau / d'air","Portail / motorisation","Porte de garage"];
@@ -3952,6 +3981,8 @@ function pagesVT(d, head, row){
 }
 const aPT = d => !!(d.pt && d.pt.elements.length);
 function fabPT(e){ const L=num(e.L); if(L==null) return null; return e.dim==="ENTRE PILE" ? L-PT_DEDUCTION : L; }
+const hModePT = e => e.h_mode||PT_H_MODES[0];
+function hauteurAutoPT(e){ return hModePT(e)===PT_H_MODES[0] && num(e.h_pilier)!=null ? num(e.h_pilier)-PT_H_RETRAIT : null; }
 function controlePT(d){
   const p=d.pt, E=[], W=[]; if(!p) return {E,W};
   if(!p.jours) W.push("Jours de pose non estimés");
@@ -3970,17 +4001,54 @@ function controlePT(d){
     if(e.type==="COULISSANT" && num(e.refoulement)==null) W.push(`${n} : longueur de refoulement disponible à relever`);
     if(motorisePT(e)){ if(!e.moto_marque) W.push(`${n} : marque du moteur non choisie (Somfy en priorité)`); if(!e.moto_type) W.push(`${n} : type de moteur (bras, vérins, enterré, engrenage) non choisi`); else if(!motoTypesPT(e).includes(e.moto_type)) E.push(`${n} : moteur « ${e.moto_type} » incompatible avec un ${e.type.toLowerCase()}`); if(!e.moto_modele) W.push(`${n} : modèle de moteur non renseigné`);
       if(e.moto_type==="À vérins" && num(e.l_pilier)!=null && num(e.l_pilier)<150) W.push(`${n} : vérins sur piliers de ${e.l_pilier} mm – vérifier la place pour les pattes de fixation`); }
+    if(hModePT(e)===PT_H_MODES[0] && num(e.h_pilier)==null) W.push(`${n} : hauteur du pilier manquante (hauteur du portail = pilier − ${PT_H_RETRAIT})`);
     if(["Électrique","Solaire"].includes(e.moto) && e.type==="BATTANT" && num(e.l_pilier)==null) W.push(`${n} : motorisé → relever la largeur des piliers (fixation des bras / vérins)`);
     if(e.moto==="Électrique" && !/électrique/i.test(e.obs) && !e.plan_resa) W.push(`${n} : motorisation électrique → prévoir l'alimentation (fourreau) et le plan de réservation`); });
   return {E,W};
 }
 /* Dessin avec les cotes posées dessus (même idée que les cases de la feuille Numbers) */
+/* Dessin automatique du portail (20/11/2026), comme les fenêtres : piliers, vantaux, traverse, sens, et toutes les cotes avec flèches */
 function dessinPT(e, cls=""){
-  const port=e.type==="PORTILLON", f=fabPT(e), v=x=>x!==""&&x!=null?esc(x):"&nbsp;&nbsp;&nbsp;&nbsp;";
-  const tag=(x,y,t,lab)=>`<span class="pt-c" style="left:${x}%;top:${y}%" title="${esc(lab)}">${t}</span>`;
-  const larg = e.L!=="" ? `${esc(e.L)}${e.dim==="ENTRE PILE"&&f!=null?` <small>(fab. ${f})</small>`:""}` : v("");
-  return `<div class="pt-des ${cls}">${port?`<img src="img/pt-portillon.jpg" alt="Portillon">${tag(15,49.5,v(e.h_pilier),"Hauteur pilier")}${tag(79.8,55,v(e.H),"Hauteur portillon")}${tag(50,95.5,larg,"Largeur")}`
-    :`<img src="img/pt-portail.jpg" alt="Portail">${tag(7.5,50,v(e.l_pilier),"Largeur pilier")}${tag(84.9,53.7,v(e.H),"Hauteur portail")}${tag(96.4,47,v(e.h_pilier),"Hauteur pilier")}${tag(46.6,94.5,larg,"Largeur")}`}</div>`;
+  const port=e.type==="PORTILLON", coul=e.type==="COULISSANT", n=x=>num(x);
+  const L=n(e.L)??(port?1000:3000), lp=n(e.l_pilier)??(port?250:350), hp=n(e.h_pilier)??((n(e.H)??1600)+PT_H_RETRAIT), H=n(e.H)??Math.max(800,hp-PT_H_RETRAIT), tr=n(e.traverse), trl=n(e.traverse_l);
+  const totW=2*lp+L, totH=Math.max(hp,H,(tr||0)+(trl||0))*1.02, VW=820, VH=460, mL=110, mR=130, mT=70, mB=95, k=Math.min((VW-mL-mR)/totW,(VH-mT-mB)/totH);
+  const x0=mL+((VW-mL-mR)-totW*k)/2, y0=VH-mB, X=v=>x0+v*k, Y=v=>y0-v*k, f=v=>Math.round(v*10)/10;
+  const val=(x,def)=>x!==""&&x!=null?esc(x):`<tspan fill="#d3232f">${def||"?"}</tspan>`;
+  const fl=(x1,y1,x2,y2,txt,horiz=true,dx=0,dy=0)=>{ const mx=(x1+x2)/2+dx, my=(y1+y2)/2+dy, w=Math.max(46,String(txt).replace(/<[^>]+>/g,"").length*7.6+14);
+    return `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="#1f4fd8" stroke-width="1.6" marker-start="url(#ptFl)" marker-end="url(#ptFl)"/>
+      <rect x="${f(mx-w/2)}" y="${f(my-11)}" width="${f(w)}" height="22" rx="4" fill="#fff" stroke="#1f4fd8"/><text x="${f(mx)}" y="${f(my+5)}" text-anchor="middle" font-size="13" font-weight="700" fill="#1f4fd8">${txt}</text>`; };
+  const att=(x,y1,y2)=>`<line x1="${f(x)}" y1="${f(y1)}" x2="${f(x)}" y2="${f(y2)}" stroke="#9aa6c2" stroke-dasharray="3 3"/>`, attH=(y,x1,x2)=>`<line x1="${f(x1)}" y1="${f(y)}" x2="${f(x2)}" y2="${f(y)}" stroke="#9aa6c2" stroke-dasharray="3 3"/>`;
+  const lames=(a,b,c,d2)=>{ const sens=e.lames||"VERTICALES", out=[]; const pas=Math.max(9,(c-a)/14);
+    if(sens==="HORIZONTALES"){ for(let yy=b+pas;yy<d2-2;yy+=pas) out.push(`<line x1="${f(a+3)}" y1="${f(yy)}" x2="${f(c-3)}" y2="${f(yy)}"/>`); }
+    else if(sens==="45°"){ for(let t=pas;t<(c-a)+(d2-b);t+=pas){ const xa=a+Math.max(0,t-(d2-b)), ya=d2-Math.min(t,d2-b), xb=a+Math.min(t,c-a), yb=d2-Math.max(0,t-(c-a)); out.push(`<line x1="${f(xa)}" y1="${f(ya)}" x2="${f(xb)}" y2="${f(yb)}"/>`); } }
+    else { for(let xx=a+pas;xx<c-2;xx+=pas) out.push(`<line x1="${f(xx)}" y1="${f(b+3)}" x2="${f(xx)}" y2="${f(d2-3)}"/>`); }
+    return `<g stroke="#8592b0" stroke-width="1">${out.join("")}</g>`; };
+  const panneau=(a,c)=>`<rect x="${f(a)}" y="${f(Y(H))}" width="${f(c-a)}" height="${f(y0-4-Y(H))}" fill="#eef2fa" stroke="#1b2f5e" stroke-width="2.5"/>${lames(a,Y(H),c,y0-4)}`;
+  let g="";
+  // sol + piliers
+  g+=`<line x1="${f(x0-40)}" y1="${y0}" x2="${f(X(totW)+40)}" y2="${y0}" stroke="#555" stroke-width="2"/><text x="${f(x0-38)}" y="${y0+14}" font-size="11" fill="#555">sol</text>`;
+  const pil=a=>`<rect x="${f(X(a))}" y="${f(Y(hp))}" width="${f(lp*k)}" height="${f(hp*k)}" fill="#d9dde6" stroke="#1b2f5e" stroke-width="2"/><rect x="${f(X(a)-3)}" y="${f(Y(hp)-6)}" width="${f(lp*k+6)}" height="6" fill="#b7bfd0" stroke="#1b2f5e"/>`;
+  g+=pil(0)+pil(lp+L);
+  const a=X(lp)+2, c=X(lp+L)-2;
+  if(coul){ g+=panneau(a,c)+`<line x1="${f(X(0)-L*k*0.6)}" y1="${y0-2}" x2="${f(c)}" y2="${y0-2}" stroke="#1b2f5e" stroke-width="3"/>`
+      +`<line x1="${f((a+c)/2+40)}" y1="${f(Y(H/2))}" x2="${f((a+c)/2-40)}" y2="${f(Y(H/2))}" stroke="#d3232f" stroke-width="3" marker-end="url(#ptFlR)"/><text x="${f((a+c)/2)}" y="${f(Y(H/2)-10)}" text-anchor="middle" font-size="12" fill="#d3232f" font-weight="700">coulisse${n(e.refoulement)?` – refoulement ${esc(e.refoulement)}`:""}</text>`; }
+  else if(port){ g+=panneau(a,c)+`<circle cx="${f(c-12)}" cy="${f(Y(H*0.5))}" r="4" fill="#1b2f5e"/>`; }
+  else { const gv=e.inegaux&&n(e.vantail_p)?Math.min(L-200,n(e.vantail_p)):L/2, m=X(lp+gv);
+    g+=panneau(a,m-1)+panneau(m+1,c)+`<circle cx="${f(m-10)}" cy="${f(Y(H*0.5))}" r="4" fill="#1b2f5e"/><circle cx="${f(m+10)}" cy="${f(Y(H*0.5))}" r="4" fill="#1b2f5e"/>`;
+    if(e.inegaux&&n(e.vantail_p)) g+=fl(a,Y(H)-16,m,Y(H)-16,`${esc(e.vantail_p)}`); }
+  // traverse
+  if(tr){ const th=Math.max(4,(trl||100)*k); g+=`<rect x="${f(X(lp))}" y="${f(Y(tr)-th)}" width="${f(L*k)}" height="${f(th)}" fill="#c9d1e3" stroke="#1b2f5e" stroke-width="2"/>`;
+    g+=att(X(lp+L)-14,y0,Y(tr))+fl(X(lp+L)-28,y0,X(lp+L)-28,Y(tr),`traverse ${esc(e.traverse)}`,false);
+    if(trl) g+=`<text x="${f(X(lp+L/2))}" y="${f(Y(tr)-th-6)}" text-anchor="middle" font-size="12" font-weight="700" fill="#1f4fd8">largeur traverse ${esc(e.traverse_l)}</text>`; }
+  // cotes
+  g+=att(X(lp),y0,y0+46)+att(X(lp+L),y0,y0+46)+fl(X(lp),y0+38,X(lp+L),y0+38,`${val(e.L)}${e.dim==="ENTRE PILE"?" entre piliers = fab.":" fab."}`);
+  if(!port||e.l_pilier) g+=attH(Y(hp)-6,X(0),X(0))+att(X(0),Y(hp)-6,Y(hp)-26)+att(X(lp),Y(hp)-6,Y(hp)-26)+fl(X(0),Y(hp)-20,X(lp),Y(hp)-20,val(e.l_pilier),true,0,-24)+`<text x="${f(X(lp/2))}" y="${f(Y(hp)-62)}" text-anchor="middle" font-size="11" fill="#555">largeur pilier</text>`;
+  g+=attH(Y(hp),X(totW),X(totW)+52)+fl(X(totW)+44,y0,X(totW)+44,Y(hp),val(e.h_pilier),false)+`<text x="${f(X(totW)+44)}" y="${f(Y(hp)-10)}" text-anchor="middle" font-size="11" fill="#555">pilier</text>`;
+  g+=attH(Y(H),X(0)-52,X(lp))+fl(X(0)-44,y0,X(0)-44,Y(H),val(e.H),false)+`<text x="${f(X(0)-44)}" y="${f(Y(H)-10)}" text-anchor="middle" font-size="11" fill="#555">${hModePT(e)===PT_H_MODES[0]?"pilier − 130":"portail"}</text>`;
+  const sous=[e.type==="BATTANT"?"Portail battant":coul?"Portail coulissant":"Portillon", e.sens&&!coul?e.sens.toLowerCase()+" (vue ext.)":"", motorisePT(e)?`moteur ${[e.moto_marque,e.moto_type].filter(Boolean).join(" ")}`:"", e.gond_pente?"gond de pente":""].filter(Boolean).join(" · ");
+  return `<div class="pt-des ${cls}"><svg viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg" font-family="Arial,sans-serif" role="img" aria-label="${esc(sous)}">
+    <defs><marker id="ptFl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="#1f4fd8"/></marker><marker id="ptFlR" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,1 L9,5 L0,9 z" fill="#d3232f"/></marker></defs>
+    <rect width="${VW}" height="${VH}" fill="#fff"/>${g}<text x="${VW/2}" y="${VH-14}" text-anchor="middle" font-size="13" font-weight="700" fill="#1b2f5e">${esc(sous)}</text></svg></div>`;
 }
 function renderPT(t){
   const d=S.dossier; if(!d.pt) d.pt=nouveauPT(); const p=d.pt;
@@ -3990,9 +4058,10 @@ function renderPT(t){
       <div class="grid g4">
         <label class="f">Modèle<input data-k="${k}modele" value="${esc(e.modele)}" list="dlPtMod"></label>${F.sel(k+"couleur","Couleur",PT_COULEURS,e.couleur)}${F.sel(k+"finition","Finition de la couleur",PT_FINITIONS,e.finition)}${F.sel(k+"lames","Lames",PT_LAMES,e.lames)}
         ${F.sel(k+"poignee","Poignée",PT_POIGNEES,e.poignee)}${F.sel(k+"moto","Motorisation",PT_MOTO,e.moto)}${e.type!=="COULISSANT"?F.sel(k+"sens","Sens d'ouverture vue extérieure",PT_SENS,e.sens):"<div></div>"}<div></div>
-        ${F.sel(k+"dim","Dimension",PT_DIM,e.dim)}${F.numb(k+"L",e.dim==="ENTRE PILE"?"Largeur entre piliers (mm)":"Largeur fabrication (mm)",e.L)}${F.numb(k+"H","Hauteur (mm)",e.H)}
-        <div class="hint" style="align-self:end" id="ptFab${i}">${e.dim==="ENTRE PILE"&&f!=null?`Fabrication : <b>${f}</b> mm (entre piliers − ${PT_DEDUCTION})`:""}</div>
-        ${F.numb(k+"h_pilier","Hauteur pilier (mm)",e.h_pilier)}${e.type==="PORTILLON"?"<div></div>":F.numb(k+"l_pilier","Largeur pilier (mm)",e.l_pilier)}${F.numb(k+"traverse","Hauteur traverse si besoin (mm)",e.traverse)}${e.type==="COULISSANT"?F.numb(k+"refoulement","Refoulement disponible (mm)",e.refoulement):"<div></div>"}
+        ${F.sel(k+"dim","Dimension",PT_DIM,e.dim)}${F.numb(k+"L",e.dim==="ENTRE PILE"?"Largeur entre piliers (mm)":"Largeur fabrication (mm)",e.L)}
+        <div class="hint" style="align-self:end" id="ptFab${i}">${e.dim==="ENTRE PILE"&&f!=null?`Fabrication : <b>${f}</b> mm (= entre piliers, sans jeu)`:""}</div><div></div>
+        ${F.sel(k+"h_mode","Hauteur du portail",PT_H_MODES,hModePT(e))}${F.numb(k+"H",hModePT(e)===PT_H_MODES[0]?"Hauteur fabrication (mm) – calculée":"Hauteur voulue par le client (mm)",e.H)}
+        ${F.numb(k+"h_pilier","Hauteur pilier (mm)",e.h_pilier)}${e.type==="PORTILLON"?"<div></div>":F.numb(k+"l_pilier","Largeur pilier (mm)",e.l_pilier)}${F.numb(k+"traverse","Hauteur traverse si besoin (mm)",e.traverse)}${F.numb(k+"traverse_l","Largeur traverse si besoin (mm)",e.traverse_l)}${e.type==="COULISSANT"?F.numb(k+"refoulement","Refoulement disponible (mm)",e.refoulement):"<div></div>"}
       </div>
       ${motorisePT(e)?`<div class="pt-moto"><div class="obs-t">Motorisation ${esc(e.moto.toLowerCase())}</div><div class="grid g4">
         ${F.sel(k+"moto_marque","Marque",PT_MARQUES,e.moto_marque)}${F.sel(k+"moto_type","Type de moteur",motoTypesPT(e),e.moto_type)}
@@ -4006,7 +4075,7 @@ function renderPT(t){
   t.innerHTML=`<datalist id="dlPtMod">${PT_MODELES.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
   <div class="card"><h2><span class="num">1</span>Portails et portillons – GardenGate</h2><div class="grid g4">
     ${F.text("pt.ref","Réf. chantier",p.ref)}${F.text("pt.jours","Jours de pose estimés",p.jours)}</div>
-    <p class="hint">Date et métreur repris du métré. Fabrication = entre piliers − ${PT_DEDUCTION} mm (règle de ta feuille).</p></div>
+    <p class="hint">Date et métreur repris du métré. Fabrication = largeur entre piliers (pas de jeu déduit) ; hauteur = pilier − ${PT_H_RETRAIT} mm ou hauteur choisie par le client.</p></div>
   <div class="row" style="margin:14px 0 8px"><h2 style="margin:0"><span class="num">2</span> Éléments</h2><span class="spacer"></span>
     <button class="btn" id="ptAddP">+ Portillon</button><button class="btn" id="ptAddC">+ Coulissant</button><button class="btn primary" id="ptAddB">+ Portail battant</button></div>
   ${p.elements.map(el).join("")||`<p class="hint">Ajoute un portail battant, un coulissant ou un portillon.</p>`}
@@ -4029,8 +4098,10 @@ function majPT(k){
   if(m[2]==="moto" && motorisePT(e)){ if(!e.moto_marque) e.moto_marque="Somfy"; if(!e.moto_type && e.type==="COULISSANT") e.moto_type=PT_MOTO_TYPES_C[0]; }
   if(["moto","moto_marque","moto_type"].includes(m[2]) && motorisePT(e)){ const def=PT_MOTO_DEFAUT[`${e.moto_marque}|${e.moto_type}`], L=PT_MOTO_MODELES[`${e.moto_marque}|${e.moto_type}`]||[];
     if(!e.moto_modele || !L.includes(e.moto_modele) && Object.values(PT_MOTO_MODELES).flat().includes(e.moto_modele)) e.moto_modele=def||L[0]||""; save(); }
-  if(["dim","inegaux","gond_pente","moto","moto_marque","moto_type"].includes(m[2])){ const y=scrollY; renderDossier(); scrollTo(0,y); return; }
-  const z=$("#ptDes"+i); if(z) z.innerHTML=dessinPT(e); const f=fabPT(e), h=$("#ptFab"+i); if(h) h.innerHTML=e.dim==="ENTRE PILE"&&f!=null?`Fabrication : <b>${f}</b> mm (entre piliers − ${PT_DEDUCTION})`:"";
+  if(["h_pilier","h_mode"].includes(m[2])){ const ha=hauteurAutoPT(e); if(ha!=null){ e.H=String(ha); save(); } }
+  if(["dim","inegaux","gond_pente","moto","moto_marque","moto_type","h_mode"].includes(m[2])){ const y=scrollY; renderDossier(); scrollTo(0,y); return; }
+  if(m[2]==="h_pilier"){ const hi=$(`[data-k="pt.elements.${i}.H"]`); if(hi && document.activeElement!==hi) hi.value=e.H||""; }
+  const z=$("#ptDes"+i); if(z) z.innerHTML=dessinPT(e); const f=fabPT(e), h=$("#ptFab"+i); if(h) h.innerHTML=e.dim==="ENTRE PILE"&&f!=null?`Fabrication : <b>${f}</b> mm (= entre piliers, sans jeu)`:"";
 }
 /* ---------- PDF : une page « Menuiserie » par élément, comme la feuille Numbers ---------- */
 function pagesPT(d){
@@ -4054,12 +4125,13 @@ function pagesPT(d){
         <table class="ct pt-opt"><tr><td colspan="2" class="c">OPTION PORTAIL</td></tr>${PT_OPTIONS.map(o=>`<tr><td>${esc(o)}</td><td class="c">${cb(e.options.includes(o))}</td></tr>`).join("")}</table>
         <table class="ct pt-pente"><tr><td>Gond de pente</td><td class="c">${cb(e.gond_pente)}</td></tr><tr><td colspan="2" class="c">Dimension pente</td></tr>
           <tr><td class="c">Longueur</td><td class="c">Hauteur pente</td></tr><tr><td class="c cv ${e.gond_pente?"jaune":""}">${esc(e.pente_l)}</td><td class="c cv ${e.gond_pente?"jaune":""}">${esc(e.pente_h)}</td></tr>
-          <tr><td>Hauteur traverse si besoin</td><td class="c cv">${esc(e.traverse)}</td></tr>
+          <tr><td>Hauteur traverse si besoin</td><td class="c cv">${esc(e.traverse)}</td></tr><tr><td>Largeur traverse si besoin</td><td class="c cv">${esc(e.traverse_l||"")}</td></tr>
+          <tr><td>Hauteur du portail</td><td class="c cv">${esc(hModePT(e)===PT_H_MODES[0]?"pilier − 130":"choix du client")}</td></tr>
           ${e.type==="COULISSANT"?`<tr><td>Refoulement disponible</td><td class="c cv">${esc(e.refoulement)}</td></tr>`:""}
           <tr><td>Faire plan de reservation</td><td class="c">${cb(e.plan_resa)}</td></tr></table>
         <table class="ct pt-obs"><tr><td class="pt-obst">Observation${motorisePT(e)?`<div class="b" style="margin:3px 0">Moteur : <span class="cv">${esc([e.moto_marque,e.moto_type,e.moto_modele].filter(Boolean).join(" · "))}</span></div>`:""}<div class="cv" style="min-height:100px">${esc(e.obs).replace(/\n/g,"<br>")}</div></td></tr></table>
       </div>
-      ${e.type==="PORTILLON"?`<div class="pt-desrow pt-1">${dessinPT(e,"pdf")}</div>`:`<div class="pt-desrow"><div class="pt-note">Si Portail Battant −100 mm<br>Si Portail Coulissant −100 mm</div>${dessinPT(e,"pdf")}</div>`}
+      ${`<div class="pt-desrow${e.type==="PORTILLON"?" pt-1":""}">${dessinPT(e,"pdf")}</div>`}
     </div>`; });
   const ph=p.photos.filter(x=>x.img), head=t=>`<div class="ph"><img src="${LOGO}"><div class="tt">${esc(t)}</div><div>${esc(d.client.nom)}<br>${fmtDate(d.client.date_rdv)}</div></div>`;
   for(let i=0;i<ph.length;i+=4) h+=`<div class="pg">${head("Photos portail")}<div class="pphotos">${ph.slice(i,i+4).map((x,j)=>`<figure><img src="${x.img}"><figcaption><b>Photo ${i+j+1}</b>${x.txt?" – "+esc(x.txt):""}</figcaption></figure>`).join("")}</div></div>`;

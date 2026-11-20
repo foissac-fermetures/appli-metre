@@ -772,6 +772,7 @@ html.resa-open{overflow:hidden}
 .tri-dn{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 16px;border-top:1px solid var(--line)}.tri-dn>span:first-child{flex:1;min-width:0;overflow-wrap:anywhere}
 .tri-eq{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center;padding:10px 16px;border-top:1px solid var(--line)}.tri-eqp{color:#0d9488;font-weight:700;font-size:.9rem}.tri-par{font-size:.85rem;padding:4px 6px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg,inherit)}@media (max-width:640px){.tri-eq{grid-template-columns:1fr}}
 .tri-pb{display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center}.tri-pbb{border-color:color-mix(in srgb,#0d9488 45%,var(--line));color:#0d9488}.tri-cc{font-size:.88rem;padding:6px 10px;border-radius:8px;background:color-mix(in srgb,#0d9488 8%,var(--panel))}
+.rsort{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.rsort [aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
 .tri-set{display:grid;gap:10px;padding:4px 16px 16px}.tri-set label{display:grid;gap:4px}.tri-set label.tri-ck{display:flex}.tri-base{font-size:.85rem;color:var(--muted);line-height:1.5}
 .mlist{display:grid}.mrow{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:4px 12px;padding:12px 16px;border-top:1px solid var(--line);align-items:start}
 .mrow.unread .msub{font-weight:800}.mav{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;background:var(--mc,#64748b);font-size:1rem}
@@ -957,6 +958,7 @@ h2{text-transform:none;letter-spacing:0;font-weight:800;font-size:1.12rem}
     <button class="tab" id="t-org" aria-selected="false" style="--dc:#f472b6"><i></i><span>Organisation</span><span class="tab-n" id="torg-n"></span></button>
     <button class="tab" id="t-mail" aria-selected="false" style="--dc:#60a5fa"><i></i><span>Mails</span><span class="tab-n" id="tmail-n"></span></button>
     <button class="tab" id="t-four" aria-selected="false" style="--dc:#34d399"><i></i><span>Fournisseurs</span><span class="tab-n" id="tfour-n"></span></button>
+    <button class="tab" id="t-perso" aria-selected="false" style="--dc:#a78bfa"><i></i><span>Personnel</span><span class="tab-n" id="tperso-n"></span></button>
     <button class="tab" id="t-tour" hidden aria-selected="false" style="--dc:#94a3b8"><i></i><span>Tournées</span><span class="tab-n" id="ttour-n"></span></button>
   </nav>
   <button class="lnk tabord" id="tabOrd" type="button">⇅ Ranger les onglets</button>
@@ -988,6 +990,7 @@ h2{text-transform:none;letter-spacing:0;font-weight:800;font-size:1.12rem}
           <select id="fm" aria-label="Mois de la FIC"><option value="">Tous les mois</option></select>
           <select id="fs" aria-label="Statut"><option value="">Tous les statuts</option></select>
           <select id="fo" aria-label="Tri">
+            <option value="old" selected>Plus anciens d'abord</option>
             <option value="fic">Plus récents d'abord</option>
             <option value="amt">Montant décroissant</option>
             <option value="due">Prochaine relance</option>
@@ -1092,6 +1095,11 @@ h2{text-transform:none;letter-spacing:0;font-weight:800;font-size:1.12rem}
     <section class="panel"><div class="hd"><h2>Mes fournisseurs</h2><div class="filters"><input type="search" id="fqs" class="fqs" placeholder="Chercher un fournisseur, un nom, un produit…" aria-label="Chercher un fournisseur"><button class="btn pri sm" id="fadd" type="button">+ Fournisseur</button></div></div>
       <p class="sub" style="margin:0;padding:8px 16px 0">Appuie sur <b>Appeler</b> : ton téléphone (ou ton PC relié au téléphone) compose le numéro. <b>Mail</b> ouvre un message tout prêt dans Outlook.</p>
       <div id="fform"></div><div id="flist" class="flist"><div class="empty">Chargement…</div></div></section>
+  </div>
+  <div id="v-perso" hidden>
+    <section class="panel"><div class="hd"><h2>Le personnel de la société</h2><div class="filters"><input type="search" id="pqs" class="fqs" placeholder="Chercher un nom, un poste…" aria-label="Chercher une personne"><button class="btn pri sm" id="padd" type="button">+ Personne</button></div></div>
+      <p class="sub" style="margin:0;padding:8px 16px 0"><b>Appeler</b> compose le numéro, <b>Mail</b> ouvre un message tout prêt dans Outlook. Les mails de ces personnes sont reconnus comme « équipe » dans l'onglet Mails.</p>
+      <div id="pform"></div><div id="plist" class="flist"><div class="empty">Chargement…</div></div></section>
   </div>
   <div id="v-sav" hidden>
     <section class="dtiles dtiles-4" id="sstrip" aria-label="Résumé SAV"></section>
@@ -1970,11 +1978,11 @@ async function tDone(id, auto){ const x = taches[id]; if (!x) return; const v = 
     const nid = await tChain(Object.assign({ id }, v)); if (!auto) toast(nid ? "Fait. Tâche suivante créée : " + tLabel(taches[nid]) : "Tâche faite"); renderAll(); } }
 async function tUndo(id){ const x = taches[id]; if (!x) return; if (await tSave(id, Object.assign({}, x, { done: null }))) { if (x.type === "metre_def") await metreOk(tRow(x), false); renderAll(); } }
 /* métré définitif fait (tâche cochée à la main) : ligne pour le mail de Clémence + le client sort de « Métré définitif » dans Rendez-vous */
-async function metreOk(r, on){ if (!r || !db || !canWrite) return; const cur = suivi[r.id] || {}, now = new Date().toISOString(), d = iso(today());
+async function metreOk(r, on, txt){ if (!r || !db || !canWrite) return; const cur = suivi[r.id] || {}, now = new Date().toISOString(), d = iso(today());
   if (on && cur.metreok) return; if (!on && !cur.metreok) return;
   const next = Object.assign({}, cur, { client: r.client, updated: now });
-  if (on) { next.metreok = { d }; next.log = (cur.log || []).concat([{ d, at: now, t: "Métré définitif fait : il est dans le dossier « Échanges Nicolas / Métrés définitif » → devis définitif à retaper" }]); }
-  else { delete next.metreok; const L = (cur.log || []).slice(), i = L.map(e => /^Métré définitif fait : il est dans le dossier/.test(e.t) && e.d === cur.metreok.d).lastIndexOf(true); if (i >= 0) L.splice(i, 1); next.log = L; }
+  if (on) { next.metreok = { d }; next.log = (cur.log || []).concat([{ d, at: now, t: txt || "Métré définitif fait : il est dans le dossier « Échanges Nicolas / Métrés définitif » → devis définitif à retaper" }]); }
+  else { delete next.metreok; const L = (cur.log || []).slice(), i = L.map(e => /^Métré définitif fait : /.test(e.t) && e.d === cur.metreok.d).lastIndexOf(true); if (i >= 0) L.splice(i, 1); next.log = L; }
   try { await db.collection("suivi").doc(r.id).set(next); suivi[r.id] = next; } catch(_){ toast("Pas enregistré"); } }
 function metreFait(r){ const s = suivi[r.id] || {}, vd = venteD(r), m = myRdv(r), t = iso(today());
   return !!(s.metreok || devDef(r) || wfDrop(r, true, vd) || (m && m.d < t && vd && m.d >= vd && !["report", "annul"].includes((s.rdvres || {})[m.d]))); }
@@ -2589,7 +2597,7 @@ function due(r){
   return null;
 }
 const MODES = { tel: "Téléphone", mail: "Mail", sms: "SMS" };
-const modeTxt = m => m === "mail" ? "mail" : m === "sms" ? "SMS" : "téléphone";
+const modeTxt = m => m === "mail" ? "mail" : m === "sms" ? "SMS" : m === "mess" ? "téléphone (répondeur, message laissé)" : "téléphone";
 function lastRel(r){ const l = (suivi[r.id] || {}).relances || []; return l.length ? l.reduce((a, x) => x.d > a.d ? x : a) : null; }
 function relLabel(x){ return "Relancé le " + fd(x.d) + " par " + modeTxt(x.mode); }
 function signed(r){ const v=(r.vente||[]).filter(x=>!x.ann); return v.length ? v.reduce((t,x)=>t+x.ht,0) : null; }
@@ -2620,6 +2628,7 @@ function filtered(){
   const o = $("#fo").value;
   const cmp = {
     fic:(a,b)=> b.m-a.m || startDate(b).localeCompare(startDate(a)),
+    old:(a,b)=> (relRef(a) || startDate(a) || "9").localeCompare(relRef(b) || startDate(b) || "9"),
     amt:(a,b)=> (amount(b)||0)-(amount(a)||0),
     due:(a,b)=> (due(a)||"9999").localeCompare(due(b)||"9999"),
     name:(a,b)=> a.client.localeCompare(b.client,"fr"),
@@ -2712,7 +2721,7 @@ function nousSel(r){ return `<span class="qnous" data-qn="${esc(r.id)}"><select 
 function renderQueue(){
   const horizon = 7;
   const list = rows.map(r => ({r, d: due(r)})).filter(x => x.d && diffDays(x.d) <= horizon && diffDays(x.d) >= -45)
-    .sort((a,b) => (status(b.r)==="rappeler") - (status(a.r)==="rappeler") || a.d.localeCompare(b.d));   // lignes orange en tête
+    .sort((a,b) => (relRef(a.r) || "9").localeCompare(relRef(b.r) || "9") || a.d.localeCompare(b.d));   // devis le plus ancien d'abord
   $("#qcount").textContent = list.length ? list.length + " sur 7 jours" : "";
   const tp = $("#tpros-n"); if (tp) tp.textContent = list.filter(x => diffDays(x.d) <= 0).length || "";
   { const N = rows.filter(r => nousOf(r) && !["gagne", "perdu"].includes(status(r))).sort((a, b) => nousOf(a).d.localeCompare(nousOf(b).d));
@@ -2997,13 +3006,19 @@ function rdvFinInfo(r){
     if (next) bits.push(next.a - s1 < 15 ? warn(`⚠ presque pas de temps de route avant « ${esc(next.n)} » à ${t(next.a)}`) : `${gap(next.a - s1)} avant « ${esc(next.n)} » à ${t(next.a)}`); }
   return bits.join(" · ");
 }
+/* dossier déjà vu : devis ou métré déjà faits, ou « Pas besoin de RDV » cliqué → pas de 1er RDV à prendre */
+function rdvDejaVu(r){ const s = suivi[r.id] || {}; if (s.nordv) return true; if ((r.pdf_devis || []).length || (r.pdf_metres || []).length) return true;
+  try { if (typeof metresOf === "function" && metresOf(r).length) return true; } catch(_){} return false; }
+async function noRdv(r){ if (!r || !db || !canWrite) return; const cur = suivi[r.id] || {}, now = new Date().toISOString(), d = iso(today());
+  const next = Object.assign({}, cur, { client: r.client, updated: now, nordv: { d }, log: (cur.log || []).concat([{ d, at: now, t: "Pas besoin de rendez-vous : client déjà vu" }]) });
+  try { await db.collection("suivi").doc(r.id).set(next); suivi[r.id] = next; toast(r.client + " : retiré des rendez-vous à prendre"); renderAll(); } catch(_){ toast("Pas enregistré, réessaie"); } }
 function rdvTodo(){
   const t = iso(today()), out = [];
   rows.forEach(r => {
     const mine = myRdv(r);
     if (agendaFor(r).length) return;   // RDV déjà dans l'agenda FOISSAC.FERMETURES
     // 1er RDV : dossier sans devis chiffré, pas de date de 1er RDV dans le tableau Drive, pas de RDV noté ici
-    if (status(r) === "afaire" && !r.r1 && !mine && !sansOf(r)) out.push({ r, kind: "premier", since: r.fic || startDate(r) });
+    if (status(r) === "afaire" && !r.r1 && !mine && !sansOf(r) && !rdvDejaVu(r)) out.push({ r, kind: "premier", since: r.fic || startDate(r) });
     // métré définitif : vente signée en attente de métré, sans RDV à venir noté ici
     const vm = (r.vente || []).filter(v => !v.ann && v.et === "metre");
     if (vm.length && !planOf(r) && !(mine && mine.d >= t) && !metreFait(r)) out.push({ r, kind: "metre", since: vm.map(v => v.d).sort()[0], v: { ht: vm.reduce((a, v) => a + (v.ht || 0), 0), it: vm.flatMap(v => v.it || []) } });
@@ -3124,9 +3139,10 @@ function rdvItem(x){
     <span class="wait ${n != null && n > 30 ? "old" : ""}">${n != null ? (x.kind === "metre" ? "signé il y a " : "attend depuis ") + n + " j" : ""}<span class="sub" style="display:block;font-family:var(--body);font-weight:400">${x.kind === "metre" ? "Signé le " : "FIC du "}${fd(x.since)}</span></span>
     ${t ? `<div class="tries">${esc(t.length > 220 ? t.slice(0, 220) + "…" : t)}</div>` : ""}
     ${ctRdv(r) ? ctRdvLine(r) : ""}
-    <div class="acts">${telOk ? `<span class="tel">${esc(r.tel)}</span><a class="btn" href="tel:${esc(r.tel.replace(/\s/g, ""))}" target="_blank" rel="noopener">Appeler</a><button class="btn mess" type="button" data-mess="${esc(r.id)}" title="Appel sans réponse : le noter et préparer le SMS">Messagerie</button><button class="btn smsgo" type="button" data-id="${esc(r.id)}">SMS</button>` : `<span class="sub">Pas de téléphone dans le tableau</span>`}${attenteOf(r) ? `<button class="btn pri" type="button" data-goon="${esc(r.id)}">C'est bon, on peut y aller</button>` : `<button class="btn pri rdvgo" type="button" data-id="${esc(r.id)}">Noter le RDV</button>${x.kind === "premier" ? `<button class="btn" type="button" data-sans="${esc(r.id)}">Devis sans RDV</button>` : ""}`}${appelsOf(r).length >= 3 ? "" : loseBtn(r)}${pdfBadge(r)}</div>${attenteOf(r) ? "" : app3(r)}${attenteOf(r) ? `<div class="attchip">En attente : ${esc(attenteOf(r).motif)} · depuis ${attDays(attenteOf(r))} j${attenteOf(r).rappel ? " · point le " + fd(attenteOf(r).rappel) : ""} · <button class="lnk attmod" type="button" data-id="${esc(r.id)}">modifier</button></div>` : ""}
+    <div class="acts">${telOk ? `<span class="tel">${esc(r.tel)}</span><a class="btn" href="tel:${esc(r.tel.replace(/\s/g, ""))}" target="_blank" rel="noopener">Appeler</a><button class="btn mess" type="button" data-mess="${esc(r.id)}" title="Appel sans réponse : le noter et préparer le SMS">Messagerie</button><button class="btn smsgo" type="button" data-id="${esc(r.id)}">SMS</button>` : `<span class="sub">Pas de téléphone dans le tableau</span>`}${attenteOf(r) ? `<button class="btn pri" type="button" data-goon="${esc(r.id)}">C'est bon, on peut y aller</button>` : `<button class="btn pri rdvgo" type="button" data-id="${esc(r.id)}">Noter le RDV</button>${x.kind === "premier" ? `<button class="btn" type="button" data-sans="${esc(r.id)}">Devis sans RDV</button><button class="btn" type="button" data-nordv="${esc(r.id)}" title="Déjà vu ce client : il sort de la liste">Pas besoin de RDV</button>` : ""}${x.kind === "metre" ? `<button class="btn metok" type="button" data-metok="${esc(r.id)}" title="Le métré du 1er rendez-vous sert de métré définitif : Clémence est prévenue dans son mail">📐 Métré déjà fait</button>` : ""}`}${appelsOf(r).length >= 3 ? "" : loseBtn(r)}${pdfBadge(r)}</div>${attenteOf(r) ? "" : app3(r)}${attenteOf(r) ? `<div class="attchip">En attente : ${esc(attenteOf(r).motif)} · depuis ${attDays(attenteOf(r))} j${attenteOf(r).rappel ? " · point le " + fd(attenteOf(r).rappel) : ""} · <button class="lnk attmod" type="button" data-id="${esc(r.id)}">modifier</button></div>` : ""}
   </div>`;
 }
+let rdvSort = (() => { try { return localStorage.getItem("crm-rdv-tri") || "date"; } catch(_){ return "date"; } })();
 function renderRdv(){
   try { renderGpsList(); } catch(_){}
   try { renderCircuit(); } catch(_){}
@@ -3149,11 +3165,13 @@ function renderRdv(){
   $("#rstrip").querySelectorAll("[data-rk]").forEach(b => b.onclick = () => { rdvFilter = rdvFilter === b.dataset.rk ? "" : b.dataset.rk; renderRdv(); });
   const byOld = (a, b) => (a.since || "9").localeCompare(b.since || "9");
   const later = x => { const nx = appNext(x.r); return nx && nx > iso(today()) ? 1 : 0; };
-  const R = recent.filter(x => hit(x.r)).sort((a, b) => later(a) - later(b) || byOld(a, b)), M = met.filter(x => hit(x.r)).sort((a, b) => later(a) - later(b) || byOld(a, b)), O = old.filter(x => hit(x.r)).sort((a, b) => b.since.localeCompare(a.since));
+  const kmOf = x => { try { const p = llOf(x.r); return p ? km(DEPARTS.maison, p) : 1e9; } catch(_){ return 1e9; } }, byKm = (a, b) => kmOf(a) - kmOf(b);
+  const srt = rdvSort === "km" ? byKm : (a, b) => later(a) - later(b) || byOld(a, b);
+  const R = recent.filter(x => hit(x.r)).sort(srt), M = met.filter(x => hit(x.r)).sort(srt), O = old.filter(x => hit(x.r)).sort(rdvSort === "km" ? byKm : byOld);
   const show = k => !rdvFilter || rdvFilter === k;
   const panel = (k, title, sub, col, list, emptyTxt) => `<section class="panel rpanel" style="--kc:${col}" aria-label="${esc(title)}"><details class="rgd" data-g="${k}" ${rdvClosed[k] && rdvFilter !== k ? "" : "open"}><summary class="hd"><h2><span class="chev" aria-hidden="true"></span>${esc(title)} <span class="cnt">${list.length}</span></h2><span class="sub">${esc(sub)}</span></summary>${list.length ? list.map(rdvItem).join("") : `<div class="empty">${q ? "Aucun client ne correspond." : emptyTxt}</div>`}</details></section>`;
-  let html = "";
-  if (show("premier")) html += panel("premier", "Premier rendez-vous", "Devis à faire, pas encore de date de RDV · les plus anciennes demandes d'abord", "var(--s-faire)", R, "Aucun premier RDV à fixer.");
+  let html = `<div class="rsort"><span class="sub">Classer :</span><button class="btn sm" type="button" data-rsort="date" aria-pressed="${rdvSort !== "km"}">📅 Par date (les plus anciens d'abord)</button><button class="btn sm" type="button" data-rsort="km" aria-pressed="${rdvSort === "km"}">📍 Du plus près au plus loin de chez moi</button></div>`;
+  if (show("premier")) html += panel("premier", "Premier rendez-vous", rdvSort === "km" ? "Devis à faire, pas encore de date de RDV · du plus près au plus loin de Masclat" : "Devis à faire, pas encore de date de RDV · les plus anciennes demandes d'abord", "var(--s-faire)", R, "Aucun premier RDV à fixer.");
   if (show("metre")) html += panel("metre", "Métré définitif", "Vente signée, métré à faire avant la commande", "var(--s-rel)", M, "Aucun métré en attente.");
   const SR = rows.filter(r => sansOf(r) && status(r) === "afaire" && hit(r)).sort((a, b) => sansOf(b).d.localeCompare(sansOf(a).d));
   const sansPanel = SR.length ? `<section class="panel rpanel" style="--kc:#0d9488"><details class="rgd" data-g="sans" ${rdvClosed.sans ? "" : "open"}><summary class="hd"><h2><span class="chev" aria-hidden="true"></span>Devis sans rendez-vous <span class="cnt">${SR.length}</span></h2><span class="sub">dimensions, devis concurrent ou plans fournis : devis à faire sans passer chez le client</span></summary>${SR.map(sansItem).join("")}</details></section>` : "";
@@ -3166,6 +3184,9 @@ function renderRdv(){
   if (rdvFilter === "fixed") html = `<section class="panel rpanel" style="--kc:var(--accent)"><div class="hd"><h2>RDV fixés <span class="cnt">${fixed.length}</span></h2><span class="sub">la liste est dans la colonne de droite</span></div><div class="empty">Clique de nouveau sur « RDV fixés » pour revoir les clients à appeler.</div></section>`;
   if (!rdvFilter || rdvFilter === "premier") html += sansPanel;
   $("#rdvList").innerHTML = html || `<section class="panel"><div class="empty">Rien à afficher.</div></section>`;
+  $("#rdvList").querySelectorAll("[data-rsort]").forEach(b => b.onclick = () => { rdvSort = b.dataset.rsort; try { localStorage.setItem("crm-rdv-tri", rdvSort); } catch(_){} renderRdv(); });
+  $("#rdvList").querySelectorAll("[data-nordv]").forEach(b => b.onclick = () => noRdv(rows.find(r => r.id === b.dataset.nordv)));
+  $("#rdvList").querySelectorAll("[data-metok]").forEach(b => b.onclick = async () => { const r = rows.find(x => x.id === b.dataset.metok); if (!r) return; b.disabled = true; await metreOk(r, true, "Métré définitif fait : le métré du 1er rendez-vous sert de métré définitif → devis définitif à retaper"); toast(r.client + " : métré définitif noté, Clémence le verra dans son mail"); renderAll(); });
   $("#rdvList").querySelectorAll("details.rgd").forEach(d => d.addEventListener("toggle", () => { rdvClosed[d.dataset.g] = !d.open; try { localStorage.setItem("crm-rdv-fermes", JSON.stringify(rdvClosed)); } catch(_){} }));
   const F = fixed.filter(x => hit(x.r));
   $("#rdvfix-n").textContent = F.length ? F.length + " à venir" : "";
@@ -3608,7 +3629,8 @@ async function noteMessagerie(r){
   const cur = suivi[r.id] || {}, now = new Date().toISOString(), d = iso(today()), k = appKind(r);
   const next = Object.assign({}, cur, { appels: (cur.appels || []).concat([{ d, at: now, k }]), client: r.client, updated: now });
   const L = (next.appels || []).filter(x => x.k === k && (!cur.reactive || x.d >= cur.reactive.d));
-  if (L.length === 3) next.log = (cur.log || []).concat([{ d, at: now, t: "3 appels sans réponse pour " + (k === "metre" ? "le métré définitif" : "le 1er RDV") + " (" + L.map(x => fd(x.d)).join(", ") + ")" }]);
+  next.log = (cur.log || []).concat([{ d, at: now, t: "Répondeur : message laissé pour " + (k === "metre" ? "le métré définitif" : "le 1er RDV") + " (" + L.length + (L.length === 1 ? "er" : "e") + " essai)" }]);
+  if (L.length === 3) next.log = next.log.concat([{ d, at: now, t: "3 appels sans réponse pour " + (k === "metre" ? "le métré définitif" : "le 1er RDV") + " (" + L.map(x => fd(x.d)).join(", ") + ")" }]);
   try { await db.collection("suivi").doc(r.id).set(next); suivi[r.id] = next; } catch(_){ toast("Pas enregistré, réessaie"); return; }
   toast(r.client + " : messagerie notée (" + L.length + (L.length === 1 ? "er" : "e") + " essai) · à rappeler " + (workDays(d, 1) === addDays(d, 1) ? "demain" : "le " + fd(workDays(d, 1))));
   smsFor = r.id; smsTpl = "rappel";
@@ -3958,6 +3980,7 @@ function evTone(t){ t = String(t || "");
   if (/^Dossier réactivé|^Relances reprises/.test(t)) return "react";
   if (/^En attente|^Attente levée/.test(t)) return "wait";
   if (/^Nouveau SAV|^SAV /.test(t)) return "sav";
+  if (/^Répondeur/.test(t)) return "mess";
   if (/^Relancé par/.test(t)) return /messagerie|répondeur|pas de réponse|ne répond pas/i.test(t) ? "mess" : "rel";
   if (/ORANGE|rappeler|Positif/.test(t)) return "orange";
   if (/^Rendez-vous|^Métré définitif|^RDV/.test(t)) return "blue";
@@ -4088,7 +4111,7 @@ function renderDay(){ const el = $("#dday"); if (!el) return;
 /* mon planning de la semaine : comme celui des poseurs, matin / après-midi, avec mes rendez-vous (agendas Google + CRM) */
 let myWkOff = 0;
 /* export de toutes les données du CRM (pour la version en ligne sur GitHub) */
-const EXP_COLL = ["suivi", "taches", "sav", "clients", "dossiers", "meta", "fournisseurs", "notes_appel"];
+const EXP_COLL = ["suivi", "taches", "sav", "clients", "dossiers", "meta", "fournisseurs", "notes_appel", "personnel"];
 async function exportData(){ const b = $("#expBtn"); if (!db) return; b.textContent = "⇩ Export en cours…";
   try { const docs = {}; let n = 0;
     for (const c of EXP_COLL) { const sn = await db.collection(c).limit(1000).get(); sn.docs.forEach(d => { docs[c + "/" + d.id] = d.data(); n++; }); }
@@ -4199,6 +4222,7 @@ function orgBest(P, D, dl){ const S = orgSlots(P, D); const sc = x => x.detour +
   const seen = new Set(), R = []; S.sort((a, b) => sc(a) - sc(b)).forEach(x => { if (R.length < 3 && !seen.has(x.day)) { seen.add(x.day); R.push(x); } }); return R; }
 function orgTodo(){ const t = iso(today()), L = [];
   let T = []; try { T = rdvTodo(); } catch(_){}
+  T = T.filter(x => !attenteOf(x.r) && !(x.kind === "premier" && x.since && -diffDays(x.since) > RDV_RECENT_J));
   T.forEach(x => { const r = x.r, its = x.v ? x.v.it : [], clim = orgClim(r, its) || metresOf(r).some(m => m.clim), qty = metQtyOf(r) || orgQty(its);
     const dl = x.kind === "metre" && x.since ? addDays(x.since, orgCfg.delaiMetre || 15) : null;
     L.push({ r, kind: x.kind, since: x.since, dl, clim, qty, D: orgEstim(x.kind, clim, qty), its }); });
@@ -4253,7 +4277,7 @@ function renderOrg(){ const el = $("#ogbody"); if (!el) return; if ($("#v-org") 
   h += `<section class="panel"><div class="hd"><h2>📍 Aujourd'hui</h2><span class="sub">${esc(ORG_J[today().getDay()])} ${esc(fd(iso(today())))} · lance le chrono au début de chaque rendez-vous</span></div><div class="og-list">${today0.length ? today0.map(x => { const on = orgChrono && orgChrono.k === iso(today()) + x.s + x.l; return `<div class="og-tod"><span class="og-h">${hTxt(x.s)}</span><div style="min-width:0"><b>${esc(x.l)}</b><span class="sub">${esc(x.lieu || "")}</span></div>${x.r ? (on ? `<span class="og-run">⏱ en cours depuis ${hTxt(orgChrono.t0m)}</span><button class="btn sm pri" type="button" data-ogstop="${esc(x.r.id)}">✓ Terminé</button>` : `<button class="btn sm" type="button" data-ogstart="${esc(x.r.id)}" data-k="${esc(iso(today()) + x.s + x.l)}">⏱ Je commence</button>`) : ""}</div>`; }).join("") : `<span class="sub">Pas de rendez-vous aujourd'hui dans ton agenda.</span>`}</div></section>`;
   h += `<section class="panel"><div class="hd"><h2>🗓️ Rendez-vous à prendre <span class="cnt">${T.length}</span></h2><span class="sub">les plus urgents d'abord · 3 créneaux proposés pour chacun, selon ton agenda et la route</span></div>${!agOk ? `<div class="empty">Lecture de l'agenda…</div>` : ""}<div class="og-list">${T.map(x => { const r = x.r, K = ORG_KIND[x.kind], c = ctRdv(r), P = (() => { try { return llOf(r); } catch(_){ return null; } })(); const best = P ? orgBest(P, x.D, x.dl) : [];
       return `<article class="og-it" style="--cc:${K[2]}"><div class="og-top"><div style="min-width:0"><span class="og-k">${K[0]} ${K[1]}</span> <button class="lnk" type="button" data-id="${esc(r.id)}"><b>${esc(r.client)}</b></button><span class="sub"> · ${esc(r.lieu || "")}${trajet(r) ? " · " + esc(trajet(r).t) + " de chez toi" : ""} · durée prévue ${durTxt(x.D)}${x.clim ? " (clim)" : x.qty ? " (" + x.qty + " menuiserie" + (x.qty > 1 ? "s" : "") + ")" : ""}</span></div>
-        <div class="og-act">${orgDl(x)}${c && c.tel ? `<a class="btn sm pri" href="${esc(telLink(c.tel))}">📞 ${esc(c.lien || "Contact")}</a>` : r.tel ? `<a class="btn sm pri" href="${esc(telLink(r.tel))}">📞 Appeler</a>` : ""}</div></div>
+        <div class="og-act">${orgDl(x)}${x.kind === "premier" ? `<button class="btn sm" type="button" data-ognordv="${esc(r.id)}">Pas besoin de RDV</button>` : ""}${x.kind === "metre" ? `<button class="btn sm" type="button" data-ogmetok="${esc(r.id)}">📐 Métré déjà fait</button>` : ""}${c && c.tel ? `<a class="btn sm pri" href="${esc(telLink(c.tel))}">📞 ${esc(c.lien || "Contact")}</a>` : r.tel ? `<a class="btn sm pri" href="${esc(telLink(r.tel))}">📞 Appeler</a>` : ""}</div></div>
         ${x.kind === "sav" && x.sav && x.sav.pb ? `<div class="sub">🔧 ${esc(x.sav.pb.slice(0, 140))}</div>` : ""}
         <div class="og-slots">${best.length ? best.map(s => orgSlotBtn(x, s)).join("") : `<span class="sub">${P ? "Pas de créneau libre dans les " + (orgCfg.jours_vus || 12) + " prochains jours de travail avec tes réglages." : "Adresse introuvable : je ne peux pas calculer la route."}</span>`}</div></article>`; }).join("") || `<div class="empty">Aucun rendez-vous à prendre 🎉</div>`}</div></section>`;
   h += `<section class="panel"><div class="hd"><h2>✉️ Propositions de RDV reçues par mail</h2><span class="sub">je regarde si ça passe avec ton agenda et la route</span></div><div class="og-list">${!(mailsList || []).length ? `<span class="sub">Actualise l'onglet Mails pour que je les vérifie ici.</span>` : MP.length ? MP.map(p => { const d = pd(p.day), when = ORG_J[d.getDay()] + " " + fd(p.day) + (p.at != null ? " à " + hTxt(p.at) : p.after ? " après-midi" : p.before ? " matin" : "");
@@ -4266,6 +4290,8 @@ function renderOrg(){ const el = $("#ogbody"); if (!el) return; if ($("#v-org") 
 async function orgSave(next){ orgCfg = next; renderOrg(); if (!db || !canWrite) return; try { await db.doc("meta/organisation").set(next); } catch(_){ toast("Réglages non enregistrés"); } }
 function wireOrg(){ const el = $("#ogbody"); if (!el) return;
   el.querySelectorAll("[data-id]").forEach(b => b.onclick = () => openDossier(b.dataset.id));
+  el.querySelectorAll("[data-ognordv]").forEach(b => b.onclick = () => noRdv(rows.find(r => r.id === b.dataset.ognordv)));
+  el.querySelectorAll("[data-ogmetok]").forEach(b => b.onclick = async () => { const r = rows.find(x => x.id === b.dataset.ogmetok); if (!r) return; b.disabled = true; await metreOk(r, true, "Métré définitif fait : le métré du 1er rendez-vous sert de métré définitif → devis définitif à retaper"); toast(r.client + " : métré définitif noté, Clémence le verra dans son mail"); renderAll(); });
   el.querySelectorAll("[data-ogtake]").forEach(b => b.onclick = () => { const id = b.dataset.ogtake; openDossier(id); setTimeout(() => { const d = $("#rdvd"), hh = $("#rdvh"), du = $("#rdvdur");
       if (d) { d.value = b.dataset.d; if (hh) hh.value = b.dataset.h; if (du) { const v = String(b.dataset.dur); if (![...du.options].some(o => o.value === v)) du.add(new Option(durLbl ? durLbl(+v) : v + " min", v)); du.value = v; du.dispatchEvent(new Event("change")); }
         [d, hh].forEach(x => x && x.classList.add("nc-hit")); d.scrollIntoView({ block: "center", behavior: "smooth" }); toast("Créneau prérempli : vérifie et enregistre le RDV"); }
@@ -4580,7 +4606,7 @@ function triDigest(o, cr){ let p = []; try { p = mailDigest(o.m, { client: o.cli
   if (cr) { const S = mailSentences(o.clean).filter(t => t.length >= 14 && t.length <= 340 && !MS_JUNK.test(sansAcc(t)) && re.test(sansAcc(t))).slice(0, 6).map(t => t.length > 260 ? t.slice(0, 257) + "…" : t); if (S.length) return S; }
   const L = p.filter(t => re.test(sansAcc(t))); return L.length ? L : p; }
 function triCc(m){ return [...new Set(String((m.to || "") + "," + (m.cc || "")).split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(x => mailAddr(x).a).filter(a => MAIL_TEAM[a]).map(a => MAIL_TEAM[a].split(/[\s(]/)[0]))]; }
-function triParBtns(o){ const m = o.m, cc = triCc(m), base = cc.length ? cc : ["Océane", "Clémence"], autres = ["Clémence", "Océane", "Delphine", "Simon", "Pierre", "Frédéric"].filter(n => !base.includes(n));
+function triParBtns(o){ const m = o.m, cc = triCc(m), base = cc.length ? cc : ["Océane", "Clémence"], autres = persoNames().filter(n => !base.includes(n));
   return `<span class="tri-pb">${base.map(n => `<button class="btn sm tri-pbb" type="button" data-tparb="${esc(m.id)}" data-n="${esc(n)}">✔ Déjà traité par ${esc(n)}</button>`).join("")}<select class="tri-par" data-tpar="${esc(m.id)}" title="Quelqu'un d'autre s'en est occupé"><option value="">Autre…</option>${autres.concat(["toi"]).map(n => `<option value="${n}">${n === "toi" ? "Déjà fait par moi (téléphone…)" : "Déjà traité par " + n}</option>`).join("")}</select></span>`; }
 function triCard(o){ const m = o.m, r = o.client, P = o.props.filter(p => p.k !== "new"), nw = o.props.find(p => p.k === "new"), rep = triRep(o), dg = triDigest(o);
   const repOn = o.cat === "client" || o.cat === "autre", edit = mailRep && mailRep.id === m.id;
@@ -4724,6 +4750,44 @@ function fourForm(id){ const box = $("#fform"); if (!box) return; fournEdit = id
     const nid = id || v.nom.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) + "-" + Date.now().toString(36).slice(-4);
     try { await db.collection("fournisseurs").doc(nid).set(v); fourn[nid] = v; box.innerHTML = ""; fournEdit = null; toast("Fournisseur enregistré"); renderFour(); } catch(e){ toast("Pas enregistré, réessaie"); } }; }
 (() => { const q = $("#fqs"); if (q) q.oninput = renderFour; const a = $("#fadd"); if (a) a.onclick = () => fourForm(""); })();
+
+/* ===== Personnel de la société (comme les fournisseurs) ===== */
+let perso = {}, persoOk = false;
+const PGRP = ["Direction", "Bureau / secrétariat", "Comptabilité", "Commerciaux", "Poseurs", "SAV", "Atelier / dépôt", "Autres"];
+const PSEED = [["Frédéric Foissac", "Direction", "Gérant", "ff@foissacfermetures.fr"], ["Clémence", "Bureau / secrétariat", "Secrétariat, tableau de suivi", "contact46@foissacfermetures.fr"], ["Océane", "Bureau / secrétariat", "", "od@foissacfermetures.fr"], ["Roxane", "Bureau / secrétariat", "", ""], ["Delphine", "Comptabilité", "Comptable, relances paiement", "dt@foissacfermetures.fr"], ["Simon", "Autres", "", "simon@foissacfermetures.fr"], ["Pierre", "Autres", "", "pierre@foissacfermetures.fr"]];
+function persoTeam(){ Object.values(perso).forEach(x => { if (x.mail && /@/.test(x.mail) && !/foissac\.fermetures@gmail\.com/i.test(x.mail)) MAIL_TEAM[x.mail.trim().toLowerCase()] = x.nom; }); }
+function persoNames(){ const L = Object.values(perso).map(x => String(x.nom || "").split(/\s+/)[0]).filter(Boolean); return L.length ? [...new Set(L)] : ["Clémence", "Océane", "Delphine", "Simon", "Pierre", "Frédéric"]; }
+function renderPerso(){ const el = $("#plist"); if (!el) return; const tn = $("#tperso-n");
+  const all = Object.entries(perso).map(([id, f]) => Object.assign({ id }, f)).sort((a, b) => String(a.nom).localeCompare(String(b.nom), "fr"));
+  if (tn) tn.textContent = all.length || "";
+  const q = ($("#pqs") || {}).value || "", L = all.filter(f => fourMatch({ nom: f.nom, cat: f.poste, notes: f.notes, tel: f.tel, mail: f.mail, contacts: [{ tel: f.tel2 }] }, q));
+  if (!persoOk) { el.innerHTML = `<div class="empty">Chargement…</div>`; return; }
+  if (!all.length) { el.innerHTML = `<div class="empty" style="display:grid;gap:10px;justify-items:center">Personne pour l'instant.<button class="btn pri" type="button" id="pseed">Ajouter l'équipe que je connais déjà (Clémence, Océane, Roxane, Delphine, Simon, Pierre, Frédéric)</button><span class="sub">Tu pourras ensuite compléter les téléphones et les postes avec « Modifier ».</span></div>`;
+    $("#pseed").onclick = async () => { if (!db || !canWrite) return; for (const [nom, grp, poste, mail] of PSEED) { const id = "p-" + nom.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-"); const v = { nom, grp, poste, mail, tel: "", notes: "", maj: new Date().toISOString() }; try { await db.collection("personnel").doc(id).set(v); perso[id] = v; } catch(_){} } persoTeam(); toast("Équipe ajoutée"); renderPerso(); }; return; }
+  if (!L.length) { el.innerHTML = `<div class="empty">Personne ne correspond à « ${esc(q)} ».</div>`; return; }
+  const groups = {}; L.forEach(f => (groups[f.grp || "Autres"] = groups[f.grp || "Autres"] || []).push(f));
+  const order = PGRP.concat(Object.keys(groups).filter(g => !PGRP.includes(g))).filter(g => groups[g]);
+  el.innerHTML = order.map(g => `<h3 class="fo-grp">${esc(g)} · ${groups[g].length}</h3>` + groups[g].map(f => {
+      const C = [{ nom: f.nom, role: f.poste, tel: f.tel, mail: f.mail }]; if (f.tel2) C.push({ nom: "Autre numéro", tel: f.tel2 });
+      return `<article class="fo-line"><div class="fo-head"><b>${esc(f.nom)}</b>${f.poste ? `<span class="fo-cat">${esc(f.poste)}</span>` : ""}${f.notes ? `<span class="fo-note">${esc(f.notes)}</span>` : ""}<span class="fo-btns"><button class="btn sm" data-ped="${esc(f.id)}" type="button">Modifier</button></span></div>
+        <div class="fo-cts">${C.filter(c => c.tel || c.mail).length ? C.filter(c => c.tel || c.mail).map(fourContact).join("") : `<span class="sub">Pas encore de téléphone ni de mail : clique Modifier.</span>`}</div></article>`; }).join("")).join("");
+  el.querySelectorAll("[data-ped]").forEach(b => b.onclick = () => persoForm(b.dataset.ped)); }
+function persoForm(id){ const box = $("#pform"); if (!box) return; const f = id ? Object.assign({}, perso[id]) : { nom: "", grp: "Bureau / secrétariat", poste: "", tel: "", tel2: "", mail: "", notes: "" };
+  box.innerHTML = `<form class="fed" id="pedf"><b>${id ? "Modifier " + esc(f.nom) : "Nouvelle personne"}</b>
+    <div class="fo-row"><div><label>Nom et prénom</label><input id="pn" required value="${esc(f.nom || "")}"></div><div><label>Poste</label><input id="pp" value="${esc(f.poste || "")}" placeholder="secrétaire, poseur, SAV…"></div><div><label>Rubrique</label><select id="pg">${PGRP.map(g => `<option${(f.grp || "Autres") === g ? " selected" : ""}>${esc(g)}</option>`).join("")}</select></div></div>
+    <div class="fo-row"><div><label>Téléphone</label><input id="pt" inputmode="tel" value="${esc(f.tel || "")}"></div><div><label>Autre numéro</label><input id="pt2" inputmode="tel" value="${esc(f.tel2 || "")}"></div><div><label>Mail</label><input id="pm" inputmode="email" value="${esc(f.mail || "")}"></div></div>
+    <div><label>Notes (horaires, jours de présence, véhicule…)</label><textarea id="pno" rows="2">${esc(f.notes || "")}</textarea></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" type="submit">Enregistrer</button><button class="btn" type="button" id="pcan">Annuler</button>${id ? `<button class="btn lose" type="button" id="pdel" style="margin-left:auto">Supprimer</button>` : ""}</div></form>`;
+  box.scrollIntoView({ block: "nearest" });
+  $("#pcan").onclick = () => { box.innerHTML = ""; };
+  const del = $("#pdel"); if (del) del.onclick = async () => { if (!del.classList.contains("armed")) { del.classList.add("armed"); del.textContent = "Sûr ? Re-clique pour supprimer"; return; }
+    try { await db.collection("personnel").doc(id).delete(); delete perso[id]; box.innerHTML = ""; toast("Supprimé"); renderPerso(); } catch(_){ toast("Pas supprimé, réessaie"); } };
+  $("#pedf").onsubmit = async ev => { ev.preventDefault(); const g = q => ($(q).value || "").trim();
+    const v = { nom: g("#pn"), grp: $("#pg").value, poste: g("#pp"), tel: g("#pt"), tel2: g("#pt2"), mail: g("#pm"), notes: g("#pno"), maj: new Date().toISOString() };
+    if (!v.nom) return toast("Donne un nom");
+    const nid = id || "p-" + v.nom.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) + "-" + Date.now().toString(36).slice(-4);
+    try { await db.collection("personnel").doc(nid).set(v); perso[nid] = v; persoTeam(); box.innerHTML = ""; toast("Enregistré"); renderPerso(); } catch(_){ toast("Pas enregistré, réessaie"); } }; }
+(() => { const q = $("#pqs"); if (q) q.oninput = renderPerso; const a = $("#padd"); if (a) a.onclick = () => persoForm(""); })();
 function renderMyWeek(){ const el = $("#dmyweek"); if (!el) return;
   const mon = addDays(mondayOf(hjDay()), 7 * myWkOff), days = [0, 1, 2, 3, 4, 5].map(i => addDays(mon, i)), t = iso(today());
   const JN = ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"];
@@ -5036,9 +5100,9 @@ $("#tdep").onchange = e => { depart = e.target.value; AGENCE = DEPARTS[depart]; 
 $("#told").onchange = e => { tourOld = e.target.checked; renderTours(); };
 
 /* ---------- vues ---------- */
-const VIEWS = { pay: ["#v-pay", "#t-pay", "#relance-paiement"], taches: ["#v-taches", "#t-taches", "#taches"], sav: ["#v-sav", "#t-sav", "#sav"], pose: ["#v-pose", "#t-pose", "#pose"], tour: ["#v-tour", "#t-tour", "#tournees"], dash: ["#v-dash", "#t-dash", "#tableau-de-bord"], pros: ["#v-pros", "#t-pros", "#prospection"], chantiers: ["#v-chan", "#t-chan", "#chantiers"], rdv: ["#v-rdv", "#t-rdv", "#rendez-vous"], four: ["#v-four", "#t-four", "#fournisseurs"], mail: ["#v-mail", "#t-mail", "#mails"], cli: ["#v-cli", "#t-cli", "#client"], org: ["#v-org", "#t-org", "#organisation"] };
-function viewFromHash(){ return location.hash === "#relance-paiement" ? "pay" : location.hash === "#chantiers" ? "chantiers" : location.hash === "#rendez-vous" ? "rdv" : location.hash === "#prospection" ? "pros" : location.hash === "#tournees" ? "rdv" : location.hash === "#pose" ? "pose" : location.hash === "#sav" ? "sav" : location.hash === "#taches" ? "taches" : location.hash === "#fournisseurs" ? "four" : location.hash === "#mails" ? "mail" : location.hash === "#client" ? "cli" : location.hash === "#organisation" ? "org" : "dash"; }
-const VTITLE = { pay: "Relance paiement", taches: "Tâches", sav: "SAV", pose: "Pose", dash: "Tableau de bord", pros: "Relances et devis", chantiers: "Chantiers signés", rdv: "Rendez-vous à prendre", tour: "Tournées", four: "Fournisseurs", mail: "Mails", cli: "Fiche client", org: "Mon organisation" };
+const VIEWS = { pay: ["#v-pay", "#t-pay", "#relance-paiement"], taches: ["#v-taches", "#t-taches", "#taches"], sav: ["#v-sav", "#t-sav", "#sav"], pose: ["#v-pose", "#t-pose", "#pose"], tour: ["#v-tour", "#t-tour", "#tournees"], dash: ["#v-dash", "#t-dash", "#tableau-de-bord"], pros: ["#v-pros", "#t-pros", "#prospection"], chantiers: ["#v-chan", "#t-chan", "#chantiers"], rdv: ["#v-rdv", "#t-rdv", "#rendez-vous"], four: ["#v-four", "#t-four", "#fournisseurs"], perso: ["#v-perso", "#t-perso", "#personnel"], mail: ["#v-mail", "#t-mail", "#mails"], cli: ["#v-cli", "#t-cli", "#client"], org: ["#v-org", "#t-org", "#organisation"] };
+function viewFromHash(){ return location.hash === "#relance-paiement" ? "pay" : location.hash === "#chantiers" ? "chantiers" : location.hash === "#rendez-vous" ? "rdv" : location.hash === "#prospection" ? "pros" : location.hash === "#tournees" ? "rdv" : location.hash === "#pose" ? "pose" : location.hash === "#sav" ? "sav" : location.hash === "#taches" ? "taches" : location.hash === "#fournisseurs" ? "four" : location.hash === "#personnel" ? "perso" : location.hash === "#mails" ? "mail" : location.hash === "#client" ? "cli" : location.hash === "#organisation" ? "org" : "dash"; }
+const VTITLE = { pay: "Relance paiement", taches: "Tâches", sav: "SAV", pose: "Pose", dash: "Tableau de bord", pros: "Relances et devis", chantiers: "Chantiers signés", rdv: "Rendez-vous à prendre", tour: "Tournées", four: "Fournisseurs", perso: "Personnel", mail: "Mails", cli: "Fiche client", org: "Mon organisation" };
 function showView(v){
   Object.entries(VIEWS).forEach(([k, [sec, tab]]) => { $(sec).hidden = k !== v; $(tab).setAttribute("aria-selected", k === v); });
   try { orgTrack((VIEWS[v] || [])[1] ? VIEWS[v][1].slice(1) : v); if (v === "org") { renderOrg(); loadAppMetres(); } if (v === "cli") loadAppMetres(); } catch(e){}
@@ -5047,7 +5111,7 @@ function showView(v){
 Object.entries(VIEWS).forEach(([k, [, tab, hash]]) => { $(tab).onclick = () => { showView(k); try { history.replaceState(null, "", hash); } catch(e){} }; });
 window.addEventListener("hashchange", () => showView(viewFromHash()));
 /* ordre des onglets choisi par Nicolas (meta/onglets) : bouton « Ranger les onglets », flèches ▲ ▼ */
-const TAB_DEFAULT = ["t-dash", "t-cli", "t-org", "t-mail", "t-rdv", "t-taches", "t-pros", "t-chan", "t-pose", "t-pay", "t-sav", "t-four", "t-tour"];
+const TAB_DEFAULT = ["t-dash", "t-cli", "t-org", "t-mail", "t-rdv", "t-taches", "t-pros", "t-chan", "t-pose", "t-pay", "t-sav", "t-four", "t-perso", "t-tour"];
 let tabEdit = false;
 function applyTabOrder(order){ const nav = $(".snav"); if (!nav) return; let ids = (order || TAB_DEFAULT).slice();
   TAB_DEFAULT.forEach((t, i) => { if (ids.includes(t)) return; const prev = TAB_DEFAULT.slice(0, i).reverse().find(x => ids.includes(x)); ids.splice(prev ? ids.indexOf(prev) + 1 : ids.length, 0, t); }); // un nouvel onglet arrive à sa place, même avec un ordre enregistré
@@ -5666,6 +5730,7 @@ function renderDrawer(){
               <label><input type="radio" name="mrmode" value="tel" checked><span>Téléphone</span></label>
               <label><input type="radio" name="mrmode" value="mail"><span>Mail</span></label>
               <label><input type="radio" name="mrmode" value="sms"><span>SMS</span></label>
+              <label><input type="radio" name="mrmode" value="mess"><span>Répondeur (message laissé)</span></label>
             </div>
           </div>
           <label>Ce qu'il a dit (facultatif)<input type="text" id="mrc" placeholder="Ex. : messagerie, rappelle lundi, devis bien reçu"></label>
@@ -6043,6 +6108,7 @@ function rebuild(){
     if (cvSel) renderCv(); }, () => {});
   db.doc("meta/gmail_lus").onSnapshot(sn => { gmMeta = Object.assign({ s: {} }, sn.exists ? sn.data() : {}); renderMails(); }, () => {});
   db.collection("notes_appel").onSnapshot(snap => { notesAppel = {}; snap.docs.forEach(d => notesAppel[d.id] = d.data()); if (callRec && callRec.on) return; if (openId) renderDrawer(); else if (cvSel) renderCv(); }, () => {});
+  db.collection("personnel").onSnapshot(snap => { perso = {}; snap.docs.forEach(d => perso[d.id] = d.data()); persoOk = true; persoTeam(); renderPerso(); }, () => { persoOk = true; renderPerso(); });
   db.collection("fournisseurs").onSnapshot(snap => { fourn = {}; snap.docs.forEach(d => fourn[d.id] = d.data()); fournOk = true; renderFour(); }, () => { fournOk = true; renderFour(); });
   db.collection("sav").onSnapshot(snap => { csav = {}; snap.docs.forEach(d => csav[d.id] = d.data()); renderAll(); }, () => {});
   db.collection("taches").onSnapshot(snap => { taches = {}; snap.docs.forEach(d => taches[d.id] = d.data()); tachesOk = true; renderAll(); autoTasks(); }, () => { tachesOk = true; });

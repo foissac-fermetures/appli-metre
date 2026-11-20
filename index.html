@@ -318,6 +318,21 @@ input:disabled{background:#eef1f7;color:#4a5368}
   .pt-note{position:absolute;left:12%;top:-2px;font-weight:700;font-size:8pt;z-index:2}
   .pt-des.pdf .pt-c{font-size:8pt;border-color:#000;color:#1f4fd8}
   .clim-schema{display:block;max-width:100%;max-height:170mm;margin:0 auto;border:1px solid #9aa3b5}
+  .rs-pg{font-family:Helvetica,Arial,sans-serif;font-size:8.6pt;color:#222}
+  .rs-top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1b2f5e;padding-bottom:5px;margin-bottom:9px}
+  .rs-t{font-size:19pt;font-weight:800;color:#1b3a7a;line-height:1.1} .rs-st{font-size:8.5pt;color:#444;margin-top:2px} .rs-logo{height:40px}
+  .rs-cols{display:grid;grid-template-columns:1.6fr 1fr;gap:18px;align-items:start}
+  .rs-des{border:1px solid #d6dbe6;border-radius:8px;padding:4px;margin-bottom:8px} .rs-svg{width:100%;height:auto;display:block;max-height:400px}
+  .rs-h{background:#1b3a7a;color:#fff;font-weight:700;letter-spacing:1px;font-size:10pt;padding:3px 7px;margin:6px 0 5px}
+  .rs-g,.rs-cl,.rs-cf{width:100%;border-collapse:collapse} .rs-g th{text-align:left;color:#555;font-weight:700;border-bottom:1.5px solid #333;padding:2px 4px} .rs-g td{border-bottom:1px solid #ddd;padding:3px 4px}
+  .rs-pas{display:inline-block;width:20px;height:8px;border-radius:4px} .rs-cbx{display:inline-block;width:10px;height:10px;border:1.2px solid #333}
+  .rs-cl td{padding:3px 0} .rs-cl td:first-child{width:34%} .rs-cl .rs-v{border-bottom:1px solid #888;color:#1f4fd8;font-weight:700}
+  .rs-cf td{padding:12px 4px;border-bottom:1px solid #ddd} .rs-rad{display:inline-block;width:10px;height:10px;border:1.3px solid #333;border-radius:50%;margin:0 4px -1px 14px} .rs-rad.on{background:#1f4fd8;border-color:#1f4fd8}
+  .rs-ref{margin:5px 0} .rs-cbs{display:grid;grid-template-columns:1fr 1fr;gap:8px} .rs-cb{border:1.3px solid #d3232f;border-radius:6px;padding:5px 7px} .rs-cs{color:#555;margin:2px 0 6px}
+  .rs-cv{border-bottom:1px solid #888;text-align:right;min-height:16px} .rs-cv span{float:left;color:#1f4fd8;font-weight:800;font-size:12pt} .rs-cv i{font-style:normal}
+  .rs-note{margin:5px 0 2px} .rs-pts{margin:2px 0 6px;padding-left:16px} .rs-pts li{margin:1px 0}
+  .rs-sig{border:1.5px solid #1b3a7a;border-radius:8px;padding:7px 9px} .rs-sig p{margin:0 0 6px} .rs-ale span{display:inline-block;width:42%;border-bottom:1px solid #888;margin:0 6px}
+  .rs-sb{display:grid;grid-template-columns:2fr 1.2fr;gap:8px;margin-top:8px} .rs-sb>div{border:1px dashed #999;border-radius:6px;padding:5px 7px;height:80px} .rs-sb i{display:block;color:#666;font-size:7.5pt}
   .pg:last-child{page-break-after:auto;break-after:auto}
   .ph{display:flex;align-items:center;gap:12px;border-bottom:3px solid #1b2f5e;padding-bottom:6px;margin-bottom:8px}
   .ph img{height:34px}
@@ -3756,7 +3771,7 @@ const PT_DEDUCTION = 0;   // 20/11 : Nicolas – la fabrication est TOUJOURS la 
 const PT_H_MODES = ["Hauteur pilier − 130 mm","Hauteur choisie par le client"], PT_H_RETRAIT = 130;
 const nouveauPT = () => ({ ref:"", jours:"", elements:[], photos:[] });
 const nouvelElementPT = (type="BATTANT") => ({ id:uid(), type, modele:"", couleur:"", finition:"", lames:"", poignee:"", moto:"", sens:"", dim:"ENTRE PILE", inegaux:false, vantail_p:"",
-  moto_type:"", moto_marque:"", moto_modele:"", L:"", H:"", h_pilier:"", l_pilier:"", options:[], gond_pente:false, pente_l:"", pente_h:"", traverse:"", traverse_l:"", h_mode:PT_H_MODES[0], plan_resa:false, refoulement:"", obs:"" });
+  moto_type:"", moto_marque:"", moto_modele:"", L:"", H:"", h_pilier:"", l_pilier:"", options:[], gond_pente:false, pente_l:"", pente_h:"", traverse:"", traverse_l:"", h_mode:PT_H_MODES[0], plan_resa:false, refoulement:"", refoul_cote:"", obs:"" });
 /* ---------- Fiche SAV (18/11/2026) : même fiche que celle de M. Souladier (05/11/2026), à remplir chez le client ----------
    Toujours un document à part (comme la clim). PDF : une page A4 « FICHE SAV · … » (client, résumé, fournitures, intervention / désordres, photos). */
 const SAV_TITRES = ["Révision des menuiseries","Réglage menuiserie","Volet roulant en panne","Volet battant à reprendre","Porte d'entrée à régler","Vitrage cassé / fêlé","Infiltration d'eau / d'air","Portail / motorisation","Porte de garage"];
@@ -4003,15 +4018,22 @@ function controlePT(d){
       if(e.moto_type==="À vérins" && num(e.l_pilier)!=null && num(e.l_pilier)<150) W.push(`${n} : vérins sur piliers de ${e.l_pilier} mm – vérifier la place pour les pattes de fixation`); }
     if(hModePT(e)===PT_H_MODES[0] && num(e.h_pilier)==null) W.push(`${n} : hauteur du pilier manquante (hauteur du portail = pilier − ${PT_H_RETRAIT})`);
     if(["Électrique","Solaire"].includes(e.moto) && e.type==="BATTANT" && num(e.l_pilier)==null) W.push(`${n} : motorisé → relever la largeur des piliers (fixation des bras / vérins)`);
+    { const P=poteauPT(e); if(P && P.c===100 && motorisePT(e) && e.type!=="COULISSANT") W.push(`${n} : moteur sur poteau alu 100×100 – vérifier la fixation des bras / vérins`); }
+    if(e.plan_resa && e.type==="COULISSANT" && !e.refoul_cote) W.push(`${n} : plan de réservation → côté du refoulement (gauche / droite vue intérieure) à choisir`);
+    if(e.plan_resa && num(e.L)==null) W.push(`${n} : plan de réservation → largeur entre poteaux manquante`);
     if(e.moto==="Électrique" && !/électrique/i.test(e.obs) && !e.plan_resa) W.push(`${n} : motorisation électrique → prévoir l'alimentation (fourreau) et le plan de réservation`); });
   return {E,W};
 }
 /* Dessin avec les cotes posées dessus (même idée que les cases de la feuille Numbers) */
 /* Dessin automatique du portail (20/11/2026), comme les fenêtres : piliers, vantaux, traverse, sens, et toutes les cotes avec flèches */
+/* Poteaux aluminium (20/11/2026) : l'option « Pilier à visser / à sceller 100 / 150 » change le dessin (sinon pilier maçonné) */
+const PT_POTEAU_RE = /^Pilier à (sceller|visser) (100|150)/;
+function poteauPT(e){ const o=(e.options||[]).find(x=>PT_POTEAU_RE.test(x)); if(!o) return null; const m=o.match(PT_POTEAU_RE);
+  return {mode:m[1], c:+m[2], nom:`poteau alu ${m[2]}×${m[2]} à ${m[1]}`}; }
 function dessinPT(e, cls=""){
-  const port=e.type==="PORTILLON", coul=e.type==="COULISSANT", n=x=>num(x);
-  const L=n(e.L)??(port?1000:3000), lp=n(e.l_pilier)??(port?250:350), hp=n(e.h_pilier)??((n(e.H)??1600)+PT_H_RETRAIT), H=n(e.H)??Math.max(800,hp-PT_H_RETRAIT), tr=n(e.traverse), trl=n(e.traverse_l);
-  const totW=2*lp+L, totH=Math.max(hp,H,(tr||0)+(trl||0))*1.02, VW=820, VH=460, mL=110, mR=130, mT=70, mB=95, k=Math.min((VW-mL-mR)/totW,(VH-mT-mB)/totH);
+  const port=e.type==="PORTILLON", coul=e.type==="COULISSANT", n=x=>num(x), P=poteauPT(e);
+  const L=n(e.L)??(port?1000:3000), lp=P?P.c:(n(e.l_pilier)??(port?250:350)), hp=n(e.h_pilier)??((n(e.H)??1600)+PT_H_RETRAIT), H=n(e.H)??Math.max(800,hp-PT_H_RETRAIT), tr=n(e.traverse), trl=n(e.traverse_l);
+  const totW=2*lp+L, totH=Math.max(hp,H,(tr||0)+(trl||0))*1.02, VW=820, VH=460, mL=110, mR=130, mT=70, mB=P?118:95, k=Math.min((VW-mL-mR)/totW,(VH-mT-mB)/totH);
   const x0=mL+((VW-mL-mR)-totW*k)/2, y0=VH-mB, X=v=>x0+v*k, Y=v=>y0-v*k, f=v=>Math.round(v*10)/10;
   const val=(x,def)=>x!==""&&x!=null?esc(x):`<tspan fill="#d3232f">${def||"?"}</tspan>`;
   const fl=(x1,y1,x2,y2,txt,horiz=true,dx=0,dy=0)=>{ const mx=(x1+x2)/2+dx, my=(y1+y2)/2+dy, w=Math.max(46,String(txt).replace(/<[^>]+>/g,"").length*7.6+14);
@@ -4027,11 +4049,20 @@ function dessinPT(e, cls=""){
   let g="";
   // sol + piliers
   g+=`<line x1="${f(x0-40)}" y1="${y0}" x2="${f(X(totW)+40)}" y2="${y0}" stroke="#555" stroke-width="2"/><text x="${f(x0-38)}" y="${y0+14}" font-size="11" fill="#555">sol</text>`;
-  const pil=a=>`<rect x="${f(X(a))}" y="${f(Y(hp))}" width="${f(lp*k)}" height="${f(hp*k)}" fill="#d9dde6" stroke="#1b2f5e" stroke-width="2"/><rect x="${f(X(a)-3)}" y="${f(Y(hp)-6)}" width="${f(lp*k+6)}" height="6" fill="#b7bfd0" stroke="#1b2f5e"/>`;
+  const pil=a=>{ if(!P) return `<rect x="${f(X(a))}" y="${f(Y(hp))}" width="${f(lp*k)}" height="${f(hp*k)}" fill="#d9dde6" stroke="#1b2f5e" stroke-width="2"/><rect x="${f(X(a)-3)}" y="${f(Y(hp)-6)}" width="${f(lp*k+6)}" height="6" fill="#b7bfd0" stroke="#1b2f5e"/>`;
+    const xa=X(a), w=lp*k, cx=xa+w/2; let s="";
+    if(P.mode==="sceller"){ const pw=w+16; s+=`<rect x="${f(cx-pw/2)}" y="${y0}" width="${f(pw)}" height="44" fill="#ece6d6" stroke="#8a7a55" stroke-dasharray="4 3"/><rect x="${f(xa)}" y="${y0}" width="${f(w)}" height="38" fill="none" stroke="#1b2f5e" stroke-width="1.6" stroke-dasharray="5 3"/>`; }
+    s+=`<rect x="${f(xa)}" y="${f(Y(hp))}" width="${f(w)}" height="${f(hp*k-(P.mode==="visser"?5:0))}" fill="url(#ptAlu)" stroke="#1b2f5e" stroke-width="2"/><line x1="${f(xa+w*0.3)}" y1="${f(Y(hp)+4)}" x2="${f(xa+w*0.3)}" y2="${f(y0-8)}" stroke="#fff" stroke-width="1.5" opacity=".8"/>`
+      +`<rect x="${f(xa-1.5)}" y="${f(Y(hp)-4)}" width="${f(w+3)}" height="4" fill="#7d8697" stroke="#1b2f5e" stroke-width="1"/>`;
+    if(P.mode==="visser"){ const pw=w+(P.c===150?22:18); s+=`<rect x="${f(cx-pw/2)}" y="${y0-5}" width="${f(pw)}" height="5" fill="#9aa3b5" stroke="#1b2f5e" stroke-width="1.4"/>`
+      +[cx-pw/2+4,cx+pw/2-4].map(bx=>`<rect x="${f(bx-2.5)}" y="${y0-9}" width="5" height="4" fill="#1b2f5e"/><line x1="${f(bx)}" y1="${y0}" x2="${f(bx)}" y2="${y0+12}" stroke="#555" stroke-width="1.6" stroke-dasharray="2 2"/>`).join(""); }
+    const ly=y0+60;
+    s+=`<text x="${f(cx)}" y="${ly}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1b2f5e">alu ${P.c}×${P.c}</text><text x="${f(cx)}" y="${ly+12}" text-anchor="middle" font-size="10.5" fill="#1b2f5e">à ${P.mode}</text>`;
+    return s; };
   g+=pil(0)+pil(lp+L);
   const a=X(lp)+2, c=X(lp+L)-2;
   if(coul){ g+=panneau(a,c)+`<line x1="${f(X(0)-L*k*0.6)}" y1="${y0-2}" x2="${f(c)}" y2="${y0-2}" stroke="#1b2f5e" stroke-width="3"/>`
-      +`<line x1="${f((a+c)/2+40)}" y1="${f(Y(H/2))}" x2="${f((a+c)/2-40)}" y2="${f(Y(H/2))}" stroke="#d3232f" stroke-width="3" marker-end="url(#ptFlR)"/><text x="${f((a+c)/2)}" y="${f(Y(H/2)-10)}" text-anchor="middle" font-size="12" fill="#d3232f" font-weight="700">coulisse${n(e.refoulement)?` – refoulement ${esc(e.refoulement)}`:""}</text>`; }
+      +`<line x1="${f((a+c)/2+(e.refoul_cote==="Gauche"?-40:40))}" y1="${f(Y(H/2))}" x2="${f((a+c)/2-(e.refoul_cote==="Gauche"?-40:40))}" y2="${f(Y(H/2))}" stroke="#d3232f" stroke-width="3" marker-end="url(#ptFlR)"/><text x="${f((a+c)/2)}" y="${f(Y(H/2)-10)}" text-anchor="middle" font-size="12" fill="#d3232f" font-weight="700">coulisse${n(e.refoulement)?` – refoulement ${esc(e.refoulement)}`:""}</text>`; }
   else if(port){ g+=panneau(a,c)+`<circle cx="${f(c-12)}" cy="${f(Y(H*0.5))}" r="4" fill="#1b2f5e"/>`; }
   else { const gv=e.inegaux&&n(e.vantail_p)?Math.min(L-200,n(e.vantail_p)):L/2, m=X(lp+gv);
     g+=panneau(a,m-1)+panneau(m+1,c)+`<circle cx="${f(m-10)}" cy="${f(Y(H*0.5))}" r="4" fill="#1b2f5e"/><circle cx="${f(m+10)}" cy="${f(Y(H*0.5))}" r="4" fill="#1b2f5e"/>`;
@@ -4042,12 +4073,12 @@ function dessinPT(e, cls=""){
     if(trl) g+=`<text x="${f(X(lp+L/2))}" y="${f(Y(tr)-th-6)}" text-anchor="middle" font-size="12" font-weight="700" fill="#1f4fd8">largeur traverse ${esc(e.traverse_l)}</text>`; }
   // cotes
   g+=att(X(lp),y0,y0+46)+att(X(lp+L),y0,y0+46)+fl(X(lp),y0+38,X(lp+L),y0+38,`${val(e.L)}${e.dim==="ENTRE PILE"?" entre piliers = fab.":" fab."}`);
-  if(!port||e.l_pilier) g+=attH(Y(hp)-6,X(0),X(0))+att(X(0),Y(hp)-6,Y(hp)-26)+att(X(lp),Y(hp)-6,Y(hp)-26)+fl(X(0),Y(hp)-20,X(lp),Y(hp)-20,val(e.l_pilier),true,0,-24)+`<text x="${f(X(lp/2))}" y="${f(Y(hp)-62)}" text-anchor="middle" font-size="11" fill="#555">largeur pilier</text>`;
+  if(!port||e.l_pilier) g+=attH(Y(hp)-6,X(0),X(0))+att(X(0),Y(hp)-6,Y(hp)-26)+att(X(lp),Y(hp)-6,Y(hp)-26)+fl(X(0),Y(hp)-20,X(lp),Y(hp)-20,P?String(P.c):val(e.l_pilier),true,0,-24)+`<text x="${f(X(lp/2))}" y="${f(Y(hp)-62)}" text-anchor="middle" font-size="11" fill="#555">${P?"poteau alu":"largeur pilier"}</text>`;
   g+=attH(Y(hp),X(totW),X(totW)+52)+fl(X(totW)+44,y0,X(totW)+44,Y(hp),val(e.h_pilier),false)+`<text x="${f(X(totW)+44)}" y="${f(Y(hp)-10)}" text-anchor="middle" font-size="11" fill="#555">pilier</text>`;
   g+=attH(Y(H),X(0)-52,X(lp))+fl(X(0)-44,y0,X(0)-44,Y(H),val(e.H),false)+`<text x="${f(X(0)-44)}" y="${f(Y(H)-10)}" text-anchor="middle" font-size="11" fill="#555">${hModePT(e)===PT_H_MODES[0]?"pilier − 130":"portail"}</text>`;
-  const sous=[e.type==="BATTANT"?"Portail battant":coul?"Portail coulissant":"Portillon", e.sens&&!coul?e.sens.toLowerCase()+" (vue ext.)":"", motorisePT(e)?`moteur ${[e.moto_marque,e.moto_type].filter(Boolean).join(" ")}`:"", e.gond_pente?"gond de pente":""].filter(Boolean).join(" · ");
+  const sous=[e.type==="BATTANT"?"Portail battant":coul?"Portail coulissant":"Portillon", e.sens&&!coul?e.sens.toLowerCase()+" (vue ext.)":"", motorisePT(e)?`moteur ${[e.moto_marque,e.moto_type].filter(Boolean).join(" ")}`:"", P?P.nom:"", coul&&e.refoul_cote?`refoulement ${e.refoul_cote.toLowerCase()} (vue int.)`:"", e.gond_pente?"gond de pente":""].filter(Boolean).join(" · ");
   return `<div class="pt-des ${cls}"><svg viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg" font-family="Arial,sans-serif" role="img" aria-label="${esc(sous)}">
-    <defs><marker id="ptFl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="#1f4fd8"/></marker><marker id="ptFlR" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,1 L9,5 L0,9 z" fill="#d3232f"/></marker></defs>
+    <defs><marker id="ptFl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="#1f4fd8"/></marker><marker id="ptFlR" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,1 L9,5 L0,9 z" fill="#d3232f"/></marker><linearGradient id="ptAlu" x1="0" x2="1"><stop offset="0" stop-color="#aab2c0"/><stop offset=".35" stop-color="#eef1f5"/><stop offset="1" stop-color="#9099a8"/></linearGradient></defs>
     <rect width="${VW}" height="${VH}" fill="#fff"/>${g}<text x="${VW/2}" y="${VH-14}" text-anchor="middle" font-size="13" font-weight="700" fill="#1b2f5e">${esc(sous)}</text></svg></div>`;
 }
 function renderPT(t){
@@ -4061,13 +4092,14 @@ function renderPT(t){
         ${F.sel(k+"dim","Dimension",PT_DIM,e.dim)}${F.numb(k+"L",e.dim==="ENTRE PILE"?"Largeur entre piliers (mm)":"Largeur fabrication (mm)",e.L)}
         <div class="hint" style="align-self:end" id="ptFab${i}">${e.dim==="ENTRE PILE"&&f!=null?`Fabrication : <b>${f}</b> mm (= entre piliers, sans jeu)`:""}</div><div></div>
         ${F.sel(k+"h_mode","Hauteur du portail",PT_H_MODES,hModePT(e))}${F.numb(k+"H",hModePT(e)===PT_H_MODES[0]?"Hauteur fabrication (mm) – calculée":"Hauteur voulue par le client (mm)",e.H)}
-        ${F.numb(k+"h_pilier","Hauteur pilier (mm)",e.h_pilier)}${e.type==="PORTILLON"?"<div></div>":F.numb(k+"l_pilier","Largeur pilier (mm)",e.l_pilier)}${F.numb(k+"traverse","Hauteur traverse si besoin (mm)",e.traverse)}${F.numb(k+"traverse_l","Largeur traverse si besoin (mm)",e.traverse_l)}${e.type==="COULISSANT"?F.numb(k+"refoulement","Refoulement disponible (mm)",e.refoulement):"<div></div>"}
+        ${F.numb(k+"h_pilier","Hauteur pilier (mm)",e.h_pilier)}${e.type==="PORTILLON"?"<div></div>":F.numb(k+"l_pilier","Largeur pilier (mm)",e.l_pilier)}${F.numb(k+"traverse","Hauteur traverse si besoin (mm)",e.traverse)}${F.numb(k+"traverse_l","Largeur traverse si besoin (mm)",e.traverse_l)}${e.type==="COULISSANT"?F.numb(k+"refoulement","Refoulement disponible (mm)",e.refoulement)+F.sel(k+"refoul_cote","Côté du refoulement (vue intérieure)",["Gauche","Droite"],e.refoul_cote):"<div></div>"}
       </div>
       ${motorisePT(e)?`<div class="pt-moto"><div class="obs-t">Motorisation ${esc(e.moto.toLowerCase())}</div><div class="grid g4">
         ${F.sel(k+"moto_marque","Marque",PT_MARQUES,e.moto_marque)}${F.sel(k+"moto_type","Type de moteur",motoTypesPT(e),e.moto_type)}
         <label class="f">Modèle<input data-k="${k}moto_modele" value="${esc(e.moto_modele)}" list="dlPtMoto${i}" placeholder="Choisir ou taper"></label>
         <datalist id="dlPtMoto${i}">${(PT_MOTO_MODELES[`${e.moto_marque}|${e.moto_type}`]||[]).map(x=>`<option value="${esc(x)}">`).join("")}</datalist></div></div>`:""}
-      <div class="checks" style="margin-top:10px">${e.type==="BATTANT"?F.chk(k+"inegaux","Portail inégaux",e.inegaux):""}${F.chk(k+"gond_pente","Gond de pente",e.gond_pente)}${F.chk(k+"plan_resa","Faire plan de réservation",e.plan_resa)}</div>
+      <div class="checks" style="margin-top:10px">${e.type==="BATTANT"?F.chk(k+"inegaux","Portail inégaux",e.inegaux):""}${F.chk(k+"gond_pente","Gond de pente",e.gond_pente)}${F.chk(k+"plan_resa","Faire plan de réservation",e.plan_resa)}${e.plan_resa?`<button class="btn small primary" data-ptresa="${i}" style="margin-left:6px">🧱 Voir / imprimer le plan de réservation</button>`:""}</div>
+      ${e.plan_resa?`<p class="hint" style="margin:4px 0 0">Le plan est préparé tout seul avec ces cotes, ajouté à la fin du PDF du métré et rangé dans le dossier du client sur le Drive.</p>`:""}
       ${(e.inegaux&&e.type==="BATTANT")||e.gond_pente?`<div class="grid g4" style="margin-top:8px">${e.inegaux&&e.type==="BATTANT"?F.numb(k+"vantail_p","Largeur du grand vantail (mm)",e.vantail_p):""}${e.gond_pente?F.numb(k+"pente_l","Pente – longueur (mm)",e.pente_l)+F.numb(k+"pente_h","Pente – hauteur (mm)",e.pente_h):""}</div>`:""}
       <div class="hint" style="margin:10px 0 4px">Options portail</div>${F.multi(k+"options",PT_OPTIONS,e.options)}
       <div style="margin-top:8px">${F.area(k+"obs","Observation",e.obs)}</div>
@@ -4091,6 +4123,7 @@ function renderPT(t){
   $$("[data-pttype]").forEach(b=>b.onclick=()=>{ const e=p.elements[+b.dataset.pttype]; e.type=b.dataset.v; if(e.moto_type && !motoTypesPT(e).includes(e.moto_type)){ e.moto_type=e.type==="COULISSANT"?PT_MOTO_TYPES_C[0]:""; e.moto_modele=PT_MOTO_DEFAUT[`${e.moto_marque}|${e.moto_type}`]||""; } save(); re(); });
   $$("[data-ptdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer cet élément ?","Supprimer")) return; p.elements.splice(+b.dataset.ptdel,1); save(); re(); });
   $$("[data-ptdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.ptdup, n=JSON.parse(JSON.stringify(p.elements[i])); n.id=uid(); p.elements.splice(i+1,0,n); save(); re(); });
+  $$("[data-ptresa]").forEach(b=>b.onclick=()=>voirPlanResa([p.elements[+b.dataset.ptresa]]));
   initPhotos(p, re);
 }
 function majPT(k){
@@ -4098,10 +4131,141 @@ function majPT(k){
   if(m[2]==="moto" && motorisePT(e)){ if(!e.moto_marque) e.moto_marque="Somfy"; if(!e.moto_type && e.type==="COULISSANT") e.moto_type=PT_MOTO_TYPES_C[0]; }
   if(["moto","moto_marque","moto_type"].includes(m[2]) && motorisePT(e)){ const def=PT_MOTO_DEFAUT[`${e.moto_marque}|${e.moto_type}`], L=PT_MOTO_MODELES[`${e.moto_marque}|${e.moto_type}`]||[];
     if(!e.moto_modele || !L.includes(e.moto_modele) && Object.values(PT_MOTO_MODELES).flat().includes(e.moto_modele)) e.moto_modele=def||L[0]||""; save(); }
+  if(m[2]==="options"){ const pot=e.options.filter(x=>PT_POTEAU_RE.test(x)); if(pot.length>1) e.options=e.options.filter(x=>!PT_POTEAU_RE.test(x)||x===pot[pot.length-1]);   // un seul type de poteau
+    const P=poteauPT(e); if(P) e.l_pilier=String(P.c); save(); const y=scrollY; renderDossier(); scrollTo(0,y); return; }
   if(["h_pilier","h_mode"].includes(m[2])){ const ha=hauteurAutoPT(e); if(ha!=null){ e.H=String(ha); save(); } }
-  if(["dim","inegaux","gond_pente","moto","moto_marque","moto_type","h_mode"].includes(m[2])){ const y=scrollY; renderDossier(); scrollTo(0,y); return; }
+  if(["dim","inegaux","gond_pente","moto","moto_marque","moto_type","h_mode","plan_resa"].includes(m[2])){ const y=scrollY; renderDossier(); scrollTo(0,y); return; }
   if(m[2]==="h_pilier"){ const hi=$(`[data-k="pt.elements.${i}.H"]`); if(hi && document.activeElement!==hi) hi.value=e.H||""; }
   const z=$("#ptDes"+i); if(z) z.innerHTML=dessinPT(e); const f=fabPT(e), h=$("#ptFab"+i); if(h) h.innerHTML=e.dim==="ENTRE PILE"&&f!=null?`Fabrication : <b>${f}</b> mm (= entre piliers, sans jeu)`:"";
+}
+/* ---------- Plan de réservation automatique (20/11/2026) ----------
+   Case « Faire plan de réservation » : une page A4 paysage sur le modèle de Nicolas (Drive › 03 - Plans de réservation › Portail :
+   battant motorisé, coulissant motorisé gauche / droite, portillon manuel), remplie avec le client, les cotes, le type de poteau.
+   Ajoutée à la fin du PDF du métré, rangée dans le dossier du client sur le Drive, et bouton « Voir / imprimer ».
+   Le cadre « Foissac Fermetures » reste vide (pas de signature dans l'appli publique). */
+const nomPlanResa = d => `${(d.client.nom||"SANS NOM").trim().toUpperCase().replace(/[\\/:*?"<>|]+/g," ")} Plan de réservation portail.pdf`;
+function dessinResaPT(e){
+  const P=poteauPT(e), coul=e.type==="COULISSANT", port=e.type==="PORTILLON", moto=motorisePT(e), sol=e.moto==="Solaire", n=x=>num(x);
+  const droite=coul && e.refoul_cote==="Droite", longrine=coul||(moto&&!port);
+  const W=640, top=coul?178:0, VH=coul?522:352, f=v=>Math.round(v*10)/10;
+  const pw=P?(P.c===150?34:26):70, xg=100, xd=W-100-pw, mg=droite?xd:xg, og=droite?xg:xd;   // poteaux ; mg = poteau côté moteur
+  const yS=top+278, yT=top+74, hp=n(e.h_pilier), H=n(e.H), Lv=n(e.L);
+  const yP=hp&&H?yS-(yS-yT)*Math.min(1,H/hp):yT+34, yC=yS-(yS-yT)*Math.min(.6,500/(hp||1700));
+  const fl=(x1,y1,x2,y2)=>`<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="#222" stroke-width="1.2" marker-start="url(#rsFl)" marker-end="url(#rsFl)"/>`;
+  const tx=(x,y,t,o="")=>`<text x="${f(x)}" y="${f(y)}" ${o}>${t}</text>`;
+  const tube=(c,d)=>`<path d="${d}" fill="none" stroke="${c}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const vval=v=>v!=null?`<tspan fill="#1f4fd8">${v}</tspan>`:"……", HALO='stroke="#fff" stroke-width="3.5" paint-order="stroke"';
+  let g="", g2="";   // g2 : textes posés par-dessus les gaines
+  /* ---- vue de dessus (coulissant) ---- */
+  if(coul){
+    const sq=Math.min(pw,48), yp=48, yl=yp+sq+2, ext=62;
+    g+=tx(W/2,20,`VUE DE DESSUS · REFOULEMENT À ${droite?"DROITE":"GAUCHE"}`,'text-anchor="middle" font-size="12" font-weight="700" letter-spacing="1" fill="#444"');
+    const cx2=droite?24:W-24, an=droite?"start":"end"; g+=tx(cx2,40,"E X T É R I E U R",`text-anchor="${an}" font-size="10.5" font-weight="700" fill="#555"`)+tx(cx2,166,"I N T É R I E U R",`text-anchor="${an}" font-size="10.5" font-weight="700" fill="#555"`);
+    const lx1=droite?xg:xg-ext, lx2=droite?xd+pw+ext:xd+pw;
+    g+=`<rect x="${lx1}" y="${yl}" width="${lx2-lx1}" height="20" fill="#b9bec8"/>`+tx((lx1+lx2)/2,yl+14,"LONGRINE (200 mm)",'text-anchor="middle" font-size="11" font-weight="700" fill="#333"');
+    [xg,xd].forEach(x=>{ g+=`<rect x="${x}" y="${yp}" width="${pw}" height="${sq}" fill="${P?"url(#rsAlu)":"#f4ecdc"}" stroke="${P?"#1b2f5e":"#8a7a55"}" stroke-width="1.5"/>`+(P?"":tx(x+pw/2,yp+sq/2+4,"POTEAU",'text-anchor="middle" font-size="10" font-weight="700" fill="#6b5a35"')); });
+    const ex1=droite?xd+pw:xg-ext, ex2=droite?xd+pw+ext:xg; g+=fl(ex1,yp-12,ex2,yp-12)+tx((ex1+ex2)/2,yp-17,"500 mm",'text-anchor="middle" font-size="11" font-weight="700"');
+    g+=fl(xg+pw,yp+14,xd,yp+14)+tx(W/2,yp+9,`L = ${vval(Lv)} mm entre poteaux finis`,'text-anchor="middle" font-size="11.5" font-weight="700"');
+    if(moto){ const dx=droite?xd+pw-64:xg; g+=`<rect x="${dx}" y="${yl-6}" width="64" height="50" fill="rgba(80,90,110,.18)" stroke="#555" stroke-dasharray="4 3"/>`
+      +tx(droite?dx-8:dx+72,yl+38,"Dalle moteur 450 × 350 mm",`text-anchor="${droite?"end":"start"}" font-size="10.5" font-weight="700"`); }
+    g+=`<line x1="20" y1="${top-6}" x2="${W-20}" y2="${top-6}" stroke="#bbb" stroke-dasharray="4 4"/>`;
+    g+=tx(W/2,top+12,"VUE DE FACE · CÔTÉ INTÉRIEUR",'text-anchor="middle" font-size="12" font-weight="700" letter-spacing="1" fill="#444"');
+  } else g+=tx(W/2,18,"VUE DE FACE, CÔTÉ INTÉRIEUR DE LA PROPRIÉTÉ",'text-anchor="middle" font-size="12" font-weight="700" letter-spacing="1" fill="#444"');
+  /* ---- vue de face ---- */
+  g+=`<rect x="30" y="${yS}" width="${W-60}" height="62" fill="#eef0f4"/>`;
+  if(longrine){ const lx1=coul&&!droite?xg-60:xg-28, lx2=coul&&droite?xd+pw+60:xd+pw+28;
+    g+=`<rect x="${lx1}" y="${yS}" width="${lx2-lx1}" height="22" fill="#b9bec8"/>`+tx(W/2,yS+15,`LONGRINE ${coul?"(200 mm)":`(largeur des poteaux${P?` : ${P.c} mm`:n(e.l_pilier)?` : ${esc(e.l_pilier)} mm`:""})`}`,'text-anchor="middle" font-size="11" font-weight="700" fill="#333"'); }
+  else g+=tx(W/2,yS+38,"SOL FINI",'text-anchor="middle" font-size="11" font-weight="700" fill="#555"');
+  // portail (contour)
+  const a=xg+pw+3, c=xd-3;
+  g+=`<rect x="${a}" y="${f(yP)}" width="${c-a}" height="${f(yS-3-yP)}" fill="#f3f6fc" stroke="#9aa6c2" stroke-dasharray="6 4"/>`;
+  if(e.type==="BATTANT") g+=`<line x1="${(a+c)/2}" y1="${f(yP)}" x2="${(a+c)/2}" y2="${yS-3}" stroke="#9aa6c2" stroke-dasharray="6 4"/>`;
+  g+=coul?tx((a+c)/2,f(yP+22),`coulisse vers la ${droite?"droite":"gauche"} (refoulement)`,'text-anchor="middle" font-size="11" font-weight="700" fill="#1b2f5e"')
+     :tx((a+c)/2,f(yP+22),`${port?"Portillon":"Portail"} posé entre les poteaux`,'text-anchor="middle" font-size="11" font-weight="700" fill="#1b2f5e"')+tx((a+c)/2,f(yP+36),"ouverture vers l'intérieur",'text-anchor="middle" font-size="11" font-weight="700" fill="#1b2f5e"');
+  if(H!=null){ g+=fl(a+16,yS-3,a+16,yP)+tx(a+22,f((yS+yP)/2+4),`portail ${H}`,'font-size="10.5" fill="#1f4fd8" font-weight="700"'); }
+  // poteaux + fondations
+  [xg,xd].forEach(x=>{ const cx=x+pw/2;
+    if(P&&P.mode==="sceller") g+=`<rect x="${cx-pw/2-12}" y="${yS}" width="${pw+24}" height="50" fill="#e9e1cc" stroke="#8a7a55" stroke-dasharray="4 3"/><rect x="${x}" y="${yS}" width="${pw}" height="42" fill="none" stroke="#1b2f5e" stroke-width="1.4" stroke-dasharray="5 3"/>`; if(P&&P.mode==="sceller") g2+=tx(cx,yS+30,"scellement",`text-anchor="middle" font-size="9.5" font-weight="700" fill="#6b5a35" ${HALO}`);
+    if(P&&P.mode==="visser") g+=`<rect x="${cx-pw/2-14}" y="${yS}" width="${pw+28}" height="42" fill="#e9e1cc" stroke="#8a7a55" stroke-dasharray="4 3"/>`; if(P&&P.mode==="visser") g2+=tx(cx,yS+28,"massif béton",`text-anchor="middle" font-size="9.5" font-weight="700" fill="#6b5a35" ${HALO}`);
+    if(!P) g+=`<rect x="${x}" y="${yT}" width="${pw}" height="${yS-yT}" fill="#f4ecdc" stroke="#8a7a55" stroke-width="1.5"/><rect x="${x-5}" y="${yT-9}" width="${pw+10}" height="9" fill="#d8cbb0" stroke="#8a7a55"/>`
+      +tx(cx,yT+20,"POTEAU",'text-anchor="middle" font-size="10" font-weight="700" fill="#6b5a35"');
+    else { g+=`<rect x="${x}" y="${yT}" width="${pw}" height="${yS-yT-(P.mode==="visser"?6:0)}" fill="url(#rsAlu)" stroke="#1b2f5e" stroke-width="1.6"/><rect x="${x-2}" y="${yT-4}" width="${pw+4}" height="4" fill="#7d8697"/>`
+; g2+=tx(cx+4,f((yT+yS)/2),`POTEAU ALU ${P.c}×${P.c}`,`text-anchor="middle" font-size="10" font-weight="700" fill="#1b2f5e" ${HALO} transform="rotate(-90 ${f(cx+4)} ${f((yT+yS)/2)})"`);
+      if(P.mode==="visser"){ const qw=pw+16; g+=`<rect x="${cx-qw/2}" y="${yS-6}" width="${qw}" height="6" fill="#9aa3b5" stroke="#1b2f5e"/>`+[cx-qw/2+4,cx+qw/2-4].map(bx=>`<rect x="${bx-2.5}" y="${yS-10}" width="5" height="4" fill="#1b2f5e"/><line x1="${bx}" y1="${yS}" x2="${bx}" y2="${yS+14}" stroke="#555" stroke-width="1.5" stroke-dasharray="2 2"/>`).join(""); } } });
+  // cotes
+  g+=fl(xg+pw,yT+16,xd,yT+16)+tx(W/2,yT+11,`L = ${vval(Lv)} mm ${e.dim==="Fabrication"?"(fabrication)":"entre poteaux finis"}`,'text-anchor="middle" font-size="11.5" font-weight="700"');
+  g+=`<line x1="${xd+pw+4}" y1="${yT}" x2="${W-34}" y2="${yT}" stroke="#999" stroke-dasharray="3 3"/>`+fl(W-42,yT,W-42,yS);
+  const hx=W-50, hy=(yT+yS)/2; g+=tx(hx,hy,`H = ${vval(hp)} mm ${P?"haut du poteau":"sous chapeau"}`,`text-anchor="middle" font-size="11.5" font-weight="700" transform="rotate(-90 ${hx} ${f(hy)})"`);
+  // gaines
+  if(moto){ g2+=tx(36,yS+61,"depuis la maison →",`font-size="9.5" fill="#555" ${HALO}`);
+    const pinkX=droite?mg-5:mg+pw+5, redX=droite?og+pw+5:og-5;
+    g+=`<line x1="${xg+pw}" y1="${f(yC)}" x2="${xd}" y2="${f(yC)}" stroke="#e0408a" stroke-width="1.4" stroke-dasharray="5 4"/>`+tx(W/2-70,f(yC-6),"faisceau des cellules",'font-size="9.5" fill="#555"');
+    const cx5=droite?W/2-110:W/2+40; g+=fl(cx5,yC,cx5,yS)+tx(cx5+6,f((yC+yS)/2),"500 mm",'font-size="11" font-weight="700"')+tx(cx5+6,f((yC+yS)/2+12),"au-dessus du sol fini",'font-size="9" fill="#555"');
+    if(coul){ const dx=droite?xd-66:xg+pw, dc=dx+33; g+=`<rect x="${dx}" y="${yS}" width="66" height="22" fill="#8a919e"/>`+tx(droite?dx-6:dx+70,yS-6,"dalle moteur",`text-anchor="${droite?"end":"start"}" font-size="10" font-weight="700"`);
+      if(!sol) g+=tube("#e8822a",`M36,${yS+50} H${dc} V${yS+20}`);
+      g+=tube("#e0408a",`M${pinkX},${f(yC)} V${yS+18}`)+tube("#d3232f",`M${redX},${f(yC)} V${yS+42} H${dc+8} V${yS+20}`)+tube("#2c5fc7",`M${droite?mg+pw+8:mg-8},${yS+18} V${yT+6}`); }
+    else { if(!sol) g+=tube("#e8822a",`M36,${yS+52} H${xd+pw/2+6} V${yS-4}`)+tube("#e8822a",`M${xg+pw/2+8},${yS+52} V${yS-4}`);
+      g+=tube("#f0c94a",`M36,${yS+44} H${xg+pw/2-2} V${yS-4}`)+tube("#3aa84a",`M36,${yS+37} H${xg+pw/2-8} V${yS-4}`)
+        +tube("#e0408a",`M${xg+pw+5},${f(yC)} V${yS+28}`)+tube("#d3232f",`M${xd-5},${f(yC)} V${yS+30} H${xg+pw+12}`)+tube("#2c5fc7",`M${xg-8},${yS+30} V${yT+6}`); } }
+  return `<svg viewBox="0 0 ${W} ${VH}" xmlns="http://www.w3.org/2000/svg" font-family="Arial,sans-serif" class="rs-svg"><defs><marker id="rsFl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="#222"/></marker>
+    <linearGradient id="rsAlu" x1="0" x2="1"><stop offset="0" stop-color="#aab2c0"/><stop offset=".35" stop-color="#eef1f5"/><stop offset="1" stop-color="#9099a8"/></linearGradient></defs><rect width="${W}" height="${VH}" fill="#fff"/>${g}${g2}</svg>`;
+}
+function pageResaPT(d,e){
+  const P=poteauPT(e), coul=e.type==="COULISSANT", port=e.type==="PORTILLON", moto=motorisePT(e), sol=e.moto==="Solaire", n=x=>num(x), Lv=n(e.L), Hp=n(e.H), lib=port?"portillon":"portail";
+  const quoi=coul?"PORTAIL COULISSANT":port?"PORTILLON":"PORTAIL BATTANT";
+  const longrine=coul||(moto&&!port);
+  const travaux=[P?(P.mode==="visser"?"massifs béton des poteaux":"scellement des poteaux"):"poteaux", longrine?"longrine":"sol fini", coul&&moto?"dalle moteur":"", moto?"passage des gaines":""].filter(Boolean).join(", ");
+  const rad=(on,t)=>`<span class="rs-rad${on?" on":""}"></span>${t}`;
+  const ligne=(l,v)=>`<tr><td>${l}</td><td class="rs-v">${v?esc(v):""}</td></tr>`;
+  const box=(t,s,v)=>`<div class="rs-cb"><b>${t}</b><div class="rs-cs">${s}</div><div class="rs-cv">${v?`<span>${esc(v)}</span>`:""}<i>mm</i></div></div>`;
+  const note = hModePT(e)===PT_H_MODES[0]
+    ? `Le ${lib} mesurera <b>${PT_H_RETRAIT} mm de moins que H</b>${Hp!=null?` : <b>${Hp} mm</b>`:""}${coul?" (rail et guidage)":" (gonds hauts + jeu au sol)"}, davantage si le sol monte vers l'intérieur.`
+    : `Hauteur du ${lib} choisie par le client : <b>${Hp!=null?Hp+" mm":"……"}</b> → H doit faire au moins <b>${Hp!=null?Hp+PT_H_RETRAIT+" mm":`hauteur + ${PT_H_RETRAIT} mm`}</b>.`;
+  const pts=[];
+  if(P){ pts.push(`<b>Poteaux alu ${P.c}×${P.c} à ${P.mode}</b>, livrés avec le ${lib}.`);
+    pts.push(P.mode==="visser"?`Sous chaque poteau : un <b>massif béton</b>, dessus <b>de niveau avec le sol fini</b>, pour fixer la platine (4 chevilles).`
+      :`Sous chaque poteau : une <b>réservation</b> dans le béton pour le <b>sceller</b>${Lv!=null?`, faces intérieures à <b>${Lv} mm</b>`:""}.`);
+    if(moto&&!coul&&P.c===100) pts.push(`<b>Moteur sur poteau 100×100</b> : fixation des bras / vérins à valider avant la pose.`);
+    pts.push(`Poteaux <b>d'aplomb</b>, faces intérieures parallèles sur toute la hauteur.`); }
+  else if(moto&&!coul) pts.push(`Poteaux de <b>300 mm minimum</b> de côté (fixation du moteur).`);
+  else pts.push(`Poteaux <b>d'aplomb</b>, faces intérieures parallèles sur toute la hauteur.`);
+  if(coul){ pts.push(`Longrine béton de <b>200 mm</b> de large, d'une longueur égale à la <b>largeur entre poteaux finis + 500 mm</b>${Lv!=null?` = <b>${Lv+500} mm</b>`:""}, côté refoulement${e.refoul_cote?` (<b>${e.refoul_cote.toLowerCase()}</b> vue intérieure)`:""}.`);
+    if(moto) pts.push(`Dalle moteur de <b>450 × 350 mm</b> côté intérieur${e.refoul_cote?`, à ${e.refoul_cote.toLowerCase()}`:""}.`); }
+  else if(moto) pts.push(`Longrine béton <b>de la largeur des poteaux</b>${P?` (${P.c} mm)`:n(e.l_pilier)?` (${esc(e.l_pilier)} mm)`:""}, sur toute l'ouverture.`);
+  if(moto&&!sol) pts.push(`Câble d'alimentation <b>3 × 1,5 mm²</b> jusqu'à 30 m, <b>3 × 2,5 mm²</b> au-delà.`);
+  if(sol) pts.push(`Motorisation <b>solaire</b> : pas de câble d'alimentation ; panneau à placer au soleil.`);
+  if(moto) pts.push(`Gyrophare <b>obligatoire</b> si le ${lib} donne directement sur la voie publique.`);
+  if(moto&&!coul) pts.push(`Interphone à piles : aucune gaine interphone à prévoir.`);
+  if(!moto) pts.push(`${port?"Portillon":"Portail"} <b>manuel</b> : aucune gaine électrique à prévoir.`);
+  let bas;
+  if(moto){ const G=(coul?[["#e8822a","Alimentation",40,"Réservation de la dalle moteur","Toujours",!sol],["#e0408a","Cellule 1",25,"Poteau côté moteur, face intérieure, à 500 mm","Toujours"],["#d3232f","Cellule 2",25,"Poteau opposé, même hauteur","Toujours"],["#2c5fc7","Gyrophare",25,"Haut du poteau côté moteur","Accès sur voie publique"]]
+      :[["#e8822a","Alimentation",40,"Pied de chaque poteau moteur","Toujours",!sol],["#f0c94a","Interphone",40,"Arrivée depuis la maison","Interphone filaire"],["#3aa84a","Interphone",25,"Vers la platine de rue","Interphone filaire"],["#e0408a","Cellule 1",25,"Face intérieure, à 500 mm","Toujours"],["#d3232f","Cellule 2",25,"Poteau opposé, même hauteur","Toujours"],["#2c5fc7","Gyrophare / antenne",25,"Face extérieure ou en haut","Accès sur voie publique"]]).filter(r=>r[5]!==false);
+    bas=`<div class="rs-h">4 · GAINES À PASSER</div><table class="rs-g"><tr><th></th><th>Gaine</th><th>Ø</th><th>Sortie</th><th>Quand</th><th>Prévue</th></tr>${G.map(r=>`<tr><td><span class="rs-pas" style="background:${r[0]}"></span></td><td><b>${r[1]}</b></td><td>${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td><td class="c"><span class="rs-cbx"></span></td></tr>`).join("")}</table>`; }
+  else bas=`<div class="rs-h">4 · CONFIGURATION DU ${coul?"PORTAIL":port?"PORTILLON":"PORTAIL"}</div><table class="rs-cf">
+    ${coul?`<tr><td><b>Refoulement (vue intérieure)</b></td><td>${rad(e.refoul_cote==="Gauche","gauche")}${rad(e.refoul_cote==="Droite","droite")}</td></tr>`
+      :`${port?`<tr><td><b>Gonds (vue intérieure)</b></td><td>${rad(false,"poteau gauche")}${rad(false,"poteau droit")}</td></tr>`:""}<tr><td><b>Ouverture</b></td><td>${rad(!!e.sens,"vers l'intérieur")}${rad(false,"vers l'extérieur")}</td></tr>${e.sens?`<tr><td><b>Sens choisi au métré</b></td><td>${esc(e.sens.toLowerCase())} (vue extérieure)</td></tr>`:""}`}</table>`;
+  return `<div class="pg rs-pg"><div class="rs-top"><div><div class="rs-t">PLAN DE RÉSERVATION · ${quoi} ${moto?(sol?"SOLAIRE":"MOTORISÉ"):"MANUEL"}</div>
+      <div class="rs-st">À compléter et signer avant les travaux de maçonnerie (${travaux})${moto?"":" · aucune gaine électrique à prévoir"}</div></div><img src="${LOGO}" class="rs-logo"></div>
+    <div class="rs-cols"><div><div class="rs-des">${dessinResaPT(e)}</div>${bas}</div>
+    <div><div class="rs-h">1 · CLIENT ET CHANTIER</div><table class="rs-cl">${ligne("Nom",d.client.nom)}${ligne("Adresse chantier",d.adresse_chantier)}${ligne("Téléphone",d.client.telephone)}${ligne("N° de devis","")}</table>
+      ${coul&&moto?`<div class="rs-ref"><b>Refoulement (vue intérieure) :</b> ${rad(e.refoul_cote==="Gauche","gauche")} ${rad(e.refoul_cote==="Droite","droite")}</div>`:""}
+      <div class="rs-h">2 · COTES À RELEVER</div><div class="rs-cbs">${box(e.dim==="Fabrication"?"L · Largeur de fabrication":"L · Largeur entre poteaux finis",P?"entre les faces des poteaux":"enduit compris",e.L)}${box(P?"H · Hauteur du poteau":"H · Hauteur sous chapeau",P?"du sol fini au haut du poteau":coul?"du sol au chapeau du poteau":"mesurée au point le plus bas",e.h_pilier)}</div>
+      <p class="rs-note">${note}</p>
+      <div class="rs-h">3 · POINTS À RESPECTER</div><ul class="rs-pts">${pts.map(x=>`<li>${x}</li>`).join("")}</ul>
+      <div class="rs-sig"><p>Le client s'engage à respecter ces dimensions${moto?" et le plan de sortie des gaines":""}. Fait en deux exemplaires, dont un remis au client.</p>
+        <div class="rs-ale">À <span></span> le <span></span></div>
+        <div class="rs-sb"><div><b>Signature du client</b><i>Précédée de la mention manuscrite « Bon pour accord »</i></div><div><b>Foissac Fermetures</b></div></div></div>
+    </div></div></div>`;
+}
+function pagesResaPT(d, L){ if(!d.pt) return ""; L=L||d.pt.elements.filter(e=>e.plan_resa); return L.map(e=>pageResaPT(d,e)).join(""); }
+async function voirPlanResa(L){
+  const d=S.dossier; let w=null;
+  try{ w=window.open("","_blank"); if(w) w.document.write('<p style="font:16px -apple-system,Arial;padding:24px">Préparation du plan de réservation…</p>'); }catch(e){ w=null; }
+  toast("Préparation du plan de réservation…");
+  try{ const blob=await genererPDF(d, pagesResaPT(d,L)), url=URL.createObjectURL(blob);
+    if(w && !w.closed) w.location.href=url; else { const a=document.createElement("a"); a.href=url; a.download=nomPlanResa(d); document.body.appendChild(a); a.click(); a.remove(); }
+    setTimeout(()=>URL.revokeObjectURL(url),120000);
+  }catch(e){ if(w && !w.closed) w.close(); toast("Plan impossible : "+e.message); }
 }
 /* ---------- PDF : une page « Menuiserie » par élément, comme la feuille Numbers ---------- */
 function pagesPT(d){
@@ -4135,7 +4299,7 @@ function pagesPT(d){
     </div>`; });
   const ph=p.photos.filter(x=>x.img), head=t=>`<div class="ph"><img src="${LOGO}"><div class="tt">${esc(t)}</div><div>${esc(d.client.nom)}<br>${fmtDate(d.client.date_rdv)}</div></div>`;
   for(let i=0;i<ph.length;i+=4) h+=`<div class="pg">${head("Photos portail")}<div class="pphotos">${ph.slice(i,i+4).map((x,j)=>`<figure><img src="${x.img}"><figcaption><b>Photo ${i+j+1}</b>${x.txt?" – "+esc(x.txt):""}</figcaption></figure>`).join("")}</div></div>`;
-  return h;
+  return h+pagesResaPT(d);
 }
 
 /* ---------- Variante ---------- */
@@ -4384,9 +4548,9 @@ async function deposerDrive(nom, blob, parent, description){
 }
 
 /* ---------- PDF sans passer par l'impression ---------- */
-async function genererPDF(d){
+async function genererPDF(d, htmlSeul){   // htmlSeul : pages à part (plan de réservation, 20/11/2026), sans les plans joints
   await Promise.all([chargerScript(LIB_H2C), chargerScript(LIB_PDF)]);
-  const html=construireImpression(d);
+  const html=htmlSeul||construireImpression(d);
   const css=[...document.querySelectorAll("style")].map(s=>s.textContent).join("\n").replace(/@media\s+print\s*\{/g,"@media all{");
   const fr=document.createElement("iframe");
   fr.style.cssText="position:absolute;left:-20000px;top:0;width:1047px;height:800px;border:0";
@@ -4412,7 +4576,7 @@ async function genererPDF(d){
       pdf.addImage(c.toDataURL("image/jpeg",0.9),"JPEG",10+(W-w)/2,10,w,h);
     }
     let blob=pdf.output("blob");
-    try{ blob=await joindrePlans(d, blob); }catch(e){ console.warn("plans", e); }   // plans du dossier « 09 - Plan » ajoutés à la fin
+    if(!htmlSeul) try{ blob=await joindrePlans(d, blob); }catch(e){ console.warn("plans", e); }   // plans du dossier « 09 - Plan » ajoutés à la fin
     return blob;
   } finally { fr.remove(); }
 }
@@ -4496,6 +4660,8 @@ async function envoyerDossierDrive(d){
   const pdf=await genererPDF(d); envoyerDossierDrive.dernierPDF=pdf;
   // « clemence:envoye » : déjà envoyé à Clémence par le bouton de l'appli → le programme Google ne le recopie pas
   const f=await deposerDrive(base+".pdf", pdf, sous, `Métré Foissac – circuit:${circuit} – ${d.type_document||""}${d.clemence&&d.clemence.envoye?" – clemence:envoye":""}`);
+  // plan de réservation du portail (20/11/2026) : aussi en PDF à part dans le dossier du client, prêt à imprimer / envoyer
+  if(typeof pagesResaPT==="function"){ const hr=pagesResaPT(d); if(hr){ try{ await deposerDrive(nomPlanResa(d), await genererPDF(d, hr), sous, "Plan de réservation portail – à faire signer « Bon pour accord »"); }catch(e){ console.warn("plan de réservation", e); } } }
   // photos : chaque nouvelle photo (ou photo annotée) est aussi rangée en JPG dans « NOM – date › Photos » (19/11 : sous-dossier ; jamais effacées du Drive)
   let ph=sous; try{ ph=await dossierDrive("Photos", sous);
     const vieilles=(await gdrive("https://www.googleapis.com/drive/v3/files?pageSize=200&fields=files(id)&q="+encodeURIComponent(`'${sous}' in parents and mimeType contains 'image/' and trashed=false`))).files||[];

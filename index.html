@@ -26,6 +26,7 @@ button{font:inherit;cursor:pointer}
 header.bar{position:sticky;top:0;z-index:20;background:var(--navy);color:#fff;display:flex;align-items:center;gap:12px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top))}
 header.bar .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.3px}
 header.bar .brand img{height:30px;background:#fff;border-radius:6px;padding:2px 6px}
+header.bar .hist-btn{font-size:22px;line-height:1;padding:6px 12px;min-width:44px} header.bar .hist-btn:disabled{opacity:.35}
 header.bar .title{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.9}
 .btn{border:0;border-radius:10px;min-height:var(--tap);padding:0 16px;background:var(--soft);color:var(--navy);font-weight:600;display:inline-flex;align-items:center;gap:8px}
 .btn.primary{background:var(--red);color:#fff}
@@ -407,6 +408,8 @@ input:disabled{background:#eef1f7;color:#4a5368}
   <div class="brand"><img id="logo" alt="Foissac Fermetures"><span>Métré</span></div>
   <div class="title" id="barTitle"></div>
   <button class="btn ghost small" id="btnMesure" title="Façon de prendre les cotes">✍︎ Manuel</button>
+  <button class="btn ghost small hide hist-btn" id="btnUndo" title="Annuler la dernière action" aria-label="Annuler la dernière action">↶</button>
+  <button class="btn ghost small hide hist-btn" id="btnRedo" title="Refaire" aria-label="Refaire">↷</button>
   <button class="btn ghost small hide" id="btnBack">‹ Retour</button>
 </header>
 
@@ -533,6 +536,7 @@ async function remettreMetre(id){
     catch(e){ d.drive_attente=true; } }
   await DB.put(d,true); await CORB.del(id);
   ecrireLS(SYNC_SUPPR, lireLS(SYNC_SUPPR,[]).filter(i=>i!==id));   // l'actualisation le reprend normalement
+  if(S.derSuppr) S.derSuppr=S.derSuppr.filter(i=>i!==id);
   toast(`♻ « ${d.client.nom||"Sans nom"} » est revenu dans tes métrés`); renderHome(); setTimeout(envoyerEnAttente,500);
 }
 
@@ -1480,7 +1484,39 @@ const F = {
 
 /* ---------- État ---------- */
 const S = { view:"home", dossier:null, ouv:null, tab:"client", saveT:null };
-function save(){ clearTimeout(S.saveT); S.saveT=setTimeout(()=>{ if(S.dossier) DB.put(S.dossier); },400); }
+function save(){ clearTimeout(S.saveT); S.saveT=setTimeout(()=>{ if(S.dossier){ histNoter(); DB.put(S.dossier); } },400); }
+/* ---------- ↶ Annuler / ↷ Refaire (20/11/2026) ----------
+   Dans un métré : les 30 dernières actions (une « action » = ce qui change entre deux enregistrements, 0,4 s après la dernière frappe).
+   Copies légères : les longues chaînes (photos, dessins) ne sont gardées qu'une fois. Les infos d'envoi (Drive, Clémence…) ne reculent jamais.
+   Sur l'accueil : ↶ remet tout de suite le dernier métré supprimé. */
+const HIST={id:null, pile:[], refaire:[], cur:null, big:new Map(), arr:[]}, HIST_MAX=30;
+const HIST_META=["modifie","_e","drive","drive_attente","clemence","journal_attente","_conflit","chrono"];
+function histJSON(d){ return JSON.stringify(d, function(k,v){ if(this===d && HIST_META.includes(k)) return undefined;
+  if(typeof v==="string" && v.length>1500){ let i=HIST.big.get(v); if(i==null){ i=HIST.arr.length; HIST.arr.push(v); HIST.big.set(v,i); } return "\u0001"+i; } return v; }); }
+function histLire(j){ return JSON.parse(j,(k,v)=>typeof v==="string" && v.charCodeAt(0)===1 ? HIST.arr[+v.slice(1)] : v); }
+function histInit(d){ Object.assign(HIST,{id:d.id, pile:[], refaire:[], big:new Map(), arr:[]}); HIST.cur=histJSON(d); majBoutonsHist(); }
+function histNoter(){ const d=S.dossier; if(!d || HIST.bloque) return; if(HIST.id!==d.id) return histInit(d);
+  let j; try{ j=histJSON(d); }catch(e){ return; } if(j===HIST.cur) return;
+  HIST.pile.push(HIST.cur); if(HIST.pile.length>HIST_MAX) HIST.pile.shift(); HIST.cur=j; HIST.refaire=[]; majBoutonsHist(); }
+function histPas(sens){   // -1 : annuler, +1 : refaire
+  const d=S.dossier; if(!d || HIST.id!==d.id) return;
+  clearTimeout(S.saveT); histNoter();
+  const src=sens<0?HIST.pile:HIST.refaire, dst=sens<0?HIST.refaire:HIST.pile;
+  if(!src.length){ toast(sens<0?"Rien à annuler":"Rien à refaire"); return; }
+  dst.push(HIST.cur); HIST.cur=src.pop();
+  const R=histLire(HIST.cur); HIST_META.forEach(k=>{ if(k in d) R[k]=d[k]; else delete R[k]; });
+  Object.keys(d).forEach(k=>delete d[k]); Object.assign(d,R);   // même objet : S.dossier reste valable
+  DB.put(d); const y=scrollY; HIST.bloque=true;
+  try{ if(S.view==="ouverture"){ const o=S.ouv && d.ouvertures.find(x=>x.id===S.ouv.id); if(o){ S.ouv=o; renderOuverture(); } else { S.tab="ouvertures"; renderDossier(); } }
+  else renderDossier(); } finally { HIST.bloque=false; }
+  try{ HIST.cur=histJSON(d); }catch(e){}   // ce que l'affichage a recalculé ne compte pas comme une action
+  scrollTo(0,y); majBoutonsHist(); toast(sens<0?"↶ Dernière action annulée":"↷ Action refaite");
+}
+function majBoutonsHist(){ const u=document.getElementById("btnUndo"), r=document.getElementById("btnRedo"); if(!u||!r) return;
+  const dans=(S.view==="dossier"||S.view==="ouverture") && S.dossier && HIST.id===S.dossier.id, acc=S.view==="home" && S.derSuppr && S.derSuppr.length;
+  u.classList.toggle("hide", !(dans||acc)); r.classList.toggle("hide", !dans);
+  u.disabled = dans ? !HIST.pile.length : !acc; r.disabled = !HIST.refaire.length;
+  u.title = acc ? "Remettre le métré que tu viens de supprimer" : "Annuler la dernière action"; }
 function cible(){ return S.view==="ouverture" ? S.ouv : S.dossier; }
 
 /* liaison générique des champs */
@@ -1526,7 +1562,7 @@ function refreshLive(k){
 }
 
 /* ======================= ÉCRANS ======================= */
-function setBar(title, back){ $("#barTitle").textContent=title||""; $("#btnBack").classList.toggle("hide",!back); }
+function setBar(title, back){ $("#barTitle").textContent=title||""; $("#btnBack").classList.toggle("hide",!back); setTimeout(majBoutonsHist,0); }
 function majTitre(){ if(S.dossier) setBar(`${S.dossier.client.nom||"Nouveau client"}${S.dossier.devis_nom?" – "+S.dossier.devis_nom:""} · ${S.dossier.variante}`, true); }
 
 /* ---------- Accueil ---------- */
@@ -1616,6 +1652,7 @@ async function supprimerMetres(L){
   if(!await demander(L.length>1?`Supprimer ces ${L.length} métrés EN ENTIER ?\n${L.map(d=>`• ${d.client.nom||"Sans nom"} – ${quoi(d)}`).join("\n")}\n\nIls restent 30 jours dans « ♻ Métrés supprimés » en bas de l'accueil.`
       :`Supprimer le métré EN ENTIER ?\n« ${L[0].client.nom||"Sans nom"} » – ${quoi(L[0])}\n\n(Pour retirer seulement un portail, une fenêtre…, ouvre le métré et utilise le ✕ de l'élément.)\nIl reste 30 jours dans « ♻ Métrés supprimés » en bas de l'accueil.`,"Supprimer tout le métré","Annuler")) return;
   for(const d of L){ await CORB.put({...d, supprime_le:new Date().toISOString()}); await DB.del(d.id); }
+  S.derSuppr=L.map(d=>d.id);   // ↶ sur l'accueil : les remettre tout de suite
   oublierMetresSupprimes(L.map(d=>d.id));   // ne revient pas à la prochaine actualisation
   const surDrive=L.filter(d=>d.drive&&d.drive.dossier);
   S.selMode=false; renderHome();
@@ -1644,7 +1681,9 @@ function chronoJourRDV(d){ const r=d&&d.client&&d.client.date_rdv; if(!r || r!==
 function chronoOuverture(d){ if(!chronoJourRDV(d) || (d.chrono&&d.chrono.debut)) return false; d.chrono={debut:new Date().toISOString(), fin:null}; return true; }
 function chronoModif(d){ if(!chronoJourRDV(d)) return false; const n=new Date().toISOString(); d.chrono=Object.assign({debut:n}, d.chrono||{}, {fin:n}); if(!d.chrono.debut) d.chrono.debut=n; return true; }
 function renderDossier(){
-  S.view="dossier"; S.ouv=null; const d=normaliser(S.dossier); syncVR(d); majTitre();
+  S.view="dossier"; S.ouv=null; const d=normaliser(S.dossier); syncVR(d); S.derSuppr=null;
+  if(HIST.id!==d.id) histInit(d); else histNoter();   // changements faits sans save() : comptent aussi comme une action
+  majTitre();
   if(S.chronoVu!==d.id){ S.chronoVu=d.id; if(chronoOuverture(d)) DB.put(d,true); }
   if(S.tab==="chantier") S.tab="client";
   if(!ongletsVisibles(d).includes(S.tab)) S.tab=ongletsVisibles(d)[0];
@@ -5758,6 +5797,8 @@ async function tabletteRejoindre(){
 
 /* ---------- Démarrage ---------- */
 $("#logo").src=LOGO;
+$("#btnUndo").onclick=async()=>{ if(S.view==="home"){ const L=[...(S.derSuppr||[])]; for(const id of L) await remettreMetre(id); S.derSuppr=null; majBoutonsHist(); } else histPas(-1); };
+$("#btnRedo").onclick=()=>histPas(1);
 $("#btnBack").onclick=()=>{ if(S.view==="ouverture"){ S.tab="ouvertures"; renderDossier(); } else { const d=S.dossier; clearTimeout(S.saveT); if(d){ DB.put(d); enregistrerAuto(d).then(()=>{ if(S.view==="home") renderHome(); }); } S.chronoVu=null; renderHome(); } scrollTo(0,0); };
 DB.open().then(async()=>{ await normaliserTout();
   /* Retour de la Mini DAO (« ↩ Retour ») : ?ouvrir=<id du métré> rouvre ce métré – voir CLAUDE.md du dépôt */

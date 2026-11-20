@@ -511,6 +511,31 @@ const DB = {
   async del(id){ if(!this.db){ delete this.mem[id]; return; } return new Promise(ok=>{ const r=this.tx("readwrite").delete(id); r.onsuccess=ok; r.onerror=ok; }); }
 };
 
+/* Corbeille des métrés (20/11/2026) : un métré supprimé de l'accueil est gardé 30 jours dans une base à part (« appli-metre-corbeille »)
+   et revient en un clic depuis « ♻ Métrés supprimés » en bas de l'accueil. */
+const CORB = {
+  db:null, mem:{}, J30:30*24*3600*1000,
+  async open(){ if(this.db||this._ko) return; try{ this.db=await new Promise((ok,ko)=>{ const r=indexedDB.open("appli-metre-corbeille",1); r.onupgradeneeded=()=>r.result.createObjectStore("metres",{keyPath:"id"}); r.onsuccess=()=>ok(r.result); r.onerror=()=>ko(r.error); }); }catch(e){ this._ko=true; } },
+  tx(m){ return this.db.transaction("metres",m).objectStore("metres"); },
+  async all(){ await this.open(); const L=this.db?await new Promise(ok=>{ const r=this.tx("readonly").getAll(); r.onsuccess=()=>ok(r.result||[]); r.onerror=()=>ok([]); }):Object.values(this.mem);
+    const vieux=L.filter(d=>Date.now()-new Date(d.supprime_le).getTime()>this.J30); for(const d of vieux) await this.del(d.id);   // plus de 30 jours : parti pour de bon
+    return L.filter(d=>!vieux.includes(d)).sort((a,b)=>b.supprime_le.localeCompare(a.supprime_le)); },
+  async put(d){ await this.open(); if(!this.db){ this.mem[d.id]=d; return; } return new Promise(ok=>{ const r=this.tx("readwrite").put(JSON.parse(JSON.stringify(d))); r.onsuccess=ok; r.onerror=ok; }); },
+  async del(id){ await this.open(); if(!this.db){ delete this.mem[id]; return; } return new Promise(ok=>{ const r=this.tx("readwrite").delete(id); r.onsuccess=ok; r.onerror=ok; }); }
+};
+async function remettreMetre(id){
+  const d=(await CORB.all()).find(x=>x.id===id); if(!d) return;
+  const dejaLa=(await DB.all()).find(x=>x.id===id);
+  if(dejaLa && !await demander(`« ${d.client.nom||"Sans nom"} » est déjà dans tes métrés (repris du Drive ?). Remplacer par la version de la corbeille (supprimée le ${new Date(d.supprime_le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})}) ?`,"Remplacer","Annuler")) return;
+  const corbDrive=d._drive_corbeille; delete d.supprime_le; delete d._drive_corbeille;
+  if(corbDrive && d.drive && d.drive.dossier){   // son dossier Drive était parti à la corbeille du Drive : on le sort
+    try{ await demanderJeton(); await gdrive(`https://www.googleapis.com/drive/v3/files/${d.drive.dossier}?fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:false})}); }
+    catch(e){ d.drive_attente=true; } }
+  await DB.put(d,true); await CORB.del(id);
+  ecrireLS(SYNC_SUPPR, lireLS(SYNC_SUPPR,[]).filter(i=>i!==id));   // l'actualisation le reprend normalement
+  toast(`♻ « ${d.client.nom||"Sans nom"} » est revenu dans tes métrés`); renderHome(); setTimeout(envoyerEnAttente,500);
+}
+
 /* ---------- Modèle de données ---------- */
 function nouveauDossier(){
   return { id:uid(), app:"appli-metre", version_app:VERSION, cree:new Date().toISOString(),
@@ -1549,7 +1574,14 @@ async function renderHome(){
         <div class="row"><span class="dos-ico">📁</span><span class="t">${esc(G.nom)}</span><span class="spacer"></span><span class="badge b-n">${G.L.length} devis</span><span class="dos-chev">${ouvert?"▾":"▸"}</span></div>
         <div class="s">${G.L.map(d=>esc(d.devis_nom||d.variante)).join(" · ")}</div>
         <div>${nE?`<span class="badge b-err">${nE} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} ${nC?`<span class="badge b-ok">📨 ${nC}/${G.L.length} envoyé(s) à Clémence</span>`:""} ${nA?`<span class="badge b-n">☁ ${nA} pas encore dans le Drive</span>`:""}</div></div>
-        ${ouvert?`<div class="dos-sous">${G.L.map(d=>carteMetre(d,true)).join("")}</div>`:""}`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau rendez-vous ».</div>`}</div>`;
+        ${ouvert?`<div class="dos-sous">${G.L.map(d=>carteMetre(d,true)).join("")}</div>`:""}`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau rendez-vous ».</div>`}</div>
+  <div id="hCorb"></div>`;
+  CORB.all().then(C=>{ const z=$("#hCorb"); if(!z || !C.length) return; const jours=d=>Math.max(0,30-Math.floor((Date.now()-new Date(d.supprime_le).getTime())/86400000));
+    z.innerHTML=`<details class="corb-ph" style="margin-top:14px"${S.corbOuverte?" open":""}><summary>♻ Métrés supprimés (${C.length}) <span class="hint">– gardés 30 jours</span></summary>
+      <div class="list" style="margin-top:8px">${C.map(d=>`<div class="item"><div class="row"><span class="t">${esc(d.client.nom||"Sans nom")}</span>${d.devis_nom?`<span class="badge b-warn" style="margin-left:6px">${esc(d.devis_nom)}</span>`:""}<span class="spacer"></span><button class="btn small primary" data-corbre="${d.id}">♻ Remettre</button></div>
+        <div class="s">${esc(contenuDevis(d))} · supprimé le ${new Date(d.supprime_le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} · encore ${jours(d)} jour(s)</div></div>`).join("")}</div></details>`;
+    z.querySelector("details").ontoggle=e=>{ S.corbOuverte=e.target.open; };
+    $$("[data-corbre]").forEach(b=>b.onclick=()=>remettreMetre(b.dataset.corbre)); });
   $("#hNew").onclick=()=>nouveauRendezVous(); $("#hTablette").onclick=tabletteRejoindre; $("#hDAO").onclick=()=>{ location.href="dao/?retour=accueil"; };   // Mini DAO (voir CLAUDE.md du dépôt)
   $("#hOpen").onclick=()=>$("#fileOpen").click();
   $("#hSync").onclick=async()=>{ const b=$("#hSync"); b.disabled=true; b.textContent="☁ Actualisation…"; await synchroAccueil(true); const b2=$("#hSync"); if(b2){ b2.disabled=false; b2.textContent="☁ Actualiser"; } };
@@ -1580,12 +1612,14 @@ async function renderHome(){
    mais JAMAIS s'il a déjà été rangé dans « 2026 » (donc envoyé chez Clémence). */
 async function supprimerMetres(L){
   const noms=L.map(d=>`${d.client.nom||"Sans nom"} (${d.variante})`).join(", ");
-  if(!await demander(L.length>1?`Supprimer ces ${L.length} métrés de l'appli ?\n${noms}`:`Supprimer le métré « ${noms} » de l'appli ?`,"Supprimer")) return;
-  for(const d of L) await DB.del(d.id);
+  const quoi=d=>contenuDevis(d)+(aPT(d)?` (${d.pt.elements.length} portail / portillon)`:"");
+  if(!await demander(L.length>1?`Supprimer ces ${L.length} métrés EN ENTIER ?\n${L.map(d=>`• ${d.client.nom||"Sans nom"} – ${quoi(d)}`).join("\n")}\n\nIls restent 30 jours dans « ♻ Métrés supprimés » en bas de l'accueil.`
+      :`Supprimer le métré EN ENTIER ?\n« ${L[0].client.nom||"Sans nom"} » – ${quoi(L[0])}\n\n(Pour retirer seulement un portail, une fenêtre…, ouvre le métré et utilise le ✕ de l'élément.)\nIl reste 30 jours dans « ♻ Métrés supprimés » en bas de l'accueil.`,"Supprimer tout le métré","Annuler")) return;
+  for(const d of L){ await CORB.put({...d, supprime_le:new Date().toISOString()}); await DB.del(d.id); }
   oublierMetresSupprimes(L.map(d=>d.id));   // ne revient pas à la prochaine actualisation
   const surDrive=L.filter(d=>d.drive&&d.drive.dossier);
   S.selMode=false; renderHome();
-  if(!surDrive.length || !driveDispo()){ toast(L.length>1?`${L.length} métrés supprimés`:"Métré supprimé"); return; }
+  if(!surDrive.length || !driveDispo()){ toast(`${L.length>1?L.length+" métrés supprimés":"Métré supprimé"} · ♻ récupérable 30 jours en bas de l'accueil`); return; }
   if(!await demander(`${surDrive.length>1?surDrive.length+" de ces métrés ont":"Ce métré a"} aussi un dossier dans ton Drive. Le mettre à la corbeille du Drive ? (récupérable 30 jours ; un dossier déjà rangé dans « 2026 » est toujours gardé)`,"Mettre à la corbeille")){ toast("Supprimé de l'appli · dossier Drive gardé"); return; }
   let n=0, garde=0;
   try{ await demanderJeton();
@@ -1594,6 +1628,7 @@ async function supprimerMetres(L){
         if(f.trashed) continue;
         if(!(f.parents||[]).some(p=>p===DOSSIERS_CONNUS.devis||p===DOSSIERS_CONNUS.definitif)){ garde++; continue; }   // déplacé (2026…) : on n'y touche pas
         await gdrive(`https://www.googleapis.com/drive/v3/files/${d.drive.dossier}?fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:true})}); n++;
+        await CORB.put({...d, supprime_le:new Date().toISOString(), _drive_corbeille:true});   // pour le ressortir si on le remet
       }catch(e){ if(!/Drive 404/.test(e.message)) throw e; } }
     toast(`Supprimé · ${n} dossier(s) Drive à la corbeille${garde?` · ${garde} gardé(s) (déjà dans 2026)`:""}`);
   }catch(e){ toast("Supprimé de l'appli · Drive : "+e.message); }

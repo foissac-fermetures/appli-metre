@@ -5632,7 +5632,7 @@ async function synchroniserMetres(manuel=false){
   try{
     if(manuel) await demanderJeton();
     const vus=lireLS(SYNC_VUS,{}), suppr=new Set(lireLS(SYNC_SUPPR,[])), locaux=new Map((await DB.all()).map(x=>[x.id,x]));
-    const ign=lireLS(SYNC_IGN,{}), bases=new Set([...locaux.values()].map(x=>x.drive&&x.drive.base).filter(Boolean)), importes=new Set();
+    const ign=lireLS(SYNC_IGN,{}), bases=new Set([...locaux.values()].map(x=>x.drive&&x.drive.base).filter(Boolean)), importes=new Set(), versionsVues=new Map();
     let files=[], page="";
     do{ const q="mimeType='application/json' and trashed=false and 'me' in owners";
       const r=await gdrive("https://www.googleapis.com/drive/v3/files?pageSize=200&orderBy=modifiedTime desc&fields=nextPageToken,files(id,name,modifiedTime,parents)&q="+encodeURIComponent(q)+(page?"&pageToken="+page:""));
@@ -5645,6 +5645,9 @@ async function synchroniserMetres(manuel=false){
       if(!R || R.app!=="appli-metre" || !R.id){ ign[f.id]={non:true}; continue; }
       if(suppr.has(R.id)){ ign[f.id]={id:R.id, nom:[R.client?.nom||"Sans nom", R.devis_nom].filter(Boolean).join(" – "), le:f.modifiedTime}; continue; }   // supprimé sur cet appareil : on le note pour pouvoir le récupérer
       delete ign[f.id];
+      /* Même métré dans plusieurs fichiers (client renommé, autre appareil…) : on garde celui dont le CONTENU est le plus récent (20/11/2026) */
+      if(versionsVues.has(R.id) && versionsVues.get(R.id) >= (R.modifie||"")) continue;
+      versionsVues.set(R.id, R.modifie||"");
       const L=locaux.get(R.id), tF=new Date(f.modifiedTime).getTime(); importes.add(R.id);
       if(L){
         if(L.drive && L.drive.le && new Date(L.drive.le).getTime() >= tF-5000) continue;     // c'est notre propre envoi (ou plus ancien)
@@ -5800,7 +5803,13 @@ $("#logo").src=LOGO;
 $("#btnUndo").onclick=async()=>{ if(S.view==="home"){ const L=[...(S.derSuppr||[])]; for(const id of L) await remettreMetre(id); S.derSuppr=null; majBoutonsHist(); } else histPas(-1); };
 $("#btnRedo").onclick=()=>histPas(1);
 $("#btnBack").onclick=()=>{ if(S.view==="ouverture"){ S.tab="ouvertures"; renderDossier(); } else { const d=S.dossier; clearTimeout(S.saveT); if(d){ DB.put(d); enregistrerAuto(d).then(()=>{ if(S.view==="home") renderHome(); }); } S.chronoVu=null; renderHome(); } scrollTo(0,0); };
-DB.open().then(async()=>{ await normaliserTout();
+/* Récupération du 20/11/2026 : métré supprimé par erreur sur l'accueil avant la corbeille → l'appli le reprend du Drive à la prochaine actualisation (une seule fois) */
+const RECUP_METRES=["mwon8qcthtgqs"];
+function recupererMetresOublies(){ try{ if(localStorage.getItem("recup_2026_11_20")) return; const ids=new Set(RECUP_METRES), ign=lireLS(SYNC_IGN,{});
+  if(lireLS(SYNC_SUPPR,[]).some(i=>ids.has(i))){ ecrireLS(SYNC_SUPPR, lireLS(SYNC_SUPPR,[]).filter(i=>!ids.has(i)));
+    Object.keys(ign).forEach(fid=>{ if(ign[fid] && ids.has(ign[fid].id)) delete ign[fid]; }); ecrireLS(SYNC_VUS,{}); ecrireLS(SYNC_IGN,ign); S.syncAuto=0; }   // tout relire une fois (les métrés déjà là ne sont pas touchés)
+  localStorage.setItem("recup_2026_11_20","1"); }catch(e){} }
+DB.open().then(async()=>{ await normaliserTout(); recupererMetresOublies();
   /* Retour de la Mini DAO (« ↩ Retour ») : ?ouvrir=<id du métré> rouvre ce métré – voir CLAUDE.md du dépôt */
   let ouvrir=null; try{ ouvrir=new URLSearchParams(location.search).get("ouvrir"); if(ouvrir) history.replaceState(null,"",location.pathname); }catch(e){}
   const d=ouvrir ? (await DB.all()).find(x=>x.id===ouvrir) : null;

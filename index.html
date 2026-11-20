@@ -408,6 +408,7 @@ input:disabled{background:#eef1f7;color:#4a5368}
   <div class="brand"><img id="logo" alt="Foissac Fermetures"><span>Métré</span></div>
   <div class="title" id="barTitle"></div>
   <button class="btn ghost small" id="btnMesure" title="Façon de prendre les cotes">✍︎ Manuel</button>
+  <button class="btn small hide" id="driveEtat" style="color:#fff;border:0;font-weight:700;white-space:nowrap"></button>
   <button class="btn ghost small hide hist-btn" id="btnUndo" title="Annuler la dernière action" aria-label="Annuler la dernière action">↶</button>
   <button class="btn ghost small hide hist-btn" id="btnRedo" title="Refaire" aria-label="Refaire">↷</button>
   <button class="btn ghost small hide" id="btnBack">‹ Retour</button>
@@ -510,10 +511,24 @@ const DB = {
   /* « modifie » = date de la dernière VRAIE modification (sert à départager deux appareils) : on ne la change pas si le contenu est identique */
   async put(d, garderDate){ let e=null; try{ e=typeof empreinte==="function"?empreinte(d):null; }catch(_){}
     if(!garderDate && e!=null && d._e && d._e!==e && typeof chronoModif==="function" && chronoModif(d)){ try{ e=empreinte(d); }catch(_){} }
-    if(!garderDate && (e==null || d._e!==e || !d.modifie)) d.modifie=new Date().toISOString(); if(e!=null) d._e=e; if(!this.db){ this.mem[d.id]=d; return; } return new Promise(ok=>{ const r=this.tx("readwrite").put(JSON.parse(JSON.stringify(d))); r.onsuccess=ok; r.onerror=ok; }); },
+    if(!garderDate && (e==null || d._e!==e || !d.modifie)) d.modifie=new Date().toISOString(); if(e!=null) d._e=e; if(!this.db){ this.mem[d.id]=d; return true; }
+    /* 20/11/2026 : on attend la FIN de la transaction (écriture vraiment faite) ; si l'iPad refuse (mémoire pleine…), alerte rouge + secours Drive */
+    return new Promise(ok=>{ let fini=false; const fin=(v,er)=>{ if(fini) return; fini=true; if(!v) alerteStockage(er,d); else if(DB.echec){ DB.echec=null; document.getElementById("stockAlerte")?.remove(); } ok(v); };
+      try{ const tx=this.db.transaction("dossiers","readwrite"); tx.objectStore("dossiers").put(JSON.parse(JSON.stringify(d)));
+        tx.oncomplete=()=>fin(true); tx.onerror=()=>fin(false,tx.error); tx.onabort=()=>fin(false,tx.error); }catch(er){ fin(false,er); } }); },
   async del(id){ if(!this.db){ delete this.mem[id]; return; } return new Promise(ok=>{ const r=this.tx("readwrite").delete(id); r.onsuccess=ok; r.onerror=ok; }); }
 };
 
+/* Échec d'enregistrement sur l'appareil (20/11/2026) : bandeau rouge qui ne part pas tout seul + envoi de secours dans le Drive */
+function alerteStockage(e, d){
+  DB.echec=e||new Error("écriture refusée"); console.warn("stockage", e);
+  let b=document.getElementById("stockAlerte");
+  if(!b){ b=document.createElement("button"); b.id="stockAlerte"; b.style.cssText="position:fixed;left:8px;right:8px;top:70px;z-index:90;background:#d3232f;color:#fff;border:0;border-radius:10px;padding:14px;font:600 16px -apple-system,Arial;box-shadow:0 4px 16px rgba(0,0,0,.3)";
+    b.onclick=async()=>{ try{ await demanderJeton(); await sauvegarderJSONDrive(S.dossier||d, true); toast("Copie de secours envoyée dans le Drive"); }catch(x){ toast("Drive : "+x.message); } };
+    document.body.appendChild(b); }
+  b.textContent=`⚠ Cet appareil n'a pas pu enregistrer le métré${d&&d.client&&d.client.nom?" « "+d.client.nom+" »":""} (${(e&&e.name)||"erreur"}${e&&/quota/i.test((e.name||"")+(e.message||""))?" : mémoire pleine":""}). NE FERME PAS l'appli : touche ici pour l'envoyer dans le Drive.`;
+  if(d && typeof jetonValide==="function" && jetonValide() && navigator.onLine) sauvegarderJSONDrive(d, true).catch(()=>{});
+}
 /* Corbeille des métrés (20/11/2026) : un métré supprimé de l'accueil est gardé 30 jours dans une base à part (« appli-metre-corbeille »)
    et revient en un clic depuis « ♻ Métrés supprimés » en bas de l'accueil. */
 const CORB = {
@@ -530,7 +545,8 @@ async function remettreMetre(id){
   const d=(await CORB.all()).find(x=>x.id===id); if(!d) return;
   const dejaLa=(await DB.all()).find(x=>x.id===id);
   if(dejaLa && !await demander(`« ${d.client.nom||"Sans nom"} » est déjà dans tes métrés (repris du Drive ?). Remplacer par la version de la corbeille (supprimée le ${new Date(d.supprime_le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})}) ?`,"Remplacer","Annuler")) return;
-  const corbDrive=d._drive_corbeille; delete d.supprime_le; delete d._drive_corbeille;
+  const corbDrive=d._drive_corbeille, fichiers=d._drive_fichiers||[]; delete d.supprime_le; delete d._drive_corbeille; delete d._drive_fichiers; delete d._ailleurs;
+  if(fichiers.length){ try{ await demanderJeton(); for(const f of fichiers) await gdrive(`https://www.googleapis.com/drive/v3/files/${f}?fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:false})}); }catch(e){ d.drive_attente=true; } }
   if(corbDrive && d.drive && d.drive.dossier){   // son dossier Drive était parti à la corbeille du Drive : on le sort
     try{ await demanderJeton(); await gdrive(`https://www.googleapis.com/drive/v3/files/${d.drive.dossier}?fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:false})}); }
     catch(e){ d.drive_attente=true; } }
@@ -1516,7 +1532,7 @@ const F = {
 
 /* ---------- État ---------- */
 const S = { view:"home", dossier:null, ouv:null, tab:"client", saveT:null };
-function save(){ clearTimeout(S.saveT); S.saveT=setTimeout(()=>{ if(S.dossier){ histNoter(); DB.put(S.dossier); } },400); }
+function save(){ clearTimeout(S.saveT); S.saveT=setTimeout(()=>{ if(S.dossier){ histNoter(); DB.put(S.dossier); planifierSauvegardeDrive(); majEtatDrive(); } },400); }
 /* ---------- ↶ Annuler / ↷ Refaire (20/11/2026) ----------
    Dans un métré : les 30 dernières actions (une « action » = ce qui change entre deux enregistrements, 0,4 s après la dernière frappe).
    Copies légères : les longues chaînes (photos, dessins) ne sont gardées qu'une fois. Les infos d'envoi (Drive, Clémence…) ne reculent jamais.
@@ -1594,7 +1610,7 @@ function refreshLive(k){
 }
 
 /* ======================= ÉCRANS ======================= */
-function setBar(title, back){ $("#barTitle").textContent=title||""; $("#btnBack").classList.toggle("hide",!back); setTimeout(majBoutonsHist,0); }
+function setBar(title, back){ $("#barTitle").textContent=title||""; $("#btnBack").classList.toggle("hide",!back); setTimeout(()=>{ majBoutonsHist(); if(typeof majEtatDrive==="function") majEtatDrive(); },0); }
 function majTitre(){ if(S.dossier) setBar(`${S.dossier.client.nom||"Nouveau client"}${S.dossier.devis_nom?" – "+S.dossier.devis_nom:""} · ${S.dossier.variante}`, true); }
 
 /* ---------- Accueil ---------- */
@@ -1632,6 +1648,9 @@ async function renderHome(){
     <button class="btn" id="hDAO" title="Ouvrir la Mini DAO (dessin 2D, comme AutoCAD)">📐 Mini DAO</button>
     <button class="btn primary" id="hNew" style="font-size:17px;padding:12px 20px">+ Nouveau rendez-vous</button></div>
   <p class="hint">Chaque métré s'enregistre tout seul quand tu reviens à cette liste, dans <b>Mon Drive › Appli métré – Dossiers › Devis</b> (ou <b>› Métrés définitif</b> pour un métré définitif). Pour l'envoyer à Clémence : bouton <b>📨 Envoyer à Clémence</b> en haut du métré. Plusieurs devis pour un même client (gîtes, maison…) : « + Autre devis pour ce client » dans la fiche client, ou « ✂ Séparer en plusieurs devis » dans les ouvertures. Les métrés faits sur tes autres appareils apparaissent ici tout seuls (ou avec « ☁ Actualiser »).</p>
+  ${(()=>{ const ua=navigator.userAgent||""; if(!(/iPad/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1))) return "";
+      const blue=!!navigator.bluetooth, ic=navigator.standalone||matchMedia("(display-mode: standalone)").matches;
+      return `<p class="hint" style="border-left:4px solid #e07b00;padding:6px 10px;background:#fff7ec;border-radius:6px">📱 Appli ouverte dans <b>${blue?"Bluefy":ic?"l'icône de l'écran d'accueil":"Safari"}</b>. Bluefy et l'icône ont chacun <b>leur propre mémoire</b> : un métré passe de l'un à l'autre <b>seulement par le Drive</b>. Le témoin <b>☁ ✓</b> en haut d'un métré te dit qu'il est bien dans le Drive.</p>`; })()}
   <div class="card" id="hAgenda" style="margin-bottom:16px"><p class="hint">Chargement des rendez-vous…</p></div>
   <div class="row" style="margin:6px 0 10px"><h2 style="margin:0">Mes métrés</h2><span class="spacer"></span>
     ${ds.length?(S.selMode?`<button class="btn small" id="hSelTout">Tout cocher</button><button class="btn small danger" id="hSelDel">Supprimer la sélection</button><button class="btn small" id="hSelFin">Annuler</button>`:`<button class="btn small" id="hSel">Supprimer plusieurs…</button>`):""}</div>
@@ -1698,8 +1717,18 @@ async function supprimerMetres(L){
       try{ const f=await gdrive(`https://www.googleapis.com/drive/v3/files/${d.drive.dossier}?fields=id,parents,trashed`);
         if(f.trashed) continue;
         if(!(f.parents||[]).some(p=>p===DOSSIERS_CONNUS.devis||p===DOSSIERS_CONNUS.definitif)){ garde++; continue; }   // déplacé (2026…) : on n'y touche pas
-        await gdrive(`https://www.googleapis.com/drive/v3/files/${d.drive.dossier}?fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:true})}); n++;
-        await CORB.put({...d, supprime_le:new Date().toISOString(), _drive_corbeille:true});   // pour le ressortir si on le remet
+        /* 20/11/2026 : plusieurs devis d'un même client partagent le dossier (ex. SAV + menuiseries) → on ne jette QUE les fichiers de ce métré */
+        const jsons=(await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id,name)&q="+encodeURIComponent(`'${d.drive.dossier}' in parents and trashed=false and mimeType='application/json'`))).files||[];
+        const base=d.drive.base||"", autres=jsons.filter(f=>f.name!==base+".json");
+        if(autres.length){
+          const miens=(await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id,name)&q="+encodeURIComponent(`'${d.drive.dossier}' in parents and trashed=false and (name='${q_(base+".json")}' or name='${q_(base+".pdf")}')`))).files||[];
+          for(const f of miens) await gdrive(`https://www.googleapis.com/drive/v3/files/${f.id}?fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:true})});
+          if(miens.length) n++;
+          await CORB.put({...d, supprime_le:new Date().toISOString(), _drive_fichiers:miens.map(f=>f.id)});
+        } else {
+          await gdrive(`https://www.googleapis.com/drive/v3/files/${d.drive.dossier}?fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:true})}); n++;
+          await CORB.put({...d, supprime_le:new Date().toISOString(), _drive_corbeille:true});   // pour le ressortir si on le remet
+        }
       }catch(e){ if(!/Drive 404/.test(e.message)) throw e; } }
     toast(`Supprimé · ${n} dossier(s) Drive à la corbeille${garde?` · ${garde} gardé(s) (déjà dans 2026)`:""}`);
   }catch(e){ toast("Supprimé de l'appli · Drive : "+e.message); }
@@ -4875,7 +4904,7 @@ async function envoyerJournal(d){ const L=(d.journal_attente||[]); if(!L.length)
 (function(){
   const APP="metre", LS="journal-usage";
   const pad=n=>String(n).padStart(2,"0"), now=()=>{ const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+" "+d.toTimeString().slice(0,8); };
-  const ua=navigator.userAgent||"", APPAREIL=(/iPad/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1))?"ipad":/iPhone|Android.*Mobile/.test(ua)?"tel":/Mac/.test(ua)?"mac":"pc";
+  const ua=navigator.userAgent||"", APPAREIL=(/iPad/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1))?"ipad"+(navigator.bluetooth?"-bluefy":(navigator.standalone||matchMedia("(display-mode: standalone)").matches)?"-icone":""):/iPhone|Android.*Mobile/.test(ua)?"tel":/Mac/.test(ua)?"mac":"pc";
   const SESS=Math.random().toString(36).slice(2,6);
   const clean=k=>String(k).replace(/[\r\n"\\]/g," ").replace(/\s+/g," ").trim().slice(0,60);
   let buf=[];
@@ -5018,11 +5047,49 @@ document.addEventListener("pointerdown", e=>{
   if(Date.now()-G_RENOUV<5*60000) return; G_RENOUV=Date.now();
   demanderJeton().then(()=>{ S.syncAuto=Date.now(); synchroAccueil(false); }).catch(()=>{});
 }, true);
-window.addEventListener("online", ()=>{ prechargerGoogle(); setTimeout(envoyerEnAttente,1500); });
+window.addEventListener("online", ()=>{ prechargerGoogle(); setTimeout(()=>{ envoyerEnAttente(); if(S.dossier) sauvegarderJSONDrive(S.dossier).catch(()=>{}); },1500); majEtatDrive(); });
+window.addEventListener("offline", ()=>majEtatDrive());
+/* ---------- Sauvegarde continue dans le Drive (20/11/2026, après la perte de travail fait sur la tablette) ----------
+   Pendant qu'un métré est ouvert : 15 s après chaque modification, le fichier .json part dans le Drive (rapide, sans PDF ;
+   le PDF est refait au retour à la liste). Les autres appareils le récupèrent tout de suite. Témoin ☁ dans la barre du haut. */
+let SAUV_EN_COURS=false, SAUV_T=null;
+function planifierSauvegardeDrive(){ clearTimeout(SAUV_T); SAUV_T=setTimeout(()=>{ if(S.dossier) sauvegarderJSONDrive(S.dossier).catch(()=>{}); },15000); }
+function sauveDansDrive(d){ if(!d||!d.drive) return false; const s=empreinte(d); return d.drive.sig===s || d.drive.json_sig===s; }
+async function sauvegarderJSONDrive(d, force){
+  if(!d || !driveDispo() || !(d.client.nom||d.ouvertures.length) || d._conflit) return false;
+  if(!force && (!jetonValide() || !navigator.onLine)) { majEtatDrive(); return false; }
+  const sig=empreinte(d); if(sauveDansDrive(d)) { majEtatDrive(); return true; }
+  if(SAUV_EN_COURS || ENVOI_EN_COURS) { planifierSauvegardeDrive(); return false; }
+  SAUV_EN_COURS=true; majEtatDrive("envoi");
+  try{ if(force) await demanderJeton();
+    const sous=await dossierClient(d), base=(d.drive&&d.drive.base)||nomMetre(d);
+    const fj=await deposerDrive(base+".json", new Blob([JSON.stringify(d,null,1)],{type:"application/json"}), sous);
+    d.drive={...(d.drive||{}), le:(fj&&fj.modifiedTime)||new Date().toISOString(), dossier:sous, base, json_sig:sig, json_heure:new Date().toISOString()};
+    if(!d.drive.sig) d.drive.sig="pdf-a-faire";   // le PDF reste à faire au retour à la liste
+    await DB.put(d,true); return true;
+  } finally{ SAUV_EN_COURS=false; majEtatDrive(); }
+}
+function majEtatDrive(etat){
+  const b=document.getElementById("driveEtat"); if(!b) return; const d=S.dossier;
+  const dans=(S.view==="dossier"||S.view==="ouverture") && d && driveDispo();
+  b.classList.toggle("hide", !dans); if(!dans) return;
+  b.onclick=async()=>{ try{ await sauvegarderJSONDrive(S.dossier, true); toast(sauveDansDrive(S.dossier)?"☁ Métré enregistré dans le Drive":"Pas encore envoyé"); }catch(e){ toast("Drive : "+e.message); } };
+  if(etat==="envoi"){ b.textContent="☁ …"; b.style.background="#3a5aa0"; b.title="Envoi dans le Drive…"; return; }
+  if(d._conflit){ b.textContent="☁ ⚠ 2 versions"; b.style.background="#d3232f"; b.title="Modifié sur deux appareils : choisis la version sur l'accueil"; return; }
+  if(sauveDansDrive(d)){ const h=d.drive.json_heure||d.drive.le; b.textContent="☁ ✓ "+(h?new Date(h).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}):""); b.style.background="#1e7a3c"; b.title="Ce métré est enregistré dans le Drive (visible sur tes autres appareils)"; }
+  else { b.textContent=!navigator.onLine?"☁ ⚠ hors réseau":(jetonValide()?"☁ ⚠ à envoyer":"☁ ⚠ toucher pour enregistrer"); b.style.background="#c46a00";
+    b.title=!navigator.onLine?"Pas de réseau : enregistré seulement sur cet appareil, partira dans le Drive au retour du réseau":"Pas encore dans le Drive : touche pour l'envoyer"; }
+}
+setInterval(()=>{ if(document.visibilityState==="visible" && S.dossier && (S.view==="dossier"||S.view==="ouverture") && jetonValide() && navigator.onLine && !sauveDansDrive(S.dossier)) sauvegarderJSONDrive(S.dossier).catch(()=>{}); }, 60000);
+/* Mémoire de l'appareil : on demande à l'iPad de ne pas effacer les données de l'appli (20/11/2026) */
+(async()=>{ try{ if(navigator.storage && navigator.storage.persist && !(await navigator.storage.persisted())) await navigator.storage.persist();
+  const e=navigator.storage && navigator.storage.estimate && await navigator.storage.estimate();
+  if(e && e.quota && e.usage/e.quota>0.8) setTimeout(()=>toast(`⚠ Mémoire de l'appli presque pleine (${Math.round(e.usage/1e6)} Mo sur ${Math.round(e.quota/1e6)}) : vérifie que tout est dans le Drive`),3000);
+}catch(e){} })();
 setInterval(()=>{ if(document.visibilityState==="visible" && S.view==="home" && jetonValide()){ S.syncAuto=Date.now(); synchroAccueil(false); } }, 120000);   // toutes les 2 min sur l'accueil
 /* iPad : l'appli peut être fermée sans repasser par la liste → on enregistre dès qu'elle passe en arrière-plan (si déjà connecté au Drive) */
-document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden"){ try{ if(S.dossier) DB.put(S.dossier); }catch(e){}
-    if(S.dossier && jetonValide() && navigator.onLine && nonEnvoyeDrive(S.dossier)) envoyerDossierDrive(S.dossier).catch(()=>{}); }
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden"){ try{ if(S.dossier){ clearTimeout(S.saveT); DB.put(S.dossier); } }catch(e){}
+    if(S.dossier) sauvegarderJSONDrive(S.dossier).catch(()=>{}); }   // rapide (sans PDF) : l'iPad peut couper l'appli juste après
   else if(S.view==="home" && (!S.syncAuto || Date.now()-S.syncAuto>60000)){ S.syncAuto=Date.now(); synchroAccueil(false); } });
 setTimeout(()=>{ prechargerGoogle(); envoyerEnAttente(); }, 800);
 
@@ -5712,6 +5779,7 @@ async function synchroniserMetres(manuel=false){
       catch(e){ continue; }
       if(!parti) continue;
       if(L.drive_attente || L.drive.sig!==empreinte(L) || L._conflit){ res.gardes.push(L.client?.nom||"Sans nom"); continue; }   // modifié ici depuis : on le garde
+      await CORB.put({...L, supprime_le:new Date().toISOString(), _ailleurs:true});   // 20/11/2026 : gardé 30 jours dans ♻ Métrés supprimés
       await DB.del(L.id); res.supprimes.push([L.client?.nom,L.devis_nom].filter(Boolean).join(" – ")||"Sans nom");
     }
     ecrireLS(SYNC_VUS,vus); ecrireLS(SYNC_IGN,ign); ecrireLS(SYNC_LE,new Date().toISOString());

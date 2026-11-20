@@ -540,6 +540,38 @@ async function remettreMetre(id){
   toast(`♻ « ${d.client.nom||"Sans nom"} » est revenu dans tes métrés`); renderHome(); setTimeout(envoyerEnAttente,500);
 }
 
+/* Corbeille du Drive (20/11/2026) : dossiers clients mis à la corbeille du Drive (poubelle de l'accueil, ou à la main dans le Drive) – 30 jours.
+   « ♻ Remettre » sort le dossier de la corbeille, et l'appli reprend le métré qu'il contient. */
+async function afficherCorbeilleDrive(){
+  const z=$("#hCorbDriveL"); if(!z) return; z.innerHTML=`<p class="hint">Recherche dans la corbeille du Drive…</p>`;
+  try{ await demanderJeton();
+    const par=[DOSSIERS_CONNUS.devis, DOSSIERS_CONNUS.definitif].filter(Boolean).map(p=>`'${p}' in parents`).join(" or ");
+    const q=`trashed=true and mimeType='application/vnd.google-apps.folder' and (${par})`;
+    const r=await gdrive("https://www.googleapis.com/drive/v3/files?pageSize=100&fields=files(id,name,trashedTime,modifiedTime)&q="+encodeURIComponent(q));
+    const F=(r.files||[]).sort((a,b)=>String(b.trashedTime||b.modifiedTime).localeCompare(String(a.trashedTime||a.modifiedTime)));
+    if(!F.length){ z.innerHTML=`<p class="hint">Rien dans la corbeille du Drive.</p>`; return; }
+    z.innerHTML=`<div class="list">${F.map(f=>`<div class="item"><div class="row"><span class="t">🗑 ${esc(f.name)}</span><span class="spacer"></span><button class="btn small primary" data-corbdr="${f.id}">♻ Remettre</button></div>
+      <div class="s">Dans la corbeille du Drive${f.trashedTime?` depuis le ${new Date(f.trashedTime).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})}`:""}</div></div>`).join("")}</div>`;
+    $$("[data-corbdr]").forEach(b=>b.onclick=()=>remettreDepuisDrive(b.dataset.corbdr, b));
+  }catch(e){ z.innerHTML=`<p class="hint">Drive : ${esc(e.message)}</p>`; }
+}
+async function remettreDepuisDrive(fid, bouton){
+  if(bouton){ bouton.disabled=true; bouton.textContent="…"; }
+  try{ await demanderJeton();
+    await gdrive(`https://www.googleapis.com/drive/v3/files/${fid}?fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:false})});
+    const r=await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id,name)&q="+encodeURIComponent(`'${fid}' in parents and trashed=true and mimeType='application/json'`));
+    for(const f of (r.files||[])) await gdrive(`https://www.googleapis.com/drive/v3/files/${f.id}?fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:false})});
+    const L=await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id,name)&q="+encodeURIComponent(`'${fid}' in parents and trashed=false and mimeType='application/json'`));
+    const vus=lireLS(SYNC_VUS,{}), ign=lireLS(SYNC_IGN,{}), ids=new Set();
+    for(const f of (L.files||[])){ delete vus[f.id]; delete ign[f.id];
+      try{ const rr=await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`,{headers:{Authorization:"Bearer "+G_JETON}}); if(rr.ok){ const R=await rr.json(); if(R && R.id) ids.add(R.id); } }catch(e){} }
+    ecrireLS(SYNC_VUS,vus); ecrireLS(SYNC_IGN,ign); ecrireLS(SYNC_SUPPR, lireLS(SYNC_SUPPR,[]).filter(i=>!ids.has(i)));
+    for(const id of ids) await CORB.del(id);
+    const res=await synchroniserMetres(true);
+    toast(`♻ Dossier sorti de la corbeille du Drive${res&&(res.ajoutes||res.maj)?" · métré remis dans l'appli":""}`); renderHome();
+  }catch(e){ toast("Drive : "+e.message); if(bouton){ bouton.disabled=false; bouton.textContent="♻ Remettre"; } }
+}
+
 /* ---------- Modèle de données ---------- */
 function nouveauDossier(){
   return { id:uid(), app:"appli-metre", version_app:VERSION, cree:new Date().toISOString(),
@@ -1612,12 +1644,14 @@ async function renderHome(){
         <div>${nE?`<span class="badge b-err">${nE} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} ${nC?`<span class="badge b-ok">📨 ${nC}/${G.L.length} envoyé(s) à Clémence</span>`:""} ${nA?`<span class="badge b-n">☁ ${nA} pas encore dans le Drive</span>`:""}</div></div>
         ${ouvert?`<div class="dos-sous">${G.L.map(d=>carteMetre(d,true)).join("")}</div>`:""}`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau rendez-vous ».</div>`}</div>
   <div id="hCorb"></div>`;
-  CORB.all().then(C=>{ const z=$("#hCorb"); if(!z || !C.length) return; const jours=d=>Math.max(0,30-Math.floor((Date.now()-new Date(d.supprime_le).getTime())/86400000));
-    z.innerHTML=`<details class="corb-ph" style="margin-top:14px"${S.corbOuverte?" open":""}><summary>♻ Métrés supprimés (${C.length}) <span class="hint">– gardés 30 jours</span></summary>
+  CORB.all().then(C=>{ const z=$("#hCorb"); if(!z) return; const jours=d=>Math.max(0,30-Math.floor((Date.now()-new Date(d.supprime_le).getTime())/86400000));
+    z.innerHTML=`<details class="corb-ph" style="margin-top:14px"${S.corbOuverte?" open":""}><summary>♻ Métrés supprimés${C.length?` (${C.length})`:""} <span class="hint">– gardés 30 jours</span></summary>
+      ${driveDispo()?`<div style="margin:8px 0"><button class="btn small" id="hCorbDrive">🔎 Chercher aussi dans la corbeille du Drive</button></div><div id="hCorbDriveL"></div>`:""}
       <div class="list" style="margin-top:8px">${C.map(d=>`<div class="item"><div class="row"><span class="t">${esc(d.client.nom||"Sans nom")}</span>${d.devis_nom?`<span class="badge b-warn" style="margin-left:6px">${esc(d.devis_nom)}</span>`:""}<span class="spacer"></span><button class="btn small primary" data-corbre="${d.id}">♻ Remettre</button></div>
         <div class="s">${esc(contenuDevis(d))} · supprimé le ${new Date(d.supprime_le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} · encore ${jours(d)} jour(s)</div></div>`).join("")}</div></details>`;
     z.querySelector("details").ontoggle=e=>{ S.corbOuverte=e.target.open; };
-    $$("[data-corbre]").forEach(b=>b.onclick=()=>remettreMetre(b.dataset.corbre)); });
+    $$("[data-corbre]").forEach(b=>b.onclick=()=>remettreMetre(b.dataset.corbre));
+    const bd=$("#hCorbDrive"); if(bd) bd.onclick=afficherCorbeilleDrive; });
   $("#hNew").onclick=()=>nouveauRendezVous(); $("#hTablette").onclick=tabletteRejoindre; $("#hDAO").onclick=()=>{ location.href="dao/?retour=accueil"; };   // Mini DAO (voir CLAUDE.md du dépôt)
   $("#hOpen").onclick=()=>$("#fileOpen").click();
   $("#hSync").onclick=async()=>{ const b=$("#hSync"); b.disabled=true; b.textContent="☁ Actualisation…"; await synchroAccueil(true); const b2=$("#hSync"); if(b2){ b2.disabled=false; b2.textContent="☁ Actualiser"; } };

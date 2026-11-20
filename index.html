@@ -3335,7 +3335,6 @@ function pagesClim(d){
   const oui=v=>v?`<span class="cl-oui">✔ Oui</span>`:`<span class="cl-non">Non</span>`;
   const tr=(k,v)=>v===""||v==null?"":`<tr><th>${k}</th><td>${v}</td></tr>`;
   const P=climLignes(d), V=climVariantes(d), nbUE=climNbUE(c);
-  const pTot=P.map(puissanceClim).filter(x=>x!=null).reduce((a,b)=>a+b,0);
   const ue=Array.from({length:nbUE},(_,i)=>{ const u=climUE(c,i+1), nom=`Unité ${i+1}`, L=P.filter(l=>(l.unite||"Unité 1")===nom), dmax=Math.max(0,...L.map(l=>num(l.distance)||0));
     if(!L.length && !u.h_sol && !u.cable) return "";   // groupe sans pièce ni info : rien à imprimer
     return `<table class="pt pdt cl-t"><tr class="pdir"><th colspan="2">UNITÉ EXTÉRIEURE ${i+1}</th></tr>${tr("Hauteur du sol / emplacement",esc(u.h_sol)+(/^\d+$/.test(u.h_sol||"")?" mm":""))}${tr("Câble au tableau (3G)",u.cable!==""?esc(u.cable)+" m":"")}
@@ -3349,7 +3348,7 @@ function pagesClim(d){
   let h=`<div class="pg cl-pg">${head("Métré climatisation")}
     <div class="cl-haut">
       <table class="pt pdt cl-t"><tr class="pdir"><th colspan="2">INSTALLATION</th></tr>${tr("Marque / gamme",`Atlantic – ${esc(c.modele||"TAKAO Plus")}`)}${tr("Fournisseur",esc(c.fournisseur??"Partedis"))}${tr("Mise en service",c.mes??"Chauffe-Clim"?`<b>${esc(c.mes??"Chauffe-Clim")}</b>`:"")}${tr("Type",(()=>{ const cf=climConfig(c), n1=climNbInt(d); return cf?`<b>${climTypeNom(cf)}</b> (${cf} unité${cf>1?"s":""} intérieure${cf>1?"s":""})`:n1?`${climTypeNom(n1)} <small>(d'après les pièces)</small>`:c.multi?"Multi-split":""; })())}${tr("Modèle",esc(c.modele))}${tr("Option",esc(c.option))}${tr("Connectable Wi-Fi",c.wifi?"<b>OUI</b>":"")}${tr("Année de la maison",esc(c.annee))}
-        ${tr("Unités intérieures",`${P.length}${V.length?` (+ ${V.length} en variante)`:""}`)}${tr("Puissance totale conseillée",pTot?`≈ ${String(Math.round(pTot*10)/10).replace(".",",")} kW <small>(indicatif)</small>`:"")}${tr("Temps de pose estimé",esc(c.temps_pose))}</table>
+        ${tr("Unités intérieures",`${P.length}${V.length?` (+ ${V.length} en variante)`:""}`)}${tr("Temps de pose estimé",esc(c.temps_pose))}</table>
       <div>${ue}</div>
       <table class="pt pdt cl-t"><tr class="pdir"><th colspan="2">FINITIONS ET À PRÉVOIR</th></tr>${tr("Dalle béton",oui(c.dalle))}${tr("Supports muraux",oui(c.supports))}${tr("Goulottes extérieures",esc(c.ral_ext))}${tr("Goulottes intérieures",esc(c.ral_int))}${tr("Wi-Fi à prévoir",c.wifi?`<b>${esc(climWifiTexte(c))}</b>`:"")}
         ${tr("Tableau électrique",c.tableau&&c.tableau.place?`<span class="${/^Non/.test(c.tableau.place)?"cl-non":"cl-oui"}">${esc(c.tableau.place)}</span>`:"")}</table>

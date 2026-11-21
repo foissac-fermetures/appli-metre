@@ -1022,11 +1022,27 @@ function libCote(o,k,i){ const P=CAT.poses[o.pose]||{}; return ((k==="H"&&P.cote
 //  - Tunnel : référence = tableau ; Embrasure/Feuillure : référence = cote embrasure / feuillure
 //  - Neuf avec dépose : largeur entre tapées −10, hauteur sous appui au tapée −5
 //  - Neuf : cotes "enduit compris", fabrication saisie à la main
+/* Pose en embrasure + dépose totale (règle de Nicolas, validée le 21/11/2026) :
+   recouvrement R identique en largeur et en hauteur, le plus grand possible entre 20 et 40 mm, en gardant 10 mm de jeu avec l'embrasure
+   (de chaque côté en largeur, en haut en hauteur ; le bas pose sur l'appui).
+   Largeur fab = tableau + 2R ; hauteur fab = tableau + R. R < 20 → alerte (calcul quand même) ; R < 0 → pas de calcul. */
+const RECOUV_MIN=20, RECOUV_MAX=40, JEU_EMB=10;
+function recouvrementEmbrasure(o){
+  if(o.pose!=="embrasure" || !o.depose_totale || o.renovation) return null;
+  const c=o.cotes, Lt=num(c.L[0]), Le=num(c.L[2]), Ht=num(c.H[0]), He=num(c.H[2]);
+  if(Lt==null||Le==null||Ht==null||He==null) return {R:null, Lt, Le, Ht, He};
+  const rL=Math.floor((Le-Lt-2*JEU_EMB)/2), rH=He-Ht-JEU_EMB, R=Math.min(RECOUV_MAX, rL, rH);
+  return {R, rL, rH, Lt, Le, Ht, He};
+}
 function calcFab(o){
-  const c = o.cotes, out = {L:null,H:null,auto:{L:false,H:false},src:{L:"",H:""}};
+  const c = o.cotes, out = {L:null,H:null,auto:{L:false,H:false},src:{L:"",H:""}}, RE=recouvrementEmbrasure(o);
   const P = CAT.poses[o.pose]?.cotes || ["Tableau"];
   for (const k of ["L","H"]){
     let ref=null, ded=10, src="";
+    if (RE && num(o.fab_force[k])==null){   // embrasure + dépose totale : tableau + recouvrement
+      if(RE.R!=null && RE.R>=0){ out[k]=k==="L"?RE.Lt+2*RE.R:RE.Ht+RE.R; out.auto[k]=true; out.src[k]=k==="L"?`tableau ${RE.Lt} + 2 × ${RE.R} (recouvrement)`:`tableau ${RE.Ht} + ${RE.R} (recouvrement en haut)`; }
+      else out.src[k]=RE.R==null?"tableau + embrasure à saisir":"embrasure trop petite";
+      out.recouvrement=RE.R; continue; }
     if (o.pose==="libre"){ ref=null; }
     else if (o.pose==="neuf_depose" && o.renovation && k==="H"){ ref=num(c[k][2]); src=libCote(o,k,2); }  // neuf + dépose, rénovation : hauteur = cote ② − 10
     else if (o.pose==="neuf_depose" && !o.renovation){ const i=k==="L"?0:1; ref=num(c[k][i]); src=libCote(o,k,i); if(k==="H") ded=5; }  // dépose totale : L = ① − 10, H = ① − 5
@@ -1226,6 +1242,9 @@ function controleOuverture(o, d=S.dossier){
   if(tabImp && (tL==null||tH==null)) W.push("Cotes tableau pas prises (accès impossible) : à relever au métré définitif");
   else { if(tL==null) E.push("Largeur tableau manquante"); if(tH==null) E.push("Hauteur tableau manquante"); }
   if(o.pose!=="libre" && (f.L==null||f.H==null)) (tabImp?W:E).push("Cote de fabrication incomplète");
+  { const RE=recouvrementEmbrasure(o); if(RE && RE.R!=null){
+      if(RE.R<0) E.push(`Embrasure trop petite : pas de recouvrement possible du tableau avec 10 mm de jeu (largeur ${RE.Le} / tableau ${RE.Lt}, hauteur ${RE.He} / tableau ${RE.Ht}) – saisis la fabrication à la main`);
+      else if(RE.R<RECOUV_MIN) W.push(`Embrasure trop juste : recouvrement de ${RE.R} mm seulement (20 mm minimum) – limité par la ${RE.rL<=RE.rH?"largeur":"hauteur"}`); } }
   if(!o.couleur_int && !o.couleur_ext) E.push("Couleur non renseignée");
   const md=modeleDe(o), fam=md?.famille, sansOP=["coulissant","galandage","fixe"].includes(fam), porte=fam==="porte";
   if(listeModeles(o.gamme) && !md) E.push("Modèle de menuiserie non choisi");

@@ -1024,14 +1024,14 @@ function libCote(o,k,i){ const P=CAT.poses[o.pose]||{}; return ((k==="H"&&P.cote
 //  - Neuf : cotes "enduit compris", fabrication saisie à la main
 /* Pose en embrasure + dépose totale (règle de Nicolas, validée le 21/11/2026) :
    recouvrement R identique en largeur et en hauteur, le plus grand possible entre 20 et 40 mm, en gardant 10 mm de jeu avec l'embrasure
-   (de chaque côté en largeur, en haut en hauteur ; le bas pose sur l'appui).
+   (10 mm au total en largeur, 10 mm en hauteur ; le bas pose sur l'appui) – corrigé le 21/11/2026.
    Largeur fab = tableau + 2R ; hauteur fab = tableau + R. R < 20 → alerte (calcul quand même) ; R < 0 → pas de calcul. */
 const RECOUV_MIN=20, RECOUV_MAX=40, JEU_EMB=10;
 function recouvrementEmbrasure(o){
   if(o.pose!=="embrasure" || !o.depose_totale || o.renovation) return null;
   const c=o.cotes, Lt=num(c.L[0]), Le=num(c.L[2]), Ht=num(c.H[0]), He=num(c.H[2]);
   if(Lt==null||Le==null||Ht==null||He==null) return {R:null, Lt, Le, Ht, He};
-  const rL=Math.floor((Le-Lt-2*JEU_EMB)/2), rH=He-Ht-JEU_EMB, R=Math.min(RECOUV_MAX, rL, rH);
+  const rL=Math.floor((Le-Lt-JEU_EMB)/2), rH=He-Ht-JEU_EMB, R=Math.min(RECOUV_MAX, rL, rH);
   return {R, rL, rH, Lt, Le, Ht, He};
 }
 function calcFab(o){

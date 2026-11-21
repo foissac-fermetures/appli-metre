@@ -1026,7 +1026,7 @@ function libCote(o,k,i){ const P=CAT.poses[o.pose]||{}; return ((k==="H"&&P.cote
    recouvrement R identique en largeur et en hauteur, le plus grand possible entre 20 et 40 mm, en gardant 10 mm de jeu avec l'embrasure
    (10 mm au total en largeur, 10 mm en hauteur ; le bas pose sur l'appui) – corrigé le 21/11/2026.
    Largeur fab = tableau + 2R ; hauteur fab = tableau + R. R < 20 → alerte (calcul quand même) ; R < 0 → pas de calcul. */
-const RECOUV_MIN=20, RECOUV_MAX=40, JEU_EMB=10;
+const RECOUV_MIN=20, RECOUV_MAX=40, JEU_EMB=10, RECOUV_ABS=5;   // 5 mm : minimum absolu (fabrication ≈ tableau), règle du 21/11/2026
 function recouvrementEmbrasure(o){
   if(o.pose!=="embrasure" || !o.depose_totale || o.renovation) return null;
   const c=o.cotes, Lt=num(c.L[0]), Le=num(c.L[2]), Ht=num(c.H[0]), He=num(c.H[2]);
@@ -1040,7 +1040,7 @@ function calcFab(o){
   for (const k of ["L","H"]){
     let ref=null, ded=10, src="";
     if (RE && num(o.fab_force[k])==null){   // embrasure + dépose totale : tableau + recouvrement
-      if(RE.R!=null && RE.R>=0){ out[k]=k==="L"?RE.Lt+2*RE.R:RE.Ht+RE.R; out.auto[k]=true; out.src[k]=k==="L"?`tableau ${RE.Lt} + 2 × ${RE.R} (recouvrement)`:`tableau ${RE.Ht} + ${RE.R} (recouvrement en haut)`; }
+      if(RE.R!=null && RE.R>=RECOUV_ABS){ out[k]=k==="L"?RE.Lt+2*RE.R:RE.Ht+RE.R; out.auto[k]=true; out.src[k]=k==="L"?`tableau ${RE.Lt} + 2 × ${RE.R} (recouvrement)`:`tableau ${RE.Ht} + ${RE.R} (recouvrement en haut)`; }
       else out.src[k]=RE.R==null?"tableau + embrasure à saisir":"embrasure trop petite";
       out.recouvrement=RE.R; continue; }
     if (o.pose==="libre"){ ref=null; }
@@ -1243,8 +1243,12 @@ function controleOuverture(o, d=S.dossier){
   else { if(tL==null) E.push("Largeur tableau manquante"); if(tH==null) E.push("Hauteur tableau manquante"); }
   if(o.pose!=="libre" && (f.L==null||f.H==null)) (tabImp?W:E).push("Cote de fabrication incomplète");
   { const RE=recouvrementEmbrasure(o); if(RE && RE.R!=null){
-      if(RE.R<0) E.push(`Embrasure trop petite : pas de recouvrement possible du tableau avec 10 mm de jeu (largeur ${RE.Le} / tableau ${RE.Lt}, hauteur ${RE.He} / tableau ${RE.Ht}) – saisis la fabrication à la main`);
-      else if(RE.R<RECOUV_MIN) W.push(`Embrasure trop juste : recouvrement de ${RE.R} mm seulement (20 mm minimum) – limité par la ${RE.rL<=RE.rH?"largeur":"hauteur"}`); } }
+      if(RE.R<RECOUV_ABS) E.push(`Embrasure trop petite : moins de 5 mm de recouvrement possible avec 10 mm de jeu (largeur ${RE.Le} / tableau ${RE.Lt}, hauteur ${RE.He} / tableau ${RE.Ht}) – saisis la fabrication à la main`);
+      else if(RE.R<RECOUV_MIN) W.push(`Embrasure trop juste : recouvrement de ${RE.R} mm seulement (20 mm conseillés, 5 mm minimum) – limité par la ${RE.rL<=RE.rH?"largeur":"hauteur"}`); }
+    if(RE && RE.Lt!=null && RE.Ht!=null && f.L!=null && f.H!=null && (num(o.fab_force.L)!=null||num(o.fab_force.H)!=null)){   // fabrication saisie à la main
+      const rl=(f.L-RE.Lt)/2, rh=f.H-RE.Ht;
+      if(rl<RECOUV_ABS) E.push(`Recouvrement en largeur de ${rl} mm de chaque côté : 5 mm minimum (fabrication ≥ tableau + 10)`);
+      if(rh<RECOUV_ABS) E.push(`Recouvrement en hauteur de ${rh} mm : 5 mm minimum (fabrication ≥ tableau + 5)`); } }
   if(!o.couleur_int && !o.couleur_ext) E.push("Couleur non renseignée");
   const md=modeleDe(o), fam=md?.famille, sansOP=["coulissant","galandage","fixe"].includes(fam), porte=fam==="porte";
   if(listeModeles(o.gamme) && !md) E.push("Modèle de menuiserie non choisi");

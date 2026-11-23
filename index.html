@@ -26,6 +26,7 @@ button{font:inherit;cursor:pointer}
 header.bar{position:sticky;top:0;z-index:20;background:var(--navy);color:#fff;display:flex;align-items:center;gap:12px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top))}
 header.bar .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.3px}
 header.bar .brand img{height:30px;background:#fff;border-radius:6px;padding:2px 6px}
+.vrpose.vrpose-mini{display:flex;flex-wrap:wrap;gap:6px} .vrpose.vrpose-mini button{width:auto;min-width:90px;max-width:120px;padding:4px 6px;font-size:11px} .vrpose.vrpose-mini img{max-height:44px} .vrpose.vrpose-mini button.on{outline:3px solid #e07b00}
 header.bar .hist-btn{font-size:22px;line-height:1;padding:6px 12px;min-width:44px} header.bar .hist-btn:disabled{opacity:.35}
 header.bar .title{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.9}
 .btn{border:0;border-radius:10px;min-height:var(--tap);padding:0 16px;background:var(--soft);color:var(--navy);font-weight:600;display:inline-flex;align-items:center;gap:8px}
@@ -608,7 +609,7 @@ function nouvelleLigneVR(){
   return { id:uid(), repere:"", quantite:1, tab_l:"", tab_h:"", fab_l:"", fab_h:"",
     fil_droite:false, fil_gauche:false, percage_tableau:false, percage_face:false,
     fil_coffre:"", electricite:"", depose:"", option:"", avec_menuiserie:"", manoeuvre_menuis:"", coffre_hauteur:"",
-    obs:"", ps_deporte:false, ps_cote:"", ps_dist:"", ps_empl:"", ps_prec:"", photos:[], photos_corbeille:[] };   // 23/11/2026 : observation, panneau solaire déporté, photos par volet
+    type_pose:"", obs:"", ps_deporte:false, ps_cote:"", ps_dist:"", ps_empl:"", ps_prec:"", photos:[], photos_corbeille:[] };   // 23/11/2026 : observation, panneau solaire déporté, photos par volet
 }
 function normFinitions(o){ const f=o.finitions||(o.finitions={});
   for(const c of ["int","ext"]){ if(!Array.isArray(f[c+"_l"])){ f[c+"_l"]=[{t:f[c]||"",c:f[c+"_cotes"]||""}]; } if(!f[c+"_l"].length) f[c+"_l"].push({t:"",c:""});
@@ -1399,8 +1400,10 @@ function couleurVRDepuis(o){ const c=o.couleur_ext||o.couleur_int||""; if(!c) re
 /* Volets posés sur la menuiserie (monobloc…) : tout est sur la fiche de l'ouverture → pas d'onglet ni de page « Volets roulants » pour eux (18/11/2026) */
 const vrSeparees = v => ({...v, lignes:((v&&v.lignes)||[]).filter(l=>!vrUsine(l))});
 const VR_COUL = [["couleur_tablier","Couleur tablier"],["couleur_coulisses","Couleur coulisses"],["couleur_coffre","Couleur coffre"]];
+/* Pose par volet (23/11/2026) : l.type_pose vide = comme l'en-tête */
+const vrPose = (l, v) => (l && l.type_pose) || (v && v.type_pose) || "";
 function fabVR(l, v){
-  const auto = VR_SOUS_LINTEAU.includes(v.type_pose), tL=num(l.tab_l), tH=num(l.tab_h);
+  const auto = VR_SOUS_LINTEAU.includes(vrPose(l,v)), tL=num(l.tab_l), tH=num(l.tab_h);
   const aL = auto&&tL!=null ? tL-10 : null, aH = auto&&tH!=null ? tH-5 : null;
   const fL=num(l.fab_l), fH=num(l.fab_h);
   return { L: fL!=null?fL:aL, H: fH!=null?fH:aH, autoL:aL, autoH:aH, auto, forceL:fL!=null, forceH:fH!=null };
@@ -1970,6 +1973,9 @@ function renderVR(t){
       <input data-k="${k}.repere" list="dlPiecesVR" value="${esc(l.repere)}" placeholder="Repère / pièce" style="max-width:260px;font-weight:700"${ro}>${ro?"":boutonRep(k+".repere")}
       <span class="spacer"></span><span id="vrc${i}"></span>
       <button class="btn small" data-vrdup="${i}">Dupliquer</button><button class="btn small danger" data-vrdel="${i}">Supprimer</button></div>
+    <div class="vrpose vrpose-mini" style="margin:0 0 10px">
+      <button data-vrlpose="${i}:" class="${!l.type_pose?"on":""}"><span>Comme l'en-tête${v.type_pose?`<br><small>${esc(C.types_pose.find(p=>p.id===v.type_pose)?.nom||"")}</small>`:""}</span></button>
+      ${C.types_pose.map(p=>`<button data-vrlpose="${i}:${p.id}" class="${l.type_pose===p.id?"on":""}" title="${esc(p.nom)}"><img src="${SCHEMAS[p.img]||""}" alt=""><span>${esc(p.nom)}</span></button>`).join("")}</div>
     <div class="grid vrgrid">
       ${[F.numb(`${k}.quantite`,"Quantité",l.quantite),F.numb(`${k}.tab_l`,"Tableau – largeur",l.tab_l),F.numb(`${k}.tab_h`,"Tableau – hauteur",l.tab_h)].map(x=>lie?x.replace("<input","<input disabled"):x).join("")}
       <label class="f">Fabrication – largeur <span class="fabhint" id="vrfl${i}"></span><input data-k="${k}.fab_l" inputmode="decimal" value="${esc(l.fab_l)}"></label>
@@ -2004,6 +2010,7 @@ function renderVR(t){
   $$("[data-vrdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer ce volet roulant ?","Supprimer")) return; v.lignes.splice(+b.dataset.vrdel,1); save(); renderDossier(); });
   /* panneau solaire déporté et photos par volet (23/11/2026) */
   const reVR=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); };
+  $$("[data-vrlpose]").forEach(b=>b.onclick=()=>{ const [i,id]=b.dataset.vrlpose.split(":"), l=v.lignes[+i]; l.type_pose = (id && id!==v.type_pose) ? id : ""; save(); reVR(); });
   $$('[data-k$=".ps_deporte"]').forEach(c=>c.addEventListener("change",()=>setTimeout(reVR,0)));
   $$("[data-vrph]").forEach(inp=>inp.onchange=async()=>{ const l=v.lignes[+inp.dataset.vrph], fs=[...inp.files]; if(!fs.length) return; toast("Ajout de la photo…");
     for(const f of fs){ try{ l.photos.push({id:uid(), img:await reduirePhoto(f), txt:""}); }catch(e){ toast("Photo illisible"); } } save(); reVR(); });
@@ -2213,7 +2220,7 @@ function renderVRInline(){
   if(!l){ box.innerHTML=`<div class="row"><h2 style="margin:0">Volet roulant</h2><span class="hint">Le client veut un volet roulant sur cette ouverture ? Mesure-le maintenant, sans revenir.</span>
       <span class="spacer"></span><button class="btn primary" id="vrLieAdd">+ Ajouter un volet roulant</button></div>`;
     $("#vrLieAdd").onclick=()=>{ ajouterVRLie(d,o); save(); renderVRInline(); }; return; }
-  const i=d.vr.lignes.indexOf(l), k=`vr.lignes.${i}`, tp=C.types_pose.find(p=>p.id===v.type_pose);
+  const i=d.vr.lignes.indexOf(l), k=`vr.lignes.${i}`, tp=C.types_pose.find(p=>p.id===vrPose(l,v));
   { const cm=couleurVRDepuis(o); let ch=false; VR_COUL.forEach(([c])=>{ if(!l[c] && (v[c]||cm)){ l[c]=v[c]||cm; l["_auto_"+c]=l[c]; ch=true; } }); if(ch) DB.put(d,true); }   // pré-rempli : couleur générale des volets, sinon couleur de la menuiserie
   const html=`<div class="row" style="margin-bottom:10px"><h2 style="margin:0">Volet roulant de cette ouverture</h2><span id="vrInBadge"></span><span class="spacer"></span>
       <button class="btn small danger" id="vrLieDel">Retirer le volet</button></div>
@@ -4622,12 +4629,12 @@ function construireImpression(d){
         <tr><th>L</th><th>H</th><th>L</th><th>H</th><th>G</th><th>D</th><th>Tab.</th><th>Face</th></tr>
         ${v.lignes.map(l=>`<tr><td><b>${l.num_poseur?"N°"+esc(l.num_poseur)+" ":""}${esc(l.repere)}</b>${l.avec_menuiserie?`<br><small>${esc(l.avec_menuiserie)} (avec menuiserie)${l.manoeuvre_menuis?"<br>"+esc(l.manoeuvre_menuis):""}${l.coffre_hauteur?"<br>"+esc(l.coffre_hauteur):""}</small>`:""}${VR_COUL.some(([c])=>l[c]&&l[c]!==v[c])?`<br><small>${esc(VR_COUL.filter(([c])=>l[c]).map(([c,lab])=>lab.replace("Couleur ","")+" "+l[c]).join(" · "))}</small>`:""}</td><td>${esc(l.quantite)}</td><td>${esc(l.tab_l)}</td><td>${esc(l.tab_h)}</td>${vrUsine(l)?`<td colspan="2"><small>usine</small></td>`:`<td><b>${fabVR(l,v).L??""}</b></td><td><b>${fabVR(l,v).H??""}</b></td>`}
           <td>${ck(l.fil_gauche)}</td><td>${ck(l.fil_droite)}</td><td>${ck(l.percage_tableau)}</td><td>${ck(l.percage_face)}</td><td>${esc(l.fil_coffre)}</td><td>${esc(l.electricite)}</td><td>${esc(l.depose)}</td><td>${esc(l.option)}</td></tr>${
-          (()=>{ const det=[l.ps_deporte&&vrSolaire(l,v)?`☀️ Panneau solaire DÉPORTÉ${l.ps_cote?" – "+l.ps_cote.toLowerCase()+" (vue int.)":""}${num(l.ps_dist)!=null?" – "+String(l.ps_dist).replace(".",",")+" m":" – distance ?"}${l.ps_empl?" – "+l.ps_empl.toLowerCase():""}${l.ps_prec?" ("+l.ps_prec+")":""}`:"", l.obs?"Observation : "+l.obs:"", (l.photos||[]).length?`📷 ${l.photos.length} photo(s)`:""].filter(Boolean);
+          (()=>{ const det=[l.type_pose&&l.type_pose!==v.type_pose?"POSE : "+(CAT.vr.types_pose.find(p=>p.id===l.type_pose)?.nom||l.type_pose).toUpperCase():"", l.ps_deporte&&vrSolaire(l,v)?`☀️ Panneau solaire DÉPORTÉ${l.ps_cote?" – "+l.ps_cote.toLowerCase()+" (vue int.)":""}${num(l.ps_dist)!=null?" – "+String(l.ps_dist).replace(".",",")+" m":" – distance ?"}${l.ps_empl?" – "+l.ps_empl.toLowerCase():""}${l.ps_prec?" ("+l.ps_prec+")":""}`:"", l.obs?"Observation : "+l.obs:"", (l.photos||[]).length?`📷 ${l.photos.length} photo(s)`:""].filter(Boolean);
             return det.length?`<tr><td colspan="14" style="text-align:left"><small>${esc(det.join(" · "))}</small></td></tr>`:""; })()}`).join("")}
       </table>
       ${v.observation?`<table class="pt"><tr><th>Observation</th><td>${esc(v.observation)}</td></tr></table>`:""}
       </div>
-      <div>${tp&&SCHEMAS[tp.img]?`<img src="${SCHEMAS[tp.img]}" style="max-width:100%;border:1px solid #9aa3b5"><div style="text-align:center;font-weight:700">${esc(tp.nom)}</div>`:""}</div></div></div>`;
+      <div>${[...new Set([v.type_pose,...v.lignes.map(l=>l.type_pose)].filter(Boolean))].map(id=>CAT.vr.types_pose.find(p=>p.id===id)).filter(p=>p&&SCHEMAS[p.img]).map(p=>`<img src="${SCHEMAS[p.img]}" style="max-width:100%;border:1px solid #9aa3b5"><div style="text-align:center;font-weight:700;margin-bottom:6px">${esc(p.nom)}${p.id!==v.type_pose?" (certains volets)":""}</div>`).join("")}</div></div></div>`;
     v.lignes.forEach(l=>{ if((l.photos||[]).length) h+=pagesPhotos(d,{repere:"Volet roulant "+(l.repere||""), num_poseur:l.num_poseur, photos:l.photos},head); });
   }
   h+=pagesPT(d);

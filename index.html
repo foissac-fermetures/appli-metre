@@ -607,7 +607,8 @@ function nouveauVR(){
 function nouvelleLigneVR(){
   return { id:uid(), repere:"", quantite:1, tab_l:"", tab_h:"", fab_l:"", fab_h:"",
     fil_droite:false, fil_gauche:false, percage_tableau:false, percage_face:false,
-    fil_coffre:"", electricite:"", depose:"", option:"", avec_menuiserie:"", manoeuvre_menuis:"", coffre_hauteur:"" };
+    fil_coffre:"", electricite:"", depose:"", option:"", avec_menuiserie:"", manoeuvre_menuis:"", coffre_hauteur:"",
+    obs:"", ps_deporte:false, ps_cote:"", ps_dist:"", photos:[], photos_corbeille:[] };   // 23/11/2026 : observation, panneau solaire déporté, photos par volet
 }
 function normFinitions(o){ const f=o.finitions||(o.finitions={});
   for(const c of ["int","ext"]){ if(!Array.isArray(f[c+"_l"])){ f[c+"_l"]=[{t:f[c]||"",c:f[c+"_cotes"]||""}]; } if(!f[c+"_l"].length) f[c+"_l"].push({t:"",c:""});
@@ -1429,6 +1430,7 @@ function controleLigneVR(l, v){
   if(!vrUsine(l)&&!l.percage_tableau&&!l.percage_face) W.push("Perçage coulisse non coché");
   if(!vrUsine(l)&&vrMotorise(l,v)&&!vrSolaire(l,v)&&!l.electricite) W.push("Électricité non renseignée (VR motorisé)");
   if(l.avec_menuiserie && !l.manoeuvre_menuis) W.push("Manœuvre du volet (vendu avec la menuiserie) non choisie");
+  if(l.ps_deporte && vrSolaire(l,v)){ if(num(l.ps_dist)==null) W.push("Panneau solaire déporté : distance de déport à préciser"); if(!l.ps_cote) W.push("Panneau solaire déporté : côté à préciser"); }
   if(l.avec_menuiserie && !l.coffre_hauteur) E.push("Préciser si le coffre (195 mm) est compris dans la hauteur");
   if(!vrUsine(l)&&!l.depose) W.push("Dépose à faire non renseignée");
   return {E,W};
@@ -1943,8 +1945,10 @@ function renderDossier(){
 }
 
 /* ---------- Volets roulants ---------- */
+const VR_PS_COTES=["Gauche","Droite","Au-dessus","Sur un autre mur"];
 function renderVR(t){
   const d=S.dossier, v=d.vr, C=CAT.vr;
+  v.lignes.forEach(l=>{ if(!Array.isArray(l.photos)) l.photos=[]; if(!Array.isArray(l.photos_corbeille)) l.photos_corbeille=[]; });
   t.innerHTML=`
   <div class="card"><h2>Volet roulant – en-tête</h2>
   <p class="hint">Nombre de personnes, durée de pose et manutention : onglet « Client & chantier », rubrique Pose.</p>
@@ -1977,12 +1981,34 @@ function renderVR(t){
     <div class="grid g4">
       ${F.sel(`${k}.fil_coffre`,"Sortie de fil – coffre",C.sortie_fil_coffre,l.fil_coffre)}${F.sel(`${k}.electricite`,"Électricité",C.electricite,l.electricite)}
       ${F.sel(`${k}.depose`,"Dépose à faire",C.depose,l.depose)}${F.sel(`${k}.option`,"Option",C.option,l.option)}
-    </div></div>`; }).join("")}
+    </div>
+    ${vrSolaire(l,v)?`<div class="row vr-ps" style="margin-top:12px;gap:14px;align-items:flex-end;flex-wrap:wrap">
+      <div class="checks">${F.chk(`${k}.ps_deporte`,"☀️ Panneau solaire déporté",l.ps_deporte)}</div>
+      ${l.ps_deporte?`<div style="min-width:200px">${F.sel(`${k}.ps_cote`,"Côté du déport (vue extérieure)",VR_PS_COTES,l.ps_cote)}</div>
+      <label class="f" style="max-width:200px">Distance de déport (m)<input data-k="${k}.ps_dist" inputmode="decimal" value="${esc(l.ps_dist)}" placeholder="ex. 2,5"></label>`:""}</div>`:""}
+    <div style="margin-top:12px">${F.area(`${k}.obs`,"Observation",l.obs)}</div>
+    <details class="vr-ph" style="margin-top:10px"${l.photos.length?" open":""}><summary><b>📷 Photos${l.photos.length?` (${l.photos.length})`:""}</b></summary>
+      <div class="photos" style="margin-top:8px">${l.photos.map((p,j)=>`<figure class="photo"><img src="${p.img}" alt="Photo ${j+1}" data-vrphedit="${i}:${j}">
+        <textarea data-k="${k}.photos.${j}.txt" rows="2" placeholder="Remarque">${esc(p.txt||"")}</textarea>
+        <div class="row"><button class="btn small" data-vrphedit="${i}:${j}">✏️ Annoter</button><span class="spacer"></span><button class="btn small danger" data-vrphdel="${i}:${j}" aria-label="Supprimer la photo ${j+1}">✕</button></div></figure>`).join("")}
+      <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple data-vrph="${i}" class="hide"></label></div>
+      ${l.photos_corbeille.length?`<div class="hint" style="margin-top:6px">♻ ${l.photos_corbeille.length} photo(s) supprimée(s) : ${l.photos_corbeille.map((x,j)=>`<button class="btn small" data-vrphremet="${i}:${j}">♻ Remettre ${j+1}</button>`).join(" ")}</div>`:""}
+    </details></div>`; }).join("")}
   <div class="card"><h2>Observation</h2>${F.area("vr.observation","",v.observation)}</div>`;
   $$("[data-vrpose]").forEach(b=>b.onclick=()=>{ v.type_pose = v.type_pose===b.dataset.vrpose ? "" : b.dataset.vrpose; save(); $$("[data-vrpose]").forEach(x=>x.classList.toggle("on",x.dataset.vrpose===v.type_pose)); majVR(); });
   $("#vrAdd").onclick=()=>{ v.lignes.push(nouvelleLigneVR()); save(); renderDossier(); setTimeout(()=>$$(".vrl").at(-1)?.scrollIntoView({behavior:"smooth",block:"center"}),50); };
   $$("[data-vrdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.vrdup, c=JSON.parse(JSON.stringify(v.lignes[i])); c.id=uid(); v.lignes.splice(i+1,0,c); save(); renderDossier(); });
   $$("[data-vrdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer ce volet roulant ?","Supprimer")) return; v.lignes.splice(+b.dataset.vrdel,1); save(); renderDossier(); });
+  /* panneau solaire déporté et photos par volet (23/11/2026) */
+  const reVR=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); };
+  $$('[data-k$=".ps_deporte"]').forEach(c=>c.addEventListener("change",()=>setTimeout(reVR,0)));
+  $$("[data-vrph]").forEach(inp=>inp.onchange=async()=>{ const l=v.lignes[+inp.dataset.vrph], fs=[...inp.files]; if(!fs.length) return; toast("Ajout de la photo…");
+    for(const f of fs){ try{ l.photos.push({id:uid(), img:await reduirePhoto(f), txt:""}); }catch(e){ toast("Photo illisible"); } } save(); reVR(); });
+  $$("[data-vrphedit]").forEach(b=>b.onclick=()=>{ const [i,j]=b.dataset.vrphedit.split(":").map(Number); annoterPhoto(j, v.lignes[i], reVR); });
+  $$("[data-vrphdel]").forEach(b=>b.onclick=async()=>{ const [i,j]=b.dataset.vrphdel.split(":").map(Number), l=v.lignes[i];
+    if(!await demander("Supprimer cette photo ?\n\nElle reste 30 jours récupérable (♻ Remettre).","Supprimer")) return;
+    const [ph]=l.photos.splice(j,1); if(ph) l.photos_corbeille.unshift({...ph, supprime_le:new Date().toISOString()}); save(); reVR(); });
+  $$("[data-vrphremet]").forEach(b=>b.onclick=()=>{ const [i,j]=b.dataset.vrphremet.split(":").map(Number), l=v.lignes[i], [ph]=l.photos_corbeille.splice(j,1); if(ph){ delete ph.supprime_le; l.photos.push(ph); save(); reVR(); toast("Photo remise"); } });
   majVR();
 }
 function majVR(){
@@ -4592,11 +4618,14 @@ function construireImpression(d){
       <table class="pt vrt"><tr><th rowspan="2">Repère</th><th rowspan="2">Qté</th><th colspan="2">Tableau</th><th colspan="2">Fabrication</th><th colspan="2">Sortie de fil<br>vue int.</th><th colspan="2">Perçage<br>coulisse</th><th rowspan="2">Sortie de fil<br>coffre</th><th rowspan="2">Électricité</th><th rowspan="2">Dépose</th><th rowspan="2">Option</th></tr>
         <tr><th>L</th><th>H</th><th>L</th><th>H</th><th>G</th><th>D</th><th>Tab.</th><th>Face</th></tr>
         ${v.lignes.map(l=>`<tr><td><b>${l.num_poseur?"N°"+esc(l.num_poseur)+" ":""}${esc(l.repere)}</b>${l.avec_menuiserie?`<br><small>${esc(l.avec_menuiserie)} (avec menuiserie)${l.manoeuvre_menuis?"<br>"+esc(l.manoeuvre_menuis):""}${l.coffre_hauteur?"<br>"+esc(l.coffre_hauteur):""}</small>`:""}${VR_COUL.some(([c])=>l[c]&&l[c]!==v[c])?`<br><small>${esc(VR_COUL.filter(([c])=>l[c]).map(([c,lab])=>lab.replace("Couleur ","")+" "+l[c]).join(" · "))}</small>`:""}</td><td>${esc(l.quantite)}</td><td>${esc(l.tab_l)}</td><td>${esc(l.tab_h)}</td>${vrUsine(l)?`<td colspan="2"><small>usine</small></td>`:`<td><b>${fabVR(l,v).L??""}</b></td><td><b>${fabVR(l,v).H??""}</b></td>`}
-          <td>${ck(l.fil_gauche)}</td><td>${ck(l.fil_droite)}</td><td>${ck(l.percage_tableau)}</td><td>${ck(l.percage_face)}</td><td>${esc(l.fil_coffre)}</td><td>${esc(l.electricite)}</td><td>${esc(l.depose)}</td><td>${esc(l.option)}</td></tr>`).join("")}
+          <td>${ck(l.fil_gauche)}</td><td>${ck(l.fil_droite)}</td><td>${ck(l.percage_tableau)}</td><td>${ck(l.percage_face)}</td><td>${esc(l.fil_coffre)}</td><td>${esc(l.electricite)}</td><td>${esc(l.depose)}</td><td>${esc(l.option)}</td></tr>${
+          (()=>{ const det=[l.ps_deporte&&vrSolaire(l,v)?`☀️ Panneau solaire DÉPORTÉ${l.ps_cote?" – "+l.ps_cote.toLowerCase():""}${num(l.ps_dist)!=null?" – "+String(l.ps_dist).replace(".",",")+" m":" – distance ?"}`:"", l.obs?"Observation : "+l.obs:"", (l.photos||[]).length?`📷 ${l.photos.length} photo(s)`:""].filter(Boolean);
+            return det.length?`<tr><td colspan="14" style="text-align:left"><small>${esc(det.join(" · "))}</small></td></tr>`:""; })()}`).join("")}
       </table>
       ${v.observation?`<table class="pt"><tr><th>Observation</th><td>${esc(v.observation)}</td></tr></table>`:""}
       </div>
       <div>${tp&&SCHEMAS[tp.img]?`<img src="${SCHEMAS[tp.img]}" style="max-width:100%;border:1px solid #9aa3b5"><div style="text-align:center;font-weight:700">${esc(tp.nom)}</div>`:""}</div></div></div>`;
+    v.lignes.forEach(l=>{ if((l.photos||[]).length) h+=pagesPhotos(d,{repere:"Volet roulant "+(l.repere||""), num_poseur:l.num_poseur, photos:l.photos},head); });
   }
   h+=pagesPT(d);
   h+=pagesVB(d, head, row); h+=pagesPP(d, head, row); h+=pagesVT(d, head, row);
@@ -4839,6 +4868,8 @@ async function envoyerDossierDrive(d){
   for(const [cle,lib] of [["pt","PORTAIL"],["vb","VOLETS BATTANTS"],["pp","PORTES PALIÈRES"],["clim","CLIM"],["vt","VITRAGE"],["sav","SAV"]])
     for(const [k,p] of ((d[cle]&&d[cle].photos)||[]).entries()){ if(p.drive || !p.img) continue;
       try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – ${lib} – ${nomPh(p.txt)} – ${k+1}.jpg`, blob, ph); p.drive=true; }catch(e){} }
+  for(const l of ((d.vr&&d.vr.lignes)||[])) for(const [k,p] of (l.photos||[]).entries()){ if(p.drive || !p.img) continue;   // photos par volet roulant (23/11/2026)
+    try{ const blob=await (await fetch(p.img)).blob(); await deposerDrive(`${base} – VR ${nomPh(l.repere||"volet")} – ${nomPh(p.txt||"photo")} – ${k+1}.jpg`, blob, ph); p.drive=true; }catch(e){} }
   // métré rattaché à un autre client : on retire l'ancien PDF / JSON de l'ancien dossier (sinon doublon dans le Drive)
   if(d.drive_ancien && d.drive_ancien.dossier && d.drive_ancien.dossier!==sous){ for(const ext of [".json",".pdf"]){ try{
       const q=`name='${q_(d.drive_ancien.base+ext)}' and trashed=false and '${d.drive_ancien.dossier}' in parents`;

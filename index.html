@@ -27,6 +27,7 @@ header.bar{position:sticky;top:0;z-index:20;background:var(--navy);color:#fff;di
 header.bar .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.3px}
 header.bar .brand img{height:30px;background:#fff;border-radius:6px;padding:2px 6px}
 .vrpose.vrpose-mini{display:flex;flex-wrap:wrap;gap:6px} .vrpose.vrpose-mini button{width:auto;min-width:90px;max-width:120px;padding:4px 6px;font-size:11px} .vrpose.vrpose-mini img{max-height:44px} .vrpose.vrpose-mini button.on{outline:3px solid #e07b00}
+.home-cat{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px;background:#fff} .home-cat-t{cursor:pointer;user-select:none} .home-cat.ouvert>.list{margin-top:10px}
 header.bar .hist-btn{font-size:22px;line-height:1;padding:6px 12px;min-width:44px} header.bar .hist-btn:disabled{opacity:.35}
 header.bar .title{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.9}
 .btn{border:0;border-radius:10px;min-height:var(--tap);padding:0 16px;background:var(--soft);color:var(--navy);font-weight:600;display:inline-flex;align-items:center;gap:8px}
@@ -659,8 +660,22 @@ function migrerPose(d){
   const V={"1/2 h":"1 h","1 h":"1 h","1 h 1/2":"2 h","2 h":"2 h","2 h 1/2":"3 h","3 h":"3 h","3 h 1/2":"4 h – ½ journée","1/2 jour":"4 h – ½ journée","1 jour":"8 h – 1 journée"};
   if(d.vr && d.vr.duree){ if(d.vr.duree==="Sans pose"){ if(!d.equipe_pose) d.equipe_pose="Sans pose"; } else if(!d.jours_pose && V[d.vr.duree]) d.jours_pose=V[d.vr.duree]; d.vr.duree_ancienne=d.vr.duree; d.vr.duree=""; }
 }
+/* Métré définitif (23/11/2026) : les cotes ne doivent jamais être vides. Reprises du métré de devis (ouverture « premier »),
+   sinon les dimensions du devis signé en cote de fabrication ; cases en JAUNE tant qu'elles n'ont pas été recontrôlées
+   (une case modifiée sort du jaune ; bouton « ✓ J'ai recontrôlé les cotes »). */
+const COTE_CLES=o=>[...["L","H"].flatMap(c=>[0,1,2,3].map(i=>`cotes.${c}.${i}`)),"fab_force.L","fab_force.H"];
+const valCle=(o,k)=>{ const [a,b,c]=k.split("."); return c!=null?((o[a]||{})[b]||[])[+c]:(o[a]||{})[b]; };
+function repriseCotes(o, d){
+  if(o.reprise || typeof estDefinitif!=="function" || !estDefinitif(d)) return;
+  const pleines=COTE_CLES(o).filter(k=>String(valCle(o,k)??"").trim()!=="");
+  if(o.premier && pleines.length){ o.reprise={src:"metre", champs:Object.fromEntries(pleines.map(k=>[k,String(valCle(o,k))])), ok:false}; return; }
+  if(o.devis && !pleines.length && num(o.devis.L)!=null && num(o.devis.H)!=null){
+    o.fab_force={...(o.fab_force||{}), L:String(num(o.devis.L)), H:String(num(o.devis.H))};
+    o.reprise={src:"devis", champs:{"fab_force.L":o.fab_force.L,"fab_force.H":o.fab_force.H}, ok:false}; }
+}
+const cotesARecontroler=o=>o&&o.reprise&&!o.reprise.ok ? Object.entries(o.reprise.champs).filter(([k,v])=>String(valCle(o,k)??"")===v).map(([k])=>k) : [];
 function normaliser(d){ (d.vr&&d.vr.lignes||[]).forEach(l=>{ ["avec_menuiserie","coffre_hauteur"].forEach(k=>{ if(/hauteur 168 mm/.test(l[k]||"")) l[k]=l[k].replace("hauteur 168 mm","hauteur 205 mm"); }); });   // LALOI : toujours coffre 205 (Nicolas, 18/11/2026)
-  migrerPose(d); if(d.vb) migrerVB(d.vb); d.ouvertures.forEach(nettoyerOuv); if(!d.vr) d.vr=nouveauVR(); d.ouvertures.forEach(migrerObs); d.ouvertures.forEach(o=>{ if(o.semi_fixe && modeleDe(o) && !aSemiFixe(o)) o.semi_fixe=""; }); d.ouvertures.forEach(o=>{ o.comp=Object.assign(COMP_VIDE(), o.comp||{}); }); if(d.clim && !d.clim.tableau) d.clim.tableau={img:"",txt:"",place:""}; d.ouvertures.forEach(o=>{ o.gc=Object.assign(GC_VIDE(), o.gc||{}); o.erp=Object.assign(ERP_VIDE(), o.erp||{}); }); d.ouvertures.forEach((o,i)=>{ if(o.num_poseur===undefined) o.num_poseur=String(i+1); if(!Array.isArray(o.photos)) o.photos=[]; }); if(!d.equipe_pose && d.vr.equipe) d.equipe_pose={"Seul":"Tout seul"}[d.vr.equipe]||d.vr.equipe; d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
+  migrerPose(d); if(d.vb) migrerVB(d.vb); d.ouvertures.forEach(nettoyerOuv); if(!d.vr) d.vr=nouveauVR(); d.ouvertures.forEach(migrerObs); d.ouvertures.forEach(o=>{ if(o.semi_fixe && modeleDe(o) && !aSemiFixe(o)) o.semi_fixe=""; }); d.ouvertures.forEach(o=>{ o.comp=Object.assign(COMP_VIDE(), o.comp||{}); }); if(d.clim && !d.clim.tableau) d.clim.tableau={img:"",txt:"",place:""}; d.ouvertures.forEach(o=>{ o.gc=Object.assign(GC_VIDE(), o.gc||{}); o.erp=Object.assign(ERP_VIDE(), o.erp||{}); }); d.ouvertures.forEach((o,i)=>{ if(o.num_poseur===undefined) o.num_poseur=String(i+1); if(!Array.isArray(o.photos)) o.photos=[]; }); d.ouvertures.forEach(o=>repriseCotes(o,d)); if(!d.equipe_pose && d.vr.equipe) d.equipe_pose={"Seul":"Tout seul"}[d.vr.equipe]||d.vr.equipe; d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
 /* Volet roulant lié à une ouverture : repère, quantité et cotes tableau suivent la fiche ouverture */
 /* Volets roulants vendus avec la menuiserie (fabriqués avec elle) */
 const GAMME_MODELES = { "ALU - LALOI":"modeles_laloi", "PVC - REHAU PORTEO":"modeles_porteo" };
@@ -1246,6 +1261,7 @@ function controleOuverture(o, d=S.dossier){
   if(tabImp && (tL==null||tH==null)) W.push("Cotes tableau pas prises (accès impossible) : à relever au métré définitif");
   else { if(tL==null) E.push("Largeur tableau manquante"); if(tH==null) E.push("Hauteur tableau manquante"); }
   if(o.pose!=="libre" && (f.L==null||f.H==null)) (tabImp?W:E).push("Cote de fabrication incomplète");
+  if(cotesARecontroler(o).length) W.push(o.reprise.src==="metre"?"Cotes reprises du métré de devis → à recontrôler sur place (cases jaunes)":`Dimensions du devis signé (${o.reprise.champs["fab_force.L"]} × ${o.reprise.champs["fab_force.H"]}) mises en cote de fabrication → à recontrôler sur place (cases jaunes)`);
   { const RE=recouvrementEmbrasure(o); if(RE && RE.R!=null){
       if(RE.R<RECOUV_ABS) E.push(`${cap(RE.mot)} trop petite : même avec 5 mm de recouvrement il ne reste pas 5 mm de jeu (${RE.mot} ${RE.Le} × ${RE.He} / tableau ${RE.Lt} × ${RE.Ht}) – saisis la fabrication à la main`);
       else if(RE.reduit) W.push(`${cap(RE.mot)} très juste : recouvrement minimum de 5 mm, jeu réduit à ${RE.jeuL} mm en largeur et ${RE.jeuH} mm en hauteur`);
@@ -1668,10 +1684,22 @@ async function ouvrirMetreAJour(id){
   const d=(await DB.all()).find(x=>x.id===id); if(!d){ renderHome(); return; }
   if(d._conflit){ toast("Ce métré a été modifié sur deux appareils : choisis d'abord la bonne version"); renderHome(); return; }
   S.dossier=d; S.tab="client"; renderDossier(); }
+/* Accueil en rubriques (23/11/2026) : « envoyé » = parti chez Clémence (ou Roxane pour la clim) avec le bouton 📨 */
+const HOME_CATS=[["dv_a","📝 Métrés de devis à envoyer",d=>!estDefinitif(d)&&!envoisClemence(d).length],["dv_e","📨 Métrés de devis envoyés",d=>!estDefinitif(d)&&envoisClemence(d).length>0],
+  ["df_a","📏 Métrés définitifs à envoyer",d=>estDefinitif(d)&&!envoisClemence(d).length],["df_e","✅ Métrés définitifs envoyés",d=>estDefinitif(d)&&envoisClemence(d).length>0]];
+const homeCatOuverte=id=>{ const m=lireLS("home_cats",{}); return id in m ? m[id] : /_a$/.test(id); };
 async function renderHome(){
   S.homeOuverts=S.homeOuverts||new Set(); S.view="home"; S.dossier=null; S.ouv=null; setBar("Mes métrés", false);
   const ds=(await DB.all()).sort((a,b)=>(b.modifie||"").localeCompare(a.modifie||""));
   memoriserConcurrents(ds.flatMap(d=>d.concurrents||[]));
+  const rendGroupe=(G=>{
+      if(G.L.length===1) return carteMetre(G.L[0]);
+      const ouvert=S.homeOuverts.has(G.cle)||S.selMode, nE=G.L.reduce((s,d)=>s+nbErreurs(d),0), nC=G.L.filter(d=>envoisClemence(d).length).length, nA=G.L.filter(d=>nonEnvoyeDrive(d)).length;
+      return `<div class="item dos-cli${ouvert?" ouvert":""}" data-grp="${esc(G.cle)}">
+        <div class="row"><span class="dos-ico">📁</span><span class="t">${esc(G.nom)}</span><span class="spacer"></span><span class="badge b-n">${G.L.length} devis</span><span class="dos-chev">${ouvert?"▾":"▸"}</span></div>
+        <div class="s">${G.L.map(d=>esc(d.devis_nom||d.variante)).join(" · ")}</div>
+        <div>${nE?`<span class="badge b-err">${nE} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} ${nC?`<span class="badge b-ok">📨 ${nC}/${G.L.length} envoyé(s) à Clémence</span>`:""} ${nA?`<span class="badge b-n">☁ ${nA} pas encore dans le Drive</span>`:""}</div></div>
+        ${ouvert?`<div class="dos-sous">${G.L.map(d=>carteMetre(d,true)).join("")}</div>`:""}`; });
   $("#app").innerHTML=`
   <div class="row"><h1>Accueil</h1><span class="spacer"></span>
     <button class="btn" id="hSync" title="Récupérer les métrés faits ou modifiés sur mes autres appareils">☁ Actualiser</button>
@@ -1687,14 +1715,10 @@ async function renderHome(){
   <div class="card" id="hAgenda" style="margin-bottom:16px"><p class="hint">Chargement des rendez-vous…</p></div>
   <div class="row" style="margin:6px 0 10px"><h2 style="margin:0">Mes métrés</h2><span class="spacer"></span>
     ${ds.length?(S.selMode?`<button class="btn small" id="hSelTout">Tout cocher</button><button class="btn small danger" id="hSelDel">Supprimer la sélection</button><button class="btn small" id="hSelFin">Annuler</button>`:`<button class="btn small" id="hSel">Supprimer plusieurs…</button>`):""}</div>
-  <div class="list">${groupesClients(ds).map(G=>{
-      if(G.L.length===1) return carteMetre(G.L[0]);
-      const ouvert=S.homeOuverts.has(G.cle)||S.selMode, nE=G.L.reduce((s,d)=>s+nbErreurs(d),0), nC=G.L.filter(d=>envoisClemence(d).length).length, nA=G.L.filter(d=>nonEnvoyeDrive(d)).length;
-      return `<div class="item dos-cli${ouvert?" ouvert":""}" data-grp="${esc(G.cle)}">
-        <div class="row"><span class="dos-ico">📁</span><span class="t">${esc(G.nom)}</span><span class="spacer"></span><span class="badge b-n">${G.L.length} devis</span><span class="dos-chev">${ouvert?"▾":"▸"}</span></div>
-        <div class="s">${G.L.map(d=>esc(d.devis_nom||d.variante)).join(" · ")}</div>
-        <div>${nE?`<span class="badge b-err">${nE} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} ${nC?`<span class="badge b-ok">📨 ${nC}/${G.L.length} envoyé(s) à Clémence</span>`:""} ${nA?`<span class="badge b-n">☁ ${nA} pas encore dans le Drive</span>`:""}</div></div>
-        ${ouvert?`<div class="dos-sous">${G.L.map(d=>carteMetre(d,true)).join("")}</div>`:""}`; }).join("") || `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau rendez-vous ».</div>`}</div>
+  ${ds.length?HOME_CATS.map(([id,titre,test])=>{ const L=ds.filter(test), ouv=S.selMode||homeCatOuverte(id);
+      return `<div class="home-cat${ouv?" ouvert":""}" data-cat="${id}"><div class="row home-cat-t" data-cattog="${id}"><h3 style="margin:0">${titre}</h3><span class="badge b-n" style="margin-left:8px">${L.length}</span><span class="spacer"></span><span class="dos-chev">${ouv?"▾":"▸"}</span></div>
+        ${ouv?`<div class="list">${groupesClients(L).map(rendGroupe).join("")||`<div class="hint" style="padding:6px 2px">Aucun.</div>`}</div>`:""}</div>`; }).join("")
+    : `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau rendez-vous ».</div>`}
   <div id="hCorb"></div>`;
   CORB.all().then(C=>{ const z=$("#hCorb"); if(!z) return; const jours=d=>Math.max(0,30-Math.floor((Date.now()-new Date(d.supprime_le).getTime())/86400000));
     z.innerHTML=`<details class="corb-ph" style="margin-top:14px"${S.corbOuverte?" open":""}><summary>♻ Métrés supprimés${C.length?` (${C.length})`:""} <span class="hint">– gardés 30 jours</span></summary>
@@ -1713,6 +1737,7 @@ async function renderHome(){
     z.textContent="⚠ Pas connecté au Drive : touche ici pour voir et envoyer les métrés de tous tes appareils"; z.onclick=()=>$("#hSync").click(); $("#hSyncLe").after(z); }
   $("#hCRM").onclick=()=>ouvrirCRM("nouveau");
   S.homeOuverts=S.homeOuverts||new Set();
+  $$("[data-cattog]").forEach(el=>el.onclick=()=>{ const m=lireLS("home_cats",{}), id=el.dataset.cattog; m[id]=!homeCatOuverte(id); ecrireLS("home_cats",m); renderHome(); });
   $$(".item[data-grp]").forEach(el=>el.onclick=e=>{ if(e.target.closest("button")) return; const k=el.dataset.grp;
     if(S.selMode){ const ids=groupesClients(ds).find(G=>G.cle===k).L.map(d=>d.id), tous=ids.every(id=>S.sel.has(id)); ids.forEach(id=>tous?S.sel.delete(id):S.sel.add(id)); renderHome(); return; }
     S.homeOuverts.has(k)?S.homeOuverts.delete(k):S.homeOuverts.add(k); renderHome(); });
@@ -2282,6 +2307,7 @@ function colorerCases(c){
   $$(".f-todo").forEach(x=>x.classList.remove("f-todo")); casesJaunes(S.ouv).forEach(sel=>$$(sel).forEach(e=>{ if(!e.classList.contains("f-err")&&!e.classList.contains("f-warn")) e.classList.add("f-todo"); })); }
 /* Cases jaunes = à renseigner, même pour dire « rien » (19/11) : grille de ventilation, finition intérieure */
 function casesJaunes(o){ if(!o) return []; const J=[];
+  cotesARecontroler(o).forEach(k=>J.push(`[data-k="${k}"]`));   // 23/11 : cotes reprises à recontrôler
   if(!o.gv) J.push('[data-k="gv"]');
   ["int","ext"].forEach(c=>{ const f0=(o.finitions?.[c+"_l"]||[])[0]||{}; if(!f0.t) J.push(`[data-k="finitions.${c}_l.0.t"]`); });   // 19/11 : finition int. ET ext. (« Pas de finition » suffit), pas les côtés
   return J; }
@@ -2292,6 +2318,9 @@ function majControle(){
         <span class="hint" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${S.ctlOpen?"":esc([...c.E,...c.W][0])}</span>
         <button class="btn small" id="ctlTog">${S.ctlOpen?"Réduire":"Détails"}</button></div>
       ${S.ctlOpen?`<ul>${c.E.map(x=>`<li class="err">${esc(x)}</li>`).join("")}${c.W.map(x=>`<li class="warn">${esc(x)}</li>`).join("")}</ul>`:""}`;
+  $$("#repOkRow").forEach(x=>x.remove());
+  if(cotesARecontroler(S.ouv).length){ el.insertAdjacentHTML("beforeend",`<div class="row" id="repOkRow" style="margin-top:6px"><span class="hint">🟨 Cotes reprises ${S.ouv.reprise.src==="metre"?"du métré de devis":"du devis signé"} : vérifie-les, corrige si besoin.</span><span class="spacer"></span><button class="btn small primary" id="cotesOk">✓ J'ai recontrôlé les cotes</button></div>`);
+    $("#cotesOk").onclick=()=>{ S.ouv.reprise.ok=true; save(); majControle(); toast("Cotes confirmées"); }; }
   const t=$("#ctlTog"); if(t) t.onclick=()=>{ S.ctlOpen=!S.ctlOpen; majControle(); };
   const md=modeleDe(S.ouv), pret=Object.values(S.ouv.vantaux||{}).some(Boolean) || ["fixe","porte"].includes(md?.famille) || !!formeDe(S.ouv);   // 19/11 : pas pendant la saisie des cotes
   const Q=pret?questionsOuverture(S.ouv):[];

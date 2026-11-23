@@ -637,7 +637,7 @@ function prevoirAuto(d){ const L=[], n=x=>x>1?` (${x})`:"";
     const gros=d.ouvertures.filter(o=>(num(coteTab(o,"L"))||0)*(num(coteTab(o,"H"))||0)>=3e6).length; if(gros) L.push(`Grand châssis : prévoir ventouses / 2 personnes${n(gros)}`);
     const tp=d.ouvertures.filter(o=>o.tapee_persienne); if(tp.length) L.push(`Tapées de persienne contre le dormant : ${tp.map(o=>o.repere||("n° "+(o.num_poseur||"?"))).join(", ")}`);
     L.push("Mousse PU, silicone, compribande, cales, visserie"); }
-  if(d.vr&&d.vr.lignes.length&&/moteur|radio|filaire|solaire|électr/i.test(d.vr.motorisation||"")) L.push("Volets motorisés : alimentation électrique à vérifier / électricien");
+  // 23/11/2026 : ligne « Volets motorisés : alimentation électrique à vérifier / électricien » retirée à la demande de Nicolas
   if(aVB(d)){ const v=d.vb, sc=v.lignes.filter(l=>!vbSurGonds(v,l)&&vbASceller(v,l)), ex=v.lignes.filter(l=>vbSurGonds(v,l));
     if(sc.length) L.push(`Scellement chimique + gonds à sceller : ${sc.map(l=>l.repere||"?").join(", ")}`);
     if(ex.length) L.push(`Gonds existants à contrôler (gabarit) : ${ex.map(l=>l.repere||"?").join(", ")}`);

@@ -1997,7 +1997,7 @@ function renderVR(t){
       <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple data-vrph="${i}" class="hide"></label></div>
       ${l.photos_corbeille.length?`<div class="hint" style="margin-top:6px">♻ ${l.photos_corbeille.length} photo(s) supprimée(s) : ${l.photos_corbeille.map((x,j)=>`<button class="btn small" data-vrphremet="${i}:${j}">♻ Remettre ${j+1}</button>`).join(" ")}</div>`:""}
     </details></div>`; }).join("")}
-  <div class="card"><h2>Observation</h2>${F.area("vr.observation","",v.observation)}</div>`;
+  ${v.observation?`<div class="card"><h2>Observation générale <small style="font-weight:400;text-transform:none">– ancienne case, à reporter sur les volets</small></h2>${F.area("vr.observation","",v.observation)}</div>`:""}`;   // 23/11/2026 : une observation par volet
   $$("[data-vrpose]").forEach(b=>b.onclick=()=>{ v.type_pose = v.type_pose===b.dataset.vrpose ? "" : b.dataset.vrpose; save(); $$("[data-vrpose]").forEach(x=>x.classList.toggle("on",x.dataset.vrpose===v.type_pose)); majVR(); });
   $("#vrAdd").onclick=()=>{ v.lignes.push(nouvelleLigneVR()); save(); renderDossier(); setTimeout(()=>$$(".vrl").at(-1)?.scrollIntoView({behavior:"smooth",block:"center"}),50); };
   $$("[data-vrdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.vrdup, c=JSON.parse(JSON.stringify(v.lignes[i])); c.id=uid(); v.lignes.splice(i+1,0,c); save(); renderDossier(); });

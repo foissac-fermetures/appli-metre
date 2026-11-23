@@ -673,7 +673,42 @@ function repriseCotes(o, d){
     o.fab_force={...(o.fab_force||{}), L:String(num(o.devis.L)), H:String(num(o.devis.H))};
     o.reprise={src:"devis", champs:{"fab_force.L":o.fab_force.L,"fab_force.H":o.fab_force.H}, ok:false}; }
 }
-const cotesARecontroler=o=>o&&o.reprise&&!o.reprise.ok ? Object.entries(o.reprise.champs).filter(([k,v])=>String(valCle(o,k)??"")===v).map(([k])=>k) : [];
+/* Versions précédentes d'un métré dans le Drive (23/11/2026) : le Drive garde chaque envoi du .json ; on peut en revoir une et la remettre.
+   La version actuelle part d'abord dans ♻ Métrés supprimés (copie de sécurité). */
+async function versionsDrive(d){
+  const fond=document.createElement("div"); fond.style.cssText="position:fixed;inset:0;background:rgba(10,20,40,.45);z-index:45;display:flex;align-items:flex-start;justify-content:center;padding:40px 10px;overflow:auto";
+  fond.innerHTML=`<div class="card" style="max-width:640px;width:100%"><div class="row"><h2 style="margin:0">🕘 Versions précédentes – ${esc(d.client.nom||"")}</h2><span class="spacer"></span><button class="btn small" data-vfer>Fermer</button></div><div id="vLst"><p class="hint">Lecture du Drive…</p></div></div>`;
+  document.body.appendChild(fond); fond.querySelector("[data-vfer]").onclick=()=>fond.remove();
+  const z=fond.querySelector("#vLst");
+  try{ await demanderJeton();
+    const base=d.drive.base||nomMetre(d);
+    const fj=((await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id,name)&q="+encodeURIComponent(`'${d.drive.dossier}' in parents and trashed=false and name='${q_(base+".json")}'`))).files||[])[0];
+    if(!fj){ z.innerHTML=`<p class="hint">Fichier « ${esc(base)}.json » introuvable dans le dossier Drive.</p>`; return; }
+    const R=((await gdrive(`https://www.googleapis.com/drive/v3/files/${fj.id}/revisions?fields=revisions(id,modifiedTime,size)&pageSize=200`)).revisions||[]).reverse();
+    const lire=async rid=>{ const r=await fetch(`https://www.googleapis.com/drive/v3/files/${fj.id}/revisions/${rid}?alt=media`,{headers:{Authorization:"Bearer "+G_JETON}}); if(!r.ok) throw new Error("version illisible ("+r.status+")"); return r.json(); };
+    const resume=x=>{ const o=x.ouvertures||[], c=o.filter(v=>COTE_CLES(v).some(k=>String(valCle(v,k)??"").trim()!=="")).length, ph=o.reduce((s,v)=>s+(v.photos||[]).length,0)+((x.vr&&x.vr.lignes)||[]).reduce((s,l)=>s+(l.photos||[]).length,0)+((x.vb&&x.vb.photos)||[]).length;
+      return `${o.length} ouverture(s), <b>${c} avec des cotes</b>, ${ph} photo(s)${(x.vr&&x.vr.lignes||[]).length?`, ${x.vr.lignes.length} volet(s) roulant(s)`:""}${aVB(x)?`, ${x.vb.lignes.length} volet(s) battant(s)`:""}`; };
+    z.innerHTML=`<p class="hint">Du plus récent au plus ancien. « Voir » lit la version ; « Remettre » la recharge dans l'appli (la version actuelle est gardée 30 jours dans ♻ Métrés supprimés).</p>
+      <div class="list">${R.map((v,i)=>`<div class="item"><div class="row"><span class="t">${new Date(v.modifiedTime).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})}</span><span class="badge b-n" style="margin-left:6px">${v.size?Math.round(v.size/1024)+" Ko":""}</span>${i===0?`<span class="badge b-ok" style="margin-left:6px">actuelle</span>`:""}<span class="spacer"></span>
+        <button class="btn small" data-vvoir="${v.id}">Voir</button>${i?`<button class="btn small primary" data-vrem="${v.id}">Remettre</button>`:""}</div><div class="s" id="vs_${v.id}"></div></div>`).join("")}</div>`;
+    z.querySelectorAll("[data-vvoir]").forEach(b=>b.onclick=async()=>{ const s=z.querySelector("#vs_"+CSS.escape(b.dataset.vvoir)); s.textContent="Lecture…"; try{ s.innerHTML=resume(await lire(b.dataset.vvoir)); }catch(e){ s.textContent=e.message; } });
+    z.querySelectorAll("[data-vrem]").forEach(b=>b.onclick=async()=>{ try{ const x=await lire(b.dataset.vrem);
+        if(!await demander(`Remettre la version du ${b.closest(".item").querySelector(".t").textContent} ?\n${resume(x).replace(/<[^>]+>/g,"")}\n\nLa version actuelle reste 30 jours dans ♻ Métrés supprimés.`,"Remettre cette version")) return;
+        await CORB.put({...JSON.parse(JSON.stringify(d)), id:d.id+"-avant-"+Date.now(), supprime_le:new Date().toISOString(), devis_nom:"version remplacée le "+new Date().toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})});
+        const garde={drive:d.drive, clemence:d.clemence}; Object.keys(d).forEach(k=>delete d[k]); Object.assign(d, x, garde); d.id=garde.drive?d.id:d.id; d.drive_attente=true;
+        normaliser(d); await DB.put(d); fond.remove(); S.dossier=d; renderDossier(); toast("Version remise · elle repart dans le Drive"); setTimeout(()=>sauvegarderJSONDrive(d).catch(()=>{}),500);
+      }catch(e){ toast("Drive : "+e.message); } });
+  }catch(e){ z.innerHTML=`<p class="hint">Drive : ${esc(e.message)}</p>`; }
+}
+/* Relire / changer le devis signé (23/11/2026) : on remet sur les nouvelles ouvertures les cotes, photos et croquis déjà pris (même repère, sinon même ordre) */
+function garderMesures(d, anciennes){
+  const mesuree=o=>COTE_CLES(o).some(k=>String(valCle(o,k)??"").trim()!=="") || (o.photos||[]).length, nr=t=>String(t||"").toLowerCase().replace(/\s+/g," ").trim();
+  const A=anciennes.filter(mesuree); if(!A.length) return 0; const pris=new Set(); let n=0;
+  d.ouvertures.forEach((o,i)=>{ let a=A.find(x=>!pris.has(x)&&x.repere&&nr(x.repere)===nr(o.repere)); if(!a && A.length===d.ouvertures.length) a=A[i]&&!pris.has(A[i])?A[i]:null; if(!a) return; pris.add(a);
+    ["cotes","fab_force","photos","photos_corbeille","croquis","pose","renovation","depose_totale","depose_seuil","dormant_l"].forEach(k=>{ if(a[k]!==undefined) o[k]=a[k]; }); delete o.reprise; n++; });
+  if(n && S.view==="dossier") renderDossier(); return n;
+}
+const cotesARecontroler=o=>o&&o.reprise&&!o.reprise.ok ? COTE_CLES(o).filter(k=>{ const v=String(valCle(o,k)??""); return k in o.reprise.champs ? v===o.reprise.champs[k] : v.trim()===""; }) : [];   // toutes les cotes (23/11)
 function normaliser(d){ (d.vr&&d.vr.lignes||[]).forEach(l=>{ ["avec_menuiserie","coffre_hauteur"].forEach(k=>{ if(/hauteur 168 mm/.test(l[k]||"")) l[k]=l[k].replace("hauteur 168 mm","hauteur 205 mm"); }); });   // LALOI : toujours coffre 205 (Nicolas, 18/11/2026)
   migrerPose(d); if(d.vb) migrerVB(d.vb); d.ouvertures.forEach(nettoyerOuv); if(!d.vr) d.vr=nouveauVR(); d.ouvertures.forEach(migrerObs); d.ouvertures.forEach(o=>{ if(o.semi_fixe && modeleDe(o) && !aSemiFixe(o)) o.semi_fixe=""; }); d.ouvertures.forEach(o=>{ o.comp=Object.assign(COMP_VIDE(), o.comp||{}); }); if(d.clim && !d.clim.tableau) d.clim.tableau={img:"",txt:"",place:""}; d.ouvertures.forEach(o=>{ o.gc=Object.assign(GC_VIDE(), o.gc||{}); o.erp=Object.assign(ERP_VIDE(), o.erp||{}); }); d.ouvertures.forEach((o,i)=>{ if(o.num_poseur===undefined) o.num_poseur=String(i+1); if(!Array.isArray(o.photos)) o.photos=[]; }); d.ouvertures.forEach(o=>repriseCotes(o,d)); if(!d.equipe_pose && d.vr.equipe) d.equipe_pose={"Seul":"Tout seul"}[d.vr.equipe]||d.vr.equipe; d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
 /* Volet roulant lié à une ouverture : repère, quantité et cotes tableau suivent la fiche ouverture */
@@ -1858,7 +1893,7 @@ function renderDossier(){
           <p class="hint">Les écarts entre ton métré et le devis apparaissent dans l'onglet Contrôle et sur le PDF (« À vérifier »).</p>`
           :`<p class="hint">Reprend les menuiseries du devis signé (repère, produit, couleurs, vitrage, sens, volet, pose…), sauf les cotes, et les volets battants en entier (cotes à confirmer), puis compare automatiquement.</p>`}
         <div class="row" style="gap:8px"><button class="btn ${d.devis_signe?"":"primary"}" id="cDevis">${d.devis_signe?"Changer de devis / relire":"Partir du devis signé"}</button>
-        ${d.devis_signe?`<button class="btn small" id="cDevisOff">Détacher le devis</button>`:""}</div></div>`:""}
+        ${d.devis_signe?`<button class="btn small" id="cDevisOff">Détacher le devis</button>`:""}${d.drive&&d.drive.dossier?`<button class="btn small" id="cVersions">🕘 Versions précédentes (Drive)</button>`:""}</div></div>`:""}
       <div class="card" style="grid-column:1/-1"><h2><span class="num">3</span>Pose <small style="font-weight:400;text-transform:none">– pour tout le chantier</small></h2>
         <div class="hint" style="margin:2px 0 6px">Combien de personnes ?</div>
         <div class="checks pose-ch">${EQUIPES_POSE.map(x=>`<button type="button" class="chip${d.equipe_pose===x?" on":""}" data-poseq="${esc(x)}">${x==="Sans pose"?"🚫 ":"👷".repeat(nbPoseurs(x))+" "}${esc(x)}</button>`).join("")}</div>
@@ -1903,6 +1938,7 @@ function renderDossier(){
       const c=await nouveauDevisClient(d, nom, []); S.dossier=c; S.tab="client"; renderDossier(); toast(`Devis « ${nom} » créé pour ${c.client.nom}`); };
     $("#cRattacher").onclick=()=>rattacherClient(d);
     if($("#cDevis")) $("#cDevis").onclick=ouvrirDevisSigne;
+    if($("#cVersions")) $("#cVersions").onclick=()=>versionsDrive(d);
     const rePose=()=>{ save(); const y=scrollY; renderDossier(); scrollTo(0,y); };
     $$("[data-poseq]").forEach(b=>b.onclick=()=>{ const x=b.dataset.poseq; S.dossier.equipe_pose=S.dossier.equipe_pose===x?"":x; if(x==="Sans pose") S.dossier.jours_pose=""; rePose(); });
     $$("[data-posed]").forEach(b=>b.onclick=()=>{ const x=b.dataset.posed; S.dossier.jours_pose=S.dossier.jours_pose===x?"":x; rePose(); });
@@ -5792,7 +5828,9 @@ async function apercuDevis(fic){
     if($("#dvLier")) $("#dvLier").onclick=()=>{ d.devis_signe=dv; relierDevis(d,dv); relierDevisVB(d,dv); fermerDevis(`Métré relié au devis ${dv.num} : regarde l'onglet Contrôle`); };
     $("#dvRemplir").onclick=async()=>{
       if(deja && !await demander(`Remplacer les ${deja} élément(s) du métré par les ${men.length+vbs.length} ligne(s) du devis ?`,"Remplacer")) return;
+      const anciennes=JSON.parse(JSON.stringify(d.ouvertures||[]));   // 23/11/2026 : les cotes et photos déjà prises ne sont JAMAIS perdues en relisant le devis
       if(men.length||!vbs.length){ d.ouvertures=[]; d.vr.lignes=d.vr.lignes.filter(l=>!l.ouv_id); }
+      setTimeout(()=>{ try{ const n=garderMesures(d, anciennes); if(n){ save(); toast(`Cotes et photos de ${n} ouverture(s) conservées`); } }catch(e){ console.warn(e); } },0);
       d.devis_signe=dv;
       const pm=premierChoisi(); let infoPM="";
       if(pm && pm.type==="appli" && pm.src.ouvertures.length && men.length){ const r=fusionnerPremierMenuiseries(d,pm.src,dv); infoPM+=` · ${r.pris} ouverture(s) du premier métré reliées au devis${r.ajout?`, ${r.ajout} ajoutée(s) du devis`:""}`; }

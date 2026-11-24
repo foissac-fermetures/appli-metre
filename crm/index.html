@@ -773,6 +773,10 @@ html.resa-open{overflow:hidden}
 .tri-eq{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center;padding:10px 16px;border-top:1px solid var(--line)}.tri-eqp{color:#0d9488;font-weight:700;font-size:.9rem}.tri-par{font-size:.85rem;padding:4px 6px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg,inherit)}@media (max-width:640px){.tri-eq{grid-template-columns:1fr}}
 .tri-pb{display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center}.tri-pbb{border-color:color-mix(in srgb,#0d9488 45%,var(--line));color:#0d9488}.tri-cc{font-size:.88rem;padding:6px 10px;border-radius:8px;background:color-mix(in srgb,#0d9488 8%,var(--panel))}
 .rsort{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.rsort [aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.pj-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}.pj-card{display:grid;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:10px}.pj-card.on{border-color:#0891b2;box-shadow:0 0 0 2px color-mix(in srgb,#0891b2 25%,transparent)}.pj-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pj-top input{flex:1;min-width:0}
+.pj-todo{display:grid;gap:6px;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,#f59e0b 12%,var(--panel))}.pj-row{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;align-items:center}.pj-ch{display:flex;gap:6px;flex-wrap:wrap}
+.pj-tw{overflow-x:auto}.pj-t{width:100%;border-collapse:collapse;font-size:.9rem}.pj-t th,.pj-t td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle}.pj-t th{font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}.pj-t td a{overflow-wrap:anywhere}.pj-old td{opacity:.55}.pj-lost td{opacity:.6}.pj-sg td,.pj-sg2 td{background:color-mix(in srgb,#16a34a 8%,transparent)}.pj-act{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.pj-tag{display:inline-block;font-size:.75rem;font-weight:600;padding:1px 8px;border-radius:999px;background:color-mix(in srgb,#0891b2 14%,transparent);color:#0e7490}
 .tri-set{display:grid;gap:10px;padding:4px 16px 16px}.tri-set label{display:grid;gap:4px}.tri-set label.tri-ck{display:flex}.tri-base{font-size:.85rem;color:var(--muted);line-height:1.5}
 .mlist{display:grid}.mrow{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:4px 12px;padding:12px 16px;border-top:1px solid var(--line);align-items:start}
 .mrow.unread .msub{font-weight:800}.mav{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;background:var(--mc,#64748b);font-size:1rem}
@@ -2313,7 +2317,7 @@ document.addEventListener("click", e => {
   const tmp = document.createElement("div"); tmp.innerHTML = sansForm(r); const f = tmp.firstElementChild; host.appendChild(f); wireSansForm(f, r); f.querySelector(".sansm").focus();
 }, true);
 function sansItem(r){ const s2 = sansOf(r);
-  return `<div class="ri"><div style="min-width:0"><span class="nm" data-id="${esc(r.id)}" role="button" tabindex="0">${esc(r.client)}</span><div class="sub">${esc(adrRdv(r) || r.lieu || "—")} · ${esc(r.proj || "Projet non précisé")}</div></div>
+  return `<div class="ri"><div style="min-width:0"><span class="nm" data-id="${esc(r.id)}" role="button" tabindex="0">${esc(r.client)}</span>${projLbl(r) ? ` <span class="pj-tag">🏠 ${esc(projLbl(r))}</span>` : ""}<div class="sub">${esc(adrRdv(r) || r.lieu || "—")} · ${esc(r.proj || "Projet non précisé")}</div></div>
     <span class="wait">depuis ${-diffDays(s2.d)} j<span class="sub" style="display:block;font-family:var(--body);font-weight:400">le ${fd(s2.d)}</span></span>
     <div class="tries">${esc(s2.motif)}${s2.p ? " · " + esc(s2.p) : ""}</div>
     <div class="acts"><button class="btn" type="button" data-sansback="${esc(r.id)}">Remettre en 1er RDV</button>${pdfBadge(r)}</div></div>`; }
@@ -2761,7 +2765,7 @@ function needMetre(r){ const vd = venteD(r); if (!vd) return false;
   return true; }
 function fixStages(){ for (const r of rows) { const V = r.vente || []; if (!V.length) continue; let need = null;
     for (const v of V) { if (v.et0 == null) v.et0 = v.et; if (v.et0 === "commande") { if (need == null) need = needMetre(r); v.et = need ? "metre" : "commande"; } else v.et = v.et0; } } }
-function renderAll(){ try { fixStages(); } catch(e){ console.warn(e); } try { renderMails(); } catch(e){ console.warn(e); } try { renderOrg(); } catch(e){ console.warn(e); } try { if (cvSel && !(callRec && callRec.on && callRec.rid === cvSel)) renderCv(); } catch(e){ console.warn(e); } renderPay(); renderTaches(); renderPose(); renderSav(); renderDash(); renderTours(); renderStrip(); renderList(); renderQueue(); renderChantiers(); renderRdv(); renderMailCount(); if (openId) renderDrawer(); }
+function renderAll(){ try { projApply(); } catch(e){ console.warn(e); } try { fixStages(); } catch(e){ console.warn(e); } try { renderMails(); } catch(e){ console.warn(e); } try { renderOrg(); } catch(e){ console.warn(e); } try { if (cvSel && !(callRec && callRec.on && callRec.rid === cvSel)) renderCv(); } catch(e){ console.warn(e); } renderPay(); renderTaches(); renderPose(); renderSav(); renderDash(); renderTours(); renderStrip(); renderList(); renderQueue(); renderChantiers(); renderRdv(); renderMailCount(); if (openId) renderDrawer(); }
 
 /* ---------- chantiers signés ---------- */
 function chantiers(){ return rows.flatMap(r => (r.vente||[]).map((v,i) => ({r, v, i}))); }
@@ -3211,7 +3215,7 @@ function evBody(r, rv){
     "Client : " + r.client, r.tel ? "Téléphone : " + r.tel : "", r.proj ? "Projet : " + r.proj : "",
     rv.t ? "Précision : " + rv.t : "", h ? "Durée estimée : " + durLbl(rv.dur || RDV_DUR0) : "", r.fic ? "FIC du " + fd(r.fic) : "", "Rendez-vous noté depuis mon CRM Gourdon."
   ].filter(Boolean).join("\n");
-  const b = { summary: "RDV " + r.client + (r.proj ? " – " + r.proj : ""), startTime: start, endTime: end, description: desc, calendarId: AGENDA };
+  const b = { summary: "RDV " + r.client + (projLbl(r) ? " – " + projLbl(r) : r.proj ? " – " + r.proj : ""), startTime: start, endTime: end, description: desc, calendarId: AGENDA };
   if (!h) b.allDay = true;
   const loc = adrRdv(r) || r.lieu; if (loc) b.location = loc;
   return b;
@@ -4276,7 +4280,7 @@ function renderOrg(){ const el = $("#ogbody"); if (!el) return; if ($("#v-org") 
   let h = "";
   h += `<section class="panel"><div class="hd"><h2>📍 Aujourd'hui</h2><span class="sub">${esc(ORG_J[today().getDay()])} ${esc(fd(iso(today())))} · lance le chrono au début de chaque rendez-vous</span></div><div class="og-list">${today0.length ? today0.map(x => { const on = orgChrono && orgChrono.k === iso(today()) + x.s + x.l; return `<div class="og-tod"><span class="og-h">${hTxt(x.s)}</span><div style="min-width:0"><b>${esc(x.l)}</b><span class="sub">${esc(x.lieu || "")}</span></div>${x.r ? (on ? `<span class="og-run">⏱ en cours depuis ${hTxt(orgChrono.t0m)}</span><button class="btn sm pri" type="button" data-ogstop="${esc(x.r.id)}">✓ Terminé</button>` : `<button class="btn sm" type="button" data-ogstart="${esc(x.r.id)}" data-k="${esc(iso(today()) + x.s + x.l)}">⏱ Je commence</button>`) : ""}</div>`; }).join("") : `<span class="sub">Pas de rendez-vous aujourd'hui dans ton agenda.</span>`}</div></section>`;
   h += `<section class="panel"><div class="hd"><h2>🗓️ Rendez-vous à prendre <span class="cnt">${T.length}</span></h2><span class="sub">les plus urgents d'abord · 3 créneaux proposés pour chacun, selon ton agenda et la route</span></div>${!agOk ? `<div class="empty">Lecture de l'agenda…</div>` : ""}<div class="og-list">${T.map(x => { const r = x.r, K = ORG_KIND[x.kind], c = ctRdv(r), P = (() => { try { return llOf(r); } catch(_){ return null; } })(); const best = P ? orgBest(P, x.D, x.dl) : [];
-      return `<article class="og-it" style="--cc:${K[2]}"><div class="og-top"><div style="min-width:0"><span class="og-k">${K[0]} ${K[1]}</span> <button class="lnk" type="button" data-id="${esc(r.id)}"><b>${esc(r.client)}</b></button><span class="sub"> · ${esc(r.lieu || "")}${trajet(r) ? " · " + esc(trajet(r).t) + " de chez toi" : ""} · durée prévue ${durTxt(x.D)}${x.clim ? " (clim)" : x.qty ? " (" + x.qty + " menuiserie" + (x.qty > 1 ? "s" : "") + ")" : ""}</span></div>
+      return `<article class="og-it" style="--cc:${K[2]}"><div class="og-top"><div style="min-width:0"><span class="og-k">${K[0]} ${K[1]}</span> <button class="lnk" type="button" data-id="${esc(r.id)}"><b>${esc(r.client)}</b></button>${projLbl(r) ? ` <span class="pj-tag">🏠 ${esc(projLbl(r))}</span>` : ""}<span class="sub"> · ${esc(r.lieu || "")}${trajet(r) ? " · " + esc(trajet(r).t) + " de chez toi" : ""} · durée prévue ${durTxt(x.D)}${x.clim ? " (clim)" : x.qty ? " (" + x.qty + " menuiserie" + (x.qty > 1 ? "s" : "") + ")" : ""}</span></div>
         <div class="og-act">${orgDl(x)}${x.kind === "premier" ? `<button class="btn sm" type="button" data-ognordv="${esc(r.id)}">Pas besoin de RDV</button>` : ""}${x.kind === "metre" ? `<button class="btn sm" type="button" data-ogmetok="${esc(r.id)}">📐 Métré déjà fait</button>` : ""}${c && c.tel ? `<a class="btn sm pri" href="${esc(telLink(c.tel))}">📞 ${esc(c.lien || "Contact")}</a>` : r.tel ? `<a class="btn sm pri" href="${esc(telLink(r.tel))}">📞 Appeler</a>` : ""}</div></div>
         ${x.kind === "sav" && x.sav && x.sav.pb ? `<div class="sub">🔧 ${esc(x.sav.pb.slice(0, 140))}</div>` : ""}
         <div class="og-slots">${best.length ? best.map(s => orgSlotBtn(x, s)).join("") : `<span class="sub">${P ? "Pas de créneau libre dans les " + (orgCfg.jours_vus || 12) + " prochains jours de travail avec tes réglages." : "Adresse introuvable : je ne peux pas calculer la route."}</span>`}</div></article>`; }).join("") || `<div class="empty">Aucun rendez-vous à prendre 🎉</div>`}</div></section>`;
@@ -4320,9 +4324,9 @@ function orgTrack(tabId){ orgUsage.tabs = orgUsage.tabs || {}; orgUsage.tabs[tab
   orgUsage.n = (orgUsage.n || 0) + 1; if (orgUsage.n % 10 === 0 && db && canWrite) { db.doc("meta/usage").set({ tabs: orgUsage.tabs, updated: new Date().toISOString() }).catch(() => {}); } }
 /* ===== Onglet « Fiche client » : je tape un nom, j'ai tout sur le client ===== */
 let cvSel = null, cvPicked = false, cvEdit = false, cvCfg = { order: null, hidden: [] };
-const CV_BLOCKS = [["chan", "Avancement du chantier"], ["recap", "Récapitulatif"], ["coord", "Coordonnées"], ["projet", "Le projet"], ["devis", "Devis et ventes"], ["metres", "Métrés de l'appli"], ["taches", "Tâches"], ["sav", "SAV"], ["notes", "Notes d'appel"], ["mails", "Ses mails"], ["hist", "Historique"], ["autres", "Autres dossiers"]];
+const CV_BLOCKS = [["chan", "Avancement du chantier"], ["projets", "Projets et devis"], ["recap", "Récapitulatif"], ["coord", "Coordonnées"], ["projet", "Le projet"], ["devis", "Devis et ventes"], ["metres", "Métrés de l'appli"], ["taches", "Tâches"], ["sav", "SAV"], ["notes", "Notes d'appel"], ["mails", "Ses mails"], ["hist", "Historique"], ["autres", "Autres dossiers"]];
 const CV_WIDE = ["recap", "chan", "mails"];
-function cvWide(k){ const W = cvCfg.wide; return W ? W.includes(k) : CV_WIDE.includes(k); }
+function cvWide(k){ if (k === "projets") return true; const W = cvCfg.wide; return W ? W.includes(k) : CV_WIDE.includes(k); }
 function cvOrderNow(){ const D = CV_BLOCKS.map(x => x[0]); const O = (cvCfg.order || []).filter(k => D.includes(k)); D.forEach((k, i) => { if (!O.includes(k)) { const prev = D.slice(0, i).reverse().find(x => O.includes(x)); O.splice(prev ? O.indexOf(prev) + 1 : 0, 0, k); } }); return O; }
 async function cvCfgSave(next){ cvCfg = next; renderCv(); if (!db || !canWrite) return; try { await db.doc("meta/fiche_ordre").set(next); } catch(_){ toast("Pas enregistré, réessaie"); } }
 function cvPick(id){ cvSel = id; cvPicked = true; const r = rows.find(x => x.id === id), q = $("#cvq"); if (q && r) q.value = r.client; const sec = document.querySelector(".cv-search"); if (sec) sec.classList.add("picked"); renderCvRes(); renderCv(); window.scrollTo({ top: 0, behavior: "smooth" }); }
@@ -4335,6 +4339,51 @@ function cvRelated(r){ const t = String(r.tel || "").replace(/\D/g, "").slice(-9
 function renderCvRes(){ const el = $("#cvres"); if (!el) return; if (cvPicked) { el.innerHTML = ""; return; } const q = ($("#cvq") || {}).value || ""; const L = cvFind(q);
   el.innerHTML = q.trim().length < 2 ? "" : L.length ? L.map(r => `<button type="button" data-cv="${esc(r.id)}" class="${cvSel === r.id ? "on" : ""}"><b>${esc(r.client)}</b><span>${nextPill(r).replace('class="nxp ', 'class="nxp nxp-sm ') || `<span class="pill ${ST[status(r)].c}">${ST[status(r)].l}</span>`}</span><span class="sub">${esc([r.lieu, r.tel, r.fic ? "FIC du " + fd(r.fic) + "/" + yOf(r) : venteD(r) ? "vente du " + fd(venteD(r)) : ""].filter(Boolean).join(" · "))}</span></button>`).join("") : `<div class="sub">Aucun client ne correspond à « ${esc(q)} ».</div>`;
   el.querySelectorAll("[data-cv]").forEach(b => b.onclick = () => cvPick(b.dataset.cv)); }
+/* ===== Projets d'un client et rangement des devis (un projet = une demande / ligne FIC du client) ===== */
+let projMeta = { lbl: {}, mv: {}, sg: {}, ok: {} }, projEdit = null;
+async function projSave(next){ projMeta = next; projApply(); renderAll(); if (!db || !canWrite) return; try { await db.doc("meta/projets").set(next); } catch(_){ toast("Pas enregistré, réessaie"); } }
+function projApply(){ const mv = projMeta.mv || {}; const byId = new Map(rows.map(r => [r.id, r])), all = [];
+  rows.forEach(r => { if (r.pdf_devis !== r._pde) r._pdo = r.pdf_devis || []; (r._pdo || []).forEach(p => all.push([r, p])); r._nw = []; });
+  all.forEach(([r, p]) => { const t = byId.get(mv[p[1]]) || r; t._nw.push(p); });
+  rows.forEach(r => { r.pdf_devis = r._nw.sort((a, b) => String(b[2] || "").localeCompare(String(a[2] || ""))); r._pde = r.pdf_devis; delete r._nw; }); }
+function projGroup(r){ return [r].concat(cvRelated(r)).sort((a, b) => String(startDate(b) || "").localeCompare(String(startDate(a) || ""))); }
+function projLbl(r, force){ const l = (projMeta.lbl || {})[r.id]; if (l) return l; if (!force && projGroup(r).length < 2) return "";
+  return (r.proj ? String(r.proj).split(/[,;+]/)[0].trim().slice(0, 30) + " · " : "") + (adrChantier(r) ? String(adrChantier(r)).replace(/^.*\d{5}\s*/, "") : r.lieu || "") || "Dossier du " + fd(startDate(r) || ""); }
+function projToks(t){ return sansAcc(t).toUpperCase().split(/[^A-Z0-9]+/).filter(w => w.length >= 4); }
+function projSigned(r){ const sg = (projMeta.sg || {})[r.id]; const D = r.pdf_devis || []; if (sg && D.some(p => p[1] === sg)) return { id: sg, sure: true };
+  const V = (r.vente || []).filter(v => !v.ann); if (!V.length || !D.length) return null; const vd = V.map(v => v.d).filter(Boolean).sort()[0] || "9999";
+  const S = typeof signedDocs === "function" ? signedDocs(r) : []; let best = null, bs = 0;
+  S.forEach(s => { const T = projToks(s[0]); D.forEach(p => { const n = projToks(p[0]).filter(w => T.includes(w)).length; if (n > bs) { bs = n; best = p; } }); });
+  if (best && bs >= 2) return { id: best[1], sure: false };
+  const prev = D.filter(p => !p[2] || p[2] <= addDays(vd, 5)); return prev.length ? { id: prev[0][1], sure: false } : null; }
+function projGuess(p, G){ const T = projToks(p[0]); const hit = G.filter(r => { const L = projToks([(projMeta.lbl || {})[r.id], r.lieu, adrChantier(r)].filter(Boolean).join(" ")).filter(w => !projToks(r.client).includes(w)); return L.some(w => T.includes(w)); }); return hit.length === 1 ? hit[0] : null; }
+function projDevisRows(G){ const L = []; G.forEach(r => { const sg = projSigned(r), st = status(r); (r.pdf_devis || []).forEach((p, i) => {
+    const etat = sg && sg.id === p[1] ? (sg.sure ? ["✍️ Signé", "sg"] : ["✍️ Signé ?", "sg2"]) : st === "perdu" ? ["🔴 Perdu", "lost"] : sg ? ["⚪ Pas retenu", "old"] : i === 0 ? ["🟠 En cours", "cur"] : ["⚪ Ancienne version", "old"];
+    L.push({ r, p, etat }); }); }); return L.sort((a, b) => String(b.p[2] || "").localeCompare(String(a.p[2] || ""))); }
+function projHtmlBlock(r){ const G = projGroup(r), multi = G.length > 1, L = projDevisRows(G); if (!L.length && !multi) return "";
+  const ok = projMeta.ok || {}, todo = multi ? L.filter(x => !ok[x.p[1]] && !(projMeta.mv || {})[x.p[1]]) : [];
+  const metLink = (x) => "../?client=" + encodeURIComponent(x.r.client) + "&devis=" + encodeURIComponent(x.p[1]) + "&devisnom=" + encodeURIComponent(x.p[0]) + "&retour=crm";
+  const pName = x => projLbl(x, true);
+  return `<section class="cv-card cv-wide" style="--cc:#0891b2" id="cvproj"><h3>${multi ? "🏠 Projets de ce client · " + G.length : "📄 Ses devis"}</h3>
+    ${multi ? `<div class="pj-cards">${G.map(x => { const nx = nextStep(x); return `<div class="pj-card ${x.id === r.id ? "on" : ""}"><div class="pj-top">${projEdit === x.id ? `<input id="pjlbl" value="${esc((projMeta.lbl || {})[x.id] || "")}" placeholder="ex : Maison de Domme"><button class="btn sm pri" type="button" data-pjok="${esc(x.id)}">OK</button>` : `<b>${esc(pName(x))}</b><button class="lnk sub" type="button" data-pjname="${esc(x.id)}">✎ nommer</button>`}</div>
+        <span class="sub">${esc(adrChantier(x) || adrRdv(x) || x.lieu || "")}${startDate(x) ? " · demande du " + esc(fd(startDate(x))) : ""}</span>
+        <div class="cv-pills"><span class="pill ${ST[status(x)].c}">${ST[status(x)].l}</span>${nx && nx.l !== "Terminé" ? nextPill(x).replace('class="nxp ', 'class="nxp nxp-sm ') : ""}<span class="sub">${(x.pdf_devis || []).length} devis</span></div>
+        ${x.id !== r.id ? `<button class="btn sm" type="button" data-cvgo="${esc(x.id)}">Voir ce projet</button>` : `<span class="sub">← projet affiché</span>`}</div>`; }).join("")}</div>` : ""}
+    ${todo.length ? `<div class="pj-todo"><b>📥 ${todo.length} devis à ranger</b> <span class="sub">: dis-moi à quel projet va chaque devis (une seule fois)</span>${todo.map(x => { const g = projGuess(x.p, G) || x.r; return `<div class="pj-row"><span style="min-width:0">📄 <b>${esc(x.p[0])}</b> <span class="sub">${x.p[2] ? "du " + esc(fd(x.p[2])) : ""}</span></span><span class="pj-ch">${G.map(y => `<button class="btn sm ${y.id === g.id ? "pri" : ""}" type="button" data-pjmv="${esc(x.p[1])}" data-to="${esc(y.id)}">${y.id === g.id ? "✓ " : ""}${esc(pName(y))}</button>`).join("")}</span></div>`; }).join("")}</div>` : ""}
+    ${L.length ? `<div class="pj-tw"><table class="pj-t"><thead><tr><th>Date</th>${multi ? "<th>Projet</th>" : ""}<th>Devis</th><th>Montant</th><th>État</th><th></th></tr></thead><tbody>${L.map(x => { const V = (x.r.vente || []).filter(v => !v.ann), sgd = x.etat[1] === "sg" || x.etat[1] === "sg2";
+        return `<tr class="pj-${x.etat[1]}"><td>${esc(fd(x.p[2] || ""))}</td>${multi ? `<td><select data-pjsel="${esc(x.p[1])}" aria-label="Projet de ce devis">${G.map(y => `<option value="${esc(y.id)}" ${y.id === x.r.id ? "selected" : ""}>${esc(pName(y))}</option>`).join("")}</select></td>` : ""}
+          <td><a href="https://drive.google.com/file/d/${esc(x.p[1])}/view" target="_blank" rel="noopener">📄 ${esc(x.p[0])}</a></td><td>${sgd && V.length ? esc(eur(V.reduce((a, v) => a + (v.ht || 0), 0))) + " HT" : "—"}</td><td><b>${x.etat[0]}</b></td>
+          <td class="pj-act">${x.etat[1] === "sg2" ? `<button class="btn sm" type="button" data-pjsg="${esc(x.p[1])}" data-r="${esc(x.r.id)}">✓ Oui, c'est le signé</button>` : sgd ? "" : `<button class="btn sm" type="button" data-pjsg="${esc(x.p[1])}" data-r="${esc(x.r.id)}">✍️ C'est le signé</button>`}${sgd ? `<a class="btn sm pri" href="${esc(metLink(x))}">📏 Métré définitif avec ce devis</a>` : ""}${x.etat[1] === "sg" ? `<button class="lnk sub" type="button" data-pjunsg="${esc(x.r.id)}">annuler</button>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : ""}
+    <span class="sub">« ✍️ Signé ? » = deviné d'après la date de la vente : confirme-le. Le bouton 📏 ouvre l'appli métré avec ce devis précis.</span></section>`; }
+function wireProj(r){ const el = $("#cvproj"); if (!el) return; const M = () => JSON.parse(JSON.stringify(projMeta));
+  el.querySelectorAll("[data-pjname]").forEach(b => b.onclick = () => { projEdit = b.dataset.pjname; renderCv(); setTimeout(() => { const i = $("#pjlbl"); if (i) i.focus(); }, 30); });
+  el.querySelectorAll("[data-pjok]").forEach(b => b.onclick = () => { const n = M(); n.lbl = n.lbl || {}; const v = ($("#pjlbl").value || "").trim(); if (v) n.lbl[b.dataset.pjok] = v; else delete n.lbl[b.dataset.pjok]; projEdit = null; projSave(n); });
+  const lb = $("#pjlbl"); if (lb) lb.onkeydown = e => { if (e.key === "Enter") { const k = el.querySelector("[data-pjok]"); if (k) k.click(); } };
+  const mv = (fid, to) => { const n = M(); n.mv = n.mv || {}; n.ok = n.ok || {}; n.mv[fid] = to; n.ok[fid] = 1; projSave(n); toast("Devis rangé"); };
+  el.querySelectorAll("[data-pjmv]").forEach(b => b.onclick = () => mv(b.dataset.pjmv, b.dataset.to));
+  el.querySelectorAll("[data-pjsel]").forEach(s => s.onchange = () => mv(s.dataset.pjsel, s.value));
+  el.querySelectorAll("[data-pjsg]").forEach(b => b.onclick = () => { const n = M(); n.sg = n.sg || {}; n.sg[b.dataset.r] = b.dataset.pjsg; n.ok = n.ok || {}; n.ok[b.dataset.pjsg] = 1; projSave(n); toast("Devis signé noté"); });
+  el.querySelectorAll("[data-pjunsg]").forEach(b => b.onclick = () => { const n = M(); if (n.sg) delete n.sg[b.dataset.pjunsg]; projSave(n); }); }
 function renderCv(){ const el = $("#cvbody"); if (!el) return; const r = cvSel && rows.find(x => x.id === cvSel); if (!r) { el.innerHTML = ""; return; }
   const s = suivi[r.id] || {}, st = status(r), V = (r.vente || []).filter(v => !v.ann), rv = rdvCur(r) || myRdv(r), T = tOf(r).sort((a, b) => String(a.done ? "z" : a.due).localeCompare(String(b.done ? "z" : b.due)));
   const SV = Object.entries(csav).filter(([, v]) => v && v.rid === r.id).map(([id, v]) => Object.assign({ id }, v)).sort((a, b) => String(b.d).localeCompare(String(a.d)));
@@ -4349,6 +4398,7 @@ function renderCv(){ const el = $("#cvbody"); if (!el) return; const r = cvSel &
   const B = {
     recap: `${recapBox(r)}`,
     chan: `${cvChantier(r)}`,
+    projets: `${projHtmlBlock(r)}`,
     coord: `<section class="cv-card" style="--cc:#2563eb"><h3>Coordonnées</h3><dl class="cv-kv"><dt>Téléphone</dt><dd>${esc(r.tel || "—")}</dd><dt>Mail</dt><dd>${esc(mailOf(r) || "—")}</dd><dt>Domicile</dt><dd>${esc(adrOf(r) || "—")}</dd><dt>Chantier</dt><dd>${esc(adrChantier(r) || "même adresse")}</dd>${trajet(r) ? `<dt>Trajet</dt><dd>≈ ${esc(trajet(r).t)} · ${trajet(r).km} km</dd>` : ""}</dl>
         ${C.length ? `<div><span class="eyebrow">Autres contacts</span>${C.map(c => `<div class="cv-li"><b>${esc(c.lien || "Contact")}${c.nom ? " · " + esc(c.nom) : ""}${c.rdv ? " · 📐 pour le RDV" : ""}</b><span class="sub">${esc(c.tel || "")}${c.note ? " · " + esc(c.note.slice(0, 90)) : ""}</span>${c.tel ? `<div>${tl2(c.tel)}</div>` : ""}</div>`).join("")}</div>` : ""}</section>`,
     projet: `<section class="cv-card" style="--cc:#7c3aed"><h3>Le projet</h3>${projHtml(r.proj)}${rv ? `<div class="cv-li"><b>📅 RDV ${rv.d >= iso(today()) ? "prévu" : "du"} ${esc(fd(rv.d))}${rv.h ? " à " + esc(rv.h.replace(":", "h")) : ""}</b>${rv.t ? `<span class="sub">${esc(rv.t)}</span>` : ""}</div>` : ""}${r.conc ? `<div class="cv-li"><b>Concurrence</b><span class="sub">${esc(r.conc)}</span></div>` : ""}</section>`,
@@ -4374,6 +4424,7 @@ function renderCv(){ const el = $("#cvbody"); if (!el) return; const r = cvSel &
   el.querySelectorAll("[data-cvmv]").forEach(b => b.onclick = () => { const O = cvOrderNow(), k = b.dataset.cvmv, i = O.indexOf(k), j = i + +b.dataset.d; if (j < 0 || j >= O.length) return; O.splice(i, 1); O.splice(j, 0, k); cvCfgSave(Object.assign({}, cvCfg, { order: O })); setTimeout(() => { const e = document.querySelector('[data-blk="' + k + '"]'); if (e) e.scrollIntoView({ block: "nearest" }); }, 30); });
   el.querySelectorAll("[data-cvwide]").forEach(b => b.onclick = () => { const k = b.dataset.cvwide, W = (cvCfg.wide || CV_WIDE).slice(), i = W.indexOf(k); if (i >= 0) W.splice(i, 1); else W.push(k); cvCfgSave(Object.assign({}, cvCfg, { wide: W, order: cvOrderNow() })); });
   el.querySelectorAll("[data-cvhide]").forEach(b => b.onclick = () => { const k = b.dataset.cvhide, H = (cvCfg.hidden || []).slice(), i = H.indexOf(k); if (i >= 0) H.splice(i, 1); else H.push(k); cvCfgSave(Object.assign({}, cvCfg, { hidden: H, order: cvOrderNow() })); });
+  try { wireProj(r); } catch(e){ console.warn(e); }
   try { wireCvMails(r); } catch(e){ console.warn(e); }
   try { if (!(openId && document.querySelector("#drawer #cncard"))) wireCall(r); } catch(e){ console.warn(e); }
   if (!cvMails[r.id]) cvLoadMails(r, false); }
@@ -6100,6 +6151,7 @@ function rebuild(){
   db.doc("meta/rattach").onSnapshot(sn => { rattach = Object.assign({ f: {}, v: {} }, sn.exists ? sn.data() : {}); rebuild(); }, () => {});
   db.doc("meta/onglets").onSnapshot(sn => { if (!tabEdit) applyTabOrder(sn.exists ? (sn.data() || {}).order : null); }, () => {});
   db.doc("meta/listes").onSnapshot(sn => { const v = sn.exists ? sn.data() : {}; const j = JSON.stringify(v); if (j === listCfgJson) return; listCfg = v; listCfgJson = j; renderAll(); }, () => {});
+  db.doc("meta/projets").onSnapshot(sn => { if (sn.exists) { const d = sn.data() || {}; projMeta = { lbl: d.lbl || {}, mv: d.mv || {}, sg: d.sg || {}, ok: d.ok || {} }; renderAll(); } }, () => {});
   db.doc("meta/organisation").onSnapshot(sn => { if (sn.exists) { const d = sn.data() || {}; orgCfg = Object.assign(JSON.parse(JSON.stringify(ORG_DEF)), d, { jours: Object.assign({}, ORG_DEF.jours, d.jours || {}), dur: Object.assign({}, ORG_DEF.dur, d.dur || {}) }); } if (!orgEditCfg) renderOrg(); }, () => {});
   db.doc("meta/temps_rdv").onSnapshot(sn => { orgTemps = (sn.exists && (sn.data() || {}).L) || []; renderOrg(); }, () => {});
   db.doc("meta/usage").onSnapshot(sn => { if (sn.exists) { const t = (sn.data() || {}).tabs || {}; orgUsage.tabs = orgUsage.tabs || {}; Object.entries(t).forEach(([k, v]) => { if ((orgUsage.tabs[k] || 0) < v) orgUsage.tabs[k] = v; }); } }, () => {});

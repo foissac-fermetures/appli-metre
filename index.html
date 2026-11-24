@@ -700,6 +700,25 @@ async function versionsDrive(d){
       }catch(e){ toast("Drive : "+e.message); } });
   }catch(e){ z.innerHTML=`<p class="hint">Drive : ${esc(e.message)}</p>`; }
 }
+/* Carte « 📐 Plans du chantier » (24/11/2026) : les PDF du dossier Drive « 09 - Plan » dont le nom contient le nom du client
+   (déjà joints automatiquement à la fin du PDF du métré) ; Ouvrir, et case « Joindre au PDF » (d.plans_exclus). Lecture seule. */
+async function majPlans(d){
+  const z=document.getElementById("plansL"); if(!z) return; const mot=nomPourPlans(d);
+  const aide=`<p class="hint">Plans du dossier Drive « 09 - Plan » dont le nom contient <b>${esc(mot||"le nom du client")}</b> (ex. « ${esc((mot||"client").toUpperCase())} façade.pdf »). Ils sont ajoutés automatiquement à la fin du PDF du métré.</p>`;
+  if(!driveDispo()){ z.innerHTML=`<p class="hint">Connexion au Drive non disponible.</p>`; return; }
+  if(!mot){ z.innerHTML=`<p class="hint">Mets d'abord le nom du client.</p>`; return; }
+  if(!jetonValide() || !navigator.onLine){ z.innerHTML=aide+`<button class="btn small" id="plansGo">🔎 Chercher les plans</button>`; $("#plansGo").onclick=async()=>{ try{ await demanderJeton(); majPlans(d); }catch(e){ toast("Google : "+e.message); } }; return; }
+  z.innerHTML=`<p class="hint">Recherche des plans…</p>`;
+  let L=[]; try{ L=await plansDuClient(d); }catch(e){ z.innerHTML=`<p class="hint">Drive : ${esc(e.message)}</p>`; return; }
+  if(document.getElementById("plansL")!==z) return;
+  const ex=new Set(d.plans_exclus||[]);
+  z.innerHTML=aide+(L.length?`<div class="list">${L.map(f=>`<div class="item"><div class="row"><span class="t">📄 ${esc(f.name)}</span><span class="spacer"></span>
+      <label class="chip" style="margin-right:8px"><input type="checkbox" data-planj="${f.id}" ${ex.has(f.id)?"":"checked"}> Joindre au PDF</label>
+      <a class="btn small" href="https://drive.google.com/file/d/${f.id}/view" target="_blank" rel="noopener">Ouvrir</a></div>
+      <div class="s">modifié le ${new Date(f.modifiedTime).toLocaleDateString("fr-FR")}</div></div>`).join("")}</div>`
+    :`<p class="hint" style="color:#a35a00">Aucun plan trouvé pour ce client dans « 09 - Plan ».</p>`);
+  z.querySelectorAll("[data-planj]").forEach(c=>c.onchange=()=>{ const s=new Set(d.plans_exclus||[]); c.checked?s.delete(c.dataset.planj):s.add(c.dataset.planj); d.plans_exclus=[...s]; save(); toast(c.checked?"Plan joint au PDF":"Plan retiré du PDF"); });
+}
 /* Relire / changer le devis signé (23/11/2026) : on remet sur les nouvelles ouvertures les cotes, photos et croquis déjà pris (même repère, sinon même ordre) */
 function garderMesures(d, anciennes){
   const mesuree=o=>COTE_CLES(o).some(k=>String(valCle(o,k)??"").trim()!=="") || (o.photos||[]).length, nr=t=>String(t||"").toLowerCase().replace(/\s+/g," ").trim();
@@ -1949,7 +1968,7 @@ function renderDossier(){
     $("#cTel").onclick=()=>{ const t=String(d.client.telephone||"").replace(/[^\d+]/g,""); if(t) location.href="tel:"+t; else toast("Pas de téléphone"); };
   }
   if(S.tab==="ouvertures"){
-    t.innerHTML=barreLogement(d)+`<div class="row" style="margin-bottom:12px"><span class="hint">Une fiche par ouverture (repère). Appuie sur une fiche pour la remplir.</span><span class="spacer"></span>${d.ouvertures.length>1?`<button class="btn" id="oSep">${S.sepMode?"✕ Annuler la séparation":"✂ Séparer en plusieurs devis"}</button><button class="btn" id="oTriN">Trier par niveau</button><button class="btn" id="oTri">Trier par N° poseur</button>`:""}${d.ouvertures.length?`<button class="btn" id="oComme" title="Nouvelle ouverture avec les mêmes caractéristiques que la dernière ouverte">⧉ Comme la précédente</button>`:""}<button class="btn primary" id="oAdd">+ Ajouter une ouverture</button></div>
+    t.innerHTML=barreLogement(d)+`<div class="row" style="margin-bottom:12px"><span class="hint">Une fiche par ouverture (repère). Appuie sur une fiche pour la remplir.</span><span class="spacer"></span>${d.ouvertures.length>1?`<button class="btn" id="oSep">${S.sepMode?"✕ Annuler la séparation":"✂ Séparer en plusieurs devis"}</button><button class="btn" id="oTriN">Trier par niveau</button><button class="btn primary" id="oTri" title="Range les fiches dans l'ordre des N° poseur (1, 2, 3…) ; le PDF suit cet ordre">↕ Ranger par N° poseur</button>`:""}${d.ouvertures.length?`<button class="btn" id="oComme" title="Nouvelle ouverture avec les mêmes caractéristiques que la dernière ouverte">⧉ Comme la précédente</button>`:""}<button class="btn primary" id="oAdd">+ Ajouter une ouverture</button></div>
     ${S.sepMode?`<div class="card" style="border:2px solid var(--red,#d3232f)"><b>Séparer en plusieurs devis</b> – coche les menuiseries qui doivent partir dans un autre devis (même client).
       <div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap"><button class="btn primary" id="oSepGo">Mettre la sélection (${(S.sepSel||new Set()).size}) dans un nouveau devis…</button><button class="btn" id="oSepLog">Un devis par logement (Gîte 1, Gîte 2…)</button></div></div>`:""}
     <div class="list">${d.ouvertures.map((o,i)=>{ const c=controleOuverture(o), f=calcFab(o);
@@ -1961,7 +1980,9 @@ function renderDossier(){
         <div class="s">Tableau ${esc(coteTab(o,"L")||"?")} × ${esc(coteTab(o,"H")||"?")} · Fab <b>${f.L??"?"} × ${f.H??"?"}</b>${o.devis?` <span class="dv-cote">devis ${o.devis.L??"?"} × ${o.devis.H??"?"}</span>`:""}</div>
         <div>${c.E.length?`<span class="badge b-err">${c.E.length} à corriger</span> `:""}${c.W.length?`<span class="badge b-warn">${c.W.length} conseillé(s)</span>`:""}${!c.E.length&&!c.W.length?`<span class="badge b-ok">OK</span>`:""}</div>
         <div class="row"><button class="btn small" data-dup="${o.id}">Dupliquer</button><button class="btn small danger" data-del="${o.id}">Supprimer</button></div>
-      </div>`; }).join("")}</div>`;
+      </div>`; }).join("")}</div>
+    ${aSAV(d)?"":`<div class="card" style="margin-top:16px"><h2>📐 Plans du chantier</h2><div id="plansL"><p class="hint">…</p></div></div>`}`;
+    majPlans(d);
     $("#oAdd").onclick=()=>$("#mPose").classList.add("open");
     const oc=$("#oComme"); if(oc) oc.onclick=()=>{ const src=d.ouvertures.find(x=>x.id===S.dernOuv)||d.ouvertures[d.ouvertures.length-1]; commePrecedente(d,src); };
     if($("#oTriN")) $("#oTriN").onclick=async()=>{ d.ouvertures.sort((a,b)=>cmpRepere(a.repere,b.repere)); syncVR(d);
@@ -4869,7 +4890,7 @@ async function plansDuClient(d){
   const re=new RegExp(`(^|[^a-z0-9])${mot}([^a-z0-9]|$)`);
   return (r.files||[]).filter(f=>re.test(sansAccents(f.name).replace(/\.pdf$/,""))).sort((a,b)=>a.name.localeCompare(b.name)); }
 async function joindrePlans(d, blob){
-  const plans=await plansDuClient(d); if(!plans.length) return blob;
+  const exclus=new Set(d.plans_exclus||[]), plans=(await plansDuClient(d)).filter(f=>!exclus.has(f.id)); if(!plans.length) return blob;   // 24/11 : case « Joindre au PDF »
   await chargerScript(LIB_PDFLIB);
   const out=await PDFLib.PDFDocument.load(await blob.arrayBuffer()), noms=[];
   for(const f of plans){ try{

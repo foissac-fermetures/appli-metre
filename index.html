@@ -5816,6 +5816,14 @@ async function lireDevisDrive(id){
 }
 async function ouvrirDevisSigne(nomCherche){
   const d=S.dossier, m=$("#mDevis"), z=$("#dvZone"); m.classList.add("open"); const nomC=(typeof nomCherche==="string"&&nomCherche.trim())||d.client.nom;
+  /* Devis précis donné par le CRM (?devis=<id>) : pris directement, sans recherche ni choix (une seule fois, pour ce client) */
+  const CD=window.CRM_DEVIS;
+  if(CD && CD.id && typeof nomCherche!=="string" && (!CD.client || normNomCRM(CD.client)===normNomCRM(d.client.nom))){
+    window.CRM_DEVIS=null;
+    if(!driveDispo()){ z.innerHTML=`<p class="hint" style="color:var(--err)">Devis signé : disponible seulement dans l'appli en ligne (foissac-fermetures.github.io)</p>`; return; }
+    try{ await demanderJeton(); }catch(e){ z.innerHTML=`<p class="hint" style="color:var(--err)">Devis signé : ${esc(e.message)}</p>`; return; }
+    return apercuDevis({id:CD.id, name:CD.nom||"Devis choisi dans le CRM", modifiedTime:new Date().toISOString(), webViewLink:`https://drive.google.com/file/d/${CD.id}/view`});
+  }
   z.innerHTML=`<p class="hint">Recherche des devis de « ${esc(nomC||"?")} » dans DEVIS NICOLAS…</p>`;
   try{
     if(!driveDispo()) throw new Error("disponible seulement dans l'appli en ligne (foissac-fermetures.github.io)");
@@ -6080,7 +6088,10 @@ DB.open().then(async()=>{ await normaliserTout(); recupererMetresOublies();
 const normNomCRM = s => String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9 ]/g," ").replace(/\b(M|MR|MME|MLLE|MONSIEUR|MADAME)\b/g," ").replace(/\s+/g," ").trim();
 async function ouvrirDepuisLienCRM(){
   let nom="";
-  try{ const P=new URLSearchParams(location.search); nom=(P.get("client")||"").trim(); if(P.get("client")!=null||P.get("retour")!=null) history.replaceState(null,"",location.pathname); }catch(e){}
+  try{ const P=new URLSearchParams(location.search); nom=(P.get("client")||"").trim();
+    /* 24/11/2026 : le CRM peut donner le devis précis (?devis=<id Drive>&devisnom=<nom du fichier>) → « Partir du devis signé » le prend directement */
+    window.CRM_DEVIS = P.get("devis") ? {id:P.get("devis").trim(), nom:(P.get("devisnom")||"").trim(), client:nom} : null;
+    if(P.get("client")!=null||P.get("retour")!=null) history.replaceState(null,"",location.pathname); }catch(e){}
   if(!nom) return false;
   const n=normNomCRM(nom), n1=n.split(" ")[0]||"";
   const ds=(await DB.all()).sort((a,b)=>(b.modifie||b.cree||"").localeCompare(a.modifie||a.cree||""));

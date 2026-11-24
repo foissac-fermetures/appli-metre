@@ -727,7 +727,7 @@ function garderMesures(d, anciennes){
     ["cotes","fab_force","photos","photos_corbeille","croquis","pose","renovation","depose_totale","depose_seuil","dormant_l"].forEach(k=>{ if(a[k]!==undefined) o[k]=a[k]; }); delete o.reprise; n++; });
   if(n && S.view==="dossier") renderDossier(); return n;
 }
-const cotesARecontroler=o=>o&&o.reprise&&!o.reprise.ok ? COTE_CLES(o).filter(k=>{ const v=String(valCle(o,k)??""); return k in o.reprise.champs ? v===o.reprise.champs[k] : v.trim()===""; }) : [];   // toutes les cotes (23/11)
+const cotesARecontroler=o=>o&&o.reprise&&!o.reprise.ok ? COTE_CLES(o).filter(k=>{ const m=k.match(/^cotes\.([LH])\.(\d)$/); if(m&&!coteUtile(o,+m[2],m[1])) return false; const v=String(valCle(o,k)??""); return k in o.reprise.champs ? v===o.reprise.champs[k] : v.trim()===""; }) : [];   // toutes les cotes (23/11)
 function normaliser(d){ (d.vr&&d.vr.lignes||[]).forEach(l=>{ ["avec_menuiserie","coffre_hauteur"].forEach(k=>{ if(/hauteur 168 mm/.test(l[k]||"")) l[k]=l[k].replace("hauteur 168 mm","hauteur 205 mm"); }); });   // LALOI : toujours coffre 205 (Nicolas, 18/11/2026)
   migrerPose(d); if(d.vb) migrerVB(d.vb); d.ouvertures.forEach(nettoyerOuv); if(!d.vr) d.vr=nouveauVR(); d.ouvertures.forEach(migrerObs); d.ouvertures.forEach(o=>{ if(o.semi_fixe && modeleDe(o) && !aSemiFixe(o)) o.semi_fixe=""; }); d.ouvertures.forEach(o=>{ o.comp=Object.assign(COMP_VIDE(), o.comp||{}); }); if(d.clim && !d.clim.tableau) d.clim.tableau={img:"",txt:"",place:""}; d.ouvertures.forEach(o=>{ o.gc=Object.assign(GC_VIDE(), o.gc||{}); o.erp=Object.assign(ERP_VIDE(), o.erp||{}); }); d.ouvertures.forEach((o,i)=>{ if(o.num_poseur===undefined) o.num_poseur=String(i+1); if(!Array.isArray(o.photos)) o.photos=[]; }); d.ouvertures.forEach(o=>repriseCotes(o,d)); if(!d.equipe_pose && d.vr.equipe) d.equipe_pose={"Seul":"Tout seul"}[d.vr.equipe]||d.vr.equipe; d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
 /* Volet roulant lié à une ouverture : repère, quantité et cotes tableau suivent la fiche ouverture */
@@ -875,11 +875,18 @@ function mmDepuisMesure(v){ const s=String(v||"").trim().toLowerCase().replace(/
   if(u==="mm") return String(Math.round(n)); if(u==="cm") return String(Math.round(n*10)); if(u==="m") return String(Math.round(n*1000));
   if(/[.,]/.test(m[1]) && n<20) return String(Math.round(n*1000)); return v; }
 const estCoteMM = el => el && el.matches && el.matches('input[data-k^="cotes."]');
+/* Ordre de saisie des cotes (24/11/2026, demande de Nicolas) : en embrasure / feuillure / tunnel,
+   tableau L → H, puis cadre existant L → H, puis embrasure (feuillure, hors tout) L → H — au télémètre, à Entrée et au pavé. */
+const POSES_ORDRE_CROISE=["embrasure","feuillure","tunnel"];
+function ordreCotes(L){ if(!S.ouv || !POSES_ORDRE_CROISE.includes(S.ouv.pose)) return L;
+  const rang=x=>{ const m=(x.dataset&&x.dataset.k||"").match(/^cotes\.([LH])\.(\d)$/); return m ? (+m[2])*2+(m[1]==="H"?1:0) : null; };
+  const pos=[], co=[]; L.forEach((x,i)=>{ if(rang(x)!=null){ pos.push(i); co.push(x); } });
+  co.sort((a,b)=>rang(a)-rang(b)); const R=L.slice(); pos.forEach((p,j)=>R[p]=co[j]); return R; }
 function convertirCote(el){ const nv=mmDepuisMesure(el.value); if(nv!==el.value){ el.value=nv; el.dispatchEvent(new Event("input",{bubbles:true})); } }
 document.addEventListener("change", e=>{ if(estCoteMM(e.target)) convertirCote(e.target); }, true);
 document.addEventListener("keydown", e=>{ const el=e.target; if(e.key!=="Enter" || !el.matches || !el.matches('input[inputmode="decimal"],input[inputmode="numeric"]')) return;
   e.preventDefault(); if(estCoteMM(el)) convertirCote(el);
-  const L=[...document.querySelectorAll(estCoteMM(el)?'#app input[data-k^="cotes."]':'#app input[inputmode="decimal"],#app input[inputmode="numeric"]')].filter(x=>x.offsetParent && !x.disabled), i=L.indexOf(el);
+  const L=ordreCotes([...document.querySelectorAll(estCoteMM(el)?'#app input[data-k^="cotes."]':'#app input[inputmode="decimal"],#app input[inputmode="numeric"]')].filter(x=>x.offsetParent && !x.disabled)), i=L.indexOf(el);
   if(i>=0 && L[i+1]){ L[i+1].focus(); try{ L[i+1].select(); }catch(_){} } else el.blur(); });
 
 /* ---------- Télémètre Bosch GLM 120 C en direct (18/11/2026) : deux façons de prendre les cotes ----------
@@ -898,7 +905,7 @@ const MANUEL_SEUL = /dormant|épaisseur|epaisseur|feuillure –|aile|élargisseu
 function libelleCase(el){ const l=el.closest("label"); let t=""; if(l){ t=[...l.childNodes].filter(n=>n.nodeType===3||(n.nodeType===1&&!/INPUT|SELECT|TEXTAREA|BUTTON/.test(n.tagName)&&!n.querySelector("input"))).map(n=>n.textContent).join(" "); }
   return (t||el.placeholder||"").replace(/\s+/g," ").replace(/\(.*?\)/g,"").trim(); }
 const auMetre = el => !!el && (MANUEL_SEUL.test(libelleCase(el)+" "+(el.placeholder||"")) || /\.g\.[A-Rd]/.test(el.dataset.k||"") || /^vt\.lignes\.\d+\.epaisseur$/.test(el.dataset.k||"") || /fab_force|elarg/.test(el.dataset.k||""));
-const casesTelemetre = el => [...document.querySelectorAll(estCoteMM(el)?'#app input[data-k^="cotes."]':'#app input[inputmode="decimal"],#app input[inputmode="numeric"]')].filter(x=>x.offsetParent && !x.disabled && !auMetre(x));
+const casesTelemetre = el => ordreCotes([...document.querySelectorAll(estCoteMM(el)?'#app input[data-k^="cotes."]':'#app input[inputmode="decimal"],#app input[inputmode="numeric"]')].filter(x=>x.offsetParent && !x.disabled && !auMetre(x)));
 function parler(t){ if(!TLM.voix || !window.speechSynthesis) return; try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang="fr-FR"; u.rate=1.1; speechSynthesis.speak(u); }catch(e){} }
 const vibrer = ms => { try{ navigator.vibrate&&navigator.vibrate(ms); }catch(e){} };
 const webBT = () => !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
@@ -975,7 +982,7 @@ document.addEventListener("focusout", e=>{ if(e.target===PAVE.el) setTimeout(()=
 function toucheePave(t){ const el=PAVE.el; if(!el) return; if(!el.isConnected){ fermerPave(); return; } if(t==="kb") return; if(t==="x"){ el.blur(); fermerPave(); return; }
   let v=el.value; if(t==="⌫") v=v.slice(0,-1); else if(t==="clr") v=""; else if(t==="next"){ allerSuivantPave(el); return; } else { if(t===","&&/[,.]/.test(v)) return; v+=t; }
   el.value=v; el.dispatchEvent(new Event("input",{bubbles:true})); }
-function allerSuivantPave(el){ const L=[...document.querySelectorAll('#app input[inputmode="decimal"],#app input[inputmode="numeric"]')].filter(x=>x.offsetParent&&!x.disabled);
+function allerSuivantPave(el){ const L=ordreCotes([...document.querySelectorAll('#app input[inputmode="decimal"],#app input[inputmode="numeric"]')].filter(x=>x.offsetParent&&!x.disabled));
   const n=L[L.indexOf(el)+1]; el.dispatchEvent(new Event("change",{bubbles:true})); if(!n){ el.blur(); fermerPave(); return; }
   if(n.dataset.clavier!=="1"){ n.dataset.pave="1"; n.readOnly=true; } n.scrollIntoView({block:"center",behavior:"smooth"}); n.focus(); }
 document.addEventListener("focusin", e=>{ if(estCaseCote(e.target)){ if(TLM.serieEl!==e.target) TLM.serie=[]; TLM.cible=e.target; if(TLM.mode==="telemetre"){ $$(".tlm-cible").forEach(x=>x.classList.remove("tlm-cible")); e.target.classList.add(auMetre(e.target)?"tlm-metre":"tlm-cible"); if(auMetre(e.target)) toast("Cette cote se prend au mètre : tape-la au clavier"); } } });
@@ -1081,6 +1088,8 @@ function libellePose(o){ const P=CAT.poses[o.pose]; return [P?.nom, o.renovation
 
 /* Cotes affichées selon la pose et le sens (L = largeur, H = hauteur) */
 function coteUtile(o,i,k){ const P=CAT.poses[o.pose]||{};
+  // Dépose totale en embrasure / feuillure (24/11/2026) : pas de cadre existant ; pas de largeur du dormant (sauf en feuillure, gardée)
+  if(o.depose_totale && !o.renovation && ["embrasure","feuillure"].includes(o.pose) && (i===1 || (i===3 && o.pose!=="feuillure"))) return false;
   if(P.actifs){ return k ? P.actifs[k].includes(i) : (P.actifs.L.includes(i)||P.actifs.H.includes(i)); }
   return !(i===1 && !POSES_RENO.includes(o.pose)); }
 function numCote(o,k,i){ const P=CAT.poses[o.pose]||{}; return P.actifs ? P.actifs[k].indexOf(i)+1 : i+1; }  // numéro affiché (neuf : 1 en largeur, 1 en hauteur)

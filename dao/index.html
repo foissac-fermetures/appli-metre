@@ -198,11 +198,15 @@
     <button class="tool" data-cmd="POLYLIGNE"><svg viewBox="0 0 26 26"><path d="M4 20 L8 6 L17 9 L22 19 Z"/><circle cx="4" cy="20" r="1.4"/><circle cx="8" cy="6" r="1.4"/><circle cx="17" cy="9" r="1.4"/><circle cx="22" cy="19" r="1.4"/></svg>Polyligne<small>PL</small></button>
     <button class="tool" data-cmd="RECTANGLE"><svg viewBox="0 0 26 26"><rect x="4" y="7" width="18" height="12"/></svg>Rectangle<small>REC</small></button>
     <button class="tool" data-cmd="CERCLE"><svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="8.5"/><path d="M13 13 L21.5 13"/></svg>Cercle<small>C</small></button>
+    <button class="tool" data-cmd="CERCLE3P"><svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="8.5"/><circle cx="4.5" cy="13" r="1.6" fill="currentColor"/><circle cx="21.5" cy="13" r="1.6" fill="currentColor"/><circle cx="13" cy="4.5" r="1.6" fill="currentColor"/></svg>Cercle 3 pts<small>C3P</small></button>
+    <button class="tool" data-cmd="ARCFLECHE"><svg viewBox="0 0 26 26"><path d="M4 20a9 9 0 0 1 18 0"/><path d="M4 20h18" stroke-dasharray="2 2" stroke-width="1"/><path d="M13 11v9" stroke-width="1"/></svg>Arc + flèche<small>A</small></button>
+    <button class="tool" data-cmd="RACCORD"><svg viewBox="0 0 26 26"><path d="M5 22V12a7 7 0 0 1 7-7h10"/></svg>Arrondi<small>RA</small></button>
     <button class="tool" data-cmd="DECALER"><svg viewBox="0 0 26 26"><path d="M4 18 L20 6"/><path d="M7 22 L23 10" stroke-dasharray="2.5 2"/></svg>Décaler<small>DEC</small></button>
     <button class="tool" data-cmd="AJUSTER"><svg viewBox="0 0 26 26"><path d="M13 3v20"/><path d="M3 13h10"/><path d="M13 13h10" stroke-dasharray="2 2"/><path d="M18 9l4 8M22 9l-4 8" stroke-width="1.2"/></svg>Ajuster<small>AJ</small></button>
     <button class="tool" data-cmd="PROLONGER"><svg viewBox="0 0 26 26"><path d="M22 3v20"/><path d="M3 13h9"/><path d="M12 13h10" stroke-dasharray="2 2"/><path d="M18 10l4 3-4 3" stroke-width="1.2"/></svg>Prolonger<small>PR</small></button>
     <button class="tool" data-cmd="HACHURES"><svg viewBox="0 0 26 26"><rect x="4" y="5" width="18" height="16"/><path d="M4 13 L12 5 M4 21 L20 5 M12 21 L22 11" stroke-width="1.1"/></svg>Hachures<small>H</small></button>
     <button class="tool" data-cmd="TEXTE"><svg viewBox="0 0 26 26"><path d="M5 6h16M13 6v15M9 21h8"/></svg>Texte<small>T</small></button>
+    <button class="tool" data-cmd="REPERE"><svg viewBox="0 0 26 26"><path d="M4 22l9-9h9"/><path d="M4 22l1-4.5M4 22l4.5-1" stroke-width="1.6"/><path d="M14 9h8" stroke-width="1.2"/></svg>Flèche + texte<small>REP</small></button>
     <hr data-key="sep1">
     <button class="tool" data-cmd="DEPLACER"><svg viewBox="0 0 26 26"><path d="M13 3v20M3 13h20M13 3l-3 3M13 3l3 3M13 23l-3-3M13 23l3-3M3 13l3-3M3 13l3 3M23 13l-3-3M23 13l-3 3"/></svg>Déplacer<small>DEP</small></button>
     <button class="tool" data-cmd="COPIER"><svg viewBox="0 0 26 26"><rect x="4" y="4" width="12" height="12"/><rect x="10" y="10" width="12" height="12" stroke-dasharray="2.5 2"/></svg>Copier<small>CP</small></button>
@@ -226,6 +230,7 @@
       <button class="hbtn" id="sbCopy">Copier</button>
       <button class="hbtn" id="sbRot" title="Tourner la sélection de 90°">⟳ 90°</button>
       <button class="hbtn" id="sbMir" title="Retourner la sélection (miroir gauche-droite)">⇋ Miroir</button>
+      <button class="hbtn" id="sbTxt" title="Écrire le texte de la cote ou du repère (ou double-clic dessus)">✎ Texte</button>
       <button class="hbtn" id="sbExpl" title="Décomposer le symbole pour modifier ses traits un par un">Décomposer</button>
       <button class="hbtn" id="sbAll">Tout sélectionner</button>
       <button class="hbtn" id="sbNone" title="Désélectionner (Échap)">✕</button>
@@ -327,6 +332,11 @@
     <tr><td><code>PL</code></td><td><b>Polyligne</b> : un contour d'un seul tenant. Comme Ligne (clic, longueur tapée, <code>500&lt;45</code>…). <code>F</code> = fermer (ou cliquez le 1er point), <code>A</code> = annuler le dernier point, Entrée = terminer ouvert. Idéal pour délimiter une zone à hachurer : fermez la polyligne, puis <code>H</code> et cliquez dedans. Sélectionnée, elle affiche sa longueur, son périmètre et sa surface.</td></tr>
     <tr><td><code>REC</code></td><td><b>Rectangle</b> : cliquez le 1er coin, puis tapez <code>largeur,hauteur</code> (ex. <code>1200,1500</code>). Le côté dépend de la position de la souris.</td></tr>
     <tr><td><code>C</code></td><td><b>Cercle</b> : centre, puis rayon (ex. <code>300</code>) ou diamètre (<code>D600</code>).</td></tr>
+    <tr><td><code>C3P</code></td><td><b>Cercle 3 points</b> : cliquez 3 points du cercle (ex. gauche, droite, sommet).</td></tr>
+    <tr><td><code>A</code></td><td><b>Arc + flèche</b> : cliquez les 2 points de l'arc (naissances), puis tapez la hauteur de flèche (ex. <code>250</code>) ou cliquez le sommet. L'arc se fait du côté de la souris (nombre négatif = autre côté).</td></tr>
+    <tr><td><code>RA</code></td><td><b>Arrondi</b> entre 2 traits : tapez le rayon (ex. <code>50</code>, <code>0</code> = angle vif), puis cliquez les 2 traits du côté à garder. Les traits sont raccourcis ou prolongés jusqu'à l'arrondi.</td></tr>
+    <tr><td><code>REP</code></td><td><b>Flèche + texte</b> : cliquez l'endroit à montrer, puis où mettre le texte, et tapez le texte. Ensuite : attrapez la pointe ou le texte pour les déplacer, double-clic pour changer le texte.</td></tr>
+    <tr><td>Double-clic sur une cote</td><td>Écrire le texte qu'on veut à la place de la mesure (ex. « 1200 tableau »). Laisser vide = vraie mesure. Aussi : bouton ✎ Texte de la barre de sélection.</td></tr>
     <tr><td><code>DEC</code></td><td><b>Décaler / parallèle</b> : tapez la distance, cliquez l'objet, puis cliquez le côté. On enchaîne ; Échap pour finir.</td></tr>
     <tr><td><code>AJ</code> / <code>PR</code></td><td><b>Ajuster / Prolonger</b> (mode rapide d'AutoCAD : tous les objets servent de limites). Ajuster : cliquez la partie du trait à couper, elle est enlevée jusqu'aux intersections voisines (un trait qui ne croise rien est effacé). Prolonger : cliquez près du bout à allonger, il va jusqu'au prochain objet. Maj + clic inverse les deux. Entrée, Échap ou clic droit pour finir.</td></tr>
     <tr><td><code>T</code></td><td><b>Texte</b> : cliquez à l'endroit voulu, une case s'ouvre : écrivez. Continuez en cliquant ailleurs (le texte est validé et une nouvelle case s'ouvre) ; clic droit pour finir. <b>Entrée = ligne suivante</b> ; pour valider : cliquez ailleurs sur le plan, bouton <b>✓ Valider le texte</b>, Ctrl+Entrée (⌘+Entrée), Échap ou clic droit (le texte est toujours gardé). Taille (en mm à l'impression), angle et gras dans la barre en haut. Pour le <b>déplacer</b> : cliquez dessus et faites-le glisser (au doigt sur iPad). Pour modifier un texte : <b>double-clic</b> dessus (ou clic dessus pendant la commande Texte) ; effacer tout le texte puis valider le supprime.</td></tr>
@@ -389,13 +399,23 @@
   <div class="note">Cliquez un symbole : il suit la souris, cliquez pour le poser (autant de fois que voulu, Échap pour finir). Près d'un mur, il s'aligne tout seul et prend l'épaisseur d'un mur en double trait ; la porte s'ouvre du côté de la souris. <b>R</b> = tourner 90°, <b>M</b> = miroir (côté des paumelles), <b>I</b> = changer de côté, ou tapez une largeur (ex. 900). Chaque symbole forme un bloc, rangé sur le calque « Symboles ».</div>
   <div class="row"><button class="hbtn" id="syClose">Fermer</button></div>
 </div></div>
+<div class="modal" id="mDimTxt"><div class="box" style="width:460px">
+  <h2 id="dtTitle">Texte</h2>
+  <textarea id="dtText" rows="3" style="width:100%;box-sizing:border-box;background:#11151b;border:1px solid var(--acc);color:#fff;border-radius:6px;padding:8px 10px;font-size:16px;font-family:inherit;resize:vertical"></textarea>
+  <div class="note" id="dtNote"></div>
+  <div class="row"><button class="hbtn" id="dtReset">Vraie mesure</button><button class="hbtn" id="dtCancel">Annuler</button><button class="hbtn primary" id="dtOk">OK</button></div>
+</div></div>
 <div class="modal" id="mSave"><div class="box" style="width:460px">
   <h2>Enregistrer le plan</h2>
   <div style="display:flex;align-items:center;gap:8px">
     <span style="font-size:16px;font-weight:600">Plan</span>
     <input id="sClient" placeholder="Nom du client" style="flex:1;background:#11151b;border:1px solid var(--acc);color:#fff;border-radius:6px;padding:8px 10px;font-size:16px">
   </div>
-  <div class="note" id="sNote">Le plan s'appellera « Plan … ». Le nom du client est aussi mis dans le cartouche s'il est vide.</div>
+  <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+    <span style="font-size:14px;color:var(--mut);width:36px">Titre</span>
+    <input id="sTitre" placeholder="Titre du plan (facultatif, ex. Rez-de-chaussée)" style="flex:1;background:#11151b;border:1px solid var(--line);color:#fff;border-radius:6px;padding:8px 10px;font-size:15px">
+  </div>
+  <div class="note" id="sNote">Le plan s'appellera « Plan CLIENT – Titre ». Le client et le titre sont aussi écrits dans le cartouche ; ensuite, le nom suit le cartouche à chaque 💾.</div>
   <div class="row"><button class="hbtn" id="sCancel">Annuler</button><button class="hbtn primary" id="sOk">💾 Enregistrer</button></div>
 </div></div>
 <div id="toast"></div>
@@ -502,8 +522,8 @@ function log(t){ histEl.textContent += (histEl.textContent?"\n":"") + t; histEl.
 function setPrompt(t){ promptEl.textContent = t; }
 const clone = o => JSON.parse(JSON.stringify(o));
 
-function save(){ try{ localStorage.setItem("miniDAO2D", JSON.stringify({ents,nextId,cart,visuel,iaHist,claudeUrl,driveAuto,lastOffset,hatchOpts,textOpts,dimTxt,snapModes,colors,repeatOn,planId,planNameTxt,layers,curLayer,symOpts})); }catch(e){} }
-function load(){ try{ const s=JSON.parse(localStorage.getItem("miniDAO2D")||"null"); if(s){ ents=s.ents||[]; nextId=s.nextId||1; Object.assign(cart,s.cart||{}); lastOffset=s.lastOffset||100; if(s.hatchOpts) Object.assign(hatchOpts,s.hatchOpts); if(s.dimTxt) dimTxt=s.dimTxt; if(s.textOpts) Object.assign(textOpts,s.textOpts); visuel=s.visuel||null; iaHist=s.iaHist||[]; if(s.claudeUrl && !/S998mSD3A3dCjL1aqwmDJy/.test(s.claudeUrl)) claudeUrl=s.claudeUrl; /* ancienne adresse (compte perso) ignorée */ if(typeof s.driveAuto==="boolean") driveAuto=s.driveAuto; if(s.snapModes) Object.assign(snapModes,s.snapModes); if(s.colors) Object.assign(colors,s.colors); if(typeof s.repeatOn==="boolean") repeatOn=s.repeatOn; planId=s.planId||null; planNameTxt=s.planNameTxt||""; if(Array.isArray(s.layers)&&s.layers.length) layers=s.layers; if(s.curLayer) curLayer=s.curLayer; if(s.symOpts) Object.assign(symOpts,s.symOpts); } }catch(e){} }
+function save(){ cartDefauts(); try{ localStorage.setItem("miniDAO2D", JSON.stringify({ents,nextId,cart,visuel,iaHist,claudeUrl,driveAuto,lastOffset,hatchOpts,textOpts,dimTxt,snapModes,colors,repeatOn,planId,planNameTxt,layers,curLayer,symOpts,driveNom,lastFillet})); }catch(e){} }
+function load(){ try{ const s=JSON.parse(localStorage.getItem("miniDAO2D")||"null"); if(s){ ents=s.ents||[]; nextId=s.nextId||1; Object.assign(cart,s.cart||{}); lastOffset=s.lastOffset||100; if(s.hatchOpts) Object.assign(hatchOpts,s.hatchOpts); if(s.dimTxt) dimTxt=s.dimTxt; if(s.textOpts) Object.assign(textOpts,s.textOpts); visuel=s.visuel||null; iaHist=s.iaHist||[]; if(s.claudeUrl && !/S998mSD3A3dCjL1aqwmDJy/.test(s.claudeUrl)) claudeUrl=s.claudeUrl; /* ancienne adresse (compte perso) ignorée */ if(typeof s.driveAuto==="boolean") driveAuto=s.driveAuto; if(s.snapModes) Object.assign(snapModes,s.snapModes); if(s.colors) Object.assign(colors,s.colors); if(typeof s.repeatOn==="boolean") repeatOn=s.repeatOn; planId=s.planId||null; planNameTxt=s.planNameTxt||""; if(Array.isArray(s.layers)&&s.layers.length) layers=s.layers; if(s.curLayer) curLayer=s.curLayer; if(s.symOpts) Object.assign(symOpts,s.symOpts); if(s.driveNom) driveNom=s.driveNom; if(typeof s.lastFillet==="number") lastFillet=s.lastFillet; } }catch(e){} }
 function pushUndo(){ undoStack.push(JSON.stringify(ents)); if(undoStack.length>200) undoStack.shift(); redoStack.length=0; }
 function addEnt(e){ pushUndo(); e.id=nextId++; e.layer = e.type==="dim" ? "Cotes" : curLayer; ensureLayers(); { const l=layers.find(x=>x.name===e.layer); if(l && !l.visible){ l.visible=true; log(`  calque « ${l.name} » réaffiché`); updLayerUI(); } } if(e.type!=="dim" && !e.color) e.color = e.type==="hatch" ? colors.hachure : colors.trait; ents.push(e); save(); renderEnts(); return e; }
 
@@ -636,7 +656,7 @@ function dimValue(d){
   if(d.kind==="ali") return dist(d.p1,d.p2);
   if(d.kind==="rad") return d.r; if(d.kind==="dia") return 2*d.r; if(d.kind==="ang") return d.sw;
 }
-function dimLabel(d){ const v=fmtDim(dimValue(d)); return d.kind==="rad"?"R"+v : d.kind==="dia"?"Ø"+v : d.kind==="ang"? v+"°" : v; }
+function dimLabel(d){ if(d.kind==="lead") return d.txt||""; if(d.txt) return d.txt; const v=fmtDim(dimValue(d)); return d.kind==="rad"?"R"+v : d.kind==="dia"?"Ø"+v : d.kind==="ang"? v+"°" : v; }
 function linOrient(p1,p2,q){ const x1=Math.min(p1.x,p2.x),x2=Math.max(p1.x,p2.x),y1=Math.min(p1.y,p2.y),y2=Math.max(p1.y,p2.y);
   const ex=Math.max(0,x1-q.x,q.x-x2), ey=Math.max(0,y1-q.y,q.y-y2); if(ex===0&&ey===0) return (x2-x1)>=(y2-y1)?"h":"v"; return ex>ey?"v":"h"; }
 function dimDir(d){ if(d.kind==="lin") return d.orient==="v"?{x:0,y:1}:{x:1,y:0}; const L=dist(d.p1,d.p2)||1; return {x:(d.p2.x-d.p1.x)/L,y:(d.p2.y-d.p1.y)/L}; }
@@ -646,10 +666,11 @@ function dimMarkup(d,T,k,S,color){
   const ln=(a,b)=>{ o+=`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${color}" stroke-width="${S.sw}"/>`; };
   const arrow=(tip,from)=>{ const dx=tip.x-from.x,dy=tip.y-from.y,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,b={x:tip.x-ux*S.arr,y:tip.y-uy*S.arr},w=S.arr/3.4;
     o+=`<path d="M${tip.x} ${tip.y}L${b.x-uy*w} ${b.y+ux*w}L${b.x+uy*w} ${b.y-ux*w}Z" fill="${color}" stroke="none"/>`; };
-  const txt=(p,a,str,anchor)=>{ o+=`<text x="${p.x}" y="${p.y}" transform="rotate(${a} ${p.x} ${p.y})" font-size="${S.txt}" text-anchor="${anchor||"middle"}" fill="${tcolor}" font-weight="600" stroke="none" font-family="Arial, Helvetica, sans-serif">${str}</text>`; };
+  const txt=(p,a,str,anchor)=>{ o+=`<text x="${p.x}" y="${p.y}" transform="rotate(${a} ${p.x} ${p.y})" font-size="${S.txt}" text-anchor="${anchor||"middle"}" fill="${tcolor}" font-weight="600" stroke="none" font-family="Arial, Helvetica, sans-serif">${esc(str)}</text>`; };
   const U=(a,b)=>{ const L=dist(a,b)||1; return {x:(b.x-a.x)/L,y:(b.y-a.y)/L}; };
   const along=(a,b,label)=>{ let th=Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI; if(th>=90) th-=180; if(th<-90) th+=180; const r=th*Math.PI/180; const up={x:Math.sin(r),y:-Math.cos(r)}; const m={x:(a.x+b.x)/2+up.x*S.off,y:(a.y+b.y)/2+up.y*S.off}; txt(m,th,label); };
   const label=dimLabel(d);
+  if(d.kind==="lead"){ const tm=leadMarkup(d,T,S,ln,arrow,color,tcolor); o+=tm; return o; }
   if(d.kind==="lin"||d.kind==="ali"){
     const [f1,f2]=dimFeet(d); const P1=T(d.p1),P2=T(d.p2),D1=T(f1),D2=T(f2);
     for(const [P,D] of [[P1,D1],[P2,D2]]){ if(dist(P,D)>S.gap){ const u=U(P,D); ln({x:P.x+u.x*S.gap,y:P.y+u.y*S.gap},{x:D.x+u.x*S.ext,y:D.y+u.y*S.ext}); } }
@@ -679,8 +700,9 @@ function dimMarkup(d,T,k,S,color){
   }
   return o;
 }
-function dimPoints(d){ if(d.kind==="lin"||d.kind==="ali"){ const [f1,f2]=dimFeet(d); return [d.p1,d.p2,f1,f2]; } if(d.kind==="ang") return [d.c,d.q]; const u=dist(d.c,d.q)?{x:(d.q.x-d.c.x)/dist(d.c,d.q),y:(d.q.y-d.c.y)/dist(d.c,d.q)}:{x:1,y:0}; return [d.q,{x:d.c.x+u.x*d.r,y:d.c.y+u.y*d.r},{x:d.c.x-u.x*d.r,y:d.c.y-u.y*d.r}]; }
+function dimPoints(d){ if(d.kind==="lead") return [d.p1,d.q]; if(d.kind==="lin"||d.kind==="ali"){ const [f1,f2]=dimFeet(d); return [d.p1,d.p2,f1,f2]; } if(d.kind==="ang") return [d.c,d.q]; const u=dist(d.c,d.q)?{x:(d.q.x-d.c.x)/dist(d.c,d.q),y:(d.q.y-d.c.y)/dist(d.c,d.q)}:{x:1,y:0}; return [d.q,{x:d.c.x+u.x*d.r,y:d.c.y+u.y*d.r},{x:d.c.x-u.x*d.r,y:d.c.y-u.y*d.r}]; }
 function dimHitDist(d,p){
+  if(d.kind==="lead") return leadHitDist(d,p);
   if(d.kind==="lin"||d.kind==="ali"){ const [f1,f2]=dimFeet(d); return Math.min(distSeg(p,f1,f2),distSeg(p,d.p1,f1),distSeg(p,d.p2,f2)); }
   if(d.kind==="ang"){ const r=dist(d.c,d.q); const rel=(ang(d.c,p)-d.a1+720)%360; return rel<=d.sw ? Math.abs(dist(d.c,p)-r) : Infinity; }
   const pts=dimPoints(d); return Math.min(distSeg(p,pts[1],pts[2]),distSeg(p,d.c,pts[0]));
@@ -711,6 +733,7 @@ function entMarkup(e,T,k,color,sw,dash){ // pour aperçus
   if(e.type==="line"){ const a=T(e.a),b=T(e.b); return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" ${st}/>`; }
   if(e.type==="rect"){ const a=T({x:Math.min(e.a.x,e.b.x),y:Math.max(e.a.y,e.b.y)}); return `<rect x="${a.x}" y="${a.y}" width="${Math.abs(e.b.x-e.a.x)*k}" height="${Math.abs(e.b.y-e.a.y)*k}" ${st}/>`; }
   if(e.type==="circle"){ const c=T(e.c); return `<circle cx="${c.x}" cy="${c.y}" r="${e.r*k}" ${st}/>`; }
+  if(e.type==="arc") return `<path d="${arcPath(e,T,k)}" ${st}/>`;
   if(e.type==="poly"){ return `<${e.closed?"polygon":"polyline"} points="${e.pts.map(p=>{const q=T(p);return q.x+","+q.y;}).join(" ")}" ${st}/>`; }
   return "";
 }
@@ -803,11 +826,12 @@ function drawEnt(e, parent, style){
   if(e.type==="rect"){ const a=W2S({x:Math.min(e.a.x,e.b.x),y:Math.max(e.a.y,e.b.y)}); const w=Math.abs(e.b.x-e.a.x)*view.z, h=Math.abs(e.b.y-e.a.y)*view.z; return el("rect",{x:a.x,y:a.y,width:w,height:h,fill:"none",...style},parent); }
   if(e.type==="poly"){ return el(e.closed?"polygon":"polyline",{points:e.pts.map(p=>{const s=W2S(p);return s.x+","+s.y;}).join(" "),fill:"none",...style},parent); }
   if(e.type==="circle"){ const c=W2S(e.c); return el("circle",{cx:c.x,cy:c.y,r:e.r*view.z,fill:"none",...style},parent); }
+  if(e.type==="arc") return el("path",{d:arcPath(e,W2S,view.z),fill:"none",...style},parent);
 }
 function renderEnts(){
   DIM_SCREEN.color=colors.coteLigne; DIM_SCREEN.tcolor=colors.coteTexte;
   gEnt.innerHTML="";
-  const hl = cmd && cmd.name==="DECALER" && cmd.ent ? cmd.ent.id : null;
+  const hl = cmd && cmd.name==="DECALER" && cmd.ent ? cmd.ent.id : (cmd && cmd.name==="RACCORD" && cmd.id1 ? cmd.id1 : null);
   let hm="";
   for(const e of VE()) if(e.type==="hatch"){ const isSel=selected.has(e.id); const hc=e.color||"#8d9bb0"; hm+=hatchMarkup(e,W2S,view.z,isSel?"#ffb648":hc,3,isSel?"rgba(255,182,72,.35)":hc+"59"); }
   if(hm){ const g=el("g",{},gEnt); g.innerHTML=hm; }
@@ -854,6 +878,12 @@ function renderPreview(){
     if(cmd.name==="LIGNE" && cmd.pts.length){ const a=cmd.pts[cmd.pts.length-1]; drawEnt({type:"line",a,b:P},gPrev,pst); t=`L ${fmt(dist(a,P))}  ∠ ${fmt(ang(a,P))}°`; }
     let pm="";
     if(cmd.name==="SYMBOLE"){ const r=symPreviewMarkup(P); pm+=r.m; t=r.t; }
+    if(cmd.name==="ARCFLECHE" && cmd.p1){ if(cmd.step==="p2") pm+=entMarkup({type:"line",a:cmd.p1,b:P},W2S,view.z,"#4fa3ff",1.2,"6 4");
+      if(cmd.step==="f"){ pm+=entMarkup({type:"line",a:cmd.p1,b:cmd.p2},W2S,view.z,"#4fa3ff",1,"6 4"); const f=chordSide(cmd.p1,cmd.p2,P), a=arcFromChord(cmd.p1,cmd.p2,f);
+        if(a){ pm+=entMarkup(a,W2S,view.z,"#4fa3ff",1.6,""); t=`corde ${fmt(dist(cmd.p1,cmd.p2))} · flèche ${fmt(Math.abs(f))} · rayon ${fmt(a.r)}`; } } }
+    if(cmd.name==="CERCLE3P" && cmd.pts.length){ if(cmd.pts.length===1) pm+=entMarkup({type:"line",a:cmd.pts[0],b:P},W2S,view.z,"#4fa3ff",1.2,"6 4");
+      else { const k=circ3(cmd.pts[0],cmd.pts[1],P); if(k){ pm+=entMarkup({type:"circle",c:k.c,r:k.r},W2S,view.z,"#4fa3ff",1.6,""); t=`Ø ${fmt(2*k.r)} · R ${fmt(k.r)}`; } } }
+    if(cmd.name==="REPERE" && cmd.step==="txt") pm+=dimMarkup({kind:"lead",p1:cmd.p1,q:P,txt:"Texte…"},W2S,view.z,DIM_SCREEN,"#4fa3ff");
     if(cmd.name==="AJUSTER"||cmd.name==="PROLONGER"){ const e=hitGeom(cursorW); if(e) pm+=entMarkup(e,W2S,view.z,"#ff6b6b",2.4,"4 3"); }
     if(cmd.name==="MESURER" && cmd.p1 && dist(cmd.p1,P)>0){ pm+=dimMarkup({kind:"ali",p1:cmd.p1,p2:P,q:cmd.p1},W2S,view.z,DIM_SCREEN,"#ffd36e"); t=`${fmt(dist(cmd.p1,P))} mm · ΔX ${fmt(P.x-cmd.p1.x)} · ΔY ${fmt(P.y-cmd.p1.y)} · ∠ ${fmt(ang(cmd.p1,P))}°`; }
     if((cmd.name==="COTLIN"||cmd.name==="COTALI")){
@@ -885,6 +915,7 @@ function snapPoints(){
       pts.push({p:{x:x1,y:y1},kind:"end"},{p:{x:x2,y:y1},kind:"end"},{p:{x:x2,y:y2},kind:"end"},{p:{x:x1,y:y2},kind:"end"},
         {p:{x:(x1+x2)/2,y:y1},kind:"mid"},{p:{x:(x1+x2)/2,y:y2},kind:"mid"},{p:{x:x1,y:(y1+y2)/2},kind:"mid"},{p:{x:x2,y:(y1+y2)/2},kind:"mid"},{p:{x:(x1+x2)/2,y:(y1+y2)/2},kind:"cen"}); }
     if(e.type==="poly"){ for(const q of e.pts) pts.push({p:q,kind:"end"}); for(const [a,b] of polySegs(e)) pts.push({p:{x:(a.x+b.x)/2,y:(a.y+b.y)/2},kind:"mid"}); }
+    if(e.type==="arc"){ const [a,m,b]=arcEnds(e); pts.push({p:a,kind:"end"},{p:b,kind:"end"},{p:m,kind:"mid"},{p:e.c,kind:"cen"}); }
     if(e.type==="circle"){ pts.push({p:e.c,kind:"cen"},{p:{x:e.c.x+e.r,y:e.c.y},kind:"end"},{p:{x:e.c.x-e.r,y:e.c.y},kind:"end"},{p:{x:e.c.x,y:e.c.y+e.r},kind:"end"},{p:{x:e.c.x,y:e.c.y-e.r},kind:"end"}); }
   }
   if(cmd && cmd.name==="POLYLIGNE" && cmd.pts.length>2) pts.push({p:cmd.pts[0],kind:"end"});
@@ -939,6 +970,7 @@ function entDist(e,p){
   if(e.type==="line") return distSeg(p,e.a,e.b);
   if(e.type==="rect"){ const c=[{x:e.a.x,y:e.a.y},{x:e.b.x,y:e.a.y},{x:e.b.x,y:e.b.y},{x:e.a.x,y:e.b.y}]; let m=Infinity; for(let i=0;i<4;i++) m=Math.min(m,distSeg(p,c[i],c[(i+1)%4])); return m; }
   if(e.type==="circle") return Math.abs(dist(e.c,p)-e.r);
+  if(e.type==="arc") return arcDist(e,p);
   if(e.type==="dim") return dimHitDist(e,p);
   if(e.type==="text") return textDist(e,p);
   if(e.type==="poly") return Math.min(...polySegs(e).map(([a,b])=>distSeg(p,a,b)));
@@ -946,7 +978,7 @@ function entDist(e,p){
 }
 function hit(pW,noHatch){ const tol=8/view.z; let best=null,bd=tol; for(const e of VE()){ if(noHatch&&e.type==="hatch") continue; const d=entDist(e,pW); if(d<=bd){bd=d;best=e;} } return best; }
 
-function updateSelBar(){ if($("layMenu").classList.contains("show")) setTimeout(updLayerUI,0); const n=[...selected].filter(id=>ents.some(e=>e.id===id)).length; const show = n>0 && !cmd; $("selBar").classList.toggle("show",show); if(show) $("sbExpl").style.display = [...selected].some(id=>{ const e=ents.find(x=>x.id===id); return e && e.grp; }) ? "" : "none"; if(show) $("selCount").textContent = n+" objet"+(n>1?"s":"")+" sélectionné"+(n>1?"s":""); }
+function updateSelBar(){ if($("layMenu").classList.contains("show")) setTimeout(updLayerUI,0); const n=[...selected].filter(id=>ents.some(e=>e.id===id)).length; const show = n>0 && !cmd; $("selBar").classList.toggle("show",show); if(show){ const ds=[...selected].map(id=>ents.find(x=>x.id===id)).filter(Boolean); $("sbTxt").style.display = (ds.length===1 && ds[0].type==="dim") ? "" : "none"; } if(show) $("sbExpl").style.display = [...selected].some(id=>{ const e=ents.find(x=>x.id===id); return e && e.grp; }) ? "" : "none"; if(show) $("selCount").textContent = n+" objet"+(n>1?"s":"")+" sélectionné"+(n>1?"s":""); }
 function updateSelInfo(){
   updateSelBar();
   if($("colMenu").classList.contains("show")){ const n=selected.size; $("selNote").textContent = n ? `→ s'applique aussi aux ${n} objet(s) sélectionné(s)` : ""; }
@@ -973,6 +1005,7 @@ function offsetEnt(e,d,side){
     if(x2-x1+2*k<=0 || y2-y1+2*k<=0) return null;
     return {type:"rect",a:{x:x1-k,y:y1-k},b:{x:x2+k,y:y2+k}}; }
   if(e.type==="poly") return offsetPoly(e,d,side);
+  if(e.type==="arc") return offsetArc(e,d,side);
   if(e.type==="circle"){ const inside=dist(e.c,side)<e.r; const r=e.r+(inside?-d:d); if(r<=0) return null; return {type:"circle",c:{...e.c},r}; }
 }
 
@@ -995,7 +1028,7 @@ function parsePoint(txt, base){
 }
 
 // ---------- Commandes ----------
-const ALIASES = {SYM:"SYMBOLE",SYMBOLE:"SYMBOLE",SYMBOLES:"SYMBOLE",BIBLIO:"SYMBOLE",BLOC:"SYMBOLE",INSERER:"SYMBOLE","INSÉRER":"SYMBOLE",L:"LIGNE",LIGNE:"LIGNE",LINE:"LIGNE",REC:"RECTANGLE",RECTANG:"RECTANGLE",RECTANGLE:"RECTANGLE",R:"RECTANGLE",C:"CERCLE",CERCLE:"CERCLE",CIRCLE:"CERCLE",
+const ALIASES = {A:"ARCFLECHE",ARC:"ARCFLECHE",ARCF:"ARCFLECHE",C3P:"CERCLE3P","3P":"CERCLE3P",CERCLE3P:"CERCLE3P",RA:"RACCORD",RAC:"RACCORD",RACCORD:"RACCORD",ARRONDI:"RACCORD",CONGE:"RACCORD","CONGÉ":"RACCORD",FILLET:"RACCORD",REP:"REPERE",REPERE:"REPERE","REPÈRE":"REPERE",FLECHE:"REPERE","FLÈCHE":"REPERE",LEADER:"REPERE",MLEADER:"REPERE",SYM:"SYMBOLE",SYMBOLE:"SYMBOLE",SYMBOLES:"SYMBOLE",BIBLIO:"SYMBOLE",BLOC:"SYMBOLE",INSERER:"SYMBOLE","INSÉRER":"SYMBOLE",L:"LIGNE",LIGNE:"LIGNE",LINE:"LIGNE",REC:"RECTANGLE",RECTANG:"RECTANGLE",RECTANGLE:"RECTANGLE",R:"RECTANGLE",C:"CERCLE",CERCLE:"CERCLE",CIRCLE:"CERCLE",
   DEC:"DECALER",DECALER:"DECALER","DÉCALER":"DECALER",O:"DECALER",OFFSET:"DECALER",P:"DECALER",E:"EFFACER",EFFACER:"EFFACER",SUPPR:"EFFACER",ERASE:"EFFACER",
   DI:"MESURER",DIST:"MESURER",MESURER:"MESURER",U:"ANNULER",ANNULER:"ANNULER",ZE:"ZE",Z:"ZE",ZOOM:"ZE",CART:"CARTOUCHE",CARTOUCHE:"CARTOUCHE",IMPRIMER:"CARTOUCHE",PRINT:"CARTOUCHE",AIDE:"AIDE","?":"AIDE",H:"HACHURES",T:"TEXTE",TEXTE:"TEXTE",TXT:"TEXTE",TEXT:"TEXTE",MTEXT:"TEXTE",PL:"POLYLIGNE",POLYLIGNE:"POLYLIGNE",PLINE:"POLYLIGNE",POLY:"POLYLIGNE",AJ:"AJUSTER",AJUSTER:"AJUSTER",TR:"AJUSTER",TRIM:"AJUSTER",PR:"PROLONGER",PROLONGER:"PROLONGER",EX:"PROLONGER",EXTEND:"PROLONGER",DEP:"DEPLACER",DEPLACER:"DEPLACER","DÉPLACER":"DEPLACER",M:"DEPLACER",MOVE:"DEPLACER",CP:"COPIER",CO:"COPIER",COPIER:"COPIER",COPY:"COPIER",COTLIN:"COTLIN",DLI:"COTLIN",CL:"COTLIN",COTALI:"COTALI",DAL:"COTALI",CA:"COTALI",COTCONT:"COTCONT",DCO:"COTCONT",CC:"COTCONT",COTRAYON:"COTRAYON",COTRAY:"COTRAYON",DRA:"COTRAYON",COTDIA:"COTDIA",DDI:"COTDIA",COTANG:"COTANG",DAN:"COTANG",COT:"MENUCOT",COTE:"MENUCOT",COTES:"MENUCOT",HA:"HACHURES",HACH:"HACHURES",HACHURES:"HACHURES",HATCH:"HACHURES"};
 
@@ -1036,6 +1069,10 @@ function startCmd(name,quiet){
   if(name==="COTRAYON"||name==="COTDIA"){ cmd={name,step:"circ"}; setPrompt(`${name} – Sélectionnez un cercle :`); }
   if(name==="COTANG"){ cmd={name,step:"l1"}; setPrompt("COTANG – Sélectionnez le premier trait :"); }
   if(name==="HACHURES"){ cmd={name,step:"pick",pts:[],editId:selHatch?selHatch.id:null}; if(selHatch) log("  Modifiez le motif, l'espacement ou l'angle de la hachure sélectionnée dans la barre du haut."); setPrompt("HACHURES – Cliquez à l'intérieur d'une zone fermée (polyligne fermée, rectangle, cercle… · P = contour par points) :"); }
+  if(name==="ARCFLECHE"){ cmd={name,step:"p1"}; setPrompt("ARC – 1er point de l'arc (naissance) :"); }
+  if(name==="CERCLE3P"){ cmd={name,pts:[]}; setPrompt("CERCLE 3 POINTS – 1er point (ex. gauche) :"); }
+  if(name==="RACCORD"){ cmd={name,step:"l1",r:lastFillet}; setPrompt(`ARRONDI – Cliquez le 1er trait, du côté à garder · rayon ${fmt(lastFillet)} (tapez un nombre pour le changer, 0 = angle vif) :`); }
+  if(name==="REPERE"){ cmd={name,step:"tip"}; setPrompt("FLÈCHE + TEXTE – Cliquez l'endroit à montrer (pointe de la flèche) :"); }
   if(name==="DECALER"){ cmd={name,step:"dist"}; setPrompt(`DÉCALER – Distance de décalage <${fmt(lastOffset)}> :`); }
   document.querySelectorAll(".tool").forEach(b=>b.classList.toggle("active",b.dataset.cmd===name));
   showHatchOpts(name==="HACHURES"); showTextOpts(name==="TEXTE");
@@ -1053,6 +1090,19 @@ function endCmd(silent){
 function feedPoint(p){
   if(!cmd) return;
   if(cmd.name==="SYMBOLE"){ placeSym(); renderPreview(); return; }
+  if(cmd.name==="ARCFLECHE"){
+    if(cmd.step==="p1"){ cmd.p1=p; cmd.step="p2"; setPrompt("ARC – 2e point de l'arc :"); return; }
+    if(cmd.step==="p2"){ if(dist(p,cmd.p1)<1e-6) return; cmd.p2=p; cmd.step="f"; setPrompt("ARC – Hauteur de flèche : tapez-la (ex. 250) ou cliquez le sommet de l'arc :"); return; }
+    makeArcFleche(chordSide(cmd.p1,cmd.p2,p)); return; }
+  if(cmd.name==="CERCLE3P"){ cmd.pts.push(p); if(cmd.pts.length<3){ setPrompt(`CERCLE 3 POINTS – ${cmd.pts.length===1?"2e point (ex. droite)":"3e point (ex. sommet)"} :`); return; }
+    const k=circ3(cmd.pts[0],cmd.pts[1],cmd.pts[2]); if(!k){ log("  Les 3 points sont alignés : pas de cercle possible"); cmd.pts.pop(); return; }
+    addEnt({type:"circle",c:k.c,r:k.r}); log(`  cercle Ø ${fmt(2*k.r)} (R ${fmt(k.r)})`); cmd.pts=[]; setPrompt("CERCLE 3 POINTS – 1er point du cercle suivant (Échap pour finir) :"); return; }
+  if(cmd.name==="RACCORD"){ const l=lineAt(cursorW); if(!l){ log("  Cliquez un trait (ligne ou côté de rectangle)"); return; }
+    if(cmd.step==="l1"){ cmd.id1=l.id; cmd.c1={...cursorW}; cmd.step="l2"; setPrompt("ARRONDI – Cliquez le 2e trait, du côté à garder :"); renderEnts(); return; }
+    if(l.id===cmd.id1){ log("  Choisissez un autre trait"); return; } cmd.id2=l.id; cmd.c2={...cursorW}; doFillet(); cmd.step="l1"; cmd.id1=cmd.id2=null;
+    setPrompt(`ARRONDI – 1er trait suivant (rayon ${fmt(cmd.r)} ; Échap pour finir) :`); renderEnts(); return; }
+  if(cmd.name==="REPERE"){ if(cmd.step==="tip"){ cmd.p1=p; cmd.step="txt"; setPrompt("FLÈCHE + TEXTE – Cliquez où placer le texte :"); return; }
+    const d={type:"dim",kind:"lead",p1:cmd.p1,q:p,txt:""}; cmd.step="tip"; setPrompt("FLÈCHE + TEXTE – Endroit à montrer suivant (Échap pour finir) :"); openDimTxt(d,true); return; }
   if(cmd.name==="LIGNE"){
     if(cmd.pts.length){ const a=cmd.pts[cmd.pts.length-1]; if(dist(a,p)<1e-9) return; addEnt({type:"line",a:{...a},b:{...p}}); cmd.count++; log(`  segment ${fmt(dist(a,p))} mm à ${fmt(ang(a,p))}°`); }
     cmd.pts.push(p);
@@ -1138,6 +1188,10 @@ function submit(raw){
   }
   if(txt) log("  > "+txt);
   if(cmd.name==="SYMBOLE"){ symSubmit(txt,up); return; }
+  if(cmd.name==="ARCFLECHE" && cmd.step==="f" && txt){ const v=num(txt.replace(",",".")); if(v===null||v===0){ log("  Tapez une hauteur de flèche (ex. 250)"); return; }
+    const side=hasCursor ? (Math.sign(chordSide(cmd.p1,cmd.p2,cursorW))||1) : 1; makeArcFleche(v*side); return; }
+  if(cmd.name==="RACCORD" && txt){ const v=num(txt.replace(",",".")); if(v===null||v<0){ log("  Tapez un rayon (ex. 50), ou 0 pour un angle vif"); return; }
+    cmd.r=lastFillet=v; save(); log(`  rayon ${fmt(v)}`); setPrompt(`ARRONDI – Cliquez le ${cmd.step==="l1"?"1er":"2e"} trait (rayon ${fmt(v)}) :`); return; }
   // taper une autre commande pendant une commande : on change de commande
   if(/^[A-ZÉÈ?]+$/.test(up) && ALIASES[up] && !((cmd.name==="LIGNE"||cmd.name==="POLYLIGNE")&&cmd.pts.length>0&&(up==="F"||up==="C"||up==="U")) && !(cmd.name==="HACHURES"&&up==="P") && !(cmd.name==="CERCLE"&&up==="D") && !(cmd.name==="COTCONT"&&up==="S")){ startCmd(ALIASES[up]); return; }
   if(cmd.name==="POLYLIGNE"){
@@ -1212,7 +1266,7 @@ function redo(){ if(!redoStack.length) return; undoStack.push(JSON.stringify(ent
 // ---------- Vue ----------
 function bbox(list){ let x1=Infinity,y1=Infinity,x2=-Infinity,y2=-Infinity;
   const add=(x,y)=>{x1=Math.min(x1,x);y1=Math.min(y1,y);x2=Math.max(x2,x);y2=Math.max(y2,y);};
-  for(const e of list){ if(e.type==="text"){ const {fs,w,n}=textBoxS(e); const a=(e.angle||0)*Math.PI/180; add(e.p.x,e.p.y); { const hh=(n-1)*fs*1.25/view.z; add(e.p.x+hh*Math.sin(a), e.p.y-hh*Math.cos(a)); } add(e.p.x+w/view.z*Math.cos(a)-0*Math.sin(a), e.p.y+w/view.z*Math.sin(a)); add(e.p.x-fs/view.z*Math.sin(a), e.p.y+fs/view.z*Math.cos(a)); continue; } if(e.type==="poly"){ for(const q of e.pts) add(q.x,q.y); continue; } if(e.type==="dim"){ for(const q of dimPoints(e)) add(q.x,q.y); continue; } if(e.type==="hatch"){ for(const q of bPoints(e.bounds[0])) add(q.x,q.y); if(e.bounds[0].kind==="circle"){ const b=e.bounds[0]; add(b.c.x-b.r,b.c.y-b.r); add(b.c.x+b.r,b.c.y+b.r);} continue; } if(e.type==="circle"){ add(e.c.x-e.r,e.c.y-e.r); add(e.c.x+e.r,e.c.y+e.r);} else { add(e.a.x,e.a.y); add(e.b.x,e.b.y);} }
+  for(const e of list){ if(e.type==="text"){ const {fs,w,n}=textBoxS(e); const a=(e.angle||0)*Math.PI/180; add(e.p.x,e.p.y); { const hh=(n-1)*fs*1.25/view.z; add(e.p.x+hh*Math.sin(a), e.p.y-hh*Math.cos(a)); } add(e.p.x+w/view.z*Math.cos(a)-0*Math.sin(a), e.p.y+w/view.z*Math.sin(a)); add(e.p.x-fs/view.z*Math.sin(a), e.p.y+fs/view.z*Math.cos(a)); continue; } if(e.type==="poly"){ for(const q of e.pts) add(q.x,q.y); continue; } if(e.type==="arc"){ for(const q of arcSample(e,36)) add(q.x,q.y); continue; } if(e.type==="dim"){ for(const q of dimPoints(e)) add(q.x,q.y); continue; } if(e.type==="hatch"){ for(const q of bPoints(e.bounds[0])) add(q.x,q.y); if(e.bounds[0].kind==="circle"){ const b=e.bounds[0]; add(b.c.x-b.r,b.c.y-b.r); add(b.c.x+b.r,b.c.y+b.r);} continue; } if(e.type==="circle"){ add(e.c.x-e.r,e.c.y-e.r); add(e.c.x+e.r,e.c.y+e.r);} else { add(e.a.x,e.a.y); add(e.b.x,e.b.y);} }
   return x1===Infinity?null:{x1,y1,x2,y2}; }
 function zoomExtents(){
   const {w,h}=size(); const b=bbox(VE());
@@ -1228,7 +1282,9 @@ let panning=null;
 function updCursor(ev){ const r=cv.getBoundingClientRect(); cursorS={x:ev.clientX-r.left,y:ev.clientY-r.top}; cursorW=S2W(cursorS); hasCursor=true; snapPt=findSnap(); const P=currentPoint(); $("sx").textContent=fmt(P.x); $("sy").textContent=fmt(P.y); }
 const touches=new Map(); let pinch=null, tap=null, touchIgnore=false;
 function onMove(ev){
-  if(textDrag){ updCursor(ev); const d=textDrag; if(!d.moved && Math.hypot(cursorS.x-d.s0.x,cursorS.y-d.s0.y)>4){ d.moved=true; pushUndo(); selected=new Set([d.e.id]); }
+  if(gripDrag){ updCursor(ev); const g=gripDrag; if(!g.moved && Math.hypot(cursorS.x-g.s0.x,cursorS.y-g.s0.y)>4){ g.moved=true; pushUndo(); }
+    if(g.moved){ const P=snapPt?snapPt.p:cursorW; g.e[g.key]={x:P.x,y:P.y}; renderAll(); } return; }
+  if(textDrag){ updCursor(ev); const d=textDrag; if(!d.moved && Math.hypot(cursorS.x-d.s0.x,cursorS.y-d.s0.y)>4){ d.moved=true; pushUndo(); selected.clear(); selected.add(d.e.id); }
     if(d.moved){ d.e.p={x:d.p0.x+cursorW.x-d.w0.x,y:d.p0.y+cursorW.y-d.w0.y}; renderEnts(); } return; }
   if(panning){ view.tx=panning.tx+(ev.clientX-panning.x); view.ty=panning.ty+(ev.clientY-panning.y); renderAll(); return; }
   updCursor(ev);
@@ -1244,7 +1300,7 @@ cv.addEventListener("pointermove",ev=>{
       view.z=z; view.tx=mx-w.x*z; view.ty=my+w.y*z; renderAll(); return; }
     if(touchIgnore) return;
     if(tap && !tap.started){ if(Math.hypot(ev.clientX-tap.x,ev.clientY-tap.y)>10){ tap.started=true;
-        updCursor(tap.ev); const onText=(!cmd||cmd.name==="TEXTE")&&VE().some(x=>x.type==="text"&&textDist(x,cursorW)<4/view.z);
+        updCursor(tap.ev); const onText=((!cmd||cmd.name==="TEXTE")&&VE().some(x=>x.type==="text"&&textDist(x,cursorW)<4/view.z)) || (!cmd && !!leadGripAt(cursorW));
         if(onText || (selectionContext() && !hit(cursorW))) primaryDown(tap.ev); else { panning={x:tap.x,y:tap.y,tx:view.tx,ty:view.ty}; } } else return; }
     onMove(ev); return;
   }
@@ -1264,7 +1320,10 @@ function primaryDown(ev){
   updCursor(ev);
   // double-clic / double-tap sur un texte = le modifier
   { const now=Date.now(), dbl = now-lastTap.t<450 && Math.hypot(cursorS.x-lastTap.x,cursorS.y-lastTap.y)<8; lastTap={t:dbl?0:now,x:cursorS.x,y:cursorS.y};
-    if(dbl && (!cmd || cmd.name==="TEXTE")){ const e=VE().find(x=>x.type==="text"&&textDist(x,cursorW)<4/view.z); if(e){ selected.clear(); if(!cmd) startCmd("TEXTE"); if(textEdit) closeTextEdit(true); openTextEdit(e,e.p); return; } } }
+    if(dbl && (!cmd || cmd.name==="TEXTE")){ const e=VE().find(x=>x.type==="text"&&textDist(x,cursorW)<4/view.z); if(e){ selected.clear(); if(!cmd) startCmd("TEXTE"); if(textEdit) closeTextEdit(true); openTextEdit(e,e.p); return; } }
+    if(dbl && !cmd){ const dm=dimAtPoint(cursorW); if(dm){ gripDrag=null; selected.clear(); renderEnts(); openDimTxt(dm,false); return; } } }
+  // attraper la pointe ou le texte d'un repère (flèche + texte)
+  if(!cmd && !textEdit){ const g=leadGripAt(cursorW); if(g){ gripDrag={...g,s0:{...cursorS},moved:false,shift:ev.shiftKey||ev.ctrlKey||ev.metaKey}; return; } }
   // attraper un texte pour le faire glisser
   if((!cmd || cmd.name==="TEXTE") && !textEdit){ const e=VE().find(x=>x.type==="text"&&textDist(x,cursorW)<4/view.z);
     if(e){ textDrag={e,w0:{...cursorW},s0:{...cursorS},p0:{...e.p},moved:false,shift:ev.shiftKey||ev.ctrlKey||ev.metaKey,mouse:ev.pointerType==="mouse"}; return; } }
@@ -1313,11 +1372,11 @@ function onUp(ev){
     if(pinch){ if(touches.size<2) pinch=null; return; }
     if(touchIgnore){ if(!touches.size) touchIgnore=false; return; }
     if(panning){ panning=null; tap=null; return; }
-    if(tap && !tap.started){ const t=tap; tap=null; primaryDown(t.ev); if(endTextDrag()) return; finishWin(); hasCursor=true; renderPreview(); return; }
-    tap=null; if(endTextDrag()) return; finishWin(); return;
+    if(tap && !tap.started){ const t=tap; tap=null; primaryDown(t.ev); if(endGripDrag()||endTextDrag()) return; finishWin(); hasCursor=true; renderPreview(); return; }
+    tap=null; if(endGripDrag()||endTextDrag()) return; finishWin(); return;
   }
   if(panning){ panning=null; cv.style.cursor=panMode?"grab":"crosshair"; return; }
-  if(endTextDrag()) return;
+  if(endGripDrag()||endTextDrag()) return;
   finishWin();
 }
 cv.addEventListener("pointerup",onUp);
@@ -1451,7 +1510,7 @@ function applyTextOpts(){ // modifie aussi le texte en cours d'édition ou les t
 }
 // le clic sur le dessin ne doit pas retirer le focus de la case de texte qui vient de s'ouvrir
 cv.addEventListener("mousedown",ev=>{ if(textEdit) ev.preventDefault(); });
-cv.addEventListener("dblclick",ev=>{ updCursor(ev); const e=VE().find(x=>x.type==="text"&&textDist(x,cursorW)<4/view.z); if(!e) return; selected.clear(); if(!cmd||cmd.name!=="TEXTE") startCmd("TEXTE"); openTextEdit(e,e.p); });
+cv.addEventListener("dblclick",ev=>{ updCursor(ev); const e=VE().find(x=>x.type==="text"&&textDist(x,cursorW)<4/view.z); if(!e){ if(!cmd && !$("mDimTxt").classList.contains("show")){ const dm=dimAtPoint(cursorW); if(dm){ gripDrag=null; selected.clear(); renderEnts(); openDimTxt(dm,false); } } return; } selected.clear(); if(!cmd||cmd.name!=="TEXTE") startCmd("TEXTE"); openTextEdit(e,e.p); });
 
 // ---------- Barre d'options des hachures ----------
 function showHatchOpts(on){ const o=$("hopts"); o.style.display=on?"flex":"none"; if(on){ $("hPat").value=hatchOpts.pattern; $("hSp").value=hatchOpts.spacing; $("hAng").value=hatchOpts.angle; } }
@@ -1630,7 +1689,7 @@ const SCALES=[1,2,5,10,20,25,50,75,100,200,250,500,1000,2000];
 function esc(s){ return String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 // couleur à l'impression : noir & blanc, ou couleur (les couleurs très claires deviennent noires, comme le blanc d'AutoCAD)
 function pc(c){ if(cart.couleurs==="nb"||!c) return "#000"; const m=/^#?([0-9a-f]{6})$/i.exec(c); if(!m) return "#000"; const n=parseInt(m[1],16), r=n>>16&255, g=n>>8&255, b=n&255; return (0.299*r+0.587*g+0.114*b)>235 ? "#000" : "#"+m[1]; }
-function buildSheet(mode){ mode=mode||"plan";
+function buildSheet(mode){ mode=mode||"plan"; cartDefauts();
   let A = cart.format==="A3" ? {w:420,h:297} : {w:297,h:210};
   if(cart.orient==="portrait") A={w:A.h,h:A.w};
   const m=10, fx=m, fy=m, fw=A.w-2*m, fh=A.h-2*m;
@@ -1651,6 +1710,7 @@ function buildSheet(mode){ mode=mode||"plan";
       if(e.type==="rect"){ const x1=Math.min(e.a.x,e.b.x),y2=Math.max(e.a.y,e.b.y); g+=`<rect ${st} x="${X(x1)}" y="${Y(y2)}" width="${Math.abs(e.b.x-e.a.x)/den}" height="${Math.abs(e.b.y-e.a.y)/den}"/>`; }
       if(e.type==="poly") g+=`<${e.closed?"polygon":"polyline"} ${st} points="${e.pts.map(q=>X(q.x)+","+Y(q.y)).join(" ")}"/>`;
       if(e.type==="circle") g+=`<circle ${st} cx="${X(e.c.x)}" cy="${Y(e.c.y)}" r="${e.r/den}"/>`;
+      if(e.type==="arc") g+=`<path ${st} d="${arcPath(e,p=>({x:X(p.x),y:Y(p.y)}),1/den)}"/>`;
     }
     const ps={txt:dimTxt,arr:dimTxt,gap:1,ext:1.5,off:dimTxt*0.35,color:pc(colors.coteLigne),tcolor:pc(colors.coteTexte),sw:0.18};
     if(mode==="visuel"){ for(const e of VE()) if(e.type==="text") dg+=textMarkup(e,X(e.p.x),Y(e.p.y),e.h,"#222"); } else {
@@ -1688,7 +1748,7 @@ function refreshPreview(){
     cart.mode==="ajuster" ? `Dessin <b>ajusté à la page</b> ${fmtName} (≈ 1:${fmt(Math.round(s.den*10)/10)}). Le cartouche indique « Sans échelle ».` :
     `Échelle ${cart.echelle==="auto"?"choisie automatiquement":"imposée"} : <b>1:${fmt(s.den)}</b> sur ${fmtName}.` + (s.fits?"":` <span style="color:var(--warn)">⚠ Le dessin dépasse la feuille à cette échelle.</span>`);
 }
-function openCart(){ $("cDrive").style.display = driveDispo() ? "inline-block" : "none"; $("inClaudeNote").style.display = inClaude ? "block" : "none"; $("cPrint").textContent = inClaude ? "🖨 Imprimer (PDF)" : "🖨 Imprimer"; $("lblVisu").style.display = visuel ? "flex" : "none";
+function openCart(){ cartDefauts(); $("cDrive").style.display = driveDispo() ? "inline-block" : "none"; $("inClaudeNote").style.display = inClaude ? "block" : "none"; $("cPrint").textContent = inClaude ? "🖨 Imprimer (PDF)" : "🖨 Imprimer"; $("lblVisu").style.display = visuel ? "flex" : "none";
   document.querySelectorAll("#mCart [data-k]").forEach(i=>{ i.value=cart[i.dataset.k]||""; if(i.dataset.k==="echelle"&&!i.value) i.value="auto"; if(i.dataset.k==="orient"&&!i.value) i.value="paysage"; if(i.dataset.k==="mode"&&!i.value) i.value="echelle"; if(i.dataset.k==="couleurs"&&!i.value) i.value="couleur"; });
   refreshPreview(); $("mCart").classList.add("show");
 }
@@ -1765,8 +1825,10 @@ let driveEnCours=false;
 async function rangerDrive(quoi){ quoi=quoi||{pdf:true,mdao:true};
   if(driveEnCours) return false; driveEnCours=true; const nom=(planNameTxt||"Plan").replace(/[\\/:*?"<>|]+/g,"-").trim(); const faits=[];
   try{
-    if(quoi.mdao){ const id=await dossierMdao(); await deposerDrive(nom+".mdao", new Blob([JSON.stringify(planData())],{type:"application/json"}), id, "Plan Mini DAO 2D (modifiable)"); faits.push("Métrés › Plans › "+new Date().getFullYear()); }
-    if(quoi.pdf){ toast("☁️ Création du PDF pour Google Drive…"); const blob=await makePDF(); const id=await dossierPlans(); await deposerDrive(nom+".pdf", new Blob([blob],{type:"application/pdf"}), id, "Plan Mini DAO 2D"); faits.push("09 - Plan"); }
+    const ancien=driveNom;
+    if(quoi.mdao){ const id=await dossierMdao(); if(ancien && ancien!==nom) await renommerDrive(ancien+".mdao",nom+".mdao",id); await deposerDrive(nom+".mdao", new Blob([JSON.stringify(planData())],{type:"application/json"}), id, "Plan Mini DAO 2D (modifiable)"); faits.push("Métrés › Plans › "+new Date().getFullYear()); }
+    if(quoi.pdf){ toast("☁️ Création du PDF pour Google Drive…"); const blob=await makePDF(); const id=await dossierPlans(); if(ancien && ancien!==nom) await renommerDrive(ancien+".pdf",nom+".pdf",id); await deposerDrive(nom+".pdf", new Blob([blob],{type:"application/pdf"}), id, "Plan Mini DAO 2D"); faits.push("09 - Plan"); }
+    if(quoi.mdao && quoi.pdf){ driveNom=nom; save(); }
     toast("☁️ Rangé dans Google Drive : "+faits.join(" + ")); log(`Google Drive : « ${nom} » rangé dans ${faits.join(" et ")}`); return true;
   }catch(e){ toast("Google Drive : "+e.message); log("Google Drive : échec – "+e.message); return false; }
   finally{ driveEnCours=false; }
@@ -1823,7 +1885,7 @@ const mNew=document.createElement("div"); mNew.className="modal"; mNew.id="mNew"
 mNew.innerHTML=`<div class="box" style="width:380px"><h2>Nouveau dessin</h2><p>Effacer tout le dessin en cours ? (Annuler reste possible.)</p><div class="row"><button class="hbtn" id="nNo">Non</button><button class="hbtn primary" id="nYes">Oui, tout effacer</button></div></div>`;
 document.body.appendChild(mNew);
 $("nNo").onclick=()=>mNew.classList.remove("show");
-$("nYes").onclick=()=>{ pushUndo(); ents=[]; selected.clear(); visuel=null; iaHist=[]; Object.assign(cart,{client:"",chantier:"",titre:"",numero:"",indice:"A",obs:"",date:new Date().toLocaleDateString("fr-FR")}); layers=[{name:"Dessin",visible:true},{name:"Cotes",visible:true}]; curLayer="Dessin"; updLayerUI(); planId=null; planNameTxt=""; updPlanName(); save(); mNew.classList.remove("show"); zoomExtents(); log("Nouveau dessin"); };
+$("nYes").onclick=()=>{ pushUndo(); driveNom=""; ents=[]; selected.clear(); visuel=null; iaHist=[]; Object.assign(cart,{client:"",chantier:"",titre:"",numero:"",indice:"A",obs:"",date:new Date().toLocaleDateString("fr-FR")}); layers=[{name:"Dessin",visible:true},{name:"Cotes",visible:true}]; curLayer="Dessin"; updLayerUI(); planId=null; planNameTxt=""; updPlanName(); save(); mNew.classList.remove("show"); zoomExtents(); log("Nouveau dessin"); };
 
 // ---------- Organiser la barre d'outils ----------
 const navEl=$("tools"); const DEFAULT_ORDER=[...navEl.querySelectorAll(":scope > [data-key]")].map(e=>e.dataset.key);
@@ -1859,14 +1921,14 @@ function toast(t){ const el2=$("toast"); el2.textContent=t; el2.style.display="b
 const LIB_KEY="miniDAO2D_lib";
 function libGet(){ try{ return JSON.parse(localStorage.getItem(LIB_KEY)||"[]"); }catch(e){ return []; } }
 function libSet(l){ try{ localStorage.setItem(LIB_KEY,JSON.stringify(l)); return true; }catch(e){ $("fMsg").textContent="Mémoire de l'appareil pleine ou indisponible : exportez le fichier .mdao."; return false; } }
-function planData(){ return {app:"Mini DAO 2D",format:1,name:planNameTxt,date:new Date().toISOString(),ents,nextId,cart,layers,curLayer,visuel,iaHist}; }
-function loadPlan(d,id){ pushUndo(); ents=d.ents||[]; nextId=d.nextId||(Math.max(0,...ents.map(e=>e.id||0))+1); if(d.cart) Object.assign(cart,d.cart); visuel=d.visuel||null; iaHist=d.iaHist||[]; layers=Array.isArray(d.layers)&&d.layers.length?d.layers:[{name:"Dessin",visible:true},{name:"Cotes",visible:true}]; curLayer=d.curLayer||"Dessin"; ensureLayers(); updLayerUI(); planNameTxt=d.name||""; planId=id||null; selected.clear(); undoStack=[]; redoStack=[]; save(); updPlanName(); zoomExtents(); log(`Plan ouvert : ${planNameTxt||"sans nom"}`); }
+function planData(){ return {app:"Mini DAO 2D",format:1,driveNom,name:planNameTxt,date:new Date().toISOString(),ents,nextId,cart,layers,curLayer,visuel,iaHist}; }
+function loadPlan(d,id){ pushUndo(); ents=d.ents||[]; nextId=d.nextId||(Math.max(0,...ents.map(e=>e.id||0))+1); if(d.cart) Object.assign(cart,d.cart); visuel=d.visuel||null; iaHist=d.iaHist||[]; layers=Array.isArray(d.layers)&&d.layers.length?d.layers:[{name:"Dessin",visible:true},{name:"Cotes",visible:true}]; curLayer=d.curLayer||"Dessin"; ensureLayers(); updLayerUI(); planNameTxt=d.name||""; driveNom=d.driveNom||""; planId=id||null; cartDefauts(); selected.clear(); undoStack=[]; redoStack=[]; save(); updPlanName(); zoomExtents(); log(`Plan ouvert : ${planNameTxt||"sans nom"}`); }
 function updPlanName(){ $("planName").textContent = planNameTxt ? "— "+planNameTxt : ""; document.title = planNameTxt ? planNameTxt+" – Mini DAO 2D" : "Mini DAO 2D"; }
 function storePlan(asCopy){
   const name=withPlan($("fName").value.trim()||planNameTxt||new Date().toLocaleDateString("fr-FR")); planNameTxt=name;
   const l=libGet(); const data=planData();
   if(!asCopy && planId && l.find(p=>p.id===planId)){ const p=l.find(p=>p.id===planId); p.name=name; p.date=data.date; p.data=data; }
-  else { planId="p"+Date.now(); l.unshift({id:planId,name,date:data.date,data}); }
+  else { planId="p"+Date.now(); driveNom=""; data.driveNom=""; l.unshift({id:planId,name,date:data.date,data}); }
   if(libSet(l)){ save(); updPlanName(); $("fMsg").textContent=`« ${name} » enregistré sur cet appareil.`; log(`Plan enregistré : ${name}`); renderFileList(); }
 }
 function renderFileList(){
@@ -1896,13 +1958,14 @@ async function exportFile(){
 $("bFile").onclick=()=>{ $("fDrive").style.display = driveDispo() ? "block" : "none"; $("fDriveAuto").checked=driveAuto; $("fYear").textContent=new Date().getFullYear(); $("fName").value=planNameTxt||"Plan "; $("fMsg").textContent=""; renderFileList(); $("mFile").classList.add("show"); };
 $("fClose").onclick=()=>$("mFile").classList.remove("show");
 function quickSave(){
-  const l=libGet();
-  if(planId && l.some(p=>p.id===planId)){ $("fName").value=planNameTxt; storePlan(false); toast(`💾 « ${planNameTxt} » enregistré`); if(driveAuto) rangerDriveClic(); return; }
-  $("sClient").value = planNameTxt ? planNameTxt.replace(/^plan\s*/i,"") : (cart.client||"");
+  const l=libGet(), auto=nomDuCartouche();
+  if(!(planId && l.some(p=>p.id===planId)) && auto){ $("fName").value=auto; storePlan(false); toast(`💾 « ${planNameTxt} » enregistré`); if(retourApresSave){ retourApresSave=false; revenir(); return; } if(driveAuto) rangerDriveClic(); return; }
+  if(planId && l.some(p=>p.id===planId)){ $("fName").value=auto||planNameTxt; storePlan(false); toast(`💾 « ${planNameTxt} » enregistré`); if(driveAuto) rangerDriveClic(); return; }
+  $("sClient").value = cart.client || (planNameTxt ? planNameTxt.replace(/^plan\s*/i,"").split(" – ")[0] : ""); $("sTitre").value = cart.titre||"";
   $("mSave").classList.add("show"); setTimeout(()=>{ $("sClient").focus(); $("sClient").select(); },50);
 }
 function doSave(){ const cl=$("sClient").value.trim(); if(!cl){ $("sNote").textContent="Tapez le nom du client."; $("sClient").focus(); return; }
-  $("fName").value=withPlan(cl); if(!cart.client) cart.client=cl; storePlan(false); $("mSave").classList.remove("show"); toast(`💾 « ${planNameTxt} » enregistré`); if(retourApresSave){ retourApresSave=false; revenir(); return; } if(driveAuto) rangerDriveClic(); }
+  cart.client=cl; cart.titre=$("sTitre").value.trim(); $("fName").value=nomDuCartouche(); storePlan(false); $("mSave").classList.remove("show"); toast(`💾 « ${planNameTxt} » enregistré`); if(retourApresSave){ retourApresSave=false; revenir(); return; } if(driveAuto) rangerDriveClic(); }
 $("bSave").onclick=quickSave;
 $("sOk").onclick=doSave; $("sCancel").onclick=()=>{ retourApresSave=false; $("mSave").classList.remove("show"); };
 $("sClient").addEventListener("keydown",ev=>{ if(ev.key==="Enter"){ ev.preventDefault(); doSave(); } });
@@ -1913,9 +1976,12 @@ $("fExport").onclick=exportFile;
 $("fImport").onchange=ev=>{ const f=ev.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!Array.isArray(d.ents)) throw 0; if(!d.name) d.name=f.name.replace(/\.(mdao|json)$/i,""); loadPlan(d,null); $("mFile").classList.remove("show"); }catch(e){ $("fMsg").textContent="Ce fichier n'est pas un plan Mini DAO."; } ev.target.value=""; }; r.readAsText(f); };
 
 // ---------- Barre de sélection ----------
-function selectAll(){ if(cmd) endCmd(true); selected=new Set(VE().map(e=>e.id)); renderEnts(); log(`${selected.size} objet(s) sélectionné(s)`); }
+function selectAll(){ if(cmd) endCmd(true); selected.clear(); VE().forEach(e=>selected.add(e.id)); renderEnts(); log(`${selected.size} objet(s) sélectionné(s)`); }
 $("sbDel").onclick=()=>startCmd("EFFACER");
 $("sbMove").onclick=()=>startCmd("DEPLACER");
+$("dtOk").onclick=()=>closeDimTxt(true); $("dtCancel").onclick=()=>closeDimTxt(false); $("dtReset").onclick=()=>{ $("dtText").value=""; closeDimTxt(true); };
+$("dtText").addEventListener("keydown",ev=>{ if(ev.key==="Enter" && (ev.ctrlKey||ev.metaKey||!(dimTxtEdit&&dimTxtEdit.d.kind==="lead"))){ ev.preventDefault(); closeDimTxt(true); } });
+$("sbTxt").onclick=()=>{ const d=[...selected].map(id=>ents.find(x=>x.id===id)).find(e=>e&&e.type==="dim"); if(d){ selected.clear(); renderEnts(); openDimTxt(d,false); } };
 $("sbRot").onclick=()=>transformSel("rot"); $("sbMir").onclick=()=>transformSel("mir"); $("sbExpl").onclick=explodeSel;
 $("syRot").onclick=()=>symAction("R"); $("syMir").onclick=()=>symAction("M"); $("syFlip").onclick=()=>symAction("I");
 $("syLib").onclick=openSymLib; $("syClose").onclick=()=>$("mSym").classList.remove("show");
@@ -1935,6 +2001,93 @@ $("kEnter").onclick=()=>{ if(textEdit){ closeTextEdit(true); return; } const v=c
 $("kEsc").addEventListener("pointerdown",ev=>{ if(textEdit) ev.preventDefault(); });
 $("kEnter").addEventListener("pointerdown",ev=>{ if(textEdit) ev.preventDefault(); });
 $("kEsc").onclick=()=>{ const m=document.querySelector(".modal.show"); if(m) m.classList.remove("show"); else cancelAll(); };
+
+// ---------- Arcs, cercle 3 points, raccord, repères (24/11/2026) ----------
+/* Arc : {type:"arc", c, r, a0, a1} en degrés, parcouru dans le sens trigonométrique de a0 à a1 (a0 < a1 ≤ a0+360). */
+function normArc(e){ e.a0=((e.a0%360)+360)%360; let s=((e.a1-e.a0)%360+360)%360; if(s<1e-9) s=360; e.a1=e.a0+s; return e; }
+function arcPt(e,a){ const r=a*Math.PI/180; return {x:e.c.x+e.r*Math.cos(r), y:e.c.y+e.r*Math.sin(r)}; }
+function arcEnds(e){ return [arcPt(e,e.a0), arcPt(e,(e.a0+e.a1)/2), arcPt(e,e.a1)]; }
+function arcSample(e,n){ n=n||Math.max(12,Math.ceil((e.a1-e.a0)/5)); const o=[]; for(let i=0;i<=n;i++) o.push(arcPt(e,e.a0+(e.a1-e.a0)*i/n)); return o; }
+function inArc(e,a){ return ((a-e.a0)%360+360)%360 <= (e.a1-e.a0)+1e-9; }
+function arcDist(e,p){ const a=ang(e.c,p); if(inArc(e,a)) return Math.abs(dist(e.c,p)-e.r); const [s,,f]=arcEnds(e); return Math.min(dist(p,s),dist(p,f)); }
+function circ3(p1,p2,p3){ const ax=p1.x,ay=p1.y,bx=p2.x,by=p2.y,cx=p3.x,cy=p3.y, d=2*(ax*(by-cy)+bx*(cy-ay)+cx*(ay-by)); if(Math.abs(d)<1e-9) return null;
+  const a2=ax*ax+ay*ay,b2=bx*bx+by*by,c2=cx*cx+cy*cy; const c={x:(a2*(by-cy)+b2*(cy-ay)+c2*(ay-by))/d, y:(a2*(cx-bx)+b2*(ax-cx)+c2*(bx-ax))/d}; return {c,r:dist(c,p1)}; }
+function arc3(p1,pm,p2){ const k=circ3(p1,pm,p2); if(!k) return null; const a0=ang(k.c,p1), a2=ang(k.c,p2), am=ang(k.c,pm);
+  const s=((a2-a0)%360+360)%360, m=((am-a0)%360+360)%360;
+  return normArc(m<=s ? {type:"arc",c:k.c,r:k.r,a0,a1:a0+s} : {type:"arc",c:k.c,r:k.r,a0:a2,a1:a2+(360-s)}); }
+function arcFromChord(p1,p2,f){ const L=dist(p1,p2); if(L<1e-9||Math.abs(f)<1e-6) return null; const u={x:(p2.x-p1.x)/L,y:(p2.y-p1.y)/L}, n={x:-u.y,y:u.x};
+  const m={x:(p1.x+p2.x)/2,y:(p1.y+p2.y)/2}, apex={x:m.x+n.x*f,y:m.y+n.y*f}; return arc3(p1,apex,p2); }
+function makeArcFleche(f){ const a=arcFromChord(cmd.p1,cmd.p2,f); if(!a){ log("  Flèche nulle : pas d'arc"); return; } addEnt(a); log(`  arc : corde ${fmt(dist(cmd.p1,cmd.p2))} · flèche ${fmt(Math.abs(f))} · rayon ${fmt(a.r)}`); cmd.step="p1"; cmd.p1=cmd.p2=null; setPrompt("ARC – 1er point de l'arc suivant (Échap pour finir) :"); }
+function chordSide(p1,p2,P){ const L=dist(p1,p2)||1; return ((P.x-p1.x)*(-(p2.y-p1.y)/L)+(P.y-p1.y)*((p2.x-p1.x)/L)); } // distance signée de P à la corde
+function arcPath(e,T,k){ const [s,,f]=arcEnds(e), S=T(s), F=T(f), sw=e.a1-e.a0;
+  if(sw>=359.999){ const c=T(e.c); return `M${c.x-e.r*k} ${c.y}a${e.r*k} ${e.r*k} 0 1 0 ${2*e.r*k} 0a${e.r*k} ${e.r*k} 0 1 0 ${-2*e.r*k} 0`; }
+  return `M${S.x} ${S.y}A${e.r*k} ${e.r*k} 0 ${sw>180?1:0} 0 ${F.x} ${F.y}`; }
+function offsetArc(e,d,side){ const out=dist(e.c,side)>e.r; const r=e.r+(out?d:-d); if(r<=0) return null; return {type:"arc",c:{...e.c},r,a0:e.a0,a1:e.a1}; }
+// Raccord (arrondi) entre deux traits : garde le côté cliqué de chaque trait
+function filletLines(l1,c1,l2,c2,r){
+  const X=lineInter({a:l1.a,b:l1.b},{a:l2.a,b:l2.b}); if(!X) return {err:"Les deux traits sont parallèles : pas d'arrondi possible."};
+  const dirTo=(l,c)=>{ const L=dist(l.a,l.b), u={x:(l.b.x-l.a.x)/L,y:(l.b.y-l.a.y)/L}; const t=(c.x-X.x)*u.x+(c.y-X.y)*u.y; return t>=0?u:{x:-u.x,y:-u.y}; };
+  const u1=dirTo(l1,c1), u2=dirTo(l2,c2); const cos=Math.max(-1,Math.min(1,u1.x*u2.x+u1.y*u2.y)), th=Math.acos(cos);
+  if(th<1e-3||th>Math.PI-1e-3) return {err:"Les deux traits sont alignés : pas d'arrondi possible."};
+  const far=(l,u)=>{ const ta=(l.a.x-X.x)*u.x+(l.a.y-X.y)*u.y, tb=(l.b.x-X.x)*u.x+(l.b.y-X.y)*u.y; return ta>=tb?{p:l.a,t:ta}:{p:l.b,t:tb}; };
+  const f1=far(l1,u1), f2=far(l2,u2); const t=r>0 ? r/Math.tan(th/2) : 0;
+  if(t>f1.t+1e-6||t>f2.t+1e-6) return {err:"Rayon trop grand pour ces traits."};
+  const T1={x:X.x+u1.x*t,y:X.y+u1.y*t}, T2={x:X.x+u2.x*t,y:X.y+u2.y*t};
+  let arc=null; if(r>0){ const b={x:u1.x+u2.x,y:u1.y+u2.y}, bl=Math.hypot(b.x,b.y); const bis={x:b.x/bl,y:b.y/bl}, dc=r/Math.sin(th/2);
+    const C={x:X.x+bis.x*dc,y:X.y+bis.y*dc}, M={x:C.x-bis.x*r,y:C.y-bis.y*r}; arc=arc3(T1,M,T2); }
+  return {a1:{...f1.p}, b1:T1, a2:{...f2.p}, b2:T2, arc};
+}
+var lastFillet = 0;
+function doFillet(){ const c=cmd; let l1=ents.find(e=>e.id===c.id1), l2=ents.find(e=>e.id===c.id2); if(!l1||!l2) return;
+  const R=filletLines(l1,c.c1,l2,c.c2,c.r); if(R.err){ log("  "+R.err); return false; }
+  pushUndo(); l1.a=R.a1; l1.b=R.b1; l2.a=R.a2; l2.b=R.b2;
+  if(R.arc){ R.arc.id=nextId++; R.arc.layer=l1.layer||curLayer; if(l1.color) R.arc.color=l1.color; ents.push(R.arc); }
+  save(); renderEnts(); log(c.r>0 ? `  Arrondi R ${fmt(c.r)} fait` : "  Angle refermé (rayon 0)"); return true; }
+function lineAt(p){ const tol=8/view.z; let best=null,bd=tol; for(const e of VE()){ if(e.type!=="line"&&e.type!=="rect") continue; const d=entDist(e,p); if(d<bd){ bd=d; best=e; } }
+  if(best && best.type==="rect"){ const s=edgeNear(best,p); explodeRect(best); return ents.find(e=>e.type==="line"&&((dist(e.a,s[0])<1e-6&&dist(e.b,s[1])<1e-6)||(dist(e.a,s[1])<1e-6&&dist(e.b,s[0])<1e-6))) || null; }
+  return best; }
+
+// Repère (flèche + texte) : une « cote » de type "lead" : p1 = pointe, q = départ du texte, txt = texte (plusieurs lignes possibles)
+function leadLines(d){ return String(d.txt||"").split("\n"); }
+function leadMarkup(d,T,S,ln,arrow,color,tcolor){ let o=""; const P=T(d.p1), Q=T(d.q); if(dist(P,Q)>1){ ln(P,Q); arrow(P,Q); }
+  const right=Q.x>=P.x, lines=leadLines(d), tw=Math.max(S.txt*1.2, ...lines.map(l=>l.length*S.txt*0.56)), H={x:Q.x+(right?1:-1)*(tw+S.txt*0.5),y:Q.y}; ln(Q,H);
+  const x=right?Q.x+S.txt*0.25:Q.x-S.txt*0.25, n=lines.length;
+  lines.forEach((l,i)=>{ const y=Q.y-S.off-(n-1-i)*S.txt*1.2; o+=`<text x="${x}" y="${y}" font-size="${S.txt}" text-anchor="${right?"start":"end"}" fill="${tcolor}" font-weight="600" stroke="none" font-family="Arial, Helvetica, sans-serif">${esc(l)}</text>`; });
+  return o; }
+function leadHitDist(d,p){ const z=view.z, Q=W2S(d.q), P=W2S(d.p1), lines=leadLines(d), S=DIM_SCREEN; const right=Q.x>=P.x, tw=Math.max(S.txt*1.2,...lines.map(l=>l.length*S.txt*0.56))+S.txt*0.5;
+  const s=W2S(p); const x1=right?Q.x:Q.x-tw, x2=right?Q.x+tw:Q.x, y1=Q.y-S.off-lines.length*S.txt*1.2, y2=Q.y+3;
+  const inBox = s.x>=x1&&s.x<=x2&&s.y>=y1&&s.y<=y2; return Math.min(distSeg(p,d.p1,d.q), inBox?0:Infinity); }
+function leadGripAt(pW){ const s=W2S(pW); for(const d of VE()){ if(d.type!=="dim"||d.kind!=="lead") continue; if(dist(W2S(d.p1),s)<10) return {e:d,key:"p1"}; if(leadHitDist(d,pW)===0 || dist(W2S(d.q),s)<10) return {e:d,key:"q"}; } return null; }
+let gripDrag=null;
+function endGripDrag(){ const g=gripDrag; gripDrag=null; if(!g) return false; if(g.moved){ save(); log(g.key==="p1"?"  pointe de la flèche déplacée":"  texte du repère déplacé"); renderAll(); }
+  else { if(g.shift) selected.delete(g.e.id); else selected.add(g.e.id); renderEnts(); } return true; }
+
+// Fenêtre « texte » : repère (nouveau ou existant) et texte libre d'une cote
+let dimTxtEdit=null;
+function openDimTxt(d,isNew){ dimTxtEdit={d,isNew}; const lead=d.kind==="lead";
+  $("dtTitle").textContent = lead ? (isNew?"Texte du repère":"Modifier le texte du repère") : "Texte de la cote";
+  $("dtNote").textContent = lead ? "Plusieurs lignes possibles (Entrée = nouvelle ligne)." : `Mesure réelle : ${dimLabel({...d,txt:""})}. Écrivez le texte à afficher (ex. « 1200 tableau »). Laissez vide pour afficher la vraie mesure.`;
+  const t=$("dtText"); t.value = d.txt||""; t.rows = lead?3:1; $("dtReset").style.display = lead?"none":"inline-block";
+  $("mDimTxt").classList.add("show"); setTimeout(()=>{ t.focus(); t.select(); },50); }
+function closeDimTxt(ok){ const m=dimTxtEdit; dimTxtEdit=null; $("mDimTxt").classList.remove("show"); if(!m) return; const v=$("dtText").value.replace(/\s+$/,"");
+  if(m.d.kind==="lead"){
+    if(!ok){ if(m.isNew) log("  repère annulé"); return; }
+    if(!v){ if(m.isNew){ log("  repère annulé (pas de texte)"); return; } }
+    if(m.isNew){ addEnt({...m.d,txt:v}); log(`  repère « ${v.split("\n")[0]} » ajouté`); }
+    else { pushUndo(); const e=ents.find(x=>x.id===m.d.id); if(e) e.txt=v; save(); log("  texte du repère modifié"); }
+  } else { if(!ok) return; pushUndo(); const e=ents.find(x=>x.id===m.d.id); if(e){ if(v) e.txt=v; else delete e.txt; } save(); log(v?`  cote : « ${v} »`:"  cote : vraie mesure"); }
+  renderAll(); cmdIn.focus(); }
+function dimAtPoint(pW){ let best=null,bd=8/view.z; for(const e of VE()){ if(e.type!=="dim") continue; const d=e.kind==="lead"?leadHitDist(e,pW):dimHitDist(e,pW); if(d<=bd){ bd=d; best=e; } } return best; }
+
+// Nom du plan d'après le cartouche : « Plan CLIENT – Titre »
+var CART_DEFAUTS={societe:"Foissac Fermetures",dessine:"Nicolas"};
+function cartDefauts(){ if(!CART_DEFAUTS) return; for(const k in CART_DEFAUTS) if(!String(cart[k]||"").trim()) cart[k]=CART_DEFAUTS[k]; }
+function nomDuCartouche(){ const cl=String(cart.client||"").trim(); if(!cl) return ""; const t=String(cart.titre||"").trim(); return withPlan(cl)+(t?" – "+t:""); }
+var driveNom="";
+async function renommerDrive(ancien,nouveau,parent){ try{ const q=n=>`name='${q_(n)}' and trashed=false and '${parent}' in parents`;
+  const ex=(await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id)&q="+encodeURIComponent(q(ancien)))).files[0]; if(!ex) return;
+  const deja=(await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id)&q="+encodeURIComponent(q(nouveau)))).files[0]; if(deja) return;
+  await gdrive(`https://www.googleapis.com/drive/v3/files/${ex.id}?fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:nouveau})}); }catch(e){} }
 
 // ---------- Bibliothèque de symboles (18/11/2026) ----------
 /* Chaque symbole est fait d'objets ordinaires (traits, polylignes, rectangles, cercles, textes) regroupés par un même « grp » :
@@ -2015,7 +2168,7 @@ function primPts(e){ if(e.type==="line") return [e.a,e.b]; if(e.type==="rect") r
 function walkPts(o,f){ if(o&&typeof o==="object"){ if(typeof o.x==="number"&&typeof o.y==="number"&&!Array.isArray(o)){ const q=f(o); o.x=q.x; o.y=q.y; return o; } for(const k in o){ if(o[k]&&typeof o[k]==="object") walkPts(o[k],f); } } return o; }
 function normTxtAng(a){ a=((a%360)+360)%360; if(a>90&&a<=270) a-=180; if(a>180) a-=360; return Math.round(a*1000)/1000; }
 // Transforme une copie d'objet : f = fonction point→point, rot = rotation (degrés), mir = vrai si la transformation retourne (miroir)
-function xformEnt(e,f,rot,mir){ let c=clone(e);
+function xformEnt(e,f,rot,mir){ if(e.type==="arc"){ const a=arc3(...arcEnds(e).map(q=>f({...q}))); return a ? Object.assign(clone(e),{c:a.c,r:a.r,a0:a.a0,a1:a.a1}) : clone(e); } let c=clone(e);
   const quarter = Math.abs(((rot%90)+90)%90)<1e-6;
   if(c.type==="rect" && !quarter){ const x1=Math.min(c.a.x,c.b.x),x2=Math.max(c.a.x,c.b.x),y1=Math.min(c.a.y,c.b.y),y2=Math.max(c.a.y,c.b.y); c={...c,type:"poly",closed:true,pts:[{x:x1,y:y1},{x:x2,y:y1},{x:x2,y:y2},{x:x1,y:y2}]}; delete c.a; delete c.b; }
   if(c.type==="dim" && c.kind==="lin" && !quarter) c.kind="ali";
@@ -2111,12 +2264,12 @@ function garderDessinEnCours(){ // range le dessin actuel dans « Mes plans » (
   else { const n=planNameTxt||("Brouillon "+new Date().toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})); data.name=n; l.unshift({id:"p"+Date.now(),name:n,date:data.date,data}); }
   libSet(l); }
 function ouvrirPlanClient(cl){
-  const nom=withPlan(cl); if(planNameTxt.toLowerCase()===nom.toLowerCase()) return;
-  const l=libGet(), ex=l.find(p=>(p.name||"").toLowerCase()===nom.toLowerCase());
+  const nom=withPlan(cl), same=n=>{ n=(n||"").toLowerCase(); const b=nom.toLowerCase(); return n===b || n.startsWith(b+" – "); }; if(same(planNameTxt)) return;
+  const l=libGet(), ex=l.find(p=>same(p.name));
   if(ex && ex.id===planId) return;
   garderDessinEnCours();
   if(ex){ loadPlan(ex.data,ex.id); log(`Plan de ${cl} rouvert`); return; }
-  pushUndo(); ents=[]; selected.clear(); visuel=null; iaHist=[]; Object.assign(cart,{client:cl,chantier:"",titre:"",numero:"",indice:"A",obs:"",date:new Date().toLocaleDateString("fr-FR")});
+  pushUndo(); driveNom=""; ents=[]; selected.clear(); visuel=null; iaHist=[]; Object.assign(cart,{client:cl,chantier:"",titre:"",numero:"",indice:"A",obs:"",date:new Date().toLocaleDateString("fr-FR")});
   layers=[{name:"Dessin",visible:true},{name:"Cotes",visible:true}]; curLayer="Dessin"; updLayerUI(); planId=null; planNameTxt=nom; updPlanName(); save();
   log(`Nouveau plan pour ${cl} : dessinez, puis 💾 Enregistrer (le nom « ${nom} » est déjà prêt).`); }
 let retourForce=false;
@@ -2143,7 +2296,7 @@ if("serviceWorker" in navigator && location.protocol==="https:" && /github\.io$/
 }
 
 // Accès réservé aux tests automatiques (inactif sauf si window.__daoTest est posé avant le chargement)
-if(window.__daoTest) window.__dao={ get ents(){return ents;}, get cmd(){return cmd;}, get selected(){return [...selected];}, get layers(){return layers;}, get symOpts(){return symOpts;},
+if(window.__daoTest) window.__dao={ get ents(){return ents;}, get cmd(){return cmd;}, get selected(){return [...selected];}, get layers(){return layers;}, get symOpts(){return symOpts;}, get cart(){return cart;}, get planNameTxt(){return planNameTxt;}, get driveNom(){return driveNom;}, get planId(){return planId;},
   W2S:p=>W2S(p), setView:v=>{ Object.assign(view,v); renderAll(); }, zoomExtents:()=>zoomExtents(), addEnt:e=>addEnt(e), SYMS, symThumb };
 /* ---------- Journal d'utilisation (19/11/2026, projet « Réorganisation des logiciels », voir CLAUDE.md du dépôt) ----------
    Carnet commun aux 3 applis (même adresse) : localStorage « journal-usage ». Note seulement les boutons, onglets

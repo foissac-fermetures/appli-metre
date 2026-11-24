@@ -253,6 +253,7 @@ PROMPT-POUR-CLAUDE-PRO.md ← le message que Nicolas te donne
 | 18/11/2026 | metre-v95 | `sw.js` racine : ne supprime plus que les caches `metre-…` (§ 11). |
 | 18/11/2026 | metre-v102 | Liens Mini DAO + correctif hors-ligne **remis** dans le métré (effacés par les versions v96-v101 d'une autre conversation). Ajout de `CLAUDE.md` à la racine (consignes : repartir de la dernière version, garder ces ajouts). |
 | 18/11/2026 | dao-v6 | **Bibliothèque de symboles** (Nicolas a coché toutes les options) : voir § 13. |
+| 24/11/2026 | dao-v9 | Flèche + texte (repère), texte libre des cotes, nom automatique « Plan CLIENT – Titre », cartouche par défaut (Foissac Fermetures / Nicolas), arc 2 points + flèche, cercle 3 points, arrondi entre 2 traits : voir § 14. |
 | 18/11/2026 | dao-v5 | **Essai réel Google Drive réussi** (« Plan TEST », 2 enregistrements : PDF dans 09 - Plan, .mdao dans Métrés › Plans › 2026, remplacés sans doublon). « Métrés » fixé : `DOSSIERS_DAO.metres = 1HoXaRkku5deGnEtg6t3SK6jtvs4zr1lz`. |
 
 ## 11. Service worker de l'appli de métré : corrigé le 18/11/2026 (accord de Nicolas)
@@ -302,3 +303,26 @@ mobilier (lits, table + 6 chaises, canapé, armoire), voiture, Nord, repère de 
   Barre de sélection : **⟳ 90°**, **⇋ Miroir** (autour du centre de la sélection, `transformSel` / `xformEnt`, aussi pour des objets ordinaires) et **Décomposer**.
 - Les traits du mur ne sont pas coupés automatiquement dans l'ouverture : utiliser **Ajuster** entre les deux montants.
 - Tests : `window.__daoTest = true` avant le chargement expose `window.__dao` (tests automatiques seulement).
+
+## 14. Repères, cotes libres, nom automatique, arcs (dao-v9, 24/11/2026)
+
+Options cochées par Nicolas : flèche + texte modifiable ; cotes à texte libre ; nom « Plan CLIENT – Titre » ; arc 2 points + flèche, cercle 3 points, arrondi.
+
+- **Flèche + texte** (`REP`, `REPERE`, `FLECHE`, `LEADER`, bouton « Flèche + texte ») : clic sur l'endroit montré, clic où va le texte, fenêtre de texte
+  (plusieurs lignes ; Ctrl+Entrée = OK). Objet = cote `{type:"dim", kind:"lead", p1 (pointe), q (texte), txt}` → même style, couleurs, calque « Cotes »
+  et impression que les cotes (`leadMarkup` appelé par `dimMarkup`). Modifiable : **attraper la pointe ou le texte** (`leadGripAt`, `gripDrag`, accrochage actif),
+  **double-clic** pour changer le texte, bouton **✎ Texte** de la barre de sélection.
+- **Cotes à texte libre** : double-clic sur une cote (ou ✎ Texte) → fenêtre `mDimTxt` ; le texte va dans `d.txt` et remplace la mesure (`dimLabel`).
+  Vide ou « Vraie mesure » = mesure réelle. Le texte des cotes est maintenant échappé (`esc`).
+- **Nom automatique** : `nomDuCartouche()` = `withPlan(client)` + « – titre ». 💾 sans fenêtre dès que le client est rempli dans le cartouche ;
+  sinon la fenêtre demande **client + titre** (et les écrit dans le cartouche). Le nom suit le cartouche à chaque 💾.
+  Si le nom change, les fichiers Drive du plan sont **renommés** (`renommerDrive`, `driveNom` mémorisé par plan) au lieu d'être dupliqués ;
+  `driveNom` est remis à zéro pour un nouveau plan, une copie ou un plan ouvert depuis le métré (pour ne jamais renommer les fichiers d'un autre plan).
+  Le lien depuis le métré (`?client=`) retrouve aussi « Plan CLIENT – Titre ».
+- **Cartouche par défaut** : `CART_DEFAUTS = {societe:"Foissac Fermetures", dessine:"Nicolas"}` remplit ces champs s'ils sont vides (`cartDefauts`).
+- **Arcs** : nouvel objet `{type:"arc", c, r, a0, a1}` (degrés, sens trigonométrique). Pris en charge : écran, impression/PDF, accrochage (bouts, milieu, centre),
+  sélection, déplacer/copier, ⟳ 90° / miroir (`xformEnt` reconstruit l'arc par 3 points), décaler. Pas encore : ajuster/prolonger un arc, hachurer une zone fermée par un arc.
+  - `A` / `ARC` « Arc + flèche » : 2 points (naissances) puis hauteur de flèche tapée (côté de la souris ; négatif = autre côté) ou clic au sommet.
+  - `C3P` « Cercle 3 points » (crée un cercle ordinaire).
+  - `RA` / `RACCORD` / `ARRONDI` : rayon tapé (0 = angle vif, retenu), puis 2 traits cliqués du côté à garder (lignes ou côtés de rectangle, décomposé au besoin).
+- Tests automatiques : `window.__dao` expose aussi `cart`, `planNameTxt`, `driveNom`, `planId`.

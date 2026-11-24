@@ -1317,7 +1317,7 @@ function controleOuverture(o, d=S.dossier){
   if(md && (fam==="of"||fam==="pf") && md.vantaux<=3 && vt.length && vt.length!==md.vantaux) W.push(`Le modèle a ${md.vantaux} vantail(aux), la répartition en indique ${vt.length}`);
   if(tL!=null && f.L!=null && Math.abs(f.L-tL)>150) E.push("Largeur : écart fabrication / tableau > 150 mm ?");
   if(tH!=null && f.H!=null && Math.abs(f.H-tH)>150) E.push("Hauteur : écart fabrication / tableau > 150 mm ?");
-  if([tL,tH,f.L,f.H].some(x=>x!=null && x%5!==0)) W.push("Cote qui n'est pas un multiple de 5 ?");
+  // 24/11/2026 : contrôle « multiple de 5 » supprimé à la demande de Nicolas
   if(!sansOP && vt.length>=2 && !vt.some(x=>x.includes("OP"))) E.push("Plusieurs vantaux mais pas d'ouvrant principal (OP) ?");
   if(o.appui_bas && seuilSansAppui(o)) E.push("Appui bas ET seuil cochés ?");
   if(!porte && num(o.allege)>0 && !aSeuil(o) && !o.appui_bas && (["of","fixe","coulissant","galandage","soufflet"].includes(fam)||!md)) E.push("Profil appui bas (ou dormant en périphérique) à renseigner : il y a une allège");
@@ -1477,7 +1477,7 @@ function controleLigneVR(l, v){
   if(fL==null||fH==null) E.push("Cote de fabrication manquante");
   if(tL!=null&&fL!=null&&Math.abs(fL-tL)>150) E.push("Largeur : écart fabrication / tableau > 150 mm ?");
   if(tH!=null&&fH!=null&&Math.abs(fH-tH)>150) E.push("Hauteur : écart fabrication / tableau > 150 mm ?"); }
-  if([tL,tH,fL,fH].some(x=>x!=null&&x%5!==0)) W.push("Cote qui n'est pas un multiple de 5 ?");
+  // 24/11/2026 : contrôle « multiple de 5 » supprimé (volets roulants)
   if(l.fil_droite&&l.fil_gauche) E.push("Sortie de fil cochée à droite ET à gauche ?");
   if(vrMotorise(l,v)&&!l.fil_droite&&!l.fil_gauche) W.push("Côté de sortie de fil non coché");
   if(l.percage_tableau&&l.percage_face) E.push("Perçage coulisse : tableau ET de face ?");

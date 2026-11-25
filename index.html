@@ -2703,7 +2703,8 @@ function dessinMenuiserie(o, opt={}){
     const m=7; let gx=x+m, gy=y+m, gw=w-2*m, gh=h-2*m;
     /* panneaux de porte */
     if(fam==="porte"){
-      if(/oculus/.test(nom)){ s+=plein(gx,gy,gw,gh)+`<circle cx="${gx+gw/2}" cy="${gy+gh*0.28}" r="${Math.min(gw,gh)*0.18}" fill="#fff" stroke="${NAVY}" stroke-width="1.4"/>`; }
+      if(/oculus/.test(nom)){ const vh=Math.max(10,gh*0.12);   // 25/11 : oculus = petit vitrage rectangulaire en haut du vantail (comme le modèle Porteo)
+        s+=plein(gx,gy+vh+4,gw,gh-vh-4)+`<rect x="${gx}" y="${gy}" width="${gw}" height="${vh}" fill="#cfe8fa" stroke="${NAVY}" stroke-width="1.4"/>`; }
       else if(/(mi|semi)-vitrée/.test(nom)){ s+=plein(gx,gy+gh/2,gw,gh/2); gh=gh/2; }
       else if(entree){ s+=porteContemp(gx,gy,gw,gh,hingeL(i),i===princ||n===1); }
       else if(/service/.test(nom)){ s+=plein(gx,gy,gw,gh); }

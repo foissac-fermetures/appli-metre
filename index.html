@@ -2798,9 +2798,10 @@ function dessinMenuiserie(o, opt={}){
       + `<path d="M${X0} ${yN}${arc(X0,X1,yN,fP)}" fill="none" stroke="${NAVY}" stroke-width="4"/>`
       + `<path d="M${X0+10} ${yN+4}${arc(X0+10,X1-10,yN+4,fP-6)}" fill="none" stroke="${NAVY}" stroke-width="1.6"/>`; }
     const hmF = r.fab&&r.fab.Hm!=null ? r.fab.Hm : r.Hm;
-    if(hmF!=null && r.t!=="faux"){ const x=X0-26-(coffre||sbCote?44:0); c+=line(X0-3,yN,x-6,yN,0.7,COT)+line(X0-3,Y1,x-6,Y1,0.7,COT)+cote(x,yN,x,Y1,"montants "+Math.round(hmF)); }
+    if(r.t!=="faux") s+=line(X0,yN,X1,yN,1,"#8b93a6","5 4");   // naissance du cintre
+    if(hmF!=null && r.t!=="faux"){ const x=X0-26-(coffre||sbCote?44:0); c+=line(X0-3,yN,x-6,yN,0.7,COT)+line(X0-3,Y1,x-6,Y1,0.7,COT)+cote(x,yN,x,Y1,"départ cintre "+Math.round(hmF)); }
     const fF = r.fab&&r.fab.f!=null ? r.fab.f : r.f;
-    if(fF!=null && r.t!=="faux") c+=`<text x="${X0+w/2}" y="${yN-fP/2}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="${COT}">flèche ${Math.round(fF)}</text>`; }
+    if(fF!=null && r.t!=="faux"){ const x=X0+w*0.25; c+=cote(x,Y0,x,yN,"flèche "+Math.round(fF)); } }
   return `<svg class="dessin${opt.cls?" "+opt.cls:""}" viewBox="${-ML-(typeof cintreDe==="function"&&cintreDe(o)?40:0)} 0 ${W+ML+MR+(typeof cintreDe==="function"&&cintreDe(o)?40:0)} ${H+MB}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dessin de la menuiserie">${s}${c}</svg>`;
 }
 
@@ -7203,7 +7204,10 @@ function construireImpression(d){
       <div class="pst">HAUTEUR <small>– vue en coupe</small></div>${schemaHTML(o,"H","psch",true)||`<div class="hint">Pas de schéma</div>`}
       <div class="pdt2">${["L","H"].map(k=>`<table class="pt pdt"><tr class="pdir"><th colspan="2">${k==="L"?"LARGEUR":"HAUTEUR"}</th></tr>`+
         P.cotes.map((_,j)=>!coteUtile(o,j,k)?"":`<tr><th><span class="pn">${numCote(o,k,j)}</span>${esc(libCote(o,k,j))}</th><td>${esc(o.cotes[k][j]??"")||(o.tab_impossible&&/tableau/i.test(libCote(o,k,j))?"<small>pas possible</small>":"")}</td></tr>`).join("")
-        +`<tr class="pfabr"><th>FABRICATION</th><td>${f[k]??""}</td></tr></table>`).join("")}</div>`}
+        +`<tr class="pfabr"><th>FABRICATION</th><td>${f[k]??""}</td></tr>`
+        +(k==="H"&&cintreDe(o)?(()=>{ const r=cintreCalc(o), R=x=>x==null?"":Math.round(x); if(r.t==="faux") return "";
+          return `<tr><th>Départ du cintre</th><td>${R(r.Hm)}</td></tr><tr><th>Flèche</th><td>${R(r.f)}</td></tr><tr class="pfabr"><th>DÉPART CINTRE FAB.</th><td>${R(r.fab&&r.fab.Hm)}</td></tr><tr class="pfabr"><th>FLÈCHE FAB.</th><td>${R(r.fab&&r.fab.f)}</td></tr>`; })():"")
+        +`</table>`).join("")}</div>`}
       ${texteElarg(o)?`<div class="pelarg">Élargisseurs : <b>${esc(texteElarg(o))}</b></div>`:""}
       ${(()=>{const l=vrLie(d,o); return l&&l.avec_menuiserie?`<div class="pelarg">${esc(l.avec_menuiserie)} : <b>${esc(l.coffre_hauteur||"coffre compris dans la hauteur ? À PRÉCISER")}</b></div>`:"";})()}
       </div><div>

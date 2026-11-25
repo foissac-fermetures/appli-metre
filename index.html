@@ -946,7 +946,9 @@ document.addEventListener("keydown", e=>{ const el=e.target; if(e.key!=="Enter" 
    Protocole relevé sur le GLM 120 C : service 02a6c0d0-0451-4000-b000-fb3210111989, caractéristique 02a6c0d1-… (indications) ;
    trame de mesure « C0 55 10 06 … » avec la distance en float 32 bits little-endian, en mètres, à l'octet 7 ; commande laser / mesure « C0 56 01 00 1E ». */
 const GLM_SVC="02a6c0d0-0451-4000-b000-fb3210111989", GLM_CAR="02a6c0d1-0451-4000-b000-fb3210111989";
-const TLM={ mode: (()=>{ try{ return localStorage.getItem("mode_mesure")||"manuel"; }catch(e){ return "manuel"; } })(), dev:null, car:null, cible:null, derniere:null, etat:"",
+/* Télémètre : seulement sur la tablette (25/11/2026, demande de Nicolas) – jamais sur le Mac ni le PC Windows (plus de recherche Bluetooth au clic). */
+const APPAREIL_TLM = (()=>{ try{ const u=navigator.userAgent||""; return /iPad|Android/.test(u) || (/Macintosh/.test(u) && navigator.maxTouchPoints>1); }catch(e){ return false; } })();
+const TLM={ mode: (()=>{ if(!APPAREIL_TLM) return "manuel"; try{ return localStorage.getItem("mode_mesure")||"manuel"; }catch(e){ return "manuel"; } })(), dev:null, car:null, cible:null, derniere:null, etat:"",
   voix: (()=>{ try{ return localStorage.getItem("tlm_voix")!=="0"; }catch(e){ return true; } })(),
   nb: (()=>{ try{ return +localStorage.getItem("tlm_nb")||1; }catch(e){ return 1; } })(),   // mesures par cote (1, 2 ou 3) : on garde la plus petite
   serie:[], serieEl:null, suite:false };
@@ -964,13 +966,13 @@ function choisirVoixFR(){ try{ const V=speechSynthesis.getVoices().filter(v=>/^f
 if(window.speechSynthesis){ choisirVoixFR(); try{ speechSynthesis.addEventListener("voiceschanged", choisirVoixFR); }catch(e){} }
 function parler(t){ if(!TLM.voix || !window.speechSynthesis) return; try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang="fr-FR"; const v=VOIX_FR||choisirVoixFR(); if(v) u.voice=v; u.rate=1.05; speechSynthesis.speak(u); }catch(e){} }
 const vibrer = ms => { try{ navigator.vibrate&&navigator.vibrate(ms); }catch(e){} };
-const webBT = () => !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
+const webBT = () => APPAREIL_TLM && !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
 if(webBT()) TLM.mode="telemetre";   // 19/11 : dans Bluefy, toujours en mode télémètre (plus besoin de toucher « Télémètre »)
 function glmDistance(dv){   // DataView d'une indication → mètres (ou null)
   if(dv.byteLength>=11 && dv.getUint8(0)===0xC0 && dv.getUint8(1)===0x55 && dv.getUint8(3)===0x06){ const m=dv.getFloat32(7,true); if(m>0.02 && m<200) return m; }
   return null; }
 function majPastilleTLM(){
-  const b=$("#btnMesure"); if(b){ b.textContent=TLM.mode==="telemetre"?(TLM.car?"📏 Télémètre ●":"📏 Télémètre"):"✍︎ Manuel"; b.classList.toggle("on",TLM.mode==="telemetre"); }
+  const b=$("#btnMesure"); if(b) b.style.display=APPAREIL_TLM?"":"none"; if(b){ b.textContent=TLM.mode==="telemetre"?(TLM.car?"📏 Télémètre ●":"📏 Télémètre"):"✍︎ Manuel"; b.classList.toggle("on",TLM.mode==="telemetre"); }
   let z=$("#tlmPastille"); if(TLM.mode!=="telemetre"){ z?.remove(); return; }
   if(!z){ z=document.createElement("div"); z.id="tlmPastille"; document.body.appendChild(z); }
   z.innerHTML = !webBT()
@@ -990,7 +992,7 @@ function majPastilleTLM(){
   $("#tlmSuite")?.addEventListener("click", fenetreSuivanteTLM);
 }
 document.addEventListener("pointerdown", e=>{ if(TLM.suite && !e.target.closest("#tlmPastille")){ TLM.suite=false; setTimeout(majPastilleTLM,0); } }, true);
-function changerModeMesure(m){ TLM.mode=m; try{ localStorage.setItem("mode_mesure",m); }catch(e){} majPastilleTLM();
+function changerModeMesure(m){ if(!APPAREIL_TLM) m="manuel"; TLM.mode=m; try{ localStorage.setItem("mode_mesure",m); }catch(e){} majPastilleTLM();
   toast(m==="telemetre"?"Mode télémètre : touche une case de cote puis mesure avec le GLM":"Mode manuel : saisie au clavier"); }
 async function commandeGLM(octets){ try{ if(TLM.car) await TLM.car.writeValue(new Uint8Array(octets)); }catch(e){ TLM.etat="Commande refusée : appuie sur le bouton du télémètre"; majPastilleTLM(); } }
 async function reconnecterGLM(){   // appareil déjà autorisé : sans fenêtre de choix (si le navigateur le permet)

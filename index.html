@@ -765,12 +765,17 @@ async function majPlans(d){
   z.innerHTML=`<p class="hint">Recherche des plans…</p>`;
   let L=[]; try{ L=await plansDuClient(d); }catch(e){ z.innerHTML=`<p class="hint">Drive : ${esc(e.message)}</p>`; return; }
   if(document.getElementById("plansL")!==z) return;
-  const ex=new Set(d.plans_exclus||[]);
+  const ex=new Set(d.plans_exclus||[]), masq=new Set(d.plans_masques||[]), Lm=L.filter(f=>masq.has(f.id)); L=L.filter(f=>!masq.has(f.id));
+  /* 25/11/2026 : « 🗑 Retirer » enlève le plan de CE métré (liste + PDF). Le fichier reste dans « 09 - Plan » (dossier en lecture seule pour l'appli). */
   z.innerHTML=aide+(L.length?`<div class="list">${L.map(f=>`<div class="item"><div class="row"><span class="t">📄 ${esc(f.name)}</span><span class="spacer"></span>
       <label class="chip" style="margin-right:8px"><input type="checkbox" data-planj="${f.id}" ${ex.has(f.id)?"":"checked"}> Joindre au PDF</label>
-      <a class="btn small" href="https://drive.google.com/file/d/${f.id}/view" target="_blank" rel="noopener">Ouvrir</a></div>
+      <a class="btn small" href="https://drive.google.com/file/d/${f.id}/view" target="_blank" rel="noopener">Ouvrir</a><button class="btn small danger" data-planm="${f.id}" style="margin-left:6px">🗑 Retirer</button></div>
       <div class="s">modifié le ${new Date(f.modifiedTime).toLocaleDateString("fr-FR")}</div></div>`).join("")}</div>`
-    :`<p class="hint" style="color:#a35a00">Aucun plan trouvé pour ce client dans « 09 - Plan ».</p>`);
+    :`<p class="hint" style="color:#a35a00">Aucun plan${Lm.length?" gardé":" trouvé"} pour ce client dans « 09 - Plan ».</p>`)
+    +(Lm.length?`<details style="margin-top:8px"><summary class="hint">Plans retirés de ce métré (${Lm.length})</summary>${Lm.map(f=>`<div class="row" style="gap:8px;margin-top:4px"><span class="s">📄 ${esc(f.name)}</span><span class="spacer"></span><button class="btn small" data-planr="${f.id}">↩ Remettre</button></div>`).join("")}</details>`:"");
+  z.querySelectorAll("[data-planm]").forEach(b=>b.onclick=async()=>{ const f=L.find(x=>x.id===b.dataset.planm); if(!await demander(`Retirer « ${f?f.name:"ce plan"} » de ce métré ?\nIl ne sera plus joint au PDF. Le fichier reste dans le Drive (dossier « 09 - Plan »).`,"Retirer")) return;
+    d.plans_masques=[...new Set([...(d.plans_masques||[]),b.dataset.planm])]; save(); toast("Plan retiré du métré"); majPlans(d); });
+  z.querySelectorAll("[data-planr]").forEach(b=>b.onclick=()=>{ d.plans_masques=(d.plans_masques||[]).filter(x=>x!==b.dataset.planr); save(); toast("Plan remis"); majPlans(d); });
   z.querySelectorAll("[data-planj]").forEach(c=>c.onchange=()=>{ const s=new Set(d.plans_exclus||[]); c.checked?s.delete(c.dataset.planj):s.add(c.dataset.planj); d.plans_exclus=[...s]; save(); toast(c.checked?"Plan joint au PDF":"Plan retiré du PDF"); });
 }
 /* Relire / changer le devis signé (23/11/2026) : on remet sur les nouvelles ouvertures les cotes, photos et croquis déjà pris (même repère, sinon même ordre) */
@@ -7550,7 +7555,7 @@ async function plansDuClient(d){
   const re=new RegExp(`(^|[^a-z0-9])${mot}([^a-z0-9]|$)`);
   return (r.files||[]).filter(f=>re.test(sansAccents(f.name).replace(/\.pdf$/,""))).sort((a,b)=>a.name.localeCompare(b.name)); }
 async function joindrePlans(d, blob){
-  const exclus=new Set(d.plans_exclus||[]), plans=(await plansDuClient(d)).filter(f=>!exclus.has(f.id)); if(!plans.length) return blob;   // 24/11 : case « Joindre au PDF »
+  const exclus=new Set([...(d.plans_exclus||[]),...(d.plans_masques||[])]), plans=(await plansDuClient(d)).filter(f=>!exclus.has(f.id)); if(!plans.length) return blob;   // 24/11 : case « Joindre au PDF »
   await chargerScript(LIB_PDFLIB);
   const out=await PDFLib.PDFDocument.load(await blob.arrayBuffer()), noms=[];
   for(const f of plans){ try{

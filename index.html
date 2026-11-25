@@ -1247,8 +1247,8 @@ const CONC_KEY="concurrents_connus";
 function concurrentsConnus(){ try{ return JSON.parse(localStorage.getItem(CONC_KEY)||"[]"); }catch(e){ return []; } }
 function memoriserConcurrents(noms){ const L=concurrentsConnus(), cle=x=>x.trim().toLowerCase(); let ch=false;
   noms.map(x=>String(x||"").trim()).filter(x=>x.length>1).forEach(n=>{ if(!L.some(x=>cle(x)===cle(n))){ L.push(n); ch=true; } });
-  if(ch){ L.sort((a,b)=>a.localeCompare(b,"fr")); try{ localStorage.setItem(CONC_KEY,JSON.stringify(L)); }catch(e){} } return L; }
-function oublierConcurrent(n){ const L=concurrentsConnus().filter(x=>x!==n); try{ localStorage.setItem(CONC_KEY,JSON.stringify(L)); }catch(e){} }
+  if(ch){ const av=concurrentsConnus(); L.sort((a,b)=>a.localeCompare(b,"fr")); try{ localStorage.setItem(CONC_KEY,JSON.stringify(L)); }catch(e){} persoNote(CONC_KEY,av,L); } return L; }
+function oublierConcurrent(n){ const av=concurrentsConnus(), L=av.filter(x=>x!==n); try{ localStorage.setItem(CONC_KEY,JSON.stringify(L)); }catch(e){} persoNote(CONC_KEY,av,L); }
 /* ---------- Repères rangés étape par étape (16/11/2026) : niveau → pièce → numéro → précision ----------
    Résultat : « Cuisine » (rez-de-chaussée), « Chambre 2 – Étage 1 », « Porte de service 2 », « Salon (côté jardin) – Étage 1 »…
    Sert sur toutes les feuilles : ouvertures, volets roulants, volets battants, climatisation. On peut toujours taper à la main. */
@@ -3320,7 +3320,7 @@ const nomSchema = (c,k) => (c.sch_noms&&c.sch_noms[k]) || CLIM_SCH_DEF[k] || `Sc
 /* ---------- Nouveau rendez-vous : un seul bouton, « Qu'est-ce qu'on mesure ? » (17/11/2026) ----------
    Crée le bon dossier client avec les bons devis : menuiseries / VR / portail / VB / portes palières ensemble, la clim TOUJOURS à part. */
 /* 20/11 : chaque type a son petit logo – en ajouter un pour tout nouveau type */
-const TYPES_RDV = [["menuiseries","🪟 Menuiseries"],["vr","🎚️ Volets roulants"],["pt","🏡 Portail / portillon"],["vb","🏠 Volets battants"],["zip","🔳 Stores zip"],["vit","🪟 Vitrages"],["per","🌿 Pergola / carport (GardenGate)"],["gar","🚗 Portes de garage"],["gca","🛡️ Garde-corps alu (La Toulousaine)"],["sb","⛱️ Store banne (Marquises)"],["pp","🚪 Portes palières (HUET)"],["vt","🪟 Remplacement de vitrage"],["clim","❄️ Climatisation (devis à part)"],["sav","🔧 SAV (fiche à part)"]];
+const TYPES_RDV = [["menuiseries","🪟 Menuiseries"],["vr","🎚️ Volets roulants"],["pt","🏡 Portail / portillon"],["vb","🏠 Volets battants"],["zip","🔳 Stores zip"],["vit","🪟 Vitrages"],["per","🌿 Pergola / carport (GardenGate)"],["gar","🚗 Portes de garage"],["gca","🛡️ Garde-corps alu (La Toulousaine)"],["sb","⛱️ Store banne (Marquises)"],["pp","🚪 Portes palières (HUET)"],["clim","❄️ Climatisation (devis à part)"],["sav","🔧 SAV (fiche à part)"]];
 function initTypes(d, types){
   d.types=[...new Set([...(d.types||[]), ...types.filter(t=>t!=="clim"&&t!=="sav")])];
   if(types.includes("pt") && !aPT(d)){ d.pt=d.pt||nouveauPT(); if(!d.pt.elements.length) d.pt.elements.push(nouvelElementPT("BATTANT")); }
@@ -3733,7 +3733,7 @@ const vbRalAPreciser = c => /RAL|préciser|hors gamme/i.test(c||"");
 /* Teintes RAL courantes en volets ; les nouvelles teintes tapées s'ajoutent toutes seules (appareil + toutes les teintes déjà utilisées dans les métrés, donc sur les 3 appareils) */
 const VB_RAL_STD = ["RAL 9016 Blanc signalisation","RAL 9010 Blanc pur","RAL 9001 Blanc crème","RAL 1013 Blanc perlé","RAL 1015 Ivoire clair","RAL 1019 Beige gris","RAL 7016 Gris anthracite","RAL 7012 Gris basalte","RAL 7022 Gris terre d'ombre","RAL 7030 Gris pierre","RAL 7032 Gris silex","RAL 7035 Gris clair","RAL 7036 Gris platine","RAL 7038 Gris agate","RAL 7039 Gris quartz","RAL 7040 Gris fenêtre","RAL 7044 Gris soie","RAL 7001 Gris argent","RAL 9006 Aluminium blanc","RAL 9007 Aluminium gris","RAL 9005 Noir foncé","RAL 6005 Vert mousse","RAL 6009 Vert sapin","RAL 6011 Vert réséda","RAL 6019 Vert blanc","RAL 6021 Vert pâle","RAL 6003 Vert olive","RAL 6034 Turquoise pastel","RAL 5003 Bleu saphir","RAL 5010 Bleu gentiane","RAL 5014 Bleu pigeon","RAL 5023 Bleu distant","RAL 5024 Bleu pastel","RAL 5011 Bleu acier","RAL 3004 Rouge pourpre","RAL 3005 Rouge vin","RAL 3011 Rouge brun","RAL 8007 Brun fauve","RAL 8014 Brun sépia","RAL 8017 Brun chocolat","RAL 8019 Brun gris","RAL 1011 Brun beige","RAL 1001 Beige"];
 const ralPerso = () => { try{ return JSON.parse(localStorage.getItem("ral_perso")||"[]"); }catch(e){ return []; } };
-function retenirRAL(t){ t=String(t||"").trim(); if(!t||VB_RAL_STD.includes(t)) return; const L=ralPerso().filter(x=>x!==t); L.unshift(t); try{ localStorage.setItem("ral_perso",JSON.stringify(L.slice(0,80))); }catch(e){} }
+function retenirRAL(t){ t=String(t||"").trim(); if(!t||VB_RAL_STD.includes(t)) return; const av=ralPerso(), L=av.filter(x=>x!==t); L.unshift(t); try{ localStorage.setItem("ral_perso",JSON.stringify(L.slice(0,80))); }catch(e){} persoNote("ral_perso",av,L.slice(0,80)); }
 const optsRAL = extra => [...new Set([...ralPerso(), ...(extra||[]), ...VB_RAL_STD])].map(x=>`<option value="${esc(x)}">`).join("");
 async function remplirDlRAL(){ const z=$("#dlRAL"); if(!z) return; const L=(await DB.all()).map(x=>x.vb&&x.vb.couleur_ral).filter(Boolean); z.innerHTML=optsRAL(L); }
 const vbPorteFenetre = l => /porte|\bp\.?\s?f\b|baie/i.test(l.repere||"") || (num(l.H)||0)>=1800;   // porte-fenêtre : pas d'allège
@@ -5771,8 +5771,53 @@ const CONSO_GROUPES = [
 const CONC_DEFAUT = ["Caseo","PVC Système","La Boutique du Menuisier","Tryba","Vierce","Casa Di","Perlo","Calmon"];
 const MANUT_PROPOSE = { sb:{"Échelle":2,"Lève-store":1}, per:{"Échelle":2,"Lève-store":1}, gar:{"Échelle":1,"Lève-plaque / lève-panneau":1}, vit:{"Ventouses":1,"Échelle":1}, zip:{"Échelle":2}, gca:{"Échelle":1}, sav:{"Échelle":1} };
 const QL = {};   // listes affichées à l'écran : id → { get, set, mode, perso, … }
+
+/* ---------- « Mes ajouts » partagés entre l'iPad, le Mac et le PC (25/11/2026, demande de Nicolas) ----------
+   Listes perso : manutention / consommables / concurrents (ql_perso_*), concurrents enregistrés, RAL perso.
+   Fichier « Mes ajouts (appli métré).json » dans Mon Drive › Appli métré – Dossiers. Fusion : union des listes ;
+   un élément retiré sur un appareil (date de retrait plus récente que sa date d'ajout) est retiré partout. */
+const PERSO_NOM="Mes ajouts (appli métré).json";
+const persoCle = k => k.startsWith("ql_perso_") || k==="concurrents_connus" || k==="ral_perso";
+const persoJSON = (k,def) => { try{ return JSON.parse(localStorage.getItem(k)||def); }catch(e){ return JSON.parse(def); } };
+function persoNote(k, avant, apres){ try{
+  const t=Date.now(), aj=persoJSON("perso_ajout","{}"), su=persoJSON("perso_suppr","{}");
+  (apres||[]).filter(v=>!(avant||[]).includes(v)).forEach(v=>{ aj[k+"|"+v]=t; });
+  (avant||[]).filter(v=>!(apres||[]).includes(v)).forEach(v=>{ su[k+"|"+v]=t; });
+  localStorage.setItem("perso_ajout",JSON.stringify(aj)); localStorage.setItem("perso_suppr",JSON.stringify(su)); }catch(e){}
+  planifierSyncPerso(); }
+function persoLocal(){ const o={listes:{}, ajout:persoJSON("perso_ajout","{}"), suppr:persoJSON("perso_suppr","{}")};
+  for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&persoCle(k)){ const L=persoJSON(k,"[]"); if(Array.isArray(L)) o.listes[k]=L; } } return o; }
+function persoFusion(a,b){ b=b||{}; const max=(x,y)=>{ const r={...(x||{})}; for(const [k,t] of Object.entries(y||{})) if(!(r[k]>=t)) r[k]=t; return r; };
+  const ajout=max(a.ajout,b.ajout), suppr=max(a.suppr,b.suppr), listes={};
+  new Set([...Object.keys(a.listes||{}),...Object.keys(b.listes||{})]).forEach(k=>{ if(!persoCle(k)) return; const L=[];
+    [...((a.listes||{})[k]||[]),...((b.listes||{})[k]||[])].forEach(v=>{ if(typeof v!=="string"||!v.trim()) return; const c=k+"|"+v;
+      if((suppr[c]||0)>(ajout[c]||0)) return; if(!L.some(x=>x.toLowerCase()===v.toLowerCase())) L.push(v); });
+    listes[k]=k==="ral_perso"?L.slice(0,80):k==="concurrents_connus"?L.sort((x,y)=>x.localeCompare(y,"fr")):L; });
+  const vieux=Date.now()-365*864e5; for(const m of [ajout,suppr]) for(const k of Object.keys(m)) if(m[k]<vieux) delete m[k];
+  return {listes, ajout, suppr}; }
+var persoT=null, persoEnCours=false;
+function planifierSyncPerso(){ clearTimeout(persoT); persoT=setTimeout(syncPerso,4000); }
+async function syncPerso(){
+  if(persoEnCours || typeof driveDispo!=="function" || !driveDispo() || !navigator.onLine || typeof jetonValide!=="function" || !jetonValide()) return;
+  persoEnCours=true;
+  try{
+    const racine=DOSSIERS_CONNUS.racine, q=`name='${q_(PERSO_NOM)}' and trashed=false and '${racine}' in parents`;
+    const ex=(await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id)&q="+encodeURIComponent(q))).files[0];
+    let dist={listes:{},ajout:{},suppr:{}};
+    if(ex){ const r=await fetch(`https://www.googleapis.com/drive/v3/files/${ex.id}?alt=media&supportsAllDrives=true`,{headers:{Authorization:"Bearer "+G_JETON}}); if(!r.ok) throw new Error("lecture "+r.status); dist=await r.json()||dist; }
+    const f=persoFusion(persoLocal(), dist);
+    for(const [k,L] of Object.entries(f.listes)) localStorage.setItem(k,JSON.stringify(L));
+    localStorage.setItem("perso_ajout",JSON.stringify(f.ajout)); localStorage.setItem("perso_suppr",JSON.stringify(f.suppr));
+    if(!ex || JSON.stringify(f)!==JSON.stringify(persoFusion({listes:{}},dist)))
+      await deposerDrive(PERSO_NOM, new Blob([JSON.stringify(f)],{type:"application/json"}), racine, "Mes ajouts de l'appli de métré (manutention, consommables, concurrents, RAL) – partagés entre l'iPad, le Mac et le PC");
+    localStorage.setItem("perso_sync",String(Date.now()));
+  }catch(e){ /* réseau ou Drive indisponible : on réessaiera */ }
+  finally{ persoEnCours=false; }
+}
+setTimeout(syncPerso,12000); setInterval(syncPerso,5*60e3);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") setTimeout(syncPerso,3000); });
 const qlPerso = k => { try{ return JSON.parse(localStorage.getItem("ql_perso_"+k)||"[]"); }catch(e){ return []; } };
-const qlPersoSet = (k,L) => { try{ localStorage.setItem("ql_perso_"+k, JSON.stringify(L)); }catch(e){} };
+const qlPersoSet = (k,L) => { const av=qlPerso(k); try{ localStorage.setItem("ql_perso_"+k, JSON.stringify(L)); }catch(e){} persoNote("ql_perso_"+k,av,L); };
 function manutTexte(q){ return Object.entries(q||{}).filter(([,n])=>+n>0).map(([m,n])=>`${n} × ${m}`).join(" + "); }
 const qlTexteSimple = q => Object.entries(q||{}).filter(([,n])=>+n>0).map(([m,n])=>(+n>1?n+" × ":"")+m);
 /* Le bloc : menu déroulant + pastilles. o = { titre, groupes, perso, mode:"qte"|"liste", get(), set(v), propose (objet ou null), apres() } */

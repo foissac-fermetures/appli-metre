@@ -6347,7 +6347,9 @@ function pagesVB(d, head, row){
    GardenGate n'a que ses portes d'entrée dans ProDevis : listes reprises du catalogue GardenGate (gammes Vision et Tubes, coloris, options). */
 const PT_TYPES = ["BATTANT","COULISSANT","PORTILLON"];
 const PT_MODELES = ["VS02 Vision","VS03 Vision","VS04 Vision","TR07 Tubes","TR08 Tubes","TR09 Tubes","TR10 Tubes","TR11 Tubes","TR12 Tubes","TR13 Tubes","TR14 Tubes","TR15 Tubes","TR16 Tubes","TR17 Tubes"];
-const PT_COULEURS = ["RAL 9016 STR","RAL 9016/70","RAL 7016 STR","RAL 7016/70","RAL 9005 STR","RAL 1015 STR","RAL 3004 STR","RAL 5003 STR","RAL 5014 STR","RAL 6005 STR","RAL 6021 STR","RAL 7031 STR","RAL 7035 STR","RAL 7039 STR","RAL 7044 STR","RAL 8014 STR","RAL 8019 STR","RAL 9006 STR","RAL 9007 STR","Gris sablé 2900","Noir sablé 2100","Mars 2525","Effet rouille","Noyer foncé 6","Chêne foncé 1","Chêne clair 4","Chêne clair 7","Bicolore (à préciser)"];
+/* 25/11/2026 : couleurs sans « STR » / « /70 » (la texture va dans « Finition de la couleur »), avec le nom de la teinte */
+const PT_RAL_NOMS = {"9016":"blanc","7016":"gris anthracite","9005":"noir","1015":"ivoire clair","3004":"rouge bordeaux","5003":"bleu saphir","5014":"bleu pigeon","6005":"vert mousse","6021":"vert pâle","7031":"gris bleu","7035":"gris clair","7039":"gris quartz","7044":"gris soie","8014":"brun sépia","8019":"brun gris","9006":"gris aluminium","9007":"gris aluminium foncé"};
+const PT_COULEURS = [..."9016 7016 9005 1015 3004 5003 5014 6005 6021 7031 7035 7039 7044 8014 8019 9006 9007".split(" ").map(r=>`RAL ${r} – ${PT_RAL_NOMS[r]}`),"Gris sablé 2900","Noir sablé 2100","Mars 2525","Effet rouille","Noyer foncé 6","Chêne foncé 1","Chêne clair 4","Chêne clair 7","Bicolore (à préciser)"];
 const PT_FINITIONS = ["Structurée (STR)","Sablée","Satinée","Mate","Effet bois / rouille (sublimation)","HPL","ACM"];
 const PT_LAMES = ["VERTICALES","HORIZONTALES","45°"];
 const PT_POIGNEES = ["Poignée sans serrure","Serrure mécanique","Serrure électrique"];
@@ -6942,8 +6944,11 @@ function dessinPT(e, cls=""){
 (function(){ const st=document.createElement("style"); st.textContent=`.pt-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-bottom:14px}
 .pt-carte{display:flex;gap:10px;align-items:center;text-align:left;cursor:pointer;padding:10px;font:inherit;color:inherit;background:#fff}.pt-carte:hover{border-color:#1b2f5e}
 .pt-vig{width:110px;flex:none}.pt-vig svg{width:100%;height:auto;max-height:90px}.pt-ct{display:flex;flex-direction:column;gap:2px;min-width:0}.pt-ct b{color:#1b2f5e;font-size:16px}.pt-ct span{font-size:13px;color:#5b6478}`; document.head.appendChild(st); })();
+function migrerCouleurPT(e){ const m=String(e.couleur||"").match(/^RAL\s*(\d{4})\s*(STR|\/70)?$/i); if(!m) return false;
+  if(!e.finition && m[2]) e.finition=/STR/i.test(m[2])?"Structurée (STR)":"Satinée"; e.couleur=PT_RAL_NOMS[m[1]]?`RAL ${m[1]} – ${PT_RAL_NOMS[m[1]]}`:`RAL ${m[1]}`; return true; }
 function renderPT(t){
   const d=S.dossier; if(!d.pt) d.pt=nouveauPT(); const p=d.pt;
+  if(p.elements.map(migrerCouleurPT).some(Boolean)) save();
   /* 25/11/2026 : présentation comme les ouvertures – liste de cartes, puis une fiche par élément (S.ptEl) */
   if(S.ptElDos!==d.id){ S.ptElDos=d.id; S.ptEl=null; } if(S.ptEl!=null && !p.elements[S.ptEl]) S.ptEl=null;
   const libEl=e=>({BATTANT:"Portail battant",COULISSANT:"Portail coulissant",PORTILLON:"Portillon"}[e.type]||"Élément");

@@ -794,6 +794,15 @@ function plat(l){ return (l||[]).flatMap(x=>typeof x==="string"?[x]:(x.items||[]
     if(fr.dims) L.forEach(gr=>gr.items.forEach(m=>{ const d=fr.dims[m.id]; if(d){ m.lmax=d[0]; m.hmax=d[1]; } }));
   }
 })();
+/* ---------- Menuiseries CINTRÉES (25/11/2026, demande de Nicolas) ----------
+   Chaque liste de modèles reçoit un groupe « Cintrées » : fenêtres, portes-fenêtres, portes, fixes (copies des modèles simples, cintre:true).
+   Prise de cotes : largeur tableau, hauteur des montants (naissance du cintre) et hauteur au sommet (= cote tableau H) ; contrôle facultatif à ¼.
+   Types : plein cintre (sommet = montants + L/2), cintre surbaissé, anse de panier (gabarit conseillé), faux cintre (menuiserie rectangulaire). */
+(function ajouterCintrees(){
+  const vus=new Set(); for(const k of Object.values(GAMME_MODELES)){ if(vus.has(k)) continue; vus.add(k); const L=CAT[k]; if(!Array.isArray(L)||L.some(g=>g.groupe==="Cintrées")) continue;
+    const it=[]; L.forEach(g=>{ if(/compos/i.test(g.groupe||"")) return; (g.items||[]).forEach(m=>{ if(!m||m.cintre||!["of","pf","porte","fixe"].includes(m.famille)||/[œo]e?il.de.b/i.test(m.nom||"")) return;
+      if(it.some(x=>x.id===m.id+"_cin")) return; it.push(Object.assign({},m,{id:m.id+"_cin", nom:m.nom+(/^(fen[eê]tre|porte)/i.test(m.nom)?" cintrée":" cintré"), cintre:true})); }); });
+    if(it.length) L.push({groupe:"Cintrées", items:it}); } })();
 const GAMME_VR_MENUIS = { "PVC - REHAU PORTEO":"vr_avec_menuiserie_porteo" };
 function listeVRMenuis(g){ return FRN(g).vr_avec_menuiserie || (GAMME_VR_MENUIS[g] ? CAT[GAMME_VR_MENUIS[g]] : null); }
 function listeCoffreVR(g){ return FRN(g).vr_coffre || CAT.vr_coffre_hauteur_porteo; }
@@ -1142,6 +1151,45 @@ function sensExterieur(o){ const md=modeleDe(o); if(!md||md.famille!=="porte") r
   if(dr&&!g) return "Poussant gauche"; if(g&&!dr) return "Poussant droit"; return null; }
 function syncSensPorte(o){ const s=sensExterieur(o), L=FRN(o.gamme).sens_porte; if(!s||!L) return false;
   const v=L.find(x=>new RegExp(s.split(" ")[1].slice(0,6),"i").test(x)); if(v && o.sens_porte!==v){ o.sens_porte=v; return true; } return false; }
+const CINTRE_TYPES=[["plein","Plein cintre"],["surb","Cintre surbaissé"],["anse","Anse de panier"],["faux","Faux cintre"]];
+const cintreDe = o => { const m=modeleDe(o); return !!(m&&m.cintre); };
+function cintreCalc(o){ const c=o.cintre||{}, t=c.type||"plein", L=num(coteTab(o,"L")), Hm=num(c.Hm); let H=num(coteTab(o,"H"));
+  if(t==="plein" && L!=null && Hm!=null) H=Hm+L/2;
+  const r={t, L, Hm, H, f:null, R:null, dev:null, Hq:num(c.Hq), Hqth:null, fab:null};
+  if(L==null||Hm==null||H==null||H<=Hm) return r;
+  r.f=H-Hm; if(t!=="anse"){ r.R=(L*L/4+r.f*r.f)/(2*r.f); const a=2*Math.asin(Math.min(1,L/(2*r.R))); r.dev=r.f<=L/2?r.R*a:r.R*(2*Math.PI-a);
+    if(r.Hq!=null){ const x=L/4; r.Hqth=Hm+Math.sqrt(Math.max(0,r.R*r.R-x*x))-(r.R-r.f); } }
+  const fb=calcFab(o), Lf=num(fb.L), Hf=num(fb.H);
+  if(Lf!=null && Hf!=null){ if(t==="faux") r.fab={L:Lf,H:Hf};
+    else if(r.R!=null){ const Rf=r.R+(Lf-L)/2, ff=Rf-Math.sqrt(Math.max(0,Rf*Rf-Lf*Lf/4)); r.fab={L:Lf,H:Hf,f:ff,R:Rf,Hm:Hf-ff}; }
+    else r.fab={L:Lf,H:Hf}; }
+  return r; }
+function texteCintre(o){ if(!cintreDe(o)) return ""; const r=cintreCalc(o), lib=(CINTRE_TYPES.find(x=>x[0]===r.t)||[])[1], R=x=>x==null?"?":Math.round(x);
+  let t=`${lib} – tableau : montants ${R(r.Hm)}, sommet ${R(r.H)}, flèche ${R(r.f)}${r.R?`, rayon ${R(r.R)}`:""}`;
+  if(r.fab&&r.fab.Hm!=null) t+=` · Fabrication : montants ${R(r.fab.Hm)}, flèche ${R(r.fab.f)}, rayon ${R(r.fab.R)}`;
+  if(r.t==="anse") t+=" · GABARIT";
+  if(r.t==="faux") t+=" · menuiserie rectangulaire, cintre rapporté"; return t; }
+function blocCintreRes(o){ const r=cintreCalc(o), R=x=>x==null?"–":Math.round(x); let al="", ok=true;
+  if(r.Hqth!=null){ const ec=Math.round(r.Hq-r.Hqth); if(Math.abs(ec)>5){ ok=false; al=`À ¼ : ${r.Hq} mesuré, ${Math.round(r.Hqth)} attendu (écart ${ec} mm) → le cintre n'est pas régulier : faire un gabarit.`; } else al=`Contrôle à ¼ : cintre régulier (écart ${ec} mm).`; }
+  else if(r.t==="anse"){ ok=false; al="Anse de panier : gabarit conseillé (photo + gabarit carton envoyé au fournisseur)."; }
+  else if(r.t==="faux") al="Faux cintre : menuiserie rectangulaire, cintre rapporté (habillage ou traverse cintrée).";
+  else if(r.R) al=`Rayon ${Math.round(r.R)} mm – rayon mini à vérifier chez le fournisseur.`;
+  return `<div class="ci-res"><div><span>Flèche</span><b>${R(r.f)}</b></div><div><span>Rayon</span><b>${R(r.R)}</b></div><div><span>Longueur du cintre</span><b>${R(r.dev)}</b></div>
+    ${r.fab&&r.fab.Hm!=null?`<div><span>Montants (fab.)</span><b>${R(r.fab.Hm)}</b></div><div><span>Flèche (fab.)</span><b>${R(r.fab.f)}</b></div><div><span>Rayon (fab.)</span><b>${R(r.fab.R)}</b></div>`:""}</div>
+    ${al?`<div class="ci-al ${ok?"ok":"ko"}">${esc(al)}</div>`:""}`; }
+function blocCintre(o){ if(!cintreDe(o)) return ""; o.cintre=o.cintre||{type:"plein",Hm:"",Hq:""}; const c=o.cintre, t=c.type||"plein";
+  return `<div class="card ci-bloc"><b>⌒ Cintre</b><div class="chips" style="margin:6px 0">${CINTRE_TYPES.map(([k,l])=>`<button class="chip${t===k?" on":""}" data-citype="${k}">${l}</button>`).join("")}</div>
+    <div class="row" style="gap:12px;flex-wrap:wrap">
+      <label class="f">Hauteur des montants (naissance du cintre)<input data-k="cintre.Hm" inputmode="numeric" value="${esc(c.Hm||"")}"></label>
+      <label class="f">Contrôle : hauteur à ¼ de la largeur (facultatif)<input data-k="cintre.Hq" inputmode="numeric" value="${esc(c.Hq||"")}"></label></div>
+    <div class="hint">La hauteur tableau ci-dessous = hauteur <b>au sommet</b> du cintre${t==="plein"?" (calculée toute seule en plein cintre : montants + largeur ÷ 2)":""}.</div>
+    <div id="ciRes">${blocCintreRes(o)}</div></div>`; }
+function majCintre(o){ const z=$("#ciRes"); if(z&&cintreDe(o)) z.innerHTML=blocCintreRes(o); }
+function syncCintreCotes(o){ if(!cintreDe(o)||!o.cintre||(o.cintre.type||"plein")!=="plein") return false; const L=num(coteTab(o,"L")), Hm=num(o.cintre.Hm); if(L==null||Hm==null) return false;
+  const P=CAT.poses[o.pose]||{}, i=P.actifs?P.actifs.H[0]:0, v=String(Math.round(Hm+L/2)); if(o.cotes.H[i]===v) return false; o.cotes.H[i]=v; return true; }
+(function(){ const st=document.createElement("style"); st.textContent=`.ci-bloc{border-left:5px solid #1b2f5e;margin-bottom:12px}.ci-bloc>b{font-size:16px;color:#1b2f5e}
+.ci-res{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.ci-res div{background:#eef3fb;border-radius:8px;padding:6px 8px}.ci-res span{display:block;font-size:12px;color:#5b6478}.ci-res b{font-size:17px}
+.ci-al{margin-top:8px;padding:8px 10px;border-radius:8px;font-size:14px}.ci-al.ok{background:#e6f4ea;color:#1e6b34}.ci-al.ko{background:#fff4e5;color:#a35b00}`; document.head.appendChild(st); })();
 function reglesPose(o){ let ch=false;
   if(porteEntree(o) && o.gv){ o.gv=""; ch=true; }
   if(syncSensPorte(o)) ch=true;
@@ -1383,6 +1431,10 @@ function calcVolet(o){
 function controleOuverture(o, d=S.dossier){ const Wpb=[];
   try{ const aPBx=x=>(x.petits_bois||[]).length>0 || !!x.pb_motif, fen=x=>{ const m=modeleDe(x); return !m || m.famille!=="porte"; };
     if(d && fen(o) && !aPBx(o)){ const autres=(d.ouvertures||[]).filter(x=>x!==o && fen(x)); if(autres.length>=2 && autres.every(aPBx)) Wpb.push("Petits bois : toutes les autres fenêtres en ont, pas celle-ci – oubli ?"); } }catch(e){}
+  if(cintreDe(o)){ const r=cintreCalc(o); if(r.Hm==null) Wpb.push("Cintre : hauteur des montants (naissance du cintre) à prendre");
+    else if(r.H!=null && r.H<=r.Hm) Wpb.push("Cintre : la hauteur au sommet doit être plus grande que celle des montants");
+    if(r.Hqth!=null && Math.abs(r.Hq-r.Hqth)>5) Wpb.push(`Cintre : à ¼ de la largeur ${r.Hq} mesuré pour ${Math.round(r.Hqth)} attendu → cintre irrégulier, faire un gabarit`);
+    if(r.t==="anse") Wpb.push("Cintre en anse de panier : gabarit conseillé"); }
   const E=[], W=[...Wpb], tL=num(coteTab(o,"L")), tH=num(coteTab(o,"H")), f=calcFab(o);
   const vt=[o.vantaux.G,o.vantaux.M,o.vantaux.D].filter(Boolean);
   if(!o.repere) W.push("Repère / pièce non renseigné");
@@ -1776,6 +1828,7 @@ function refreshLive(k){
     if(k==="dormant_aile"||k==="delignage"){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(k==="comp.type"){ const c=S.ouv.comp; if(c.type && !c.h) c.h=String((c.type.match(/^(\d+)/)||[])[1]||""); if(c.type && !c.compris) c.compris=COMP_COMPRIS[1]; if(!c.type){ c.h=""; c.compris=""; } save(); const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(k==="volet.type"||k==="gc.zsp"){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
+    if(String(k).startsWith("cintre.")||(cintreDe(S.ouv)&&String(k).startsWith("cotes."))){ const o=S.ouv; if(syncCintreCotes(o)){ save(); const P=CAT.poses[o.pose]||{}, i=P.actifs?P.actifs.H[0]:0, el=$(`[data-k="cotes.H.${i}"]`); if(el&&el!==document.activeElement) el.value=o.cotes.H[i]; } majCintre(o); }
     if(String(k).startsWith("forme.")){ const o=S.ouv; if(syncFormeCotes(o)){ save(); ["L","H"].forEach(K=>o.cotes[K].forEach((x,i)=>{ const el=$(`[data-k="cotes.${K}.${i}"]`); if(el&&el!==document.activeElement&&el.value!==String(x??"")) el.value=x??""; })); } majForme(o); }
     if(String(k).startsWith("gc.")||k==="allege") majGC();
     if(String(k).endsWith(".avec_menuiserie")){ syncVR(S.dossier); renderVRInline(); }
@@ -2264,7 +2317,7 @@ function renderOuverture(){
     <div class="checks" style="margin-bottom:8px">${F.chk("tab_impossible","Cotes tableau pas possibles (accès extérieur impossible, il faudrait une échelle…)",o.tab_impossible)}</div>
     <div class="row diag-row" style="gap:10px;align-items:end;margin-bottom:8px;flex-wrap:wrap"><span class="hint" style="align-self:center">Diagonales du tableau (facultatif, pour l'équerre) :</span>${F.numb("diag1","Diagonale 1 (mm)",o.diag1??"")}${F.numb("diag2","Diagonale 2 (mm)",o.diag2??"")}</div>
     ${o.pose==="neuf"?`<div class="enduit-banner">Pose en neuf : toutes les dimensions sont relevées <b>ENDUIT COMPRIS</b>.</div>`:""}
-    ${blocForme(o)}${formeDe(o)?`<div class="hint">Fixe de forme : la fabrication est celle du dessin ci-dessus (pas de cotes tableau ni hors tout).</div>`:`<div class="cotes">${cotesBox("L","Largeur – vue en plan",P.schemaL)}${cotesBox("H","Hauteur – vue en coupe",P.schemaH)}</div>`}
+    ${blocForme(o)}${blocCintre(o)}${formeDe(o)?`<div class="hint">Fixe de forme : la fabrication est celle du dessin ci-dessus (pas de cotes tableau ni hors tout).</div>`:`<div class="cotes">${cotesBox("L","Largeur – vue en plan",P.schemaL)}${cotesBox("H","Hauteur – vue en coupe",P.schemaH)}</div>`}
     ${listeElarg(o.gamme)?`<div style="margin-top:14px"><div class="hint" style="font-weight:700;color:var(--navy);margin-bottom:6px">ÉLARGISSEURS (vue de l'intérieur)</div><div class="grid g3">
       ${F.sel("elarg.gauche","À gauche",listeElarg(o.gamme),(o.elarg||{}).gauche)}${F.sel("elarg.haut","En haut",listeElarg(o.gamme),(o.elarg||{}).haut)}${F.sel("elarg.droite","À droite",listeElarg(o.gamme),(o.elarg||{}).droite)}
     </div></div>`:""}</div>
@@ -2373,6 +2426,7 @@ function renderOuverture(){
   $$("[data-findel]").forEach(b=>b.onclick=()=>{ const [c,i]=b.dataset.findel.split(":"); o.finitions[c+"_l"].splice(+i,1); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $$("[data-modchg]").forEach(b=>b.onclick=()=>{ S.modOuvert=true; const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $$("[data-pbm]").forEach(b=>b.onclick=()=>{ o.pb_motif=b.dataset.pbm; save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
+  $$("[data-citype]").forEach(b=>b.onclick=()=>{ o.cintre=Object.assign(o.cintre||{}, {type:b.dataset.citype}); syncCintreCotes(o); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $$("[data-fotype]").forEach(b=>b.onclick=()=>{ o.forme=Object.assign(o.forme||{}, {type:b.dataset.fotype}); syncFormeCotes(o); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $$("[data-mod]").forEach(b=>b.onclick=()=>{ o.modele = o.modele===b.dataset.mod ? "" : b.dataset.mod; S.modOuvert=false; save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $("#chgPose").onchange=e=>{ o.pose=e.target.value; save(); renderOuverture(); };
@@ -2463,6 +2517,7 @@ function colorerCases(c){
 function casesJaunes(o){ if(!o) return []; const J=[];
   cotesARecontroler(o).forEach(k=>J.push(`[data-k="${k}"]`));   // 23/11 : cotes reprises à recontrôler
   if(!o.gv && !porteEntree(o)) J.push('[data-k="gv"]');
+  if(cintreDe(o) && !(o.cintre&&o.cintre.Hm)) J.push('[data-k="cintre.Hm"]');
   ["int","ext"].forEach(c=>{ const f0=(o.finitions?.[c+"_l"]||[])[0]||{}; if(!f0.t) J.push(`[data-k="finitions.${c}_l.0.t"]`); });   // 19/11 : finition int. ET ext. (« Pas de finition » suffit), pas les côtés
   return J; }
 function majControle(){
@@ -2712,7 +2767,21 @@ function dessinMenuiserie(o, opt={}){
   const leg = vL!=null||vH!=null ? (estFab?"Cotes de fabrication":"Cotes tableau (fabrication non calculée)")+(o.pose==="neuf"?" · ENDUIT COMPRIS":"")+(typeof aileRecouvrement==="function"&&aileRecouvrement(o)?` · ailes de recouvrement ${largeurAile(o)} mm`:"")+(coffre&&vH!=null&&hC!=null?` · hauteur totale = ${vH} + coffre ${hC}`:"")+(enc?` · seuil encastré ${SEUIL_ENC} mm compris`:"")+(ch!=null?` · compensateur ${ch} mm ${cCompris?"compris":"NON compris"}`:"") : "";
   if(erpTxt) c+=`<text x="${W/2}" y="${H+MB-4}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#b3202a">${erpTxt}</text>`;
   if(leg) c+=`<text x="${W/2}" y="${H+MB-(erpTxt?22:5)}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#5b6478">${leg}</text>`;
-  return `<svg class="dessin${opt.cls?" "+opt.cls:""}" viewBox="${-ML} 0 ${W+ML+MR} ${H+MB}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dessin de la menuiserie">${s}${c}</svg>`;
+  /* Menuiserie cintrée (25/11/2026) : le haut du dessin suit le cintre (plein, surbaissé, anse de panier) ; faux cintre = trait pointillé */
+  if(typeof cintreDe==="function" && cintreDe(o)){ const r=cintreCalc(o), hT=Y1-Y0;
+    const fr = r.f!=null && r.H ? Math.min(0.9,Math.max(0.05,r.f/r.H)) : (r.t==="plein"?Math.min(0.9,(X1-X0)/2/hT):0.2);
+    const fP=hT*fr, yN=Y0+fP, w=X1-X0, id="ci"+Math.random().toString(36).slice(2,8);
+    const arc=(x0,x1,yn,fp)=>{ const ww=x1-x0; if(r.t==="anse") return `C${x0} ${yn-fp*0.8} ${x0+ww*0.25} ${yn-fp} ${x0+ww/2} ${yn-fp}C${x0+ww*0.75} ${yn-fp} ${x1} ${yn-fp*0.8} ${x1} ${yn}`;
+      const Rr=(ww*ww/4+fp*fp)/(2*fp); return `A${Rr} ${Rr} 0 ${fp>ww/2?1:0} 1 ${x1} ${yn}`; };
+    if(r.t==="faux"){ s+=`<path d="M${X0+12} ${yN+6}${arc(X0+12,X1-12,yN+6,fP-6)}" fill="none" stroke="${NAVY}" stroke-width="2" stroke-dasharray="7 5"/>`; }
+    else { s=`<defs><clipPath id="${id}"><path d="M${X0-3} ${Y1+40}V${yN}${arc(X0-3,X1+3,yN,fP+3)}V${Y1+40}Z"/></clipPath></defs><g clip-path="url(#${id})">${s}</g>`
+      + `<path d="M${X0} ${yN}${arc(X0,X1,yN,fP)}" fill="none" stroke="${NAVY}" stroke-width="4"/>`
+      + `<path d="M${X0+10} ${yN+4}${arc(X0+10,X1-10,yN+4,fP-6)}" fill="none" stroke="${NAVY}" stroke-width="1.6"/>`; }
+    const hmF = r.fab&&r.fab.Hm!=null ? r.fab.Hm : r.Hm;
+    if(hmF!=null && r.t!=="faux"){ const x=X0-26-(coffre||sbCote?44:0); c+=line(X0-3,yN,x-6,yN,0.7,COT)+line(X0-3,Y1,x-6,Y1,0.7,COT)+cote(x,yN,x,Y1,"montants "+Math.round(hmF)); }
+    const fF = r.fab&&r.fab.f!=null ? r.fab.f : r.f;
+    if(fF!=null && r.t!=="faux") c+=`<text x="${X0+w/2}" y="${yN-fP/2}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="${COT}">flèche ${Math.round(fF)}</text>`; }
+  return `<svg class="dessin${opt.cls?" "+opt.cls:""}" viewBox="${-ML-(typeof cintreDe==="function"&&cintreDe(o)?40:0)} 0 ${W+ML+MR+(typeof cintreDe==="function"&&cintreDe(o)?40:0)} ${H+MB}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dessin de la menuiserie">${s}${c}</svg>`;
 }
 
 /* ---------- Fixes de forme (18/11/2026) : triangle, trapèze, pignon, cintre, œil-de-bœuf…
@@ -7121,7 +7190,7 @@ function construireImpression(d){
       ${modeleDe(o)?`<div class="pmod">${imgModele(modeleDe(o),o.gamme)}<b>${esc(modeleDe(o).nom)}</b></div>`:""}
       <table class="pt">${row([["Type de pose",libellePose(o)],["Quantité",o.quantite],["Produit et gamme",o.gamme],["Profil / essence",[o.profil,o.essence].filter(Boolean).join(" – ")],["Couleur int.",o.couleur_int],["Couleur ext.",o.couleur_ext],["Dormant / aile",[o.dormant_aile, aileRecouvrement(o)&&o.delignage?"délignage : "+o.delignage.toLowerCase():""].filter(Boolean).join(" – ")],
         ["Dépose",[o.deligner&&"Déligner les cochonnets",o.depose_totale&&"Dépose totale",o.depose_seuil&&"Dépose seuil/appui"].filter(Boolean)],
-        ["Vantaux G·M·D",[o.vantaux.G,o.vantaux.M,o.vantaux.D].some(Boolean)?[o.vantaux.G,o.vantaux.M,o.vantaux.D].map(x=>x||"–").join(" · "):""],["Sens vue extérieure",o.sens_porte||sensExterieur(o)||""],["Vitrage",[o.vitrage,o.teinte,o.clair_voulu&&"clair à la demande du client",o.intercalaire&&"intercalaire "+o.intercalaire].filter(Boolean).join(" – ")],["Petits bois",[...(o.petits_bois||[]),o.pb_motif?(o.pb_motif==="perso"?`${o.pb_c||"?"} × ${o.pb_r||"?"} carreaux`:PB_MOTIFS.find(m=>m.id===o.pb_motif)?.nom):""].filter(Boolean).join(" – ")],
+        ["Vantaux G·M·D",[o.vantaux.G,o.vantaux.M,o.vantaux.D].some(Boolean)?[o.vantaux.G,o.vantaux.M,o.vantaux.D].map(x=>x||"–").join(" · "):""],["Sens vue extérieure",o.sens_porte||sensExterieur(o)||""],["Cintre",texteCintre(o)],["Vitrage",[o.vitrage,o.teinte,o.clair_voulu&&"clair à la demande du client",o.intercalaire&&"intercalaire "+o.intercalaire].filter(Boolean).join(" – ")],["Petits bois",[...(o.petits_bois||[]),o.pb_motif?(o.pb_motif==="perso"?`${o.pb_c||"?"} × ${o.pb_r||"?"} carreaux`:PB_MOTIFS.find(m=>m.id===o.pb_motif)?.nom):""].filter(Boolean).join(" – ")],
         ["Appui bas",o.appui_bas===DORMANT_PERI?"Dormant en périphérique (sans appui)":o.appui_bas],["Seuil",[o.seuil_std&&"Alu standard",o.seuil_plat&&"Alu PLAT",seuilEncastre(o)&&"ENCASTRÉ 4 cm (+40 mm compris dans la hauteur de fabrication)"].filter(Boolean)],["Serrure à pêne",o.serrure],["Cylindre",o.cylindre],["Clé",texteCle(d,o)],["Fermeture semi-fixe",o.semi_fixe],["Soubassement",[o.sb&&o.sb+" mm",o.sb_type].filter(Boolean).join(" – ")],["Poignée",[o.poignee,o.poignee_modele].filter(Boolean).join(" – ")],["Fermeture",o.fermeture],["Oscillo-battant",o.ob_type],["Ferrage",o.ferrage],["Seuil fournisseur",o.seuil_type],["Modèle de porte",[o.modele_porte,o.sens_porte].filter(Boolean).join(" – ")],["GV",o.gv],["Allège",o.allege],["Imposte",[o.imposte,o.imposte_type].filter(Boolean).join(" – ")],["Accessoires",o.accessoires],["Garde-corps",texteGC(o)],["Accès public (ERP)",texteERP(o)],["Compensateur",texteComp(o)],["Appui",o.gc&&num(o.gc.appui_h)!=null?`${o.gc.appui_h} mm du sol${o.gc.etage?" · étage":""}${o.gc.zsp&&o.gc.zsp_h?` · radiateur/marche ${o.gc.zsp_h} mm`:""}`:""]])}</table></div><div>
       <table class="pt">${row([
         ["Volet roulant",(()=>{const l=vrLie(d,o); if(!l) return ""; const det=vrUsine(l)?[VR_COUL.filter(([c])=>l[c]).map(([c,lab])=>lab.replace("Couleur ","")+" "+l[c]).join(" · "), l.fil_coffre&&("sortie de fil "+l.fil_coffre.toLowerCase()), l.option].filter(Boolean).join(" – "):"";

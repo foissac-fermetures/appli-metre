@@ -347,6 +347,7 @@ input:disabled{background:#eef1f7;color:#4a5368}
   .pimg{border:1px solid #9aa3b5;max-width:100%;max-height:220px;display:block}
   .pbig{font-size:14pt;font-weight:700}
   .pwarn{border:2px solid #d3232f;color:#d3232f;padding:4px 8px;margin-top:6px}
+  .pwarn,.pok{display:none!important}   /* 25/11/2026 : plus de cadres « À vérifier » / « Contrôle OK » sur les PDF (demande de Nicolas) – le contrôle reste dans l'onglet Contrôle */
   .vrt th{text-align:center;width:auto;white-space:normal}
   .vrt td{text-align:center}
   .p3{display:grid;grid-template-columns:36% 1fr 1fr;gap:10px;align-items:start}
@@ -1162,15 +1163,16 @@ function cintreCalc(o){ const c=o.cintre||{}, t=c.type||"plein", ri=cintreRef(o)
   if(L==null||Hm==null||H==null||H<=Hm) return r;
   r.f=H-Hm; if(t!=="anse"){ r.R=(L*L/4+r.f*r.f)/(2*r.f); const a=2*Math.asin(Math.min(1,L/(2*r.R))); r.dev=r.f<=L/2?r.R*a:r.R*(2*Math.PI-a);
     if(r.Hq!=null){ const x=L/4; r.Hqth=Hm+Math.sqrt(Math.max(0,r.R*r.R-x*x))-(r.R-r.f); } }
+  if(c.fab){ r.fab={L:r.L,H:r.H,f:r.f,R:r.R,Hm:r.Hm}; return r; }   // cotes saisies = cotes de fabrication (case cochée)
   const fb=calcFab(o), Lf=num(fb.L), Hf=num(fb.H);
   if(Lf!=null && Hf!=null){ if(t==="faux") r.fab={L:Lf,H:Hf};
     else if(r.R!=null){ const Rf=r.R+(Lf-L)/2, sq=Math.sqrt(Math.max(0,Rf*Rf-Lf*Lf/4)), ff=r.f>L/2?Rf+sq:Rf-sq; r.fab={L:Lf,H:Hf,f:ff,R:Rf,Hm:Hf-ff}; }
     else r.fab={L:Lf,H:Hf}; }
   return r; }
 function texteCintre(o){ if(!cintreDe(o)) return ""; const r=cintreCalc(o), lib=(CINTRE_TYPES.find(x=>x[0]===r.t)||[])[1], R=x=>x==null?"?":Math.round(x);
-  const ref=((cintreRefs(o).find(x=>x[0]===cintreRef(o))||[])[1]||"tableau").toLowerCase();
-  let t=`${lib} – mesuré sur ${ref} : largeur ${R(r.L)}, départ du cintre ${R(r.Hm)}, fin du cintre ${R(r.H)}, flèche ${R(r.f)}${r.R?`, rayon ${R(r.R)}`:""}`;
-  if(r.fab&&r.fab.Hm!=null) t+=` · Fabrication : montants ${R(r.fab.Hm)}, flèche ${R(r.fab.f)}, rayon ${R(r.fab.R)}`;
+  const ref=(o.cintre&&o.cintre.fab)?"cotes de fabrication":((cintreRefs(o).find(x=>x[0]===cintreRef(o))||[])[1]||"tableau").toLowerCase();
+  let t=`${lib} – ${o.cintre&&o.cintre.fab?ref:"mesuré sur "+ref} : largeur ${R(r.L)}, départ du cintre ${R(r.Hm)}, fin du cintre ${R(r.H)}, flèche ${R(r.f)}${r.R?`, rayon ${R(r.R)}`:""}`;
+  if(r.fab&&r.fab.Hm!=null&&!(o.cintre&&o.cintre.fab)) t+=` · Fabrication : montants ${R(r.fab.Hm)}, flèche ${R(r.fab.f)}, rayon ${R(r.fab.R)}`;
   if(r.t==="anse") t+=" · GABARIT";
   if(r.t==="faux") t+=" · menuiserie rectangulaire, cintre rapporté"; return t; }
 function blocCintreRes(o){ const r=cintreCalc(o), R=x=>x==null?"–":Math.round(x); let al="", ok=true;
@@ -1183,7 +1185,8 @@ function blocCintreRes(o){ const r=cintreCalc(o), R=x=>x==null?"–":Math.round(
     ${al?`<div class="ci-al ${ok?"ok":"ko"}">${esc(al)}</div>`:""}${r.f!=null&&!r.fab?`<div class="hint" style="margin-top:6px">Cotes de fabrication pas encore calculées : il faut les cotes de la pose (ou forcer la fabrication).</div>`:""}`; }
 function blocCintre(o){ if(!cintreDe(o)) return ""; o.cintre=o.cintre||{type:"plein",Hm:"",Hq:""}; const c=o.cintre, t=c.type||"plein";
   return `<div class="card ci-bloc"><b>⌒ Cintre</b><div class="chips" style="margin:6px 0">${CINTRE_TYPES.map(([k,l])=>`<button class="chip${t===k?" on":""}" data-citype="${k}">${l}</button>`).join("")}</div>
-    <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px"><span class="hint">Mesures prises sur :</span>${cintreRefs(o).map(([i,l])=>`<button class="chip${cintreRef(o)===i?" on":""}" data-ciref="${i}">${esc(l)}</button>`).join("")}</div>
+    <label class="chip${c.fab?" on":""}" style="margin:2px 0 8px;display:inline-flex;gap:6px;align-items:center"><input type="checkbox" data-cifab ${c.fab?"checked":""}> Ce sont des <b>cotes de fabrication</b></label>
+    <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px${c.fab?";display:none":""}"><span class="hint">Mesures prises sur :</span>${cintreRefs(o).map(([i,l])=>`<button class="chip${cintreRef(o)===i?" on":""}" data-ciref="${i}">${esc(l)}</button>`).join("")}</div>
     <div class="row" style="gap:12px;flex-wrap:wrap">
       <label class="f">Largeur<input data-k="cintre.L" inputmode="numeric" value="${esc(c.L??o.cotes.L[cintreRef(o)]??"")}"></label>
       <label class="f">Départ du cintre (hauteur des montants)<input data-k="cintre.Hm" inputmode="numeric" value="${esc(c.Hm||"")}"></label>
@@ -1192,6 +1195,10 @@ function blocCintre(o){ if(!cintreDe(o)) return ""; o.cintre=o.cintre||{type:"pl
     <div class="hint">Hauteurs prises depuis le bas. La largeur et la fin du cintre sont recopiées dans les cotes « ${esc(((cintreRefs(o).find(x=>x[0]===cintreRef(o))||[])[1])||"Tableau")} » ci-dessous${t==="plein"?" ; en plein cintre, la fin se calcule toute seule si tu ne la mets pas (départ + largeur ÷ 2)":""}.</div>
     <div id="ciRes">${blocCintreRes(o)}</div></div>`; }
 function majCintre(o){ const z=$("#ciRes"); if(z&&cintreDe(o)) z.innerHTML=blocCintreRes(o); }
+/* Case « cotes de fabrication » : la largeur et la fin du cintre deviennent la fabrication (fab_force) ; décochée → on enlève ce forçage */
+function syncCintreFab(o){ if(!cintreDe(o)||!o.cintre) return false; const c=o.cintre; o.fab_force=o.fab_force||{L:"",H:""};
+  if(c.fab){ const r=cintreCalc(o), L=r.L!=null?String(Math.round(r.L)):"", H=r.H!=null?String(Math.round(r.H)):""; if(o.fab_force.L===L&&o.fab_force.H===H) return false; o.fab_force.L=L; o.fab_force.H=H; c.fab_auto=true; return true; }
+  if(c.fab_auto){ o.fab_force.L=""; o.fab_force.H=""; delete c.fab_auto; return true; } return false; }
 function syncCintreCotes(o){ if(!cintreDe(o)||!o.cintre) return false; const c=o.cintre, ri=cintreRef(o); let ch=false;
   const set=(K,v)=>{ v=v==null?"":String(v); if((o.cotes[K][ri]??"")!==v){ o.cotes[K][ri]=v; ch=true; } };
   if(c.L!=null && c.L!=="") set("L",c.L);
@@ -1850,7 +1857,7 @@ function refreshLive(k){
     if(k==="comp.type"){ const c=S.ouv.comp; if(c.type && !c.h) c.h=String((c.type.match(/^(\d+)/)||[])[1]||""); if(c.type && !c.compris) c.compris=COMP_COMPRIS[1]; if(!c.type){ c.h=""; c.compris=""; } save(); const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(k==="volet.type"||k==="gc.zsp"){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(cintreDe(S.ouv)&&/^cotes\.[LH]\.\d$/.test(k)){ const o=S.ouv, m=k.split("."); o.cintre=o.cintre||{type:"plein"}; if(+m[2]===cintreRef(o)){ if(m[1]==="L") o.cintre.L=o.cotes.L[+m[2]]; else o.cintre.Hs=o.cotes.H[+m[2]]; } }
-    if(String(k).startsWith("cintre.")||(cintreDe(S.ouv)&&String(k).startsWith("cotes."))){ const o=S.ouv; if(syncCintreCotes(o)) save(); { const i=cintreRef(o); [[`[data-k="cotes.H.${i}"]`,o.cotes.H[i]],[`[data-k="cotes.L.${i}"]`,o.cotes.L[i]],['[data-k="cintre.Hs"]',o.cotes.H[i]],['[data-k="cintre.L"]',o.cotes.L[i]]].forEach(([q,v])=>{ const el=$(q); if(el&&el!==document.activeElement) el.value=v??""; }); } majCintre(o); }
+    if(String(k).startsWith("cintre.")||(cintreDe(S.ouv)&&String(k).startsWith("cotes."))){ const o=S.ouv; if(syncCintreCotes(o)|syncCintreFab(o)) save(); { const i=cintreRef(o); [[`[data-k="cotes.H.${i}"]`,o.cotes.H[i]],[`[data-k="cotes.L.${i}"]`,o.cotes.L[i]],['[data-k="cintre.Hs"]',o.cotes.H[i]],['[data-k="cintre.L"]',o.cotes.L[i]]].forEach(([q,v])=>{ const el=$(q); if(el&&el!==document.activeElement) el.value=v??""; }); } majCintre(o); }
     if(String(k).startsWith("forme.")){ const o=S.ouv; if(syncFormeCotes(o)){ save(); ["L","H"].forEach(K=>o.cotes[K].forEach((x,i)=>{ const el=$(`[data-k="cotes.${K}.${i}"]`); if(el&&el!==document.activeElement&&el.value!==String(x??"")) el.value=x??""; })); } majForme(o); }
     if(String(k).startsWith("gc.")||k==="allege") majGC();
     if(String(k).endsWith(".avec_menuiserie")){ syncVR(S.dossier); renderVRInline(); }
@@ -2448,6 +2455,7 @@ function renderOuverture(){
   $$("[data-findel]").forEach(b=>b.onclick=()=>{ const [c,i]=b.dataset.findel.split(":"); o.finitions[c+"_l"].splice(+i,1); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $$("[data-modchg]").forEach(b=>b.onclick=()=>{ S.modOuvert=true; const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $$("[data-pbm]").forEach(b=>b.onclick=()=>{ o.pb_motif=b.dataset.pbm; save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
+  $$("[data-cifab]").forEach(b=>b.onchange=()=>{ o.cintre=o.cintre||{type:"plein"}; o.cintre.fab=b.checked; syncCintreFab(o); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $$("[data-ciref]").forEach(b=>b.onclick=()=>{ o.cintre=Object.assign(o.cintre||{}, {ref:+b.dataset.ciref}); syncCintreCotes(o); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $$("[data-citype]").forEach(b=>b.onclick=()=>{ o.cintre=Object.assign(o.cintre||{}, {type:b.dataset.citype}); syncCintreCotes(o); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $$("[data-fotype]").forEach(b=>b.onclick=()=>{ o.forme=Object.assign(o.forme||{}, {type:b.dataset.fotype}); syncFormeCotes(o); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });

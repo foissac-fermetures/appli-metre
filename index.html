@@ -2813,7 +2813,7 @@ function dessinMenuiserie(o, opt={}){
   const hC = coffre ? (num(String(vr.coffre_hauteur||"").match(/(\d{2,4})\s*mm/)?.[1]) ?? 195) : null;
   const sbCote = sbY!=null && sbMM!=null;
   const enc = typeof seuilEncastre==="function" && seuilEncastre(o) && vH!=null;
-  const ML = (coffre||sbCote ? 50 : 8)+(enc ? (coffre||sbCote ? 44 : 50) : 0), MR = (coffre ? 96 : 50)+(enc ? 46 : 0)+(o.comp&&o.comp.type&&num(o.comp.h)!=null ? 48 : 0), erpTxt0 = typeof porteERP==="function" && porteERP(o) ? [o.erp.sens===ERP_SENS[0]&&"OUVERTURE EXT.", o.erp.ap&&"anti-panique", o.erp.groom&&"groom"].filter(Boolean).join(" · ") : "", erpTxt = erpTxt0, ch = typeof compH==="function" ? compH(o) : null, cCompris = ch!=null && compCompris(o), hCp = ch!=null && vH ? Math.max(14, Math.round((Y1-Y0)*ch/vH)) : 0, exB = ch!=null && !cCompris ? hCp : 0, MB = 58 + (erpTxt?18:0) + exB;
+  const ML = (coffre||sbCote ? 50 : 8)+(enc ? (coffre||sbCote ? 44 : 50) : 0), MR = (coffre ? 96 : 50)+(enc ? 46 : 0)+(o.comp&&o.comp.type&&num(o.comp.h)!=null ? 48 : 0), erpTxt0 = typeof porteERP==="function" && porteERP(o) ? [o.erp.sens===ERP_SENS[0]&&"OUVERTURE EXT.", o.erp.ap&&"anti-panique", o.erp.groom&&"groom"].filter(Boolean).join(" · ") : "", erpTxt = erpTxt0, ch = typeof compH==="function" ? compH(o) : null, cCompris = ch!=null && compCompris(o), hCp = ch!=null && vH ? Math.max(14, Math.round((Y1-Y0)*ch/vH)) : 0, exB = ch!=null && !cCompris ? hCp : 0, MB = 58 + (erpTxt?18:0) + exB + (o.elarg&&Object.values(o.elarg).some(v=>/\d/.test(v||""))?16:0);
   const tete=(x,y,dx,dy)=>{ const L=7,l=3.5, ux=dx, uy=dy, px=-uy, py=ux; return `<path d="M${x} ${y} L${x-ux*L+px*l} ${y-uy*L+py*l} L${x-ux*L-px*l} ${y-uy*L-py*l}Z" fill="${COT}"/>`; };
   const etiq=(x,y,t,vert)=>{ const w=t.length*9+12; return vert
       ? `<g transform="translate(${x} ${y}) rotate(-90)"><rect x="${-w/2}" y="-10" width="${w}" height="20" rx="10" fill="#fff" stroke="${COT}" stroke-width="1.2"/><text x="0" y="1" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="${COT}">${t}</text></g>`
@@ -2845,6 +2845,16 @@ function dessinMenuiserie(o, opt={}){
   const leg = vL!=null||vH!=null ? (estFab?"Cotes de fabrication":libSecours?`Cotes « ${libSecours} » (fabrication non calculée)`:"Cotes tableau (fabrication non calculée)")+(o.pose==="neuf"?" · ENDUIT COMPRIS":"")+(typeof aileRecouvrement==="function"&&aileRecouvrement(o)?` · ailes de recouvrement ${largeurAile(o)} mm`:"")+(coffre&&vH!=null&&hC!=null?` · hauteur totale = ${vH} + coffre ${hC}`:"")+(enc?` · seuil encastré ${SEUIL_ENC} mm compris`:"")+(ch!=null?` · compensateur ${ch} mm ${cCompris?"compris":"NON compris"}`:"") : "";
   if(erpTxt) c+=`<text x="${W/2}" y="${H+MB-4}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#b3202a">${erpTxt}</text>`;
   if(leg) c+=`<text x="${W/2}" y="${H+MB-(erpTxt?22:5)}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#5b6478">${leg}</text>`;
+  /* Élargisseurs (25/11/2026) : dessinés à gauche / en haut / à droite, DANS les cotes de fabrication (toujours élargisseurs compris) */
+  { const E=o.elarg||{}, mm=v=>{ const m=String(v||"").match(/(\d+)\s*mm/); return m?+m[1]:null; }, eg=mm(E.gauche), eh=mm(E.haut), ed=mm(E.droite);
+    if((eg||eh||ed) && vL && vH){ const kx=(X1-X0)/vL, ky=(Y1-Y0)/vH, bande=(x,y,w,h,t,vert)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#hachEl)" stroke="${NAVY}" stroke-width="1.2"/>`
+        +(vert?`<text transform="translate(${x+w/2+4} ${y+h/2}) rotate(-90)" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="#a35b00">${t}</text>`:`<text x="${x+w/2}" y="${y+h/2+4}" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="#a35b00">${t}</text>`);
+      const wg=eg?Math.max(5,eg*kx):0, wd=ed?Math.max(5,ed*kx):0, wh=eh?Math.max(5,eh*ky):0;
+      s=`<defs><pattern id="hachEl" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#fde7c4"/><line x1="0" y1="0" x2="0" y2="6" stroke="#e8a33d" stroke-width="1.5"/></pattern></defs>`+s;
+      if(eh) s+=bande(X0,Y0,X1-X0,wh,`élarg. ${eh}`,false);
+      if(eg) s+=bande(X0,Y0+wh,wg,Y1-Y0-wh,`élarg. ${eg}`,true);
+      if(ed) s+=bande(X1-wd,Y0+wh,wd,Y1-Y0-wh,`élarg. ${ed}`,true);
+      c+=`<text x="${W/2}" y="${H+MB-(erpTxt?40:22)}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#a35b00">Élargisseurs compris dans les cotes : ${[eg&&"G "+eg,eh&&"H "+eh,ed&&"D "+ed].filter(Boolean).join(" · ")}</text>`; } }
   /* Menuiserie cintrée (25/11/2026) : le haut du dessin suit le cintre (plein, surbaissé, anse de panier) ; faux cintre = trait pointillé */
   if(typeof cintreDe==="function" && cintreDe(o)){ const r=cintreCalc(o), hT=Y1-Y0;
     const fr = r.f!=null && r.H ? Math.min(0.9,Math.max(0.05,r.f/r.H)) : (r.t==="plein"?Math.min(0.9,(X1-X0)/2/hT):0.2);

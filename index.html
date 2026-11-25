@@ -1158,6 +1158,9 @@ const POSES_RENO = ["tunnel","embrasure","feuillure","neuf_depose"];
 const POSES_APPLIQUE = ["neuf","neuf_depose"];
 /* Portes d'entrée (25/11/2026, demandes de Nicolas) : jamais de grille de ventilation ; sens vue extérieure déduit des vantaux
    (OP en D = tirant droit → poussant gauche vue ext. ; OP en G = tirant gauche → poussant droit). */
+/* Oculus des portes de service (25/11/2026) : dimension de la partie vitrée choisie par le client */
+const aOculus = o => /oculus/i.test(modeleDe(o)?.nom||"");
+const texteOculus = o => !aOculus(o) ? "" : [o.oculus_h?`hauteur ${o.oculus_h} mm`:"hauteur à préciser", o.oculus_l?`largeur ${o.oculus_l} mm`:"toute la largeur du vantail"].join(" · ");
 const sansGV = o => porteEntree(o) || cintreDe(o);   // 25/11 : jamais de grille sur une porte d'entrée ni sur une menuiserie cintrée
 const porteEntree = o => { const md=modeleDe(o); return !!md && md.famille==="porte" && !/service|habitat|lourde|campagnarde|oculus|vitrée/i.test(md.nom||""); };
 function sensExterieur(o){ const md=modeleDe(o); if(!md||md.famille!=="porte") return null; const v=o.vantaux||{}, g=/OP/.test(v.G||""), dr=/OP/.test(v.D||"");
@@ -1463,6 +1466,7 @@ function calcVolet(o){
 function controleOuverture(o, d=S.dossier){ const Wpb=[];
   try{ const aPBx=x=>(x.petits_bois||[]).length>0 || !!x.pb_motif || !!x.pb_entre, fen=x=>{ const m=modeleDe(x); return !m || m.famille!=="porte"; };
     if(d && fen(o) && !aPBx(o)){ const autres=(d.ouvertures||[]).filter(x=>x!==o && fen(x)); if(autres.length>=2 && autres.every(aPBx)) Wpb.push("Petits bois : toutes les autres fenêtres en ont, pas celle-ci – oubli ?"); } }catch(e){}
+  if(aOculus(o) && !num(o.oculus_h)) Wpb.push("Oculus : hauteur de la partie vitrée à choisir");
   if(cintreDe(o) && o.gv) Wpb.push("Menuiserie cintrée : pas de grille de ventilation possible – à retirer");
   if(cintreDe(o)){ const r=cintreCalc(o); if(r.Hm==null) Wpb.push("Cintre : départ du cintre (hauteur des montants) à prendre");
     else if(r.H!=null && r.H<=r.Hm) Wpb.push("Cintre : la hauteur au sommet doit être plus grande que celle des montants");
@@ -2383,7 +2387,7 @@ function renderOuverture(){
 
   <div class="card${estFixe(o)?" q-fixe":""}"><h2><span class="num">7</span>Quincaillerie, seuil et appui <small style="font-weight:400;text-transform:none">– poignées, serrures, seuil ou appui bas</small></h2><div class="grid g4">
     ${FRN(o.gamme).poignees?F.sel("poignee_modele",`Poignée ${esc(FRN(o.gamme).fournisseur||"")}`,FRN(o.gamme).poignees,o.poignee_modele):F.sel("poignee","Poignée (position / type)",CAT.poignee,o.poignee)}${FRN(o.gamme).fermeture?F.sel("fermeture","Fermeture / serrure",FRN(o.gamme).fermeture,o.fermeture):""}
-    ${FRN(o.gamme).seuils?F.sel("seuil_type","Seuil (fournisseur)",FRN(o.gamme).seuils,o.seuil_type):""}${(FRN(o.gamme).modeles_porte||FRN(o.gamme).panneaux)&&(modeleDe(o)?.famille==="porte")?F.sel("modele_porte","Modèle / panneau de porte",FRN(o.gamme).modeles_porte||FRN(o.gamme).panneaux,o.modele_porte):""}${FRN(o.gamme).sens_porte&&(modeleDe(o)?.famille==="porte")?F.sel("sens_porte","Sens d'ouverture (vue extérieure)",FRN(o.gamme).sens_porte,o.sens_porte):""}
+    ${FRN(o.gamme).seuils?F.sel("seuil_type","Seuil (fournisseur)",FRN(o.gamme).seuils,o.seuil_type):""}${(FRN(o.gamme).modeles_porte||FRN(o.gamme).panneaux)&&(modeleDe(o)?.famille==="porte")?F.sel("modele_porte","Modèle / panneau de porte",FRN(o.gamme).modeles_porte||FRN(o.gamme).panneaux,o.modele_porte):""}${FRN(o.gamme).sens_porte&&(modeleDe(o)?.famille==="porte")?F.sel("sens_porte","Sens d'ouverture (vue extérieure)",FRN(o.gamme).sens_porte,o.sens_porte):""}${aOculus(o)?F.numb("oculus_h","Hauteur de l'oculus vitré (mm)",o.oculus_h)+F.numb("oculus_l","Largeur de l'oculus (mm) – vide = toute la largeur du vantail",o.oculus_l):""}
   </div><div class="checks" style="margin-top:12px">${F.chk("seuil_std","Seuil alu standard",o.seuil_std)}${F.chk("seuil_plat","Seuil alu PLAT",o.seuil_plat)}${["coulissant","galandage"].includes(modeleDe(o)?.famille)?F.chk("seuil_encastre","Seuil encastré 4 cm (hauteur de fabrication + 40 mm)",o.seuil_encastre):""}</div>
   ${seuilSansAppui(o)&&!o.appui_bas?`<div class="hint" style="margin-top:8px">Seuil choisi : pas d'appui bas ni d'allège à remplir.</div>`:`<div class="grid g4" style="margin-top:12px"><div style="grid-column:span 2">${F.sel("appui_bas","Profil : appui bas"+(peutDormantPeri(o)?" (ou dormant en périphérique)":""),(()=>{ const la=listeAppuis(o.gamme); return o.appui_bas&&!dansListe(la,o.appui_bas)?[...la,{groupe:"Ancienne valeur",items:[o.appui_bas]}]:la; })(),o.appui_bas)}</div></div>`}
   <div class="grid g4" style="margin-top:12px">${F.sel("comp.type","Compensateur sous la menuiserie",COMP_TYPES,o.comp.type)}
@@ -2563,6 +2567,7 @@ function colorerCases(c){
 function casesJaunes(o){ if(!o) return []; const J=[];
   cotesARecontroler(o).forEach(k=>J.push(`[data-k="${k}"]`));   // 23/11 : cotes reprises à recontrôler
   if(!o.gv && !sansGV(o)) J.push('[data-k="gv"]');
+  if(aOculus(o) && !num(o.oculus_h)) J.push('[data-k="oculus_h"]');
   if(cintreDe(o) && !(o.cintre&&o.cintre.Hm)) J.push('[data-k="cintre.Hm"]');
   ["int","ext"].forEach(c=>{ const f0=(o.finitions?.[c+"_l"]||[])[0]||{}; if(!f0.t) J.push(`[data-k="finitions.${c}_l.0.t"]`); });   // 19/11 : finition int. ET ext. (« Pas de finition » suffit), pas les côtés
   return J; }
@@ -2703,7 +2708,12 @@ function dessinMenuiserie(o, opt={}){
     const m=7; let gx=x+m, gy=y+m, gw=w-2*m, gh=h-2*m;
     /* panneaux de porte */
     if(fam==="porte"){
-      if(/oculus/.test(nom)){ const vh=Math.max(10,gh*0.12);   // 25/11 : oculus = petit vitrage rectangulaire en haut du vantail (comme le modèle Porteo)
+      if(/oculus/.test(nom)){ const oh=num(o.oculus_h), ol=num(o.oculus_l), Href=num(f.H)??Hr, Lref=(num(f.L)??Lr)/n;
+        const vh=oh&&Href?Math.min(gh*0.8,Math.max(8,gh*oh/Href)):Math.max(10,gh*0.12), vw=ol&&Lref?Math.min(gw,Math.max(10,gw*ol/Lref)):gw, vx=gx+(gw-vw)/2;
+        s+=plein(gx,gy,gw,gh)+`<rect x="${vx}" y="${gy}" width="${vw}" height="${vh}" fill="#cfe8fa" stroke="${NAVY}" stroke-width="1.4"/>`;
+        if(oh && i===0) s+=`<text x="${vx+vw/2}" y="${gy+vh/2+4}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="${NAVY}">${oh}${ol?" × "+ol:""}</text>`;
+      }
+      else if(false){   // 25/11 : oculus = petit vitrage rectangulaire en haut du vantail (comme le modèle Porteo)
         s+=plein(gx,gy+vh+4,gw,gh-vh-4)+`<rect x="${gx}" y="${gy}" width="${gw}" height="${vh}" fill="#cfe8fa" stroke="${NAVY}" stroke-width="1.4"/>`; }
       else if(/(mi|semi)-vitrée/.test(nom)){ s+=plein(gx,gy+gh/2,gw,gh/2); gh=gh/2; }
       else if(entree){ s+=porteContemp(gx,gy,gw,gh,hingeL(i),i===princ||n===1); }
@@ -7290,7 +7300,7 @@ function construireImpression(d){
       ${modeleDe(o)?`<div class="pmod">${imgModele(modeleDe(o),o.gamme)}<b>${esc(modeleDe(o).nom)}</b></div>`:""}
       <table class="pt">${row([["Type de pose",libellePose(o)],["Quantité",o.quantite],["Produit et gamme",o.gamme],["Profil / essence",[o.profil,o.essence].filter(Boolean).join(" – ")],["Couleur int.",o.couleur_int],["Couleur ext.",o.couleur_ext],["Dormant / aile",[o.dormant_aile, aileRecouvrement(o)&&o.delignage?"délignage : "+o.delignage.toLowerCase():""].filter(Boolean).join(" – ")],
         ["Dépose",[o.deligner&&"Déligner les cochonnets",o.depose_totale&&"Dépose totale",o.depose_seuil&&"Dépose seuil/appui"].filter(Boolean)],
-        ["Vantaux G·M·D",[o.vantaux.G,o.vantaux.M,o.vantaux.D].some(Boolean)?[o.vantaux.G,o.vantaux.M,o.vantaux.D].map(x=>x||"–").join(" · "):""],["Sens vue extérieure",o.sens_porte||sensExterieur(o)||""],["Cintre",texteCintre(o)],["Vitrage",[o.vitrage,o.teinte,o.clair_voulu&&"clair à la demande du client",o.intercalaire&&"intercalaire "+o.intercalaire].filter(Boolean).join(" – ")],["Petits bois",textePB(o)],
+        ["Vantaux G·M·D",[o.vantaux.G,o.vantaux.M,o.vantaux.D].some(Boolean)?[o.vantaux.G,o.vantaux.M,o.vantaux.D].map(x=>x||"–").join(" · "):""],["Sens vue extérieure",o.sens_porte||sensExterieur(o)||""],["Oculus vitré",texteOculus(o)],["Cintre",texteCintre(o)],["Vitrage",[o.vitrage,o.teinte,o.clair_voulu&&"clair à la demande du client",o.intercalaire&&"intercalaire "+o.intercalaire].filter(Boolean).join(" – ")],["Petits bois",textePB(o)],
         ["Appui bas",o.appui_bas===DORMANT_PERI?"Dormant en périphérique (sans appui)":o.appui_bas],["Seuil",[o.seuil_std&&"Alu standard",o.seuil_plat&&"Alu PLAT",seuilEncastre(o)&&"ENCASTRÉ 4 cm (+40 mm compris dans la hauteur de fabrication)"].filter(Boolean)],["Serrure à pêne",o.serrure],["Cylindre",o.cylindre],["Clé",texteCle(d,o)],["Fermeture semi-fixe",o.semi_fixe],["Soubassement",[o.sb&&o.sb+" mm",o.sb_type].filter(Boolean).join(" – ")],["Poignée",[o.poignee,o.poignee_modele].filter(Boolean).join(" – ")],["Fermeture",o.fermeture],["Oscillo-battant",o.ob_type],["Ferrage",o.ferrage],["Seuil fournisseur",o.seuil_type],["Modèle de porte",[o.modele_porte,o.sens_porte].filter(Boolean).join(" – ")],["GV",o.gv],["Allège",o.allege],["Imposte",[o.imposte,o.imposte_type].filter(Boolean).join(" – ")],["Accessoires",o.accessoires],["Garde-corps",texteGC(o)],["Accès public (ERP)",texteERP(o)],["Compensateur",texteComp(o)],["Appui",o.gc&&num(o.gc.appui_h)!=null?`${o.gc.appui_h} mm du sol${o.gc.etage?" · étage":""}${o.gc.zsp&&o.gc.zsp_h?` · radiateur/marche ${o.gc.zsp_h} mm`:""}`:""]])}</table></div><div>
       <table class="pt">${row([
         ["Volet roulant",(()=>{const l=vrLie(d,o); if(!l) return ""; const det=vrUsine(l)?[VR_COUL.filter(([c])=>l[c]).map(([c,lab])=>lab.replace("Couleur ","")+" "+l[c]).join(" · "), l.fil_coffre&&("sortie de fil "+l.fil_coffre.toLowerCase()), l.option].filter(Boolean).join(" – "):"";

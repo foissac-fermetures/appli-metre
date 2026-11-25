@@ -801,6 +801,15 @@ function plat(l){ return (l||[]).flatMap(x=>typeof x==="string"?[x]:(x.items||[]
    Chaque liste de modèles reçoit un groupe « Cintrées » : fenêtres, portes-fenêtres, portes, fixes (copies des modèles simples, cintre:true).
    Prise de cotes : largeur tableau, hauteur des montants (naissance du cintre) et hauteur au sommet (= cote tableau H) ; contrôle facultatif à ¼.
    Types : plein cintre (sommet = montants + L/2), cintre surbaissé, anse de panier (gabarit conseillé), faux cintre (menuiserie rectangulaire). */
+/* Portes de service 2 vantaux (25/11/2026, demande de Nicolas) : pleine, à oculus, mi-vitrée – ajoutées dans chaque liste qui a des portes de service */
+(function ajouterServices2V(){
+  const vus=new Set(); for(const k of Object.values(GAMME_MODELES)){ if(vus.has(k)) continue; vus.add(k); const L=CAT[k]; if(!Array.isArray(L)) continue;
+    const gr=L.find(g=>(g.items||[]).some(m=>m.famille==="porte"&&/service/i.test(m.nom||""))); if(!gr) continue;
+    const tous=L.flatMap(g=>g.items||[]), base=gr.items.find(m=>/service/i.test(m.nom)&&m.vantaux===1)||gr.items.find(m=>/service/i.test(m.nom));
+    const pref=(base.nom.match(/^(Porte de service(?: PVC)?)/i)||[,"Porte de service"])[1];
+    [["pleine",/2 vantaux( pleine)?$/i,"_ps2p"],["à oculus",/2 vantaux à oculus/i,"_ps2o"],["mi-vitrée",/2 vantaux (mi|semi)-vitrée/i,"_ps2mv"]].forEach(([suf,re,id])=>{
+      if(tous.some(m=>/service/i.test(m.nom||"")&&re.test(m.nom||""))) return;
+      const m=Object.assign({},base,{id:base.id.replace(/1.*$/,"")+id, nom:`${pref} 2 vantaux ${suf}`, vantaux:2}); delete m.img; delete m.lmax; gr.items.push(m); }); } })();
 (function ajouterCintrees(){
   const vus=new Set(); for(const k of Object.values(GAMME_MODELES)){ if(vus.has(k)) continue; vus.add(k); const L=CAT[k]; if(!Array.isArray(L)||L.some(g=>g.groupe==="Cintrées")) continue;
     const it=[]; L.forEach(g=>{ if(/compos/i.test(g.groupe||"")) return; (g.items||[]).forEach(m=>{ if(!m||m.cintre||!["of","pf","porte","fixe"].includes(m.famille)||/[œo]e?il.de.b/i.test(m.nom||"")) return;
@@ -2695,7 +2704,7 @@ function dessinMenuiserie(o, opt={}){
     /* panneaux de porte */
     if(fam==="porte"){
       if(/oculus/.test(nom)){ s+=plein(gx,gy,gw,gh)+`<circle cx="${gx+gw/2}" cy="${gy+gh*0.28}" r="${Math.min(gw,gh)*0.18}" fill="#fff" stroke="${NAVY}" stroke-width="1.4"/>`; }
-      else if(/mi-vitrée/.test(nom)){ s+=plein(gx,gy+gh/2,gw,gh/2); gh=gh/2; }
+      else if(/(mi|semi)-vitrée/.test(nom)){ s+=plein(gx,gy+gh/2,gw,gh/2); gh=gh/2; }
       else if(entree){ s+=porteContemp(gx,gy,gw,gh,hingeL(i),i===princ||n===1); }
       else if(/service/.test(nom)){ s+=plein(gx,gy,gw,gh); }
     }

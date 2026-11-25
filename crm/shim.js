@@ -272,6 +272,16 @@
         const r = await gfetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: { raw: b64url(raw), threadId: i.threadId || undefined } }) });
         return { draft: r };
       },
+      async forward_draft(i) {   // brouillon de transfert, avec les pièces jointes du mail d'origine
+        if (!hasGmail()) { wantGmail = true; banner(); const e = new Error("Autorise Gmail avec le bouton bleu en haut de la page, puis reclique."); e.code = "consent_required"; throw e; }
+        const atts = [];
+        for (const a of (i.attachments || [])) {
+          if (!hasRead()) { wantRead = true; banner(); const e = new Error("Autorise la lecture des mails avec le bouton bleu en haut, puis reclique."); e.code = "consent_required"; throw e; }
+          const r = await gfetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/" + encodeURIComponent(i.msgId) + "/attachments/" + encodeURIComponent(a.id));
+          atts.push({ filename: a.name || "piece-jointe", mimeType: a.mime || "application/octet-stream", content: (d => d + "===".slice((d.length + 3) % 4))(String(r.data || "").replace(/-/g, "+").replace(/_/g, "/")) }); }
+        const r = await gfetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: { raw: b64url(mime({ to: i.to, cc: i.cc, subject: i.subject, body: i.body, attachments: atts })) } }) });
+        return { draft: r };
+      },
       async list_messages(i) {   // lecture seule : les mails reçus récents, avec un extrait du texte
         if (!hasRead()) { wantRead = true; banner(); const e = new Error("Autorise la lecture des mails avec le bouton bleu en haut de la page, puis clique à nouveau sur Actualiser."); e.code = "consent_required"; throw e; }
         const q = i.query || "in:inbox newer_than:14d", max = Math.min(100, i.max || 60);

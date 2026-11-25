@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Mini DAO"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Mini DAO 2D</title>
 <style>
+  #mOpen .pl{display:flex;align-items:center;gap:12px;padding:7px 4px;border-bottom:1px solid var(--line)} #mOpen .pl b{flex:1} #mOpen .pl small{color:var(--mut);white-space:nowrap} #mDone a{color:var(--acc)} #mCart.saving [data-k="client"], #mCart.saving [data-k="titre"]{border-color:var(--acc)!important} #mCart [data-k].manque{border-color:#ff5a5a!important;background:#2a1414!important}
   :root{
     --bg:#1e232b; --panel:#272d37; --panel2:#2f3642; --line:#3b4350; --txt:#e6e9ee; --mut:#9aa3b2;
     --acc:#4fa3ff; --ok:#3ecf8e; --warn:#ffb648; --ent:#f2f4f7; --sel:#ffb648; --snap:#3ecf8e;
@@ -187,7 +188,8 @@
     <span style="display:inline-flex"><button class="hbtn on" id="bSnap" title="Accrochage on/off (F3)" style="border-radius:6px 0 0 6px">Accroch.</button><button class="hbtn" id="bSnapM" title="Choisir les accrochages" style="border-radius:0 6px 6px 0;border-left:0;padding:6px 6px">▾</button></span>
     <button class="hbtn" id="bVisu" title="Voir le visuel couleur (page 2)">🖼</button>
     <button class="hbtn" id="bIA" title="Claude : créer le visuel avec l'IA" style="background:#5b3fd6;border-color:#8b74ff;color:#fff;font-weight:600">✨ Claude</button>
-    <button class="hbtn" id="bSave" title="Enregistrer le plan (Ctrl+S / ⌘S)">💾 Enregistrer</button>
+    <button class="hbtn" id="bSave" title="Enregistrer le plan (Ctrl+S / ⌘S) : remplir le cartouche, puis PDF + plan modifiable rangés dans Google Drive">💾 Enregistrer</button>
+    <button class="hbtn" id="bOpen" title="Ouvrir un plan enregistré (Google Drive › Métrés › Plans)">📂 Ouvrir</button>
     <button class="hbtn" id="bFile" title="Fichier : mes plans, nouveau, exporter / ouvrir">📁</button>
     <button class="hbtn" id="bHelp" title="Aide">?</button>
     <button class="hbtn primary" id="bCart" title="Cartouche &amp; impression">🖨 Imprimer</button>
@@ -291,11 +293,12 @@
 
 <!-- Cartouche -->
 <div class="modal" id="mCart"><div class="box" style="width:1100px">
-  <h2>Cartouche &amp; impression</h2>
+  <h2 id="cTitle">Cartouche &amp; impression</h2>
+  <div class="note" id="cSaveNote" style="display:none;margin:-4px 0 10px;font-size:14px;color:var(--fg)">Remplissez le cartouche puis touchez <b>💾 Enregistrer</b> : le plan s'appellera <b id="cNomPrev">Plan CLIENT – Titre</b>. Le PDF ira dans « 09 - Plan » et le plan modifiable dans Métrés › Plans.</div>
   <div style="display:flex;gap:16px;flex-wrap:wrap"><div class="cgrid" style="flex:1 1 380px">
     <label class="full">Société<input data-k="societe" placeholder="Nom de votre société"></label>
     <label class="full">Titre du plan<input data-k="titre" placeholder="ex. Façade – Fenêtre séjour"></label>
-    <label>Client<input data-k="client"></label>
+    <label>Client<input data-k="client" placeholder="Nom du client"></label>
     <label>Chantier / adresse<input data-k="chantier"></label>
     <label>Dessiné par<input data-k="dessine"></label>
     <label>Date<input data-k="date"></label>
@@ -321,6 +324,7 @@
     <button class="hbtn" id="cDrive" style="display:none">☁️ PDF dans « 09 - Plan »</button>
     <button class="hbtn" id="cPdf">📄 Enregistrer en PDF</button>
     <button class="hbtn primary" id="cPrint">🖨 Imprimer</button>
+    <button class="hbtn primary" id="cSave" style="display:none;font-size:16px;padding:9px 18px">💾 Enregistrer</button>
   </div>
 </div></div>
 
@@ -357,8 +361,9 @@
     <tr><td>Saisies</td><td><code>500</code> = longueur vers la souris · <code>500&lt;45</code> = longueur et angle · <code>@200,100</code> = décalage relatif · <code>x,y</code> = point absolu (1er point). Décimales avec un point : <code>12.5</code>.</td></tr>
     <tr><td>Touches</td><td><b>Entrée</b> (vide) = répéter la dernière commande · <b>Échap</b> = annuler · <b>F8</b> = Ortho (traits horizontaux/verticaux) · <b>F3</b> = accrochage (extrémités, milieux, centres, intersections, perpendiculaire ; choix avec ▾ à côté du bouton Accroch.) · <b>Ctrl+Z / Ctrl+Y</b>.</td></tr>
     <tr><td>iPad</td><td>Touchez pour poser un point. Pincez à deux doigts pour zoomer, glissez à deux doigts pour déplacer la vue. Les boutons <b>↵ Entrée</b> et <b>✕ Échap</b> à côté de la ligne de commande remplacent le clavier et le clic droit. Avec l'Apple Pencil, l'aperçu suit la pointe.</td></tr>
-    <tr><td>💾 Enregistrer</td><td>Bouton en haut (ou Ctrl+S / ⌘S). La première fois, tapez le nom du client : le plan s'appelle « Plan <i>nom du client</i> ». Ensuite, chaque clic enregistre directement. Pour une copie sous un autre nom : 📁 Fichier.</td></tr>
-    <tr><td>☁️ Google Drive</td><td>Dans le logiciel installé (pas dans Claude) : à chaque 💾 Enregistrer, le PDF (plan + visuel) va dans <b>« 09 - Plan »</b> — l'appli de métré le joint alors au métré du client — et le plan modifiable dans <b>Métrés › Plans › année</b>. Réglage dans 📁. Un fichier du même nom est remplacé.</td></tr>
+    <tr><td>💾 Enregistrer</td><td>Bouton en haut (ou Ctrl+S / ⌘S). Le <b>cartouche</b> s'ouvre à chaque fois, déjà rempli : complétez-le (le <b>client</b> et le <b>titre</b> sont obligatoires), puis touchez <b>💾 Enregistrer</b>. Le plan s'appelle « Plan CLIENT – Titre ». Un message indique où les 2 fichiers sont rangés, avec des liens pour les ouvrir.</td></tr>
+    <tr><td>☁️ Google Drive</td><td>Dans le logiciel installé (pas dans Claude) : à <b>chaque</b> 💾 Enregistrer, le PDF (plan + visuel) va dans <b>« 09 - Plan »</b> (l'appli de métré le joint au métré du client) et le plan modifiable (.mdao) dans <b>Métrés › Plans › année</b>. Un fichier du même nom est remplacé, jamais en double.</td></tr>
+    <tr><td>📂 Ouvrir</td><td>Affiche directement les plans de <b>Métrés › Plans</b> (année en cours, ou une autre année dans la liste), du plus récent au plus ancien. Tapez un nom de client pour filtrer, puis « Ouvrir ». « ↗ Dossier dans Google Drive » ouvre ce dossier dans Drive. Un plan rouvert est réenregistré au même endroit.</td></tr>
     <tr><td>Fichier</td><td>📁 Fichier : enregistrer le plan avec un nom, rouvrir ses plans, en commencer un nouveau, exporter / ouvrir un fichier <code>.mdao</code> pour passer d'un appareil à l'autre (par Google Drive par exemple).</td></tr>
     <tr><td>Vue</td><td>Molette = zoom · clic molette glissé = déplacer la vue · bouton ✋ Main au doigt sur iPad · <code>ZE</code> = zoom étendu.</td></tr>
     <tr><td>Sélection</td><td>Sans commande, <b>chaque clic ajoute l'objet</b> à la sélection (comme AutoCAD) ; une <b>fenêtre</b> en glissant en ajoute plusieurs d'un coup (de gauche à droite : objets entièrement dedans ; de droite à gauche : tout ce qui est touché). <b>Maj+clic</b> retire un objet. <b>Ctrl+A</b> (⌘A sur Mac) = tout sélectionner. Une barre apparaît en bas : <b>🗑 Supprimer</b>, Déplacer, Copier, Tout sélectionner, Désélectionner. Touche Suppr = supprimer. Échap ou clic droit = tout désélectionner. Un seul objet sélectionné : sa longueur, son périmètre et sa surface s'affichent en bas.</td></tr>
@@ -416,18 +421,22 @@
   </div>
   <div class="row"><button class="hbtn" id="dtReset">Vraie mesure</button><button class="hbtn" id="dtCancel">Annuler</button><button class="hbtn primary" id="dtOk">OK</button></div>
 </div></div>
-<div class="modal" id="mSave"><div class="box" style="width:460px">
-  <h2>Enregistrer le plan</h2>
-  <div style="display:flex;align-items:center;gap:8px">
-    <span style="font-size:16px;font-weight:600">Plan</span>
-    <input id="sClient" placeholder="Nom du client" style="flex:1;background:#11151b;border:1px solid var(--acc);color:#fff;border-radius:6px;padding:8px 10px;font-size:16px">
+<div class="modal" id="mOpen"><div class="box" style="width:680px">
+  <h2>📂 Ouvrir un plan</h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <span style="font-size:13px;color:var(--mut)">Métrés › Plans ›</span>
+    <select id="oYear" style="background:#11151b;border:1px solid var(--line);color:#fff;border-radius:6px;padding:7px 9px;font-size:15px"></select>
+    <input id="oSearch" placeholder="🔍 Nom du client…" style="flex:1;min-width:180px;background:#11151b;border:1px solid var(--acc);color:#fff;border-radius:6px;padding:7px 9px;font-size:15px">
+    <a id="oFolder" class="hbtn" target="_blank" rel="noopener" style="text-decoration:none;display:none">↗ Dossier dans Google Drive</a>
   </div>
-  <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
-    <span style="font-size:14px;color:var(--mut);width:36px">Titre</span>
-    <input id="sTitre" placeholder="Titre du plan (facultatif, ex. Rez-de-chaussée)" style="flex:1;background:#11151b;border:1px solid var(--line);color:#fff;border-radius:6px;padding:8px 10px;font-size:15px">
-  </div>
-  <div class="note" id="sNote">Le plan s'appellera « Plan CLIENT – Titre ». Le client et le titre sont aussi écrits dans le cartouche ; ensuite, le nom suit le cartouche à chaque 💾.</div>
-  <div class="row"><button class="hbtn" id="sCancel">Annuler</button><button class="hbtn primary" id="sOk">💾 Enregistrer</button></div>
+  <div class="note" id="oMsg"></div>
+  <div id="oList" style="max-height:52vh;overflow:auto"></div>
+  <div class="row"><button class="hbtn" id="oLocal">Plans sur cet appareil / fichier…</button><button class="hbtn" id="oClose">Fermer</button></div>
+</div></div>
+<div class="modal" id="mDone"><div class="box" style="width:520px">
+  <h2 id="dnTitle">✅ Plan enregistré</h2>
+  <div id="dnBody" style="font-size:14px;line-height:1.6"></div>
+  <div class="row"><button class="hbtn primary" id="dnOk">OK</button></div>
 </div></div>
 <div id="toast"></div>
 <div class="modal" id="mFile"><div class="box" style="width:640px">
@@ -443,7 +452,7 @@
     <label class="hbtn" style="display:inline-block">⬆ Ouvrir un fichier (.mdao)<input type="file" id="fImport" accept=".mdao,.json,application/json" style="display:none"></label>
   </div>
   <div id="fDrive" style="display:none;margin-top:10px;padding:8px;border:1px solid var(--line);border-radius:8px">
-    <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px"><input type="checkbox" id="fDriveAuto" style="width:18px;height:18px;margin-top:1px"> <span>☁️ À chaque 💾 Enregistrer, ranger aussi dans <b>Google Drive</b> : le PDF dans <b>« 09 - Plan »</b> (il sera joint au métré du client) et le plan modifiable dans <b>Métrés › Plans › <span id="fYear"></span></b>.</span></label>
+    <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px"><input type="checkbox" id="fDriveAuto" checked disabled style="display:none"> <span>☁️ À chaque 💾 Enregistrer, ranger aussi dans <b>Google Drive</b> : le PDF dans <b>« 09 - Plan »</b> (il sera joint au métré du client) et le plan modifiable dans <b>Métrés › Plans › <span id="fYear"></span></b>.</span></label>
     <button class="hbtn" id="fDriveNow" style="margin-top:6px">☁️ Ranger maintenant dans Google Drive</button>
   </div>
   <div class="note" id="fMsg"></div>
@@ -534,8 +543,8 @@ function log(t){ histEl.textContent += (histEl.textContent?"\n":"") + t; histEl.
 function setPrompt(t){ promptEl.textContent = t; }
 const clone = o => JSON.parse(JSON.stringify(o));
 
-function save(){ cartDefauts(); try{ localStorage.setItem("miniDAO2D", JSON.stringify({ents,nextId,cart,visuel,iaHist,claudeUrl,driveAuto,lastOffset,hatchOpts,textOpts,leadOpts,dimTxt,snapModes,colors,repeatOn,planId,planNameTxt,layers,curLayer,symOpts,driveNom,lastFillet})); }catch(e){} }
-function load(){ try{ const s=JSON.parse(localStorage.getItem("miniDAO2D")||"null"); if(s){ ents=s.ents||[]; nextId=s.nextId||1; Object.assign(cart,s.cart||{}); lastOffset=s.lastOffset||100; if(s.hatchOpts) Object.assign(hatchOpts,s.hatchOpts); if(s.dimTxt) dimTxt=s.dimTxt; if(s.textOpts) Object.assign(textOpts,s.textOpts); if(s.leadOpts) Object.assign(leadOpts,s.leadOpts); visuel=s.visuel||null; iaHist=s.iaHist||[]; if(s.claudeUrl && !/S998mSD3A3dCjL1aqwmDJy/.test(s.claudeUrl)) claudeUrl=s.claudeUrl; /* ancienne adresse (compte perso) ignorée */ if(typeof s.driveAuto==="boolean") driveAuto=s.driveAuto; if(s.snapModes) Object.assign(snapModes,s.snapModes); if(s.colors) Object.assign(colors,s.colors); if(typeof s.repeatOn==="boolean") repeatOn=s.repeatOn; planId=s.planId||null; planNameTxt=s.planNameTxt||""; if(Array.isArray(s.layers)&&s.layers.length) layers=s.layers; if(s.curLayer) curLayer=s.curLayer; if(s.symOpts) Object.assign(symOpts,s.symOpts); if(s.driveNom) driveNom=s.driveNom; if(typeof s.lastFillet==="number") lastFillet=s.lastFillet; } }catch(e){} }
+function save(){ cartDefauts(); try{ localStorage.setItem("miniDAO2D", JSON.stringify({ents,nextId,cart,visuel,iaHist,claudeUrl,driveAuto,lastOffset,hatchOpts,textOpts,leadOpts,dimTxt,snapModes,colors,repeatOn,planId,planNameTxt,layers,curLayer,symOpts,driveNom,driveDossier,lastFillet})); }catch(e){} }
+function load(){ try{ const s=JSON.parse(localStorage.getItem("miniDAO2D")||"null"); if(s){ ents=s.ents||[]; nextId=s.nextId||1; Object.assign(cart,s.cart||{}); lastOffset=s.lastOffset||100; if(s.hatchOpts) Object.assign(hatchOpts,s.hatchOpts); if(s.dimTxt) dimTxt=s.dimTxt; if(s.textOpts) Object.assign(textOpts,s.textOpts); if(s.leadOpts) Object.assign(leadOpts,s.leadOpts); visuel=s.visuel||null; iaHist=s.iaHist||[]; if(s.claudeUrl && !/S998mSD3A3dCjL1aqwmDJy/.test(s.claudeUrl)) claudeUrl=s.claudeUrl; /* ancienne adresse (compte perso) ignorée */  if(s.snapModes) Object.assign(snapModes,s.snapModes); if(s.colors) Object.assign(colors,s.colors); if(typeof s.repeatOn==="boolean") repeatOn=s.repeatOn; planId=s.planId||null; planNameTxt=s.planNameTxt||""; if(Array.isArray(s.layers)&&s.layers.length) layers=s.layers; if(s.curLayer) curLayer=s.curLayer; if(s.symOpts) Object.assign(symOpts,s.symOpts); if(s.driveNom) driveNom=s.driveNom; if(s.driveDossier) driveDossier=s.driveDossier; if(typeof s.lastFillet==="number") lastFillet=s.lastFillet; } }catch(e){} }
 function pushUndo(){ undoStack.push(JSON.stringify(ents)); if(undoStack.length>200) undoStack.shift(); redoStack.length=0; }
 function addEnt(e){ pushUndo(); e.id=nextId++; if(e.type==="text" && !e.color) e.color=colors.texte; e.layer = e.type==="dim" ? "Cotes" : curLayer; ensureLayers(); { const l=layers.find(x=>x.name===e.layer); if(l && !l.visible){ l.visible=true; log(`  calque « ${l.name} » réaffiché`); updLayerUI(); } } if(e.type!=="dim" && !e.color) e.color = e.type==="hatch" ? colors.hachure : colors.trait; ents.push(e); save(); renderEnts(); return e; }
 
@@ -1763,13 +1772,14 @@ function refreshPreview(){
     cart.mode==="ajuster" ? `Dessin <b>ajusté à la page</b> ${fmtName} (≈ 1:${fmt(Math.round(s.den*10)/10)}). Le cartouche indique « Sans échelle ».` :
     `Échelle ${cart.echelle==="auto"?"choisie automatiquement":"imposée"} : <b>1:${fmt(s.den)}</b> sur ${fmtName}.` + (s.fits?"":` <span style="color:var(--warn)">⚠ Le dessin dépasse la feuille à cette échelle.</span>`);
 }
-function openCart(){ cartDefauts(); $("cDrive").style.display = driveDispo() ? "inline-block" : "none"; $("inClaudeNote").style.display = inClaude ? "block" : "none"; $("cPrint").textContent = inClaude ? "🖨 Imprimer (PDF)" : "🖨 Imprimer"; $("lblVisu").style.display = visuel ? "flex" : "none";
+function openCart(saving){ cartSaving=!!saving; $("mCart").classList.toggle("saving",cartSaving); $("cTitle").textContent=cartSaving?"💾 Enregistrer le plan – cartouche":"Cartouche & impression"; $("cSaveNote").style.display=cartSaving?"block":"none"; $("cSave").style.display=cartSaving?"inline-block":"none"; $("cPrint").classList.toggle("primary",!cartSaving); document.querySelectorAll("#mCart .manque").forEach(i=>i.classList.remove("manque")); cartDefauts(); $("cDrive").style.display = driveDispo() ? "inline-block" : "none"; $("inClaudeNote").style.display = inClaude ? "block" : "none"; $("cPrint").textContent = inClaude ? "🖨 Imprimer (PDF)" : "🖨 Imprimer"; $("lblVisu").style.display = visuel ? "flex" : "none";
   document.querySelectorAll("#mCart [data-k]").forEach(i=>{ i.value=cart[i.dataset.k]||""; if(i.dataset.k==="echelle"&&!i.value) i.value="auto"; if(i.dataset.k==="orient"&&!i.value) i.value="paysage"; if(i.dataset.k==="mode"&&!i.value) i.value="echelle"; if(i.dataset.k==="couleurs"&&!i.value) i.value="couleur"; });
-  refreshPreview(); $("mCart").classList.add("show");
+  refreshPreview(); majNomPrev(); $("mCart").classList.add("show");
+  if(cartSaving){ const k=!String(cart.client||"").trim()?"client":!String(cart.titre||"").trim()?"titre":null; if(k) setTimeout(()=>document.querySelector(`#mCart [data-k="${k}"]`).focus(),60); }
 }
 document.querySelectorAll("#mCart [data-k]").forEach(i=>i.addEventListener("change",()=>{ cart[i.dataset.k]=i.value; save(); refreshPreview(); }));
-document.querySelectorAll("#mCart [data-k]").forEach(i=>i.addEventListener("input",()=>{ cart[i.dataset.k]=i.value; save(); refreshPreview(); }));
-$("cClose").onclick=()=>$("mCart").classList.remove("show");
+document.querySelectorAll("#mCart [data-k]").forEach(i=>i.addEventListener("input",()=>{ cart[i.dataset.k]=i.value; i.classList.remove("manque"); save(); refreshPreview(); majNomPrev(); }));
+$("cClose").onclick=()=>{ if(cartSaving) retourApresSave=false; fermerCart(); };
 // ---------- Google Drive (repris de l'appli de métré, même compte, même autorisation) ----------
 /* Seulement dans le logiciel installé (https://foissac-fermetures.github.io/appli-metre/dao/) : Claude bloque Google.
    - PDF (plan + visuel)  → dossier « 09 - Plan » (le même que l'appli de métré, qui joint ces PDF au métré du client
@@ -1833,21 +1843,38 @@ async function dossierPlans(){ const k="plans_dossier"; { const fixe=await dossi
   const r=await gdrive("https://www.googleapis.com/drive/v3/files?pageSize=20&includeItemsFromAllDrives=true&fields=files(id,name)&q="+encodeURIComponent(q));
   const f=(r.files||[]).sort((a,b)=>(b.name==="09 - Plan")-(a.name==="09 - Plan"))[0];
   id = f ? f.id : await dossierDrive("09 - Plan","root"); lsSet(k,id); return id; }
-async function dossierMdao(){ const an=String(new Date().getFullYear()), k="minidao_dossier_"+an; let id=lsGet(k);
+async function dossierMdao(){ if(driveDossier){ const d=await dossierFixe(driveDossier); if(d) return d; driveDossier=""; } /* plan rouvert depuis Drive : on le remet au même endroit */
+  const an=String(new Date().getFullYear()), k="minidao_dossier_"+an; let id=lsGet(k);
   if(id){ try{ const f=await gdrive(`https://www.googleapis.com/drive/v3/files/${id}?fields=id,trashed`); if(f && !f.trashed) return id; }catch(e){ if(!/Drive 404/.test(e.message)) throw e; } }
   const metres=(await dossierFixe(DOSSIERS_DAO.metres)) || await dossierDrive("Métrés","root"), plans=await dossierDrive("Plans",metres); id=await dossierDrive(an,plans); lsSet(k,id); return id; }
 let driveEnCours=false;
 async function rangerDrive(quoi){ quoi=quoi||{pdf:true,mdao:true};
-  if(driveEnCours) return false; driveEnCours=true; const nom=(planNameTxt||"Plan").replace(/[\\/:*?"<>|]+/g,"-").trim(); const faits=[];
+  if(driveEnCours) return false; driveEnCours=true; const nom=(planNameTxt||"Plan").replace(/[\\/:*?"<>|]+/g,"-").trim(); const faits=[], liens={};
   try{
     const ancien=driveNom;
-    if(quoi.mdao){ const id=await dossierMdao(); if(ancien && ancien!==nom) await renommerDrive(ancien+".mdao",nom+".mdao",id); await deposerDrive(nom+".mdao", new Blob([JSON.stringify(planData())],{type:"application/json"}), id, "Plan Mini DAO 2D (modifiable)"); faits.push("Métrés › Plans › "+new Date().getFullYear()); }
-    if(quoi.pdf){ toast("☁️ Création du PDF pour Google Drive…"); const blob=await makePDF(); const id=await dossierPlans(); if(ancien && ancien!==nom) await renommerDrive(ancien+".pdf",nom+".pdf",id); await deposerDrive(nom+".pdf", new Blob([blob],{type:"application/pdf"}), id, "Plan Mini DAO 2D"); faits.push("09 - Plan"); }
-    if(quoi.mdao && quoi.pdf){ driveNom=nom; save(); }
-    toast("☁️ Rangé dans Google Drive : "+faits.join(" + ")); log(`Google Drive : « ${nom} » rangé dans ${faits.join(" et ")}`); return true;
-  }catch(e){ toast("Google Drive : "+e.message); log("Google Drive : échec – "+e.message); return false; }
+    if(quoi.mdao){ const id=await dossierMdao(); if(ancien && ancien!==nom) await renommerDrive(ancien+".mdao",nom+".mdao",id); const r=await deposerDrive(nom+".mdao", new Blob([JSON.stringify(planData())],{type:"application/json"}), id, "Plan Mini DAO 2D (modifiable)");
+      driveDossier=id; liens.mdaoDossier=id; liens.mdaoNom=await nomDossier(id); faits.push("Métrés › Plans › "+liens.mdaoNom); }
+    if(quoi.pdf){ toast("☁️ Création du PDF pour Google Drive…"); const blob=await makePDF(); const id=await dossierPlans(); if(ancien && ancien!==nom) await renommerDrive(ancien+".pdf",nom+".pdf",id); const r=await deposerDrive(nom+".pdf", new Blob([blob],{type:"application/pdf"}), id, "Plan Mini DAO 2D");
+      liens.pdf=r&&r.webViewLink; liens.pdfDossier=id; faits.push("09 - Plan"); }
+    if(quoi.mdao && quoi.pdf){ driveNom=nom; }
+    save(); { const l=libGet(), p=planId&&l.find(x=>x.id===planId); if(p){ p.data=planData(); libSet(l); } }
+    toast("☁️ Rangé dans Google Drive : "+faits.join(" + ")); log(`Google Drive : « ${nom} » rangé dans ${faits.join(" et ")}`);
+    if(quoi.confirm) montrerConfirmation(nom,liens);
+    return true;
+  }catch(e){ toast("Google Drive : "+e.message); log("Google Drive : échec – "+e.message); if(quoi.confirm) montrerConfirmation(nom,null,e.message); return false; }
   finally{ driveEnCours=false; }
 }
+async function nomDossier(id){ try{ return (await gdrive(`https://www.googleapis.com/drive/v3/files/${id}?fields=name`)).name||""; }catch(e){ return ""; } }
+const lienDossier = id => "https://drive.google.com/drive/folders/"+encodeURIComponent(id);
+function montrerConfirmation(nom,liens,erreur){
+  const b=$("dnBody"), esc2=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  if(erreur){ $("dnTitle").textContent="⚠️ Plan enregistré sur l'appareil seulement"; b.innerHTML=`« ${esc2(nom)} » est bien enregistré sur cet appareil, mais Google Drive a répondu : <i>${esc2(erreur)}</i>.<br>Touchez de nouveau 💾 Enregistrer pour réessayer.`; }
+  else { $("dnTitle").textContent="✅ Plan enregistré"; b.innerHTML=`<b>${esc2(nom)}</b><br>
+    📄 <b>PDF</b> → « 09 - Plan » (joint au métré du client)${liens.pdf?` · <a href="${esc2(liens.pdf)}" target="_blank" rel="noopener">voir le PDF</a>`:""} · <a href="${lienDossier(liens.pdfDossier)}" target="_blank" rel="noopener">ouvrir le dossier</a><br>
+    ✏️ <b>Plan modifiable</b> (.mdao) → Métrés › Plans › ${esc2(liens.mdaoNom||"")} · <a href="${lienDossier(liens.mdaoDossier)}" target="_blank" rel="noopener">ouvrir le dossier</a><br>
+    <span class="note">Pour le modifier plus tard : bouton <b>📂 Ouvrir</b>.</span>`; }
+  $("mDone").classList.add("show"); }
+$("dnOk").onclick=()=>$("mDone").classList.remove("show");
 /* Lancé depuis un clic (💾, Ctrl+S, boutons) : demande le jeton tout de suite, puis range. */
 function rangerDriveClic(quoi){ if(!driveDispo()) return; if(!navigator.onLine){ toast("Hors ligne : rien n'a été envoyé dans Google Drive"); return; }
   demanderJeton().then(()=>rangerDrive(quoi)).catch(e=>toast("Google Drive : "+e.message)); }
@@ -1882,7 +1909,7 @@ async function savePDF(){
 }
 $("cPdf").onclick=savePDF;
 $("cDrive").onclick=()=>{ if(!planNameTxt){ toast("Enregistrez d'abord le plan avec 💾 (nom du client)"); return; } rangerDriveClic({pdf:true,mdao:false}); };
-$("fDriveAuto").onchange=()=>{ driveAuto=$("fDriveAuto").checked; save(); };
+/* dao-v13 : Google Drive à chaque 💾, sans case à cocher */
 $("fDriveNow").onclick=()=>{ if(!planNameTxt){ $("fMsg").textContent="Enregistrez d'abord le plan avec 💾 (nom du client)."; return; } rangerDriveClic(); };
 $("pVisu").addEventListener("change",refreshPreview);
 $("cPrint").onclick=()=>{
@@ -1900,7 +1927,7 @@ const mNew=document.createElement("div"); mNew.className="modal"; mNew.id="mNew"
 mNew.innerHTML=`<div class="box" style="width:380px"><h2>Nouveau dessin</h2><p>Effacer tout le dessin en cours ? (Annuler reste possible.)</p><div class="row"><button class="hbtn" id="nNo">Non</button><button class="hbtn primary" id="nYes">Oui, tout effacer</button></div></div>`;
 document.body.appendChild(mNew);
 $("nNo").onclick=()=>mNew.classList.remove("show");
-$("nYes").onclick=()=>{ pushUndo(); driveNom=""; ents=[]; selected.clear(); visuel=null; iaHist=[]; Object.assign(cart,{client:"",chantier:"",titre:"",numero:"",indice:"A",obs:"",date:new Date().toLocaleDateString("fr-FR")}); layers=[{name:"Dessin",visible:true},{name:"Cotes",visible:true}]; curLayer="Dessin"; updLayerUI(); planId=null; planNameTxt=""; updPlanName(); save(); mNew.classList.remove("show"); zoomExtents(); log("Nouveau dessin"); };
+$("nYes").onclick=()=>{ pushUndo(); driveNom=""; driveDossier=""; ents=[]; selected.clear(); visuel=null; iaHist=[]; Object.assign(cart,{client:"",chantier:"",titre:"",numero:"",indice:"A",obs:"",date:new Date().toLocaleDateString("fr-FR")}); layers=[{name:"Dessin",visible:true},{name:"Cotes",visible:true}]; curLayer="Dessin"; updLayerUI(); planId=null; planNameTxt=""; updPlanName(); save(); mNew.classList.remove("show"); zoomExtents(); log("Nouveau dessin"); };
 
 // ---------- Organiser la barre d'outils ----------
 const navEl=$("tools"); const DEFAULT_ORDER=[...navEl.querySelectorAll(":scope > [data-key]")].map(e=>e.dataset.key);
@@ -1936,14 +1963,14 @@ function toast(t){ const el2=$("toast"); el2.textContent=t; el2.style.display="b
 const LIB_KEY="miniDAO2D_lib";
 function libGet(){ try{ return JSON.parse(localStorage.getItem(LIB_KEY)||"[]"); }catch(e){ return []; } }
 function libSet(l){ try{ localStorage.setItem(LIB_KEY,JSON.stringify(l)); return true; }catch(e){ $("fMsg").textContent="Mémoire de l'appareil pleine ou indisponible : exportez le fichier .mdao."; return false; } }
-function planData(){ return {app:"Mini DAO 2D",format:1,driveNom,name:planNameTxt,date:new Date().toISOString(),ents,nextId,cart,layers,curLayer,visuel,iaHist}; }
-function loadPlan(d,id){ pushUndo(); ents=d.ents||[]; nextId=d.nextId||(Math.max(0,...ents.map(e=>e.id||0))+1); if(d.cart) Object.assign(cart,d.cart); visuel=d.visuel||null; iaHist=d.iaHist||[]; layers=Array.isArray(d.layers)&&d.layers.length?d.layers:[{name:"Dessin",visible:true},{name:"Cotes",visible:true}]; curLayer=d.curLayer||"Dessin"; ensureLayers(); updLayerUI(); planNameTxt=d.name||""; driveNom=d.driveNom||""; planId=id||null; cartDefauts(); selected.clear(); undoStack=[]; redoStack=[]; save(); updPlanName(); zoomExtents(); log(`Plan ouvert : ${planNameTxt||"sans nom"}`); }
+function planData(){ return {app:"Mini DAO 2D",format:1,driveNom,driveDossier,name:planNameTxt,date:new Date().toISOString(),ents,nextId,cart,layers,curLayer,visuel,iaHist}; }
+function loadPlan(d,id){ pushUndo(); ents=d.ents||[]; nextId=d.nextId||(Math.max(0,...ents.map(e=>e.id||0))+1); if(d.cart) Object.assign(cart,d.cart); visuel=d.visuel||null; iaHist=d.iaHist||[]; layers=Array.isArray(d.layers)&&d.layers.length?d.layers:[{name:"Dessin",visible:true},{name:"Cotes",visible:true}]; curLayer=d.curLayer||"Dessin"; ensureLayers(); updLayerUI(); planNameTxt=d.name||""; driveNom=d.driveNom||""; driveDossier=d.driveDossier||""; planId=id||null; cartDefauts(); selected.clear(); undoStack=[]; redoStack=[]; save(); updPlanName(); zoomExtents(); log(`Plan ouvert : ${planNameTxt||"sans nom"}`); }
 function updPlanName(){ $("planName").textContent = planNameTxt ? "— "+planNameTxt : ""; document.title = planNameTxt ? planNameTxt+" – Mini DAO 2D" : "Mini DAO 2D"; }
 function storePlan(asCopy){
   const name=withPlan($("fName").value.trim()||planNameTxt||new Date().toLocaleDateString("fr-FR")); planNameTxt=name;
   const l=libGet(); const data=planData();
   if(!asCopy && planId && l.find(p=>p.id===planId)){ const p=l.find(p=>p.id===planId); p.name=name; p.date=data.date; p.data=data; }
-  else { planId="p"+Date.now(); driveNom=""; data.driveNom=""; l.unshift({id:planId,name,date:data.date,data}); }
+  else { planId="p"+Date.now(); driveNom=""; driveDossier=""; data.driveNom=""; data.driveDossier=""; l.unshift({id:planId,name,date:data.date,data}); }
   if(libSet(l)){ save(); updPlanName(); $("fMsg").textContent=`« ${name} » enregistré sur cet appareil.`; log(`Plan enregistré : ${name}`); renderFileList(); }
 }
 function renderFileList(){
@@ -1972,18 +1999,56 @@ async function exportFile(){
 }
 $("bFile").onclick=()=>{ $("fDrive").style.display = driveDispo() ? "block" : "none"; $("fDriveAuto").checked=driveAuto; $("fYear").textContent=new Date().getFullYear(); $("fName").value=planNameTxt||"Plan "; $("fMsg").textContent=""; renderFileList(); $("mFile").classList.add("show"); };
 $("fClose").onclick=()=>$("mFile").classList.remove("show");
-function quickSave(){
-  const l=libGet(), auto=nomDuCartouche();
-  if(!(planId && l.some(p=>p.id===planId)) && auto){ $("fName").value=auto; storePlan(false); toast(`💾 « ${planNameTxt} » enregistré`); if(retourApresSave){ retourApresSave=false; revenir(); return; } if(driveAuto) rangerDriveClic(); return; }
-  if(planId && l.some(p=>p.id===planId)){ $("fName").value=auto||planNameTxt; storePlan(false); toast(`💾 « ${planNameTxt} » enregistré`); if(driveAuto) rangerDriveClic(); return; }
-  $("sClient").value = cart.client || (planNameTxt ? planNameTxt.replace(/^plan\s*/i,"").split(" – ")[0] : ""); $("sTitre").value = cart.titre||"";
-  $("mSave").classList.add("show"); setTimeout(()=>{ $("sClient").focus(); $("sClient").select(); },50);
+let cartSaving=false;
+function quickSave(){ openCart(true); }
+function majNomPrev(){ const n=nomDuCartouche(); $("cNomPrev").textContent = n || "Plan CLIENT – Titre"; }
+function doSaveCart(){
+  const manque=[]; ["client","titre"].forEach(k=>{ const i=document.querySelector(`#mCart [data-k="${k}"]`); const vide=!String(cart[k]||"").trim(); i.classList.toggle("manque",vide); if(vide) manque.push(k==="client"?"le nom du client":"le titre du plan"); });
+  if(manque.length){ toast("Il manque "+manque.join(" et ")); document.querySelector("#mCart .manque").focus(); return; }
+  cart.client=cart.client.trim(); cart.titre=cart.titre.trim();
+  $("fName").value=nomDuCartouche(); storePlan(false); fermerCart(); toast(`💾 « ${planNameTxt} » enregistré`);
+  if(retourApresSave){ retourApresSave=false; revenir(); return; }
+  if(!driveDispo()){ log("  (Google Drive n'est disponible que dans le logiciel installé : plan enregistré sur cet appareil)"); return; }
+  if(!navigator.onLine){ montrerConfirmation(planNameTxt,null,"pas de connexion Internet"); return; }
+  demanderJeton().then(()=>rangerDrive({pdf:true,mdao:true,confirm:true})).catch(e=>montrerConfirmation(planNameTxt,null,e.message));
 }
-function doSave(){ const cl=$("sClient").value.trim(); if(!cl){ $("sNote").textContent="Tapez le nom du client."; $("sClient").focus(); return; }
-  cart.client=cl; cart.titre=$("sTitre").value.trim(); $("fName").value=nomDuCartouche(); storePlan(false); $("mSave").classList.remove("show"); toast(`💾 « ${planNameTxt} » enregistré`); if(retourApresSave){ retourApresSave=false; revenir(); return; } if(driveAuto) rangerDriveClic(); }
+function fermerCart(){ cartSaving=false; $("mCart").classList.remove("show","saving"); }
 $("bSave").onclick=quickSave;
-$("sOk").onclick=doSave; $("sCancel").onclick=()=>{ retourApresSave=false; $("mSave").classList.remove("show"); };
-$("sClient").addEventListener("keydown",ev=>{ if(ev.key==="Enter"){ ev.preventDefault(); doSave(); } });
+$("cSave").onclick=doSaveCart;
+// ---------- 📂 Ouvrir un plan depuis Google Drive (Métrés › Plans › année) ----------
+let oFiles=[], oPlansId=null;
+const sansAccent=t=>String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+async function dossierPlansMdao(){ const metres=await dossierFixe(DOSSIERS_DAO.metres); if(!metres) return null;   // lecture seule : rien n'est créé ici
+  const r=await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id,name)&q="+encodeURIComponent(`name='Plans' and mimeType='application/vnd.google-apps.folder' and trashed=false and '${metres}' in parents`));
+  return r.files.length ? r.files[0].id : null; }
+async function oCharger(){ const msg=$("oMsg"); msg.textContent="Lecture de Google Drive…"; $("oList").innerHTML="";
+  try{ await demanderJeton(); oPlansId=await dossierPlansMdao(); if(!oPlansId){ msg.textContent="Aucun dossier Métrés › Plans pour l'instant : enregistrez d'abord un plan avec 💾."; return; }
+    const r=await gdrive("https://www.googleapis.com/drive/v3/files?pageSize=100&fields=files(id,name)&q="+encodeURIComponent(`mimeType='application/vnd.google-apps.folder' and trashed=false and '${oPlansId}' in parents`));
+    const ans=(r.files||[]).sort((a,b)=>b.name.localeCompare(a.name,"fr",{numeric:true})); const sel=$("oYear"); sel.innerHTML="";
+    if(!ans.length){ msg.textContent="Aucun plan dans Métrés › Plans pour l'instant."; return; }
+    for(const a of ans){ const o=document.createElement("option"); o.value=a.id; o.textContent=a.name; sel.appendChild(o); }
+    const cur=ans.find(a=>a.name===String(new Date().getFullYear())); sel.value=(cur||ans[0]).id; await oListe();
+  }catch(e){ msg.textContent="Google Drive : "+e.message; } }
+async function oListe(){ const id=$("oYear").value, msg=$("oMsg"); $("oFolder").href=lienDossier(id); $("oFolder").style.display="inline-block"; msg.textContent="Lecture…";
+  try{ const r=await gdrive("https://www.googleapis.com/drive/v3/files?pageSize=500&orderBy=modifiedTime%20desc&fields=files(id,name,modifiedTime)&q="+encodeURIComponent(`'${id}' in parents and trashed=false and name contains '.mdao'`));
+    oFiles=(r.files||[]).filter(f=>/\.mdao$/i.test(f.name)); msg.textContent=""; oAfficher(); }catch(e){ msg.textContent="Google Drive : "+e.message; } }
+function oAfficher(){ const box=$("oList"), q=sansAccent($("oSearch").value.trim()); box.innerHTML="";
+  const l=oFiles.filter(f=>!q || sansAccent(f.name).includes(q));
+  if(!l.length){ box.innerHTML=`<div class="note">${oFiles.length?"Aucun plan ne correspond à « "+$("oSearch").value.replace(/[<>&]/g,"")+" ».":"Aucun plan dans ce dossier."}</div>`; return; }
+  for(const f of l){ const row=document.createElement("div"); row.className="pl"; row.innerHTML="<b></b><small></small>";
+    row.querySelector("b").textContent=f.name.replace(/\.mdao$/i,""); row.querySelector("small").textContent=new Date(f.modifiedTime).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"});
+    const o=document.createElement("button"); o.className="hbtn primary"; o.textContent="Ouvrir"; o.onclick=()=>oOuvrir(f,o); row.append(o); box.appendChild(row); } }
+async function oOuvrir(f,btn){ btn.disabled=true; btn.textContent="⏳";
+  try{ const r=await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&supportsAllDrives=true`,{headers:{Authorization:"Bearer "+G_JETON}});
+    if(!r.ok) throw new Error("Drive "+r.status); const d=JSON.parse(await r.text()); if(!Array.isArray(d.ents)) throw new Error("ce fichier n'est pas un plan Mini DAO");
+    const nom=f.name.replace(/\.mdao$/i,""); d.name=nom; d.driveNom=nom; d.driveDossier=$("oYear").value;
+    garderDessinEnCours(); const l=libGet(); let p=l.find(x=>x.name===nom);
+    if(p){ p.data=d; p.date=new Date().toISOString(); } else { p={id:"p"+Date.now(),name:nom,date:new Date().toISOString(),data:d}; l.unshift(p); }
+    libSet(l); loadPlan(d,p.id); $("mOpen").classList.remove("show"); toast(`📂 « ${nom} » ouvert`);
+  }catch(e){ btn.disabled=false; btn.textContent="Ouvrir"; $("oMsg").textContent="Impossible d'ouvrir : "+e.message; } }
+$("bOpen").onclick=()=>{ if(!driveDispo()){ $("bFile").click(); return; } $("oSearch").value=""; $("oFolder").style.display="none"; $("mOpen").classList.add("show"); oCharger(); setTimeout(()=>$("oSearch").focus(),60); };
+$("oYear").onchange=oListe; $("oSearch").oninput=oAfficher;
+$("oClose").onclick=()=>$("mOpen").classList.remove("show"); $("oLocal").onclick=()=>{ $("mOpen").classList.remove("show"); $("bFile").click(); };
 $("fSave").onclick=()=>storePlan(false);
 $("fSaveAs").onclick=()=>storePlan(true);
 $("fNew").onclick=()=>{ $("mFile").classList.remove("show"); $("mNew").classList.add("show"); };
@@ -2113,7 +2178,7 @@ function dimAtPoint(pW){ let best=null,bd=8/view.z; for(const e of VE()){ if(e.t
 var CART_DEFAUTS={societe:"Foissac Fermetures",dessine:"Nicolas"};
 function cartDefauts(){ if(!CART_DEFAUTS) return; for(const k in CART_DEFAUTS) if(!String(cart[k]||"").trim()) cart[k]=CART_DEFAUTS[k]; }
 function nomDuCartouche(){ const cl=String(cart.client||"").trim(); if(!cl) return ""; const t=String(cart.titre||"").trim(); return withPlan(cl)+(t?" – "+t:""); }
-var driveNom="";
+var driveNom="", driveDossier="";
 async function renommerDrive(ancien,nouveau,parent){ try{ const q=n=>`name='${q_(n)}' and trashed=false and '${parent}' in parents`;
   const ex=(await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id)&q="+encodeURIComponent(q(ancien)))).files[0]; if(!ex) return;
   const deja=(await gdrive("https://www.googleapis.com/drive/v3/files?fields=files(id)&q="+encodeURIComponent(q(nouveau)))).files[0]; if(deja) return;
@@ -2299,7 +2364,7 @@ function ouvrirPlanClient(cl){
   if(ex && ex.id===planId) return;
   garderDessinEnCours();
   if(ex){ loadPlan(ex.data,ex.id); log(`Plan de ${cl} rouvert`); return; }
-  pushUndo(); driveNom=""; ents=[]; selected.clear(); visuel=null; iaHist=[]; Object.assign(cart,{client:cl,chantier:"",titre:"",numero:"",indice:"A",obs:"",date:new Date().toLocaleDateString("fr-FR")});
+  pushUndo(); driveNom=""; driveDossier=""; ents=[]; selected.clear(); visuel=null; iaHist=[]; Object.assign(cart,{client:cl,chantier:"",titre:"",numero:"",indice:"A",obs:"",date:new Date().toLocaleDateString("fr-FR")});
   layers=[{name:"Dessin",visible:true},{name:"Cotes",visible:true}]; curLayer="Dessin"; updLayerUI(); planId=null; planNameTxt=nom; updPlanName(); save();
   log(`Nouveau plan pour ${cl} : dessinez, puis 💾 Enregistrer (le nom « ${nom} » est déjà prêt).`); }
 let retourForce=false;
@@ -2310,7 +2375,7 @@ async function revenir(){
   const l=libGet();
   if(!(planId && l.some(p=>p.id===planId))){ retourApresSave=true; quickSave(); return; }   // 1re fois : on demande le nom du client
   $("fName").value=planNameTxt; storePlan(false);
-  if(driveAuto && driveDispo() && navigator.onLine){
+  if(driveDispo() && navigator.onLine){
     $("bRetour").disabled=true; $("bRetour").textContent="⏳ Google Drive…";
     let ok=false; try{ await attendreDrive(); await demanderJeton(); ok=await rangerDrive(); }catch(e){ toast("Google Drive : "+e.message); }
     $("bRetour").disabled=false; $("bRetour").textContent="↩ Retour";

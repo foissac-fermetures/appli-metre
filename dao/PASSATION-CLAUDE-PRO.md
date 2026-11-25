@@ -260,6 +260,7 @@ PROMPT-POUR-CLAUDE-PRO.md ← le message que Nicolas te donne
 | 25/11/2026 | dao-v10 | Commandes toujours actives : une fonction reste accrochée à la souris jusqu'au clic droit (ou Échap) ; bouton 🔁 retiré : voir § 15. |
 | 25/11/2026 | dao-v11 | Couleurs des **textes** et de la **flèche + texte** (flèche/trait et texte séparément) dans 🎨, appliquées aussi aux objets sélectionnés ; pastille couleur dans la barre Texte ; menu 🎨 défilant. Préparé dans une autre conversation sur la base de dao-v10, testé (écran + impression). |
 | 25/11/2026 | dao-v12 | Flèche + texte réglable : taille du texte, taille de la flèche, épaisseur du trait, couleurs, gras, encadré, dans sa fenêtre (double-clic) ; réglages repris pour les suivantes : voir § 16. |
+| 25/11/2026 | dao-v13 | 💾 = cartouche à chaque fois (client + titre obligatoires), Drive toujours (PDF « 09 - Plan » + .mdao Métrés › Plans › année) avec message de confirmation et liens ; nouveau bouton 📂 Ouvrir (plans Drive par année, recherche client, lien vers le dossier) : voir § 17. |
 | 18/11/2026 | dao-v5 | **Essai réel Google Drive réussi** (« Plan TEST », 2 enregistrements : PDF dans 09 - Plan, .mdao dans Métrés › Plans › 2026, remplacés sans doublon). « Métrés » fixé : `DOSSIERS_DAO.metres = 1HoXaRkku5deGnEtg6t3SK6jtvs4zr1lz`. |
 
 ## 11. Service worker de l'appli de métré : corrigé le 18/11/2026 (accord de Nicolas)
@@ -353,4 +354,22 @@ Options cochées : taille du texte, taille de la flèche, épaisseur du trait, g
 - Réglage par défaut : `leadOpts` (sauvegardé) reprend les derniers réglages. Les couleurs choisies deviennent celles de 🎨 (`colors.repLigne` / `repTexte`) ; les autres repères sans couleur propre la reçoivent avant, pour **ne pas changer de couleur**.
 - Les anciens repères (sans ces champs) s'affichent comme avant.
 - Test : `tests/test_v12.py` (création, préremplissage, double-clic, impression 2,5 / 3,5 / 5 mm, cadre, rechargement).
+
+## 17. Enregistrer par le cartouche, 📂 Ouvrir depuis Drive (dao-v13, 25/11/2026, options cochées par Nicolas)
+
+Options cochées : cartouche à chaque fois, client et titre obligatoires, Drive toujours, message de confirmation ; liste Drive dans la DAO, choix de l'année, recherche par client, lien vers le dossier Drive.
+
+**💾 Enregistrer** (bouton, Ctrl+S / ⌘S, et 1er « ↩ Retour » vers le métré)
+- `quickSave()` = `openCart(true)` : le cartouche `#mCart` s'ouvre en mode « enregistrer » (classe `saving`, titre `#cTitle`, note `#cSaveNote` avec le nom prévu `#cNomPrev`, gros bouton `#cSave`).
+- `doSaveCart()` : refuse si client ou titre vide (cases `.manque` en rouge + message), sinon `storePlan(false)` sous le nom `nomDuCartouche()` puis, dans le logiciel installé, `rangerDrive({pdf,mdao,confirm:true})`. Dans Claude (artefact) : enregistré sur l'appareil seulement (Drive bloqué par Claude).
+- L'ancienne fenêtre `#mSave` (sClient/sTitre, § 14) est **supprimée**.
+- Drive **toujours** : la case « À chaque 💾… » (`fDriveAuto`) est cachée, `driveAuto` n'est plus lu ; `revenir()` range aussi toujours dans Drive.
+- `montrerConfirmation()` (fenêtre `#mDone`) : où sont les 2 fichiers, liens « voir le PDF » (webViewLink) et « ouvrir le dossier » (drive.google.com/drive/folders/ID). En cas d'erreur : « enregistré sur l'appareil seulement » + raison.
+
+**📂 Ouvrir** (bouton `#bOpen`, fenêtre `#mOpen`)
+- Lecture seule : `dossierPlansMdao()` retrouve Métrés (ID fixe) › Plans **sans rien créer**. Liste des années (`#oYear`, année en cours choisie), fichiers `.mdao` triés du plus récent (`orderBy=modifiedTime desc`), filtre `#oSearch` sans accents ni majuscules, lien `#oFolder` vers le dossier Drive.
+- `oOuvrir()` : télécharge le .mdao (`alt=media`), range d'abord le dessin en cours (`garderDessinEnCours`), met le plan dans « Mes plans » de l'appareil (même nom = mis à jour), puis `loadPlan`.
+- Nouveau champ de plan `driveDossier` (dans `planData`, `loadPlan`, `save/load`, remis à "" pour un nouveau plan) : un plan rouvert depuis 2025 est réenregistré **dans 2025** (`dossierMdao()` l'utilise s'il existe encore), pas en double dans 2026.
+- Hors logiciel installé (Claude) : 📂 ouvre la fenêtre 📁 Fichier.
+- Tests : `tests/test_v13.py` (Drive simulé : refus sans client/titre, confirmation et liens, renommage sans doublon, liste par année, recherche « blouin elies », ouverture puis réenregistrement dans 2025) et `tests/test_retour.py` (↩ Retour → cartouche → Drive → retour au métré). `test_v9.py` adapté.
 

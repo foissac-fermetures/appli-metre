@@ -6819,7 +6819,7 @@ const hModePT = e => e.h_mode||PT_H_MODES[0];
 function hauteurAutoPT(e){ return hModePT(e)===PT_H_MODES[0] && num(e.h_pilier)!=null ? num(e.h_pilier)-PT_H_RETRAIT : null; }
 function controlePT(d){
   const p=d.pt, E=[], W=[]; if(!p) return {E,W};
-  if(!p.jours) W.push("Jours de pose non estimés");
+
   p.elements.forEach((e,i)=>{ const n=`${e.type?e.type.toLowerCase():"élément"} ${i+1}`, L=num(e.L), H=num(e.H), f=fabPT(e);
     if(!e.type) E.push(`Élément ${i+1} : type (battant / coulissant / portillon) non choisi`);
     if(L==null) E.push(`${n} : largeur manquante`); if(H==null) E.push(`${n} : hauteur manquante`);
@@ -6924,9 +6924,8 @@ function renderPT(t){
       <div style="margin-top:8px">${F.area(k+"obs","Observation",e.obs)}</div>
       <div id="ptDes${i}" style="margin-top:10px">${dessinPT(e)}</div></div>`; };
   t.innerHTML=`<datalist id="dlPtMod">${PT_MODELES.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
-  <div class="card"><h2><span class="num">1</span>Portails et portillons – GardenGate</h2><div class="grid g4">
-    ${F.text("pt.ref","Réf. chantier",p.ref)}${F.text("pt.jours","Jours de pose estimés",p.jours)}</div>
-    <p class="hint">Date et métreur repris du métré. Fabrication = largeur entre piliers (pas de jeu déduit) ; hauteur = pilier − ${PT_H_RETRAIT} mm ou hauteur choisie par le client.</p></div>
+  <div class="card"><h2><span class="num">1</span>Portails et portillons – GardenGate</h2>
+    <p class="hint">Réf. chantier = nom du client (${esc(d.client.nom||"—")}) ; temps de pose réglé en haut de l'onglet. Date et métreur repris du métré. Fabrication = largeur entre piliers (pas de jeu déduit) ; hauteur = pilier − ${PT_H_RETRAIT} mm ou hauteur choisie par le client.</p></div>
   <div class="row" style="margin:14px 0 8px"><h2 style="margin:0"><span class="num">2</span> Éléments</h2><span class="spacer"></span>
     <button class="btn" id="ptAddP">+ Portillon</button><button class="btn" id="ptAddC">+ Coulissant</button><button class="btn primary" id="ptAddB">+ Portail battant</button></div>
   ${p.elements.map(el).join("")||`<p class="hint">Ajoute un portail battant, un coulissant ou un portillon.</p>`}
@@ -7094,8 +7093,8 @@ function pagesPT(d){
     const col=(list,val)=>list.map(x=>`<tr><td>${esc(x)}</td><td class="c">${cb(val===x)}</td></tr>`).join("");
     h+=`<div class="pg pt-pg">
       <div class="pt-top"><img src="${LOGO}" class="pt-logo"><div class="pt-devis">${estDefinitif(d)?"MÉTRÉ DÉFINITIF":"DEVIS"}</div></div>
-      <div class="pt-haut"><table class="ct pt-id"><tr><td class="lb b">REF CHANTIER</td><td class="cv">${esc(p.ref||d.client.nom)}</td></tr><tr><td class="lb b">DATE</td><td class="cv c">${fmtDate(d.client.date_rdv)}</td></tr><tr><td class="lb b">METREUR</td><td class="cv c b">${esc((d.metreur||"").toUpperCase())}</td></tr></table>
-        <table class="ct pt-jours"><tr><td class="b c">Jours de pose estimée</td></tr><tr><td class="cv c">${esc(textePose(d,"pt")||p.jours)}</td></tr><tr><td class="c">${p.elements.length>1?`Élément ${i+1} / ${p.elements.length}`:"&nbsp;"}</td></tr></table></div>
+      <div class="pt-haut"><table class="ct pt-id"><tr><td class="lb b">REF CHANTIER</td><td class="cv">${esc(d.client.nom||p.ref||"")}</td></tr><tr><td class="lb b">DATE</td><td class="cv c">${fmtDate(d.client.date_rdv)}</td></tr><tr><td class="lb b">METREUR</td><td class="cv c b">${esc((d.metreur||"").toUpperCase())}</td></tr></table>
+        <table class="ct pt-jours"><tr><td class="b c">Pose</td></tr><tr><td class="cv c">${esc(textePose(d,"pt")||p.jours||"")}</td></tr><tr><td class="c">${p.elements.length>1?`Élément ${i+1} / ${p.elements.length}`:"&nbsp;"}</td></tr></table></div>
       <table class="ct pt-t"><tr><th>TYPE</th><th>MODEL</th><th>COULEUR</th><th>FINITION DE LA COULEUR</th><th colspan="2">LAMES</th><th colspan="2">POIGNEE</th><th colspan="2">MOTORISATION</th><th colspan="2">SENS D'OUVERTURE VUE EXTERIEUR</th></tr>
         ${[0,1,2].map(r=>`<tr><td><span class="pt-l">${esc(PT_TYPES[r])}</span>${cb(e.type===PT_TYPES[r])}</td>${r===0?`<td rowspan="3" class="cv c">${esc(e.modele)}</td><td rowspan="3" class="cv c">${esc(e.couleur)}</td><td rowspan="3" class="cv c">${esc(e.finition)}</td>`:""}
           <td class="c">${esc(PT_LAMES[r])}</td><td class="c">${cb(e.lames===PT_LAMES[r])}</td><td>${esc(PT_POIGNEES[r])}</td><td class="c">${cb(e.poignee===PT_POIGNEES[r])}</td><td>${esc(PT_MOTO[r])}</td><td class="c">${cb(e.moto===PT_MOTO[r])}</td>

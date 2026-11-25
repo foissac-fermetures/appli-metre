@@ -2388,7 +2388,7 @@ function renderOuverture(){
     if(!await demander(`Supprimer la fiche « ${o.repere||"n° "+(o.num_poseur||i+1)} »${lv?" et son volet roulant":""} ?`,"Supprimer")) return;
     d.ouvertures=d.ouvertures.filter(x=>x!==o); if(lv) d.vr.lignes=d.vr.lignes.filter(l=>l!==lv); save();
     const n=d.ouvertures[Math.min(i,d.ouvertures.length-1)]; if(n){ S.ouv=n; renderOuverture(); } else { S.tab="ouvertures"; renderDossier(); } scrollTo(0,0); toast("Fiche supprimée"); };
-  $("#app").insertAdjacentHTML("beforeend",`<div class="row" style="justify-content:center;margin:18px 0 30px"><button class="btn primary" id="oComme3">⧉ Ouverture suivante, comme celle-ci</button></div>`); $("#oComme3").onclick=()=>commePrecedente(d,o);
+  $("#app").insertAdjacentHTML("beforeend",`<div class="row" style="justify-content:center;margin:18px 0 30px"><button class="btn primary" id="oComme3">⧉ Ouverture suivante, comme celle-ci</button><button class="btn primary" id="oAdd3">+ Ajouter une ouverture</button></div>`); $("#oComme3").onclick=()=>commePrecedente(d,o); $("#oAdd3").onclick=()=>$("#mPose").classList.add("open");
   majFab(); majControle(); renderVRInline();
   initPhotos(); initGC();
   const skd=$("#skDet"); if(skd.open) initSketch(); else skd.addEventListener("toggle",()=>{ if(skd.open&&!skd.dataset.ok){ skd.dataset.ok=1; initSketch(); } });

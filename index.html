@@ -6326,7 +6326,7 @@ const PT_MOTO_DEFAUT = {"Somfy|À bras articulés":"Axovia 3S io","Somfy|À vér
 const motoTypesPT = e => e.type==="COULISSANT" ? PT_MOTO_TYPES_C : PT_MOTO_TYPES_B;
 const motorisePT = e => e.moto==="Électrique" || e.moto==="Solaire";
 const texteMotoPT = e => motorisePT(e) ? [e.moto, e.moto_marque, e.moto_type, e.moto_modele].filter(Boolean).join(" · ") : "";
-const PT_OPTIONS = ["Crapaudine","Digi code","Télécommande supplémentaire","Pilier à sceller 100 par 100","Pilier à sceller 150 par 150","Pilier à visser 100 par 100","Pilier à visser 150 par 150"];
+const PT_OPTIONS = ["Crapaudine","Digi code","Télécommande supplémentaire","Batterie de secours","Pilier à sceller 100 par 100","Pilier à sceller 150 par 150","Pilier à visser 100 par 100","Pilier à visser 150 par 150"];
 const PT_DIM = ["ENTRE PILE","Fabrication"];
 const PT_DEDUCTION = 0;   // 20/11 : Nicolas – la fabrication est TOUJOURS la largeur entre piliers, on ne déduit pas de jeu (avant : −100 mm)
 const PT_H_MODES = ["Hauteur pilier − 130 mm","Hauteur choisie par le client"], PT_H_RETRAIT = 130;

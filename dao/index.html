@@ -335,7 +335,7 @@
     <tr><td><code>C3P</code></td><td><b>Cercle 3 points</b> : cliquez 3 points du cercle (ex. gauche, droite, sommet).</td></tr>
     <tr><td><code>A</code></td><td><b>Arc + flèche</b> : cliquez les 2 points de l'arc (naissances), puis tapez la hauteur de flèche (ex. <code>250</code>) ou cliquez le sommet. L'arc se fait du côté de la souris (nombre négatif = autre côté).</td></tr>
     <tr><td><code>RA</code></td><td><b>Arrondi</b> entre 2 traits : tapez le rayon (ex. <code>50</code>, <code>0</code> = angle vif), puis cliquez les 2 traits du côté à garder. Les traits sont raccourcis ou prolongés jusqu'à l'arrondi.</td></tr>
-    <tr><td><code>REP</code></td><td><b>Flèche + texte</b> : cliquez l'endroit à montrer, puis où mettre le texte, et tapez le texte. Ensuite : attrapez la pointe ou le texte pour les déplacer, double-clic pour changer le texte.</td></tr>
+    <tr><td><code>REP</code></td><td><b>Flèche + texte</b> : cliquez l'endroit à montrer, puis où mettre le texte, et tapez le texte. Ensuite : attrapez la pointe ou le texte pour les déplacer, double-clic pour la modifier. Dans sa fenêtre : taille du texte, taille de la flèche, épaisseur du trait, couleurs, gras, encadré (ces réglages servent pour les flèches suivantes).</td></tr>
     <tr><td>Double-clic sur une cote</td><td>Écrire le texte qu'on veut à la place de la mesure (ex. « 1200 tableau »). Laisser vide = vraie mesure. Aussi : bouton ✎ Texte de la barre de sélection.</td></tr>
     <tr><td><code>DEC</code></td><td><b>Décaler / parallèle</b> : tapez la distance, cliquez l'objet, puis cliquez le côté. On enchaîne ; Échap pour finir.</td></tr>
     <tr><td><code>AJ</code> / <code>PR</code></td><td><b>Ajuster / Prolonger</b> (mode rapide d'AutoCAD : tous les objets servent de limites). Ajuster : cliquez la partie du trait à couper, elle est enlevée jusqu'aux intersections voisines (un trait qui ne croise rien est effacé). Prolonger : cliquez près du bout à allonger, il va jusqu'au prochain objet. Maj + clic inverse les deux. Entrée, Échap ou clic droit pour finir.</td></tr>
@@ -406,6 +406,14 @@
   <h2 id="dtTitle">Texte</h2>
   <textarea id="dtText" rows="3" style="width:100%;box-sizing:border-box;background:#11151b;border:1px solid var(--acc);color:#fff;border-radius:6px;padding:8px 10px;font-size:16px;font-family:inherit;resize:vertical"></textarea>
   <div class="note" id="dtNote"></div>
+  <div id="dtLead" style="display:none;margin-top:8px;grid-template-columns:auto 1fr;gap:8px 10px;align-items:center;font-size:14px">
+    <span>Taille du texte</span><select id="dlTh"><option value="2">2 mm</option><option value="2.5">2,5 mm</option><option value="3.5">3,5 mm</option><option value="5">5 mm</option><option value="7">7 mm</option><option value="10">10 mm</option></select>
+    <span>Taille de la flèche</span><select id="dlAh"><option value="0.6">Petite</option><option value="1">Normale</option><option value="1.5">Grande</option><option value="2.2">Très grande</option></select>
+    <span>Épaisseur du trait</span><select id="dlLw"><option value="0.6">Fin</option><option value="1">Normal</option><option value="2">Épais</option><option value="3.5">Très épais</option></select>
+    <span>Couleurs</span><span><label>flèche <input type="color" id="dlC" style="width:34px;height:24px;padding:0;border:0;background:none;vertical-align:middle"></label> &nbsp; <label>texte <input type="color" id="dlTc" style="width:34px;height:24px;padding:0;border:0;background:none;vertical-align:middle"></label></span>
+    <span>Style</span><span><label><input type="checkbox" id="dlB"> Gras</label> &nbsp; <label><input type="checkbox" id="dlBox"> Encadré</label></span>
+    <span></span><span class="note" style="margin:0">Ces réglages servent aussi pour les prochaines flèches + texte.</span>
+  </div>
   <div class="row"><button class="hbtn" id="dtReset">Vraie mesure</button><button class="hbtn" id="dtCancel">Annuler</button><button class="hbtn primary" id="dtOk">OK</button></div>
 </div></div>
 <div class="modal" id="mSave"><div class="box" style="width:460px">
@@ -505,6 +513,7 @@ let ortho=false, snapOn=true, panMode=false;
 let cmd = null, lastCmd = null, lastOffset = 100;
 let hatchOpts = {pattern:"lignes", spacing:50, angle:45};
 let textOpts = {h:3.5, angle:0, bold:false};
+let leadOpts = {th:0, ah:1, lw:1, bold:true, box:false}; /* th 0 = même taille que les cotes */
 let visuel = null;            // {elements:[], menuiseries:[], couleurMenuiseries, titre, demandes:[]}
 let iaHist = [];              // échanges avec Claude (pour les demandes de suite)
 let claudeUrl = "https://claude.ai/artifact/7PvXDGDYbMSxNXBWj7XyUt";   // artefact du compte Claude Pro (sample + downloads)
@@ -525,8 +534,8 @@ function log(t){ histEl.textContent += (histEl.textContent?"\n":"") + t; histEl.
 function setPrompt(t){ promptEl.textContent = t; }
 const clone = o => JSON.parse(JSON.stringify(o));
 
-function save(){ cartDefauts(); try{ localStorage.setItem("miniDAO2D", JSON.stringify({ents,nextId,cart,visuel,iaHist,claudeUrl,driveAuto,lastOffset,hatchOpts,textOpts,dimTxt,snapModes,colors,repeatOn,planId,planNameTxt,layers,curLayer,symOpts,driveNom,lastFillet})); }catch(e){} }
-function load(){ try{ const s=JSON.parse(localStorage.getItem("miniDAO2D")||"null"); if(s){ ents=s.ents||[]; nextId=s.nextId||1; Object.assign(cart,s.cart||{}); lastOffset=s.lastOffset||100; if(s.hatchOpts) Object.assign(hatchOpts,s.hatchOpts); if(s.dimTxt) dimTxt=s.dimTxt; if(s.textOpts) Object.assign(textOpts,s.textOpts); visuel=s.visuel||null; iaHist=s.iaHist||[]; if(s.claudeUrl && !/S998mSD3A3dCjL1aqwmDJy/.test(s.claudeUrl)) claudeUrl=s.claudeUrl; /* ancienne adresse (compte perso) ignorée */ if(typeof s.driveAuto==="boolean") driveAuto=s.driveAuto; if(s.snapModes) Object.assign(snapModes,s.snapModes); if(s.colors) Object.assign(colors,s.colors); if(typeof s.repeatOn==="boolean") repeatOn=s.repeatOn; planId=s.planId||null; planNameTxt=s.planNameTxt||""; if(Array.isArray(s.layers)&&s.layers.length) layers=s.layers; if(s.curLayer) curLayer=s.curLayer; if(s.symOpts) Object.assign(symOpts,s.symOpts); if(s.driveNom) driveNom=s.driveNom; if(typeof s.lastFillet==="number") lastFillet=s.lastFillet; } }catch(e){} }
+function save(){ cartDefauts(); try{ localStorage.setItem("miniDAO2D", JSON.stringify({ents,nextId,cart,visuel,iaHist,claudeUrl,driveAuto,lastOffset,hatchOpts,textOpts,leadOpts,dimTxt,snapModes,colors,repeatOn,planId,planNameTxt,layers,curLayer,symOpts,driveNom,lastFillet})); }catch(e){} }
+function load(){ try{ const s=JSON.parse(localStorage.getItem("miniDAO2D")||"null"); if(s){ ents=s.ents||[]; nextId=s.nextId||1; Object.assign(cart,s.cart||{}); lastOffset=s.lastOffset||100; if(s.hatchOpts) Object.assign(hatchOpts,s.hatchOpts); if(s.dimTxt) dimTxt=s.dimTxt; if(s.textOpts) Object.assign(textOpts,s.textOpts); if(s.leadOpts) Object.assign(leadOpts,s.leadOpts); visuel=s.visuel||null; iaHist=s.iaHist||[]; if(s.claudeUrl && !/S998mSD3A3dCjL1aqwmDJy/.test(s.claudeUrl)) claudeUrl=s.claudeUrl; /* ancienne adresse (compte perso) ignorée */ if(typeof s.driveAuto==="boolean") driveAuto=s.driveAuto; if(s.snapModes) Object.assign(snapModes,s.snapModes); if(s.colors) Object.assign(colors,s.colors); if(typeof s.repeatOn==="boolean") repeatOn=s.repeatOn; planId=s.planId||null; planNameTxt=s.planNameTxt||""; if(Array.isArray(s.layers)&&s.layers.length) layers=s.layers; if(s.curLayer) curLayer=s.curLayer; if(s.symOpts) Object.assign(symOpts,s.symOpts); if(s.driveNom) driveNom=s.driveNom; if(typeof s.lastFillet==="number") lastFillet=s.lastFillet; } }catch(e){} }
 function pushUndo(){ undoStack.push(JSON.stringify(ents)); if(undoStack.length>200) undoStack.shift(); redoStack.length=0; }
 function addEnt(e){ pushUndo(); e.id=nextId++; if(e.type==="text" && !e.color) e.color=colors.texte; e.layer = e.type==="dim" ? "Cotes" : curLayer; ensureLayers(); { const l=layers.find(x=>x.name===e.layer); if(l && !l.visible){ l.visible=true; log(`  calque « ${l.name} » réaffiché`); updLayerUI(); } } if(e.type!=="dim" && !e.color) e.color = e.type==="hatch" ? colors.hachure : colors.trait; ents.push(e); save(); renderEnts(); return e; }
 
@@ -673,7 +682,7 @@ function dimMarkup(d,T,k,S,color){
   const U=(a,b)=>{ const L=dist(a,b)||1; return {x:(b.x-a.x)/L,y:(b.y-a.y)/L}; };
   const along=(a,b,label)=>{ let th=Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI; if(th>=90) th-=180; if(th<-90) th+=180; const r=th*Math.PI/180; const up={x:Math.sin(r),y:-Math.cos(r)}; const m={x:(a.x+b.x)/2+up.x*S.off,y:(a.y+b.y)/2+up.y*S.off}; txt(m,th,label); };
   const label=dimLabel(d);
-  if(d.kind==="lead"){ const tm=leadMarkup(d,T,S,ln,arrow,color,tcolor); o+=tm; return o; }
+  if(d.kind==="lead"){ const L=leadScale(d,S); const S0=S; S=L; const tm=leadMarkup(d,T,S,ln,arrow,color,tcolor); S=S0; o+=tm; return o; }
   if(d.kind==="lin"||d.kind==="ali"){
     const [f1,f2]=dimFeet(d); const P1=T(d.p1),P2=T(d.p2),D1=T(f1),D2=T(f2);
     for(const [P,D] of [[P1,D1],[P2,D2]]){ if(dist(P,D)>S.gap){ const u=U(P,D); ln({x:P.x+u.x*S.gap,y:P.y+u.y*S.gap},{x:D.x+u.x*S.ext,y:D.y+u.y*S.ext}); } }
@@ -886,7 +895,7 @@ function renderPreview(){
         if(a){ pm+=entMarkup(a,W2S,view.z,"#4fa3ff",1.6,""); t=`corde ${fmt(dist(cmd.p1,cmd.p2))} · flèche ${fmt(Math.abs(f))} · rayon ${fmt(a.r)}`; } } }
     if(cmd.name==="CERCLE3P" && cmd.pts.length){ if(cmd.pts.length===1) pm+=entMarkup({type:"line",a:cmd.pts[0],b:P},W2S,view.z,"#4fa3ff",1.2,"6 4");
       else { const k=circ3(cmd.pts[0],cmd.pts[1],P); if(k){ pm+=entMarkup({type:"circle",c:k.c,r:k.r},W2S,view.z,"#4fa3ff",1.6,""); t=`Ø ${fmt(2*k.r)} · R ${fmt(k.r)}`; } } }
-    if(cmd.name==="REPERE" && cmd.step==="txt") pm+=dimMarkup({kind:"lead",p1:cmd.p1,q:P,txt:"Texte…"},W2S,view.z,DIM_SCREEN,"#4fa3ff");
+    if(cmd.name==="REPERE" && cmd.step==="txt") pm+=dimMarkup({kind:"lead",p1:cmd.p1,q:P,txt:"Texte…",th:leadOpts.th||0,ah:leadOpts.ah,lw:leadOpts.lw,bold:leadOpts.bold,box:leadOpts.box},W2S,view.z,DIM_SCREEN,"#4fa3ff");
     if(cmd.name==="AJUSTER"||cmd.name==="PROLONGER"){ const e=hitGeom(cursorW); if(e) pm+=entMarkup(e,W2S,view.z,"#ff6b6b",2.4,"4 3"); }
     if(cmd.name==="MESURER" && cmd.p1 && dist(cmd.p1,P)>0){ pm+=dimMarkup({kind:"ali",p1:cmd.p1,p2:P,q:cmd.p1},W2S,view.z,DIM_SCREEN,"#ffd36e"); t=`${fmt(dist(cmd.p1,P))} mm · ΔX ${fmt(P.x-cmd.p1.x)} · ΔY ${fmt(P.y-cmd.p1.y)} · ∠ ${fmt(ang(cmd.p1,P))}°`; }
     if((cmd.name==="COTLIN"||cmd.name==="COTALI")){
@@ -1105,7 +1114,7 @@ function feedPoint(p){
     if(l.id===cmd.id1){ log("  Choisissez un autre trait"); return; } cmd.id2=l.id; cmd.c2={...cursorW}; doFillet(); cmd.step="l1"; cmd.id1=cmd.id2=null;
     setPrompt(`ARRONDI – 1er trait suivant (rayon ${fmt(cmd.r)} ; Échap pour finir) :`); renderEnts(); return; }
   if(cmd.name==="REPERE"){ if(cmd.step==="tip"){ cmd.p1=p; cmd.step="txt"; setPrompt("FLÈCHE + TEXTE – Cliquez où placer le texte :"); return; }
-    const d={type:"dim",kind:"lead",p1:cmd.p1,q:p,txt:""}; cmd.step="tip"; setPrompt("FLÈCHE + TEXTE – Endroit à montrer suivant (Échap pour finir) :"); openDimTxt(d,true); return; }
+    const d={type:"dim",kind:"lead",p1:cmd.p1,q:p,txt:"",ah:leadOpts.ah,lw:leadOpts.lw,bold:leadOpts.bold,box:leadOpts.box}; if(leadOpts.th) d.th=leadOpts.th; cmd.step="tip"; setPrompt("FLÈCHE + TEXTE – Endroit à montrer suivant (Échap pour finir) :"); openDimTxt(d,true); return; }
   if(cmd.name==="LIGNE"){
     if(cmd.pts.length){ const a=cmd.pts[cmd.pts.length-1]; if(dist(a,p)<1e-9) return; addEnt({type:"line",a:{...a},b:{...p}}); cmd.count++; log(`  segment ${fmt(dist(a,p))} mm à ${fmt(ang(a,p))}°`); }
     cmd.pts.push(p);
@@ -2055,13 +2064,19 @@ function lineAt(p){ const tol=8/view.z; let best=null,bd=tol; for(const e of VE(
 
 // Repère (flèche + texte) : une « cote » de type "lead" : p1 = pointe, q = départ du texte, txt = texte (plusieurs lignes possibles)
 function leadLines(d){ return String(d.txt||"").split("\n"); }
+// tailles propres à chaque flèche + texte : th = hauteur du texte (mm à l'impression), ah = flèche, lw = trait
+function leadScale(d,S){ const tf=(d.th||dimTxt)/(dimTxt||2.5), af=d.ah||1, lf=d.lw||1; return {...S, txt:S.txt*tf, arr:S.arr*af*Math.max(1,Math.sqrt(tf)), off:S.off*tf, sw:S.sw*lf}; }
+let _ldCtx=null;
+function leadTextW(l,bold){ try{ if(!_ldCtx) _ldCtx=document.createElement("canvas").getContext("2d"); _ldCtx.font=(bold?"700":"400")+" 100px Arial, Helvetica, sans-serif"; return _ldCtx.measureText(l).width/100*1.04; }catch(e){ return l.length*0.6; } }
+function leadBox(d,S,P,Q){ const right=Q.x>=P.x, lines=leadLines(d), n=lines.length, tw=Math.max(S.txt*1.2, ...lines.map(l=>leadTextW(l,d.bold!==false)*S.txt)), pad=S.txt*0.25;
+  return {right,lines,n,tw,pad,H:{x:Q.x+(right?1:-1)*(tw+S.txt*0.5),y:Q.y}, x:right?Q.x+pad:Q.x-pad, top:Q.y-S.off-n*S.txt*1.2+S.txt*0.05}; }
 function leadMarkup(d,T,S,ln,arrow,color,tcolor){ let o=""; const P=T(d.p1), Q=T(d.q); if(dist(P,Q)>1){ ln(P,Q); arrow(P,Q); }
-  const right=Q.x>=P.x, lines=leadLines(d), tw=Math.max(S.txt*1.2, ...lines.map(l=>l.length*S.txt*0.56)), H={x:Q.x+(right?1:-1)*(tw+S.txt*0.5),y:Q.y}; ln(Q,H);
-  const x=right?Q.x+S.txt*0.25:Q.x-S.txt*0.25, n=lines.length;
-  lines.forEach((l,i)=>{ const y=Q.y-S.off-(n-1-i)*S.txt*1.2; o+=`<text x="${x}" y="${y}" font-size="${S.txt}" text-anchor="${right?"start":"end"}" fill="${tcolor}" font-weight="600" stroke="none" font-family="Arial, Helvetica, sans-serif">${esc(l)}</text>`; });
+  const b=leadBox(d,S,P,Q); ln(Q,b.H);
+  if(d.box){ const x1=Math.min(Q.x,b.H.x), w=Math.abs(b.H.x-Q.x), y1=b.top-b.pad; o+=`<rect x="${x1}" y="${y1}" width="${w}" height="${Q.y-y1}" fill="none" stroke="${color}" stroke-width="${S.sw}"/>`; }
+  b.lines.forEach((l,i)=>{ const y=Q.y-S.off-(b.n-1-i)*S.txt*1.2; o+=`<text x="${b.x}" y="${y}" font-size="${S.txt}" text-anchor="${b.right?"start":"end"}" fill="${tcolor}" font-weight="${d.bold===false?400:700}" stroke="none" font-family="Arial, Helvetica, sans-serif">${esc(l)}</text>`; });
   return o; }
-function leadHitDist(d,p){ const z=view.z, Q=W2S(d.q), P=W2S(d.p1), lines=leadLines(d), S=DIM_SCREEN; const right=Q.x>=P.x, tw=Math.max(S.txt*1.2,...lines.map(l=>l.length*S.txt*0.56))+S.txt*0.5;
-  const s=W2S(p); const x1=right?Q.x:Q.x-tw, x2=right?Q.x+tw:Q.x, y1=Q.y-S.off-lines.length*S.txt*1.2, y2=Q.y+3;
+function leadHitDist(d,p){ const Q=W2S(d.q), P=W2S(d.p1), S=leadScale(d,DIM_SCREEN), b=leadBox(d,S,P,Q);
+  const s=W2S(p); const x1=Math.min(Q.x,b.H.x), x2=Math.max(Q.x,b.H.x), y1=b.top-b.pad, y2=Q.y+3;
   const inBox = s.x>=x1&&s.x<=x2&&s.y>=y1&&s.y<=y2; return Math.min(distSeg(p,d.p1,d.q), inBox?0:Infinity); }
 function leadGripAt(pW){ const s=W2S(pW); for(const d of VE()){ if(d.type!=="dim"||d.kind!=="lead") continue; if(dist(W2S(d.p1),s)<10) return {e:d,key:"p1"}; if(leadHitDist(d,pW)===0 || dist(W2S(d.q),s)<10) return {e:d,key:"q"}; } return null; }
 let gripDrag=null;
@@ -2071,16 +2086,25 @@ function endGripDrag(){ const g=gripDrag; gripDrag=null; if(!g) return false; if
 // Fenêtre « texte » : repère (nouveau ou existant) et texte libre d'une cote
 let dimTxtEdit=null;
 function openDimTxt(d,isNew){ dimTxtEdit={d,isNew}; const lead=d.kind==="lead";
-  $("dtTitle").textContent = lead ? (isNew?"Texte du repère":"Modifier le texte du repère") : "Texte de la cote";
+  $("dtTitle").textContent = lead ? (isNew?"Flèche + texte":"Modifier la flèche + texte") : "Texte de la cote";
   $("dtNote").textContent = lead ? "Plusieurs lignes possibles (Entrée = nouvelle ligne)." : `Mesure réelle : ${dimLabel({...d,txt:""})}. Écrivez le texte à afficher (ex. « 1200 tableau »). Laissez vide pour afficher la vraie mesure.`;
   const t=$("dtText"); t.value = d.txt||""; t.rows = lead?3:1; $("dtReset").style.display = lead?"none":"inline-block";
+  $("dtLead").style.display = lead?"grid":"none";
+  if(lead){ const sel=(id,v)=>{ const el=$(id); const vals=[...el.options].map(o=>parseFloat(o.value)); let best=vals[0]; vals.forEach(x=>{ if(Math.abs(x-v)<Math.abs(best-v)) best=x; }); el.value=String(best); };
+    sel("dlTh",d.th||dimTxt); sel("dlAh",d.ah||1); sel("dlLw",d.lw||1); $("dlB").checked=d.bold!==false; $("dlBox").checked=!!d.box;
+    $("dlC").value=d.color||colors.repLigne; $("dlTc").value=d.tcolor||colors.repTexte; }
   $("mDimTxt").classList.add("show"); setTimeout(()=>{ t.focus(); t.select(); },50); }
 function closeDimTxt(ok){ const m=dimTxtEdit; dimTxtEdit=null; $("mDimTxt").classList.remove("show"); if(!m) return; const v=$("dtText").value.replace(/\s+$/,"");
   if(m.d.kind==="lead"){
     if(!ok){ if(m.isNew) log("  repère annulé"); return; }
     if(!v){ if(m.isNew){ log("  repère annulé (pas de texte)"); return; } }
-    if(m.isNew){ addEnt({...m.d,txt:v}); log(`  repère « ${v.split("\n")[0]} » ajouté`); }
-    else { pushUndo(); const e=ents.find(x=>x.id===m.d.id); if(e) e.txt=v; save(); log("  texte du repère modifié"); }
+    const r={th:parseFloat($("dlTh").value), ah:parseFloat($("dlAh").value), lw:parseFloat($("dlLw").value), bold:$("dlB").checked, box:$("dlBox").checked};
+    const c=$("dlC").value, tc=$("dlTc").value;
+    Object.assign(leadOpts,r);
+    if(c!==colors.repLigne||tc!==colors.repTexte){ ents.forEach(e=>{ if(e.type==="dim"&&e.kind==="lead"&&e!==m.d){ if(!e.color) e.color=colors.repLigne; if(!e.tcolor) e.tcolor=colors.repTexte; } }); colors.repLigne=c; colors.repTexte=tc; } /* les autres flèches gardent leur couleur */
+    if(m.isNew){ addEnt({...m.d,txt:v,...r,color:c,tcolor:tc}); log(`  repère « ${v.split("\n")[0]} » ajouté`); }
+    else { pushUndo(); const e=ents.find(x=>x.id===m.d.id); if(e){ e.txt=v; Object.assign(e,r); e.color=c; e.tcolor=tc; } save(); log("  repère modifié"); }
+    save();
   } else { if(!ok) return; pushUndo(); const e=ents.find(x=>x.id===m.d.id); if(e){ if(v) e.txt=v; else delete e.txt; } save(); log(v?`  cote : « ${v} »`:"  cote : vraie mesure"); }
   renderAll(); cmdIn.focus(); }
 function dimAtPoint(pW){ let best=null,bd=8/view.z; for(const e of VE()){ if(e.type!=="dim") continue; const d=e.kind==="lead"?leadHitDist(e,pW):dimHitDist(e,pW); if(d<=bd){ bd=d; best=e; } } return best; }

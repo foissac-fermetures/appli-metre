@@ -259,6 +259,7 @@ PROMPT-POUR-CLAUDE-PRO.md ← le message que Nicolas te donne
 | 24/11/2026 | dao-v9 | Flèche + texte (repère), texte libre des cotes, nom automatique « Plan CLIENT – Titre », cartouche par défaut (Foissac Fermetures / Nicolas), arc 2 points + flèche, cercle 3 points, arrondi entre 2 traits : voir § 14. |
 | 25/11/2026 | dao-v10 | Commandes toujours actives : une fonction reste accrochée à la souris jusqu'au clic droit (ou Échap) ; bouton 🔁 retiré : voir § 15. |
 | 25/11/2026 | dao-v11 | Couleurs des **textes** et de la **flèche + texte** (flèche/trait et texte séparément) dans 🎨, appliquées aussi aux objets sélectionnés ; pastille couleur dans la barre Texte ; menu 🎨 défilant. Préparé dans une autre conversation sur la base de dao-v10, testé (écran + impression). |
+| 25/11/2026 | dao-v12 | Flèche + texte réglable : taille du texte, taille de la flèche, épaisseur du trait, couleurs, gras, encadré, dans sa fenêtre (double-clic) ; réglages repris pour les suivantes : voir § 16. |
 | 18/11/2026 | dao-v5 | **Essai réel Google Drive réussi** (« Plan TEST », 2 enregistrements : PDF dans 09 - Plan, .mdao dans Métrés › Plans › 2026, remplacés sans doublon). « Métrés » fixé : `DOSSIERS_DAO.metres = 1HoXaRkku5deGnEtg6t3SK6jtvs4zr1lz`. |
 
 ## 11. Service worker de l'appli de métré : corrigé le 18/11/2026 (accord de Nicolas)
@@ -341,4 +342,15 @@ Demande : « quand j'ai choisi une fonction (cotation, ligne…), elle reste acc
 - Entrée vide pendant une commande : termine le tracé en cours et **relance** la même commande (avant : sortie) — rectangle, cercle, mesurer, décaler, déplacer/copier, cotes, texte, ajuster/prolonger, hachures, effacer.
 - Seules sorties : **clic droit** ou **Échap** (ou choisir un autre outil).
 - Test : `tests/test_rep.py` (chaque outil reste actif après 2 utilisations, même avec `repeatOn:false` en mémoire ; clic droit → plus de commande).
+
+## 16. Flèche + texte réglable (dao-v12, 25/11/2026, options cochées par Nicolas)
+
+Options cochées : taille du texte, taille de la flèche, épaisseur du trait, gras, encadré, fenêtre de réglages, réglage par défaut.
+
+- Chaque repère (`dim kind:"lead"`) peut porter : `th` (hauteur du texte en mm à l'impression ; absent = même taille que les cotes `dimTxt`), `ah` (flèche : 0,6 / 1 / 1,5 / 2,2), `lw` (trait : 0,6 / 1 / 2 / 3,5), `bold` (absent ou true = gras 700, false = normal 400), `box` (cadre autour du texte), plus `color` / `tcolor` (dao-v11).
+- `leadScale(d,S)` agrandit les réglages d'affichage (écran, aperçu, impression) ; `leadBox` calcule la place du texte (largeur mesurée par `leadTextW`, canvas) ; `leadMarkup` dessine le cadre ; `leadHitDist` utilise les mêmes tailles (clic et double-clic sur le texte).
+- Fenêtre `#mDimTxt` : bloc `#dtLead` (dlTh, dlAh, dlLw, dlC, dlTc, dlB, dlBox), affiché seulement pour un repère. Double-clic sur un repère existant = le modifier.
+- Réglage par défaut : `leadOpts` (sauvegardé) reprend les derniers réglages. Les couleurs choisies deviennent celles de 🎨 (`colors.repLigne` / `repTexte`) ; les autres repères sans couleur propre la reçoivent avant, pour **ne pas changer de couleur**.
+- Les anciens repères (sans ces champs) s'affichent comme avant.
+- Test : `tests/test_v12.py` (création, préremplissage, double-clic, impression 2,5 / 3,5 / 5 mm, cadre, rechargement).
 

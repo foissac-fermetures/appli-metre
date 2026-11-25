@@ -180,7 +180,6 @@
     <button class="hbtn" id="bZout">－</button>
     <button class="hbtn" id="bPan" title="Main : déplacer la vue au doigt / à la souris">✋</button>
     <span class="sp"></span>
-    <button class="hbtn" id="bRep" title="Répéter : la commande se relance après chaque tracé ou mesure. Clic droit ou Échap pour sortir.">🔁</button>
     <button class="hbtn" id="bLay" title="Calques">📑 Calques</button>
     <button class="hbtn on" id="bDimVis" title="Afficher / masquer le calque des cotes">📏 Cotes</button>
     <button class="hbtn" id="bCol" title="Couleurs"><span id="colDot" style="display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px;border:1px solid #fff5"></span>🎨</button>
@@ -346,7 +345,7 @@
     <tr><td><code>SYM</code></td><td><b>Symboles</b> (bouton 🚪 Symboles) : portes, fenêtres, baies, portails, WC, lavabo, douche, cuisine, escaliers, meubles, voiture, Nord… Cliquez un symbole, il suit la souris ; près d'un mur il s'aligne tout seul (et prend l'épaisseur d'un mur en double trait), la porte s'ouvre du côté de la souris. <code>R</code> = tourner 90°, <code>M</code> = miroir, <code>I</code> = changer de côté, ou tapez une largeur. Un symbole posé forme un bloc (un clic le sélectionne en entier) sur le calque « Symboles » ; barre de sélection : ⟳ 90°, ⇋ Miroir, Décomposer.</td></tr>
     <tr><td>Clic droit</td><td>Sort de la commande en cours (comme Échap) et désélectionne tout.</td></tr>
     <tr><td>⇅ Organiser</td><td>En bas de la barre de gauche : cliquez « Organiser », faites glisser les boutons (et les séparateurs) où vous voulez, puis « Terminé ». L'ordre est retenu. « Ordre d'origine » remet la barre comme au départ.</td></tr>
-    <tr><td>🔁 Répéter</td><td>Activé : la commande reste active et se relance après chaque tracé, cote ou mesure (ex. mesurer la hauteur, puis la largeur, puis la diagonale). On sort avec le clic droit ou Échap. Pour Ligne, Entrée commence un nouveau trait.</td></tr>
+    <tr><td>Commande active</td><td>Une fonction choisie (ligne, cote, cercle, arc…) <b>reste accrochée à la souris</b> et se relance après chaque tracé, cote ou mesure. On en sort <b>uniquement avec le clic droit</b> (ou Échap). Entrée termine le tracé en cours et en recommence un nouveau.</td></tr>
     <tr><td>Accrochages</td><td>Le curseur s'accroche aux extrémités ▢, milieux △, centres ○, <b>intersections ✕ (là où deux traits se croisent)</b>, perpendiculaire ⊥ et, si vous l'activez, n'importe où sur un trait (Proche). Le nom s'affiche en vert. Bouton ▾ à côté de « Accroch. » pour choisir.</td></tr>
     <tr><td><code>COTCONT</code></td><td>Cotation continue : continue la dernière cote (ou celle sélectionnée) ; chaque clic ajoute une cote à la suite, alignée sur la même ligne. <code>S</code> = choisir une autre cote de départ. Entrée ou clic droit pour finir.</td></tr>
     <tr><td>✨ Claude</td><td><b>Visuel couleur avec l'IA</b> (page 2). Dans Claude : bouton ✨ Claude, décrivez ce que vous voulez (« le grand triangle en bardage bois, les trapèzes en vitrage clair, le rectangle du bas en coulissant, menuiseries gris anthracite »), puis ✨ Créer le visuel. Vous pouvez demander des retouches à la suite. 🖼 Visuel affiche la page 2 ; elle s'imprime avec le plan. Dans le logiciel installé : ✨ Claude copie le plan et ouvre Claude ; au retour, « Récupérer le plan et le visuel ». Les zones doivent être des formes fermées (polylignes fermées, rectangles, cercles).</td></tr>
@@ -1079,7 +1078,7 @@ function startCmd(name,quiet){
   if(cmd && cmd.sel) renderEnts();
   renderAll();
 }
-function finishCmd(){ if(repeatOn && cmd){ const n=cmd.name; if(n==="DEPLACER"||n==="COPIER") selected.clear(); cmd=null; startCmd(n,true); } else endCmd(); }
+function finishCmd(){ if(cmd){ const n=cmd.name; if(n==="DEPLACER"||n==="COPIER") selected.clear(); cmd=null; startCmd(n,true); } else endCmd(); }
 function endCmd(silent){
   if(cmd && cmd.name==="LIGNE" && cmd.count>0 && !silent) {}
   if(cmd && (cmd.name==="DEPLACER"||cmd.name==="COPIER")) selected.clear();
@@ -1195,7 +1194,7 @@ function submit(raw){
   // taper une autre commande pendant une commande : on change de commande
   if(/^[A-ZÉÈ?]+$/.test(up) && ALIASES[up] && !((cmd.name==="LIGNE"||cmd.name==="POLYLIGNE")&&cmd.pts.length>0&&(up==="F"||up==="C"||up==="U")) && !(cmd.name==="HACHURES"&&up==="P") && !(cmd.name==="CERCLE"&&up==="D") && !(cmd.name==="COTCONT"&&up==="S")){ startCmd(ALIASES[up]); return; }
   if(cmd.name==="POLYLIGNE"){
-    if(!txt){ if(cmd.pts.length>=2){ const e=addEnt({type:"poly",pts:cmd.pts.map(p=>({...p})),closed:false}); log(`  polyligne ouverte · longueur ${fmt(polyLen(e))} mm`); finishCmd(); } else endCmd(); return; }
+    if(!txt){ if(cmd.pts.length>=2){ const e=addEnt({type:"poly",pts:cmd.pts.map(p=>({...p})),closed:false}); log(`  polyligne ouverte · longueur ${fmt(polyLen(e))} mm`); finishCmd(); } else finishCmd(); return; }
     if(up==="F"||up==="C"){ closePoly(); return; }
     if(up==="A"||up==="U"){ if(cmd.pts.length){ cmd.pts.pop(); log("  dernier point annulé"); } renderPreview(); return; }
     const p=parsePoint(txt, cmd.pts.length?cmd.pts[cmd.pts.length-1]:null); if(p) feedPoint(p); else log("  Saisie non reconnue"); return;
@@ -1207,7 +1206,7 @@ function submit(raw){
     return;
   }
   if(cmd.name==="RECTANGLE"){
-    if(!txt){ endCmd(); return; }
+    if(!txt){ finishCmd(); return; }
     if(!cmd.p1){ const p=parsePoint(txt,null); if(p) feedPoint(p); else log("  Point non reconnu (ex. 0,0)"); return; }
     const t=txt.replace(/^@/,"").replace(/\s+/g,""); const d=pair(t) || (t.match(/^(\d*\.?\d+)[x×*](\d*\.?\d+)$/i) ? {x:parseFloat(RegExp.$1),y:parseFloat(RegExp.$2)} : null);
     if(!d){ log("  Tapez largeur,hauteur (ex. 1200,1500)"); return; }
@@ -1215,48 +1214,48 @@ function submit(raw){
     feedPoint({x:cmd.p1.x+d.x*sx,y:cmd.p1.y+d.y*sy}); return;
   }
   if(cmd.name==="CERCLE"){
-    if(!txt){ endCmd(); return; }
+    if(!txt){ finishCmd(); return; }
     if(!cmd.c){ const p=parsePoint(txt,null); if(p) feedPoint(p); else log("  Point non reconnu"); return; }
     let m=up.replace(/\s+/g,"").match(/^(D|Ø)?(\d*\.?\d+)$/); if(!m){ log("  Rayon non reconnu"); return; }
     const r=parseFloat(m[2])/(m[1]?2:1); feedPoint({x:cmd.c.x+r,y:cmd.c.y}); return;
   }
-  if(cmd.name==="MESURER"){ if(!txt){endCmd();return;} const p=parsePoint(txt,cmd.p1||null); if(p) feedPoint(p); return; }
+  if(cmd.name==="MESURER"){ if(!txt){finishCmd();return;} const p=parsePoint(txt,cmd.p1||null); if(p) feedPoint(p); return; }
   if(cmd.name==="DECALER"){
     if(cmd.step==="dist"){ let d = txt? num(txt.replace(",",".")) : lastOffset; if(d===null||d<=0){ log("  Distance non valide"); return; }
       lastOffset=d; save(); cmd.dist=d; cmd.step="select"; setPrompt("DÉCALER – Sélectionnez l'objet à décaler (Échap pour finir) :"); return; }
-    if(!txt){ endCmd(); return; }
+    if(!txt){ finishCmd(); return; }
     if(ALIASES[up]) { startCmd(ALIASES[up]); return; }
     const d=num(txt.replace(",",".")); if(d!==null&&d>0){ lastOffset=d; cmd.dist=d; save(); log(`  nouvelle distance ${fmt(d)} mm`); }
     return;
   }
   if(cmd.name==="DEPLACER"||cmd.name==="COPIER"){
-    if(cmd.step==="select"){ if(!txt){ if(selected.size){ cmd.sel=[...selected]; cmd.step="base"; setPrompt(`${cmd.name} – Point de base :`); } else endCmd(); return; } if(ALIASES[up]) startCmd(ALIASES[up]); return; }
-    if(!txt){ endCmd(); return; }
+    if(cmd.step==="select"){ if(!txt){ if(selected.size){ cmd.sel=[...selected]; cmd.step="base"; setPrompt(`${cmd.name} – Point de base :`); } else finishCmd(); return; } if(ALIASES[up]) startCmd(ALIASES[up]); return; }
+    if(!txt){ finishCmd(); return; }
     const p=parsePoint(txt, cmd.step==="dest"?cmd.base:null); if(p) feedPoint(p); else log("  Saisie non reconnue"); return;
   }
   if(cmd.name==="COTLIN"||cmd.name==="COTALI"){
     if(cmd.step==="p1" && !txt){ cmd.step="obj"; setPrompt(`${cmd.name} – Cliquez le trait (ou le côté du rectangle) à coter :`); return; }
-    if(!txt){ endCmd(); return; }
+    if(!txt){ finishCmd(); return; }
     if(cmd.step==="pos"){ const v=num(txt.replace(",",".")); if(v===null){ log("  Tapez une distance"); return; } const P=currentPoint(); const d=makeLinDim(cmd,P); if(!d) return;
       const u=dimDir(d), n={x:-u.y,y:u.x}; const sgn=Math.sign((P.x-cmd.p1.x)*n.x+(P.y-cmd.p1.y)*n.y)||1; feedPoint({x:cmd.p1.x+n.x*sgn*v,y:cmd.p1.y+n.y*sgn*v}); return; }
     const p=parsePoint(txt, cmd.step==="p2"?cmd.p1:null); if(p) feedPoint(p); else log("  Saisie non reconnue"); return;
   }
-  if(cmd.name==="TEXTE"){ if(!txt){ endCmd(); return; } if(ALIASES[up]) startCmd(ALIASES[up]); return; }
-  if(cmd.name==="AJUSTER"||cmd.name==="PROLONGER"){ if(!txt){ endCmd(); return; } if(ALIASES[up]) startCmd(ALIASES[up]); return; }
-  if(cmd.name==="COTCONT"){ if(!txt){ endCmd(); return; }
+  if(cmd.name==="TEXTE"){ if(!txt){ finishCmd(); return; } if(ALIASES[up]) startCmd(ALIASES[up]); return; }
+  if(cmd.name==="AJUSTER"||cmd.name==="PROLONGER"){ if(!txt){ finishCmd(); return; } if(ALIASES[up]) startCmd(ALIASES[up]); return; }
+  if(cmd.name==="COTCONT"){ if(!txt){ finishCmd(); return; }
     if(up==="S"){ cmd.pick=true; setPrompt("COTCONT – Cliquez la cote à continuer :"); return; } const p=parsePoint(txt, cmd.prev?cmd.prev.p2:null); if(p) feedPoint(p); return; }
-  if(cmd.name==="COTRAYON"||cmd.name==="COTDIA"||cmd.name==="COTANG"){ if(!txt){ endCmd(); return; } if(ALIASES[up]) startCmd(ALIASES[up]); return; }
+  if(cmd.name==="COTRAYON"||cmd.name==="COTDIA"||cmd.name==="COTANG"){ if(!txt){ finishCmd(); return; } if(ALIASES[up]) startCmd(ALIASES[up]); return; }
   if(cmd.name==="HACHURES"){
     if(cmd.step==="poly"){
       if(!txt){ if(cmd.pts.length>=3){ cmd.lastId=addEnt({type:"hatch",bounds:[{kind:"poly",pts:cmd.pts}],pattern:hatchOpts.pattern,spacing:hatchOpts.spacing,angle:hatchOpts.angle}).id; log("  hachure ajoutée"); } else log("  Il faut au moins 3 points"); cmd.step="pick"; cmd.pts=[]; setPrompt("HACHURES – Cliquez à l'intérieur d'une zone fermée (P = contour par points) :"); renderPreview(); return; }
       const p=parsePoint(txt, cmd.pts.length?cmd.pts[cmd.pts.length-1]:null); if(p) feedPoint(p); else log("  Saisie non reconnue"); return;
     }
-    if(!txt){ endCmd(); return; }
+    if(!txt){ finishCmd(); return; }
     if(up==="P"){ startPoly(); return; }
     if(ALIASES[up]) { startCmd(ALIASES[up]); return; }
     return;
   }
-  if(cmd.name==="EFFACER"){ if(!txt) endCmd(); else if(ALIASES[up]) startCmd(ALIASES[up]); return; }
+  if(cmd.name==="EFFACER"){ if(!txt) finishCmd(); else if(ALIASES[up]) startCmd(ALIASES[up]); return; }
 }
 
 // ---------- Annuler / Rétablir ----------
@@ -1468,8 +1467,6 @@ function setColor(key,c){
 }
 $("bCol").onclick=()=>{ $("layMenu").classList.remove("show"); const m=$("colMenu"); const on=!m.classList.contains("show"); if(on) buildColMenu(); m.classList.toggle("show",on); };
 $("colClose").onclick=()=>$("colMenu").classList.remove("show");
-function updRep(){ $("bRep").classList.toggle("on",repeatOn); }
-$("bRep").onclick=()=>{ repeatOn=!repeatOn; updRep(); save(); log("Répétition des commandes "+(repeatOn?"activée":"désactivée")); };
 
 // ---------- Menu cotations ----------
 function toggleDimMenu(on){ const m=$("dimMenu"); if(on===undefined) on=!m.classList.contains("show"); m.classList.toggle("show",on); $("bDim").classList.toggle("active",on); if(on) $("dimTxt").value=dimTxt; }
@@ -2337,7 +2334,7 @@ if(window.__daoTest) window.__dao={ get ents(){return ents;}, get cmd(){return c
 // ---------- Démarrage ----------
 load();
 { const cl=(URLP.get("client")||"").trim(); if(cl){ ouvrirPlanClient(cl); try{ URLP.delete("client"); history.replaceState(null,"",location.pathname+(URLP.toString()?"?"+URLP:"")); }catch(e){} } }
-ensureLayers(); updLayerUI(); updRep(); updPlanName(); prechargerGoogle(); $("colDot").style.background=colors.trait;
+ensureLayers(); updLayerUI(); updPlanName(); prechargerGoogle(); $("colDot").style.background=colors.trait;
 window.addEventListener("resize",renderAll);
 requestAnimationFrame(()=>{ zoomExtents(); cmdIn.focus(); });
 log("Bienvenue ! Tapez L (ligne), REC (rectangle), C (cercle) ou DEC (parallèle). Tapez AIDE pour tout voir.");

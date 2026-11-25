@@ -254,6 +254,7 @@ PROMPT-POUR-CLAUDE-PRO.md ← le message que Nicolas te donne
 | 18/11/2026 | metre-v102 | Liens Mini DAO + correctif hors-ligne **remis** dans le métré (effacés par les versions v96-v101 d'une autre conversation). Ajout de `CLAUDE.md` à la racine (consignes : repartir de la dernière version, garder ces ajouts). |
 | 18/11/2026 | dao-v6 | **Bibliothèque de symboles** (Nicolas a coché toutes les options) : voir § 13. |
 | 24/11/2026 | dao-v9 | Flèche + texte (repère), texte libre des cotes, nom automatique « Plan CLIENT – Titre », cartouche par défaut (Foissac Fermetures / Nicolas), arc 2 points + flèche, cercle 3 points, arrondi entre 2 traits : voir § 14. |
+| 25/11/2026 | dao-v10 | Commandes toujours actives : une fonction reste accrochée à la souris jusqu'au clic droit (ou Échap) ; bouton 🔁 retiré : voir § 15. |
 | 18/11/2026 | dao-v5 | **Essai réel Google Drive réussi** (« Plan TEST », 2 enregistrements : PDF dans 09 - Plan, .mdao dans Métrés › Plans › 2026, remplacés sans doublon). « Métrés » fixé : `DOSSIERS_DAO.metres = 1HoXaRkku5deGnEtg6t3SK6jtvs4zr1lz`. |
 
 ## 11. Service worker de l'appli de métré : corrigé le 18/11/2026 (accord de Nicolas)
@@ -326,3 +327,14 @@ Options cochées par Nicolas : flèche + texte modifiable ; cotes à texte libre
   - `C3P` « Cercle 3 points » (crée un cercle ordinaire).
   - `RA` / `RACCORD` / `ARRONDI` : rayon tapé (0 = angle vif, retenu), puis 2 traits cliqués du côté à garder (lignes ou côtés de rectangle, décomposé au besoin).
 - Tests automatiques : `window.__dao` expose aussi `cart`, `planNameTxt`, `driveNom`, `planId`.
+
+## 15. Commandes toujours actives (dao-v10, 25/11/2026, demandé par Nicolas)
+
+Demande : « quand j'ai choisi une fonction (cotation, ligne…), elle reste accrochée à la souris tant que je n'ai pas fait de clic droit ».
+
+- `finishCmd()` relance **toujours** la commande (on ne regarde plus `repeatOn`, qui reste dans la sauvegarde mais ne sert plus).
+- Le bouton 🔁 (`#bRep`, `updRep`) est retiré : il permettait de couper la répétition, ce qui donnait l'impression que la fonction « se décrochait ».
+- Entrée vide pendant une commande : termine le tracé en cours et **relance** la même commande (avant : sortie) — rectangle, cercle, mesurer, décaler, déplacer/copier, cotes, texte, ajuster/prolonger, hachures, effacer.
+- Seules sorties : **clic droit** ou **Échap** (ou choisir un autre outil).
+- Test : `tests/test_rep.py` (chaque outil reste actif après 2 utilisations, même avec `repeatOn:false` en mémoire ; clic droit → plus de commande).
+

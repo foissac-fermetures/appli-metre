@@ -344,6 +344,7 @@ input:disabled{background:#eef1f7;color:#4a5368}
   .pt td,.pt th{border:1px solid #9aa3b5;padding:2px 6px;vertical-align:top;text-align:left}
   .pt th{background:#e8edf7;color:#1b2f5e;font-size:9pt;width:1%;white-space:nowrap}
   .pcols{display:grid;grid-template-columns:1.1fr 1fr;gap:10px}
+  .pt-info{font-size:10pt;margin:-2px 0 6px;color:#1b2f5e}
   .ptdes svg{display:block;margin:0 auto;width:100%;max-height:92mm;height:auto}
   .pimg{border:1px solid #9aa3b5;max-width:100%;max-height:220px;display:block}
   .pbig{font-size:14pt;font-weight:700}
@@ -7111,12 +7112,11 @@ async function voirPlanResa(L){
 function pagesPT2(d, head, row){
   if(!aPT(d)) return ""; const p=d.pt, lib=e=>({BATTANT:"Portail battant",COULISSANT:"Portail coulissant",PORTILLON:"Portillon"}[e.type]||"Élément");
   const Hp=e=>num(e.H)??hauteurAutoPT(e), moto=e=>motorisePT(e)?[e.moto,e.moto_marque,e.moto_type,e.moto_modele].filter(Boolean).join(" · "):(e.moto||"");
-  let h=`<div class="pg">${head(`Portails et portillons GardenGate – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
-    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Réf. chantier",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","GardenGate"],["Pose",textePose(d,"pt")],["Nombre d'éléments",String(p.elements.length)]])}</table></div><div></div></div>
-    <table class="pt"><tr><th>N°</th><th>Élément</th><th>Modèle</th><th>Couleur</th><th>Lames</th><th>Largeur fab.</th><th>Hauteur fab.</th><th>Motorisation</th><th>Sens (vue ext.)</th><th>Options</th></tr>
-    ${p.elements.map((e,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(lib(e))}</td><td>${esc(e.modele)}</td><td>${esc([e.couleur,e.finition].filter(Boolean).join(" "))}</td><td>${esc(e.lames)}</td><td><b>${fabPT(e)??esc(e.L)}</b></td><td><b>${Hp(e)??""}</b></td><td>${esc(moto(e))}</td><td>${esc(e.type==="COULISSANT"?"":e.sens)}</td><td>${esc((e.options||[]).join(", "))}</td></tr>`).join("")}</table></div>`;
+  /* 25/11/2026 : plus de page récap (doublon) – une page par élément, avec la ligne client / adresse / pose en haut */
+  let h="";
+  const infos=`<div class="pt-info"><b>${esc(d.client.nom||"")}</b>${d.adresse_chantier?" · "+esc(d.adresse_chantier):""} · GardenGate${textePose(d,"pt")?" · Pose : "+esc(textePose(d,"pt")):""} · ${estDefinitif(d)?"Métré définitif":"Devis"}</div>`;
   p.elements.forEach((e,i)=>{ const port=e.type==="PORTILLON", coul=e.type==="COULISSANT";
-    h+=`<div class="pg">${head(`${i+1}. ${lib(e)} – ${d.client.nom||""}`)}<div class="pcols"><div class="pdim" style="grid-row:auto">
+    h+=`<div class="pg">${head(`${p.elements.length>1?(i+1)+". ":""}${lib(e)} – ${d.client.nom||""}`)}${infos}<div class="pcols"><div class="pdim" style="grid-row:auto">
       <div class="pposetitre">${esc(lib(e).toUpperCase())} – GARDENGATE</div>
       <div class="pdt2"><table class="pt pdt"><tr class="pdir"><th colspan="2">LARGEUR</th></tr>
           <tr><th>${esc(e.dim==="ENTRE PILE"?"Entre piliers":"Fabrication")}</th><td>${esc(e.L)}</td></tr>${port?"":`<tr><th>Largeur pilier</th><td>${esc(e.l_pilier)}</td></tr>`}
@@ -7128,7 +7128,7 @@ function pagesPT2(d, head, row){
           ${e.gond_pente?`<tr><th>Pente longueur</th><td>${esc(e.pente_l)}</td></tr><tr><th>Pente hauteur</th><td>${esc(e.pente_h)}</td></tr>`:""}
           <tr class="pfabr"><th>FABRICATION</th><td>${Hp(e)??""}</td></tr></table></div>
       </div><div>
-      <table class="pt">${row([["Type",lib(e)],["Modèle",e.modele],["Couleur",e.couleur],["Finition",e.finition],["Lames",e.lames],["Poignée",e.poignee],["Motorisation",moto(e)],["Sens d'ouverture (vue extérieure)",coul?"":e.sens],["Portail inégaux",e.inegaux&&e.type==="BATTANT"?"Oui":""],["Gond de pente",e.gond_pente?"Oui":""],["Options",(e.options||[]).join(", ")],["Plan de réservation",e.plan_resa?"Oui (joint)":""],["Pose",textePose(d,"pt")],["Observation",e.obs]])}</table>
+      <table class="pt">${row([["Type",lib(e)],["Modèle",e.modele],["Couleur",e.couleur],["Finition",e.finition],["Lames",e.lames],["Poignée",e.poignee],["Motorisation",moto(e)],["Sens d'ouverture (vue extérieure)",coul?"":e.sens],["Portail inégaux",e.inegaux&&e.type==="BATTANT"?"Oui":""],["Gond de pente",e.gond_pente?"Oui":""],["Options",(e.options||[]).join(", ")],["Plan de réservation",e.plan_resa?"Oui (joint)":""],["Observation",e.obs]])}</table>
       </div></div>
       <div class="pst" style="margin-top:6px">DESSIN <small>– vue de l'extérieur</small></div><div class="ptdes">${dessinPT(e)}</div></div>`; });
   const ph=(p.photos||[]).filter(x=>x.img);

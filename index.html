@@ -628,7 +628,57 @@ const EQUIPES_POSE = ["Sans pose","1 personne","2 personnes","3 personnes","4 pe
 const DUREES_POSE = ["¼ h (15 min)","30 min","45 min","1 h","2 h","3 h","4 h – ½ journée","5 h","6 h","7 h","8 h – 1 journée","1 jour ½","2 jours","2 jours ½","3 jours","3 jours ½","4 jours","4 jours ½","1 semaine","1 semaine 1 jour","1 semaine 2 jours","1 semaine 3 jours"];
 const heuresPose = t => { const s=String(t||""); let m; if(/^¼ h/.test(s)) return 0.25; m=s.match(/^(\d+) min/); if(m) return Math.round(+m[1]/60*100)/100; m=s.match(/^(\d+) h/); if(m) return +m[1]; m=s.match(/semaine(?: (\d+) jours?)?/); if(m) return 40+(+(m[1]||0))*8; m=s.match(/^(\d+) jours?( ½)?/); return m? (+m[1]+(m[2]?0.5:0))*8 : 0; };
 const nbPoseurs = e => +(String(e||"").match(/^(\d)/)||[])[1]||0;
-const textePose = d => d.equipe_pose==="Sans pose" ? "Sans pose" : [d.equipe_pose, d.jours_pose, d.pose_pas_vu?"⚠ chantier pas vu":""].filter(Boolean).join(" · ");
+const textePoseGlobal = d => d.equipe_pose==="Sans pose" ? "Sans pose" : [d.equipe_pose, d.jours_pose, d.pose_pas_vu?"⚠ chantier pas vu":""].filter(Boolean).join(" · ");
+/* ---------- Temps de pose PAR PARTIE (25/11/2026, demande de Nicolas) ----------
+   Chez un même client : 3 jours de menuiseries, 2 jours de volets battants, 1 jour de portail… Réglé en haut de chaque onglet
+   (d.pose_p = {ouvertures:{eq,duree}, vb:{…}, pt:{…}…}), récapitulé avec le total dans « Client & chantier » et sur le PDF.
+   d.equipe_pose / d.jours_pose restent remplis (équipe la plus grande, durée totale) pour tout ce qui les lisait déjà. */
+const POSE_PARTIES=[["ouvertures","Menuiseries"],["vr","Volets roulants"],["pt","Portail"],["vb","Volets battants"],["zip","Stores zip"],["vit","Vitrages"],["per","Pergola / carport"],["gar","Portes de garage"],["gca","Garde-corps alu"],["sb","Store banne"],["pp","Portes palières"],["vt","Remplacement de vitrage"]];
+const partiesPose = d => { let v=[]; try{ v=ongletsVisibles(d); }catch(e){} return POSE_PARTIES.filter(([k])=>v.includes(k)); };
+const posePart = (d,k) => Object.assign({eq:"",duree:""}, (d.pose_p||{})[k]||{});
+const poseParParties = d => !!d.pose_p && Object.values(d.pose_p).some(p=>p&&(p.eq||p.duree));
+function dureeHeures(t){ const s=String(t||"").trim(); let m; if(!s) return 0;
+  if(/^¼ h/.test(s)) return 0.25; if((m=s.match(/^(\d+) min/))) return m[1]/60;
+  if((m=s.match(/^(\d+) semaines?(?: (\d+) jours?)?/))) return m[1]*40+(+m[2]||0)*8;
+  if((m=s.match(/^(\d+) jours?( ½)?(?: (\d+(?:[.,]\d+)?) h)?/))) return (+m[1]+(m[2]?0.5:0))*8+(m[3]?parseFloat(m[3].replace(",",".")):0);
+  if((m=s.match(/^(\d+) h(?: (\d+))?/))) return +m[1]+(+m[2]||0)/60;
+  return 0; }
+function texteHeures(h){ if(!h) return ""; h=Math.round(h*4)/4;
+  if(h<8){ const hh=Math.floor(h), mn=Math.round((h-hh)*60); return hh? `${hh} h${mn?" "+String(mn).padStart(2,"0"):""}` : `${mn} min`; }
+  const j=Math.floor(h/8), r=h-j*8; return `${j} jour${j>1?"s":""}${r===4?" ½":r?" "+texteHeures(r):""}`; }
+function totalPose(d){ let h=0, mo=0, eq=0, tous=true, n=0;
+  partiesPose(d).forEach(([k])=>{ const p=posePart(d,k); if(p.eq!=="Sans pose") tous=false; if(p.eq==="Sans pose"||(!p.eq&&!p.duree)) return; n++;
+    const x=dureeHeures(p.duree), e=nbPoseurs(p.eq); h+=x; mo+=x*(e||0); eq=Math.max(eq,e||0); });
+  return {h, mo, eq, n, sansPose:tous&&partiesPose(d).length>0}; }
+function syncPoseGlobale(d){ if(!poseParParties(d)) return; const t=totalPose(d);
+  if(t.sansPose){ d.equipe_pose="Sans pose"; d.jours_pose=""; return; }
+  d.equipe_pose = t.eq ? `${t.eq} personne${t.eq>1?"s":""}` : (d.equipe_pose==="Sans pose"?"":d.equipe_pose);
+  d.jours_pose = texteHeures(t.h); }
+function migrerPoseParties(d){ if(d.pose_p) return; d.pose_p={}; if(!d.equipe_pose && !d.jours_pose) return;
+  const P=partiesPose(d); if(!P.length) return;   // reprise d'un ancien métré : le temps global va sur la 1re partie
+  d.pose_p[P[0][0]]={eq:d.equipe_pose||"", duree:d.equipe_pose==="Sans pose"?"":(d.jours_pose||"")};
+  if(d.equipe_pose==="Sans pose") P.forEach(([k])=>{ d.pose_p[k]={eq:"Sans pose",duree:""}; }); }
+const textePose = (d,k) => { if(!k || !poseParParties(d)) return textePoseGlobal(d);
+  const p=posePart(d,k); return p.eq==="Sans pose" ? "Sans pose" : [p.eq, p.duree].filter(Boolean).join(" · "); };
+function tablePosePDF(d){ const row=(a,b)=>`<tr><th>${esc(a)}</th><td>${b}</td></tr>`;
+  if(!poseParParties(d)){ const t=textePoseGlobal(d); return t?`<table class="pt">${row("Pose",esc(t))}</table>`:""; }
+  const P=partiesPose(d), t=totalPose(d);
+  return `<table class="pt">${P.map(([k,l])=>row("Pose "+l.toLowerCase(), esc(textePose(d,k))||"<i>à choisir</i>")).join("")}
+    ${row("Pose – total", t.sansPose?"<b>Sans pose</b>":`<b>${esc(texteHeures(t.h)||"–")}</b>${t.mo?` · ${Math.round(t.mo*10)/10} h de main-d'œuvre`:""}${d.pose_pas_vu?" · ⚠ chantier pas vu":""}`)}</table>`; }
+function selectsPose(d,k){ const p=posePart(d,k);
+  return `<select data-ppk="${k}" data-ppf="eq" aria-label="Nombre de personnes"><option value="">—</option>${EQUIPES_POSE.map(x=>`<option${p.eq===x?" selected":""}>${esc(x)}</option>`).join("")}</select>`
+    + (p.eq==="Sans pose" ? "" : `<select data-ppk="${k}" data-ppf="duree" aria-label="Temps de pose"><option value="">—</option>${[...(p.duree&&!DUREES_POSE.includes(p.duree)?[p.duree]:[]),...DUREES_POSE].map(x=>`<option${p.duree===x?" selected":""}>${esc(x)}</option>`).join("")}</select>`); }
+function blocPosePartie(d,k){ const lib=(POSE_PARTIES.find(x=>x[0]===k)||[])[1]||"", t=totalPose(d), p=posePart(d,k);
+  return `<div class="card pose-part"><b>🛠 Pose – ${esc(lib)}</b>
+    <label class="f">Combien de personnes ?${selectsPose(d,k).split("</select>")[0]}</select></label>
+    ${p.eq==="Sans pose"?"":`<label class="f">Combien de temps ?${selectsPose(d,k).split("</select>")[1]}</select></label>`}
+    ${t.n>1||partiesPose(d).length>1?`<span class="hint">Total du chantier : <b>${esc(texteHeures(t.h)||"–")}</b></span>`:""}</div>`; }
+document.addEventListener("change", e=>{ const el=e.target; if(!el||!el.dataset||!el.dataset.ppk||!S.dossier) return; e.stopPropagation();
+  const d=S.dossier, k=el.dataset.ppk; d.pose_p=d.pose_p||{}; const p=d.pose_p[k]=posePart(d,k); p[el.dataset.ppf]=el.value; if(p.eq==="Sans pose") p.duree="";
+  syncPoseGlobale(d); save(); const y=scrollY; renderDossier(); scrollTo(0,y); }, true);
+(function(){ const st=document.createElement("style"); st.textContent=`.pose-part{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:flex-end;padding:10px 14px;margin-bottom:12px;border-left:5px solid #1b2f5e}
+.pose-part>b{font-size:16px;color:#1b2f5e;align-self:center;margin-right:6px}.pose-part .f{min-width:190px}
+.pose-tab select{min-height:38px;font-size:15px;max-width:230px}.pose-tab td,.pose-tab th{padding:6px 8px;text-align:left}.pose-tab tr.tot{background:#eef3fb}`; document.head.appendChild(st); })();
 /* ---------- À prévoir pour les poseurs (17/11/2026) : proposé d'après le métré + cases + texte libre ---------- */
 const PREVOIR_CHOIX = ["Scellement chimique","Échafaudage","Nacelle","Échelle plateau","Ventouses","Benne / évacuation","Protection des sols","Bâche / protection des meubles","Rallonge / électricité","Prévenir le client la veille","Accès difficile / stationnement"];
 function prevoirAuto(d){ const L=[], n=x=>x>1?` (${x})`:"";
@@ -729,7 +779,7 @@ function garderMesures(d, anciennes){
 }
 const cotesARecontroler=o=>o&&o.reprise&&!o.reprise.ok ? COTE_CLES(o).filter(k=>{ const m=k.match(/^cotes\.([LH])\.(\d)$/); if(m&&!coteUtile(o,+m[2],m[1])) return false; const v=String(valCle(o,k)??""); return k in o.reprise.champs ? v===o.reprise.champs[k] : v.trim()===""; }) : [];   // toutes les cotes (23/11)
 function normaliser(d){ (d.vr&&d.vr.lignes||[]).forEach(l=>{ ["avec_menuiserie","coffre_hauteur"].forEach(k=>{ if(/hauteur 168 mm/.test(l[k]||"")) l[k]=l[k].replace("hauteur 168 mm","hauteur 205 mm"); }); });   // LALOI : toujours coffre 205 (Nicolas, 18/11/2026)
-  migrerPose(d); if(d.vb) migrerVB(d.vb); d.ouvertures.forEach(nettoyerOuv); if(!d.vr) d.vr=nouveauVR(); d.ouvertures.forEach(migrerObs); d.ouvertures.forEach(o=>{ if(o.semi_fixe && modeleDe(o) && !aSemiFixe(o)) o.semi_fixe=""; }); d.ouvertures.forEach(o=>{ o.comp=Object.assign(COMP_VIDE(), o.comp||{}); }); if(d.clim && !d.clim.tableau) d.clim.tableau={img:"",txt:"",place:""}; d.ouvertures.forEach(o=>{ o.gc=Object.assign(GC_VIDE(), o.gc||{}); o.erp=Object.assign(ERP_VIDE(), o.erp||{}); }); d.ouvertures.forEach((o,i)=>{ if(o.num_poseur===undefined) o.num_poseur=String(i+1); if(!Array.isArray(o.photos)) o.photos=[]; }); d.ouvertures.forEach(o=>repriseCotes(o,d)); if(!d.equipe_pose && d.vr.equipe) d.equipe_pose={"Seul":"Tout seul"}[d.vr.equipe]||d.vr.equipe; d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
+  migrerPose(d); try{ migrerPoseParties(d); }catch(e){} if(d.vb) migrerVB(d.vb); d.ouvertures.forEach(nettoyerOuv); if(!d.vr) d.vr=nouveauVR(); d.ouvertures.forEach(migrerObs); d.ouvertures.forEach(o=>{ if(o.semi_fixe && modeleDe(o) && !aSemiFixe(o)) o.semi_fixe=""; }); d.ouvertures.forEach(o=>{ o.comp=Object.assign(COMP_VIDE(), o.comp||{}); }); if(d.clim && !d.clim.tableau) d.clim.tableau={img:"",txt:"",place:""}; d.ouvertures.forEach(o=>{ o.gc=Object.assign(GC_VIDE(), o.gc||{}); o.erp=Object.assign(ERP_VIDE(), o.erp||{}); }); d.ouvertures.forEach((o,i)=>{ if(o.num_poseur===undefined) o.num_poseur=String(i+1); if(!Array.isArray(o.photos)) o.photos=[]; }); d.ouvertures.forEach(o=>repriseCotes(o,d)); if(!d.equipe_pose && d.vr.equipe) d.equipe_pose={"Seul":"Tout seul"}[d.vr.equipe]||d.vr.equipe; d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
 /* Volet roulant lié à une ouverture : repère, quantité et cotes tableau suivent la fiche ouverture */
 /* Volets roulants vendus avec la menuiserie (fabriqués avec elle) */
 const GAMME_MODELES = { "ALU - LALOI":"modeles_laloi", "PVC - REHAU PORTEO":"modeles_porteo" };
@@ -1466,7 +1516,7 @@ function controleDossier(d){
   if(!d.client.nom) E.push("Nom du client manquant");
   if(!d.client.date_rdv) W.push("Date du RDV manquante");
   if(!d.adresse_chantier) W.push("Adresse du chantier manquante");
-  if(d.equipe_pose!=="Sans pose" && (d.ouvertures.length||(d.vr&&d.vr.lignes.length)||aVB(d)||aZIP(d)||aVIT(d)||aPER(d)||aGAR(d)||aGCA(d)||aSB(d)||aPT(d)||aPP(d)||aVT(d))){ if(!d.equipe_pose) W.push("Pose : nombre de personnes non choisi (onglet Client & chantier)"); if(!d.jours_pose) W.push("Pose : durée non choisie (onglet Client & chantier)"); }
+  partiesPose(d).forEach(([k,l])=>{ const p=posePart(d,k); if(p.eq==="Sans pose") return; if(!p.eq) W.push(`Pose ${l.toLowerCase()} : nombre de personnes non choisi (en haut de l'onglet ${l})`); if(!p.duree) W.push(`Pose ${l.toLowerCase()} : temps de pose non choisi (en haut de l'onglet ${l})`); });
   if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aClim(d) && !aVB(d) && !aZIP(d) && !aVIT(d) && !aPER(d) && !aGAR(d) && !aGCA(d) && !aSB(d) && !aPT(d) && !aPP(d) && !aSAV(d) && !aVT(d)) E.push("Aucune ouverture, volet, portail ni climatisation saisi");
   if(aClim(d) && aAutreQueClim(d)) E.push("Clim et menuiseries / volets / portail dans le même devis : la clim doit être un devis à part (onglet Climatisation › « Sortir la clim »)");
   comparerDevisDossier(d, E, W);
@@ -1899,7 +1949,7 @@ function renderDossier(){
     <button class="btn small" id="dPrint">Imprimer / PDF</button>
     <button class="btn small" id="dSave" title="Enregistrement automatique au retour à la liste. Toucher pour forcer un envoi.${d.drive?" Dernier envoi : "+new Date(d.drive.le).toLocaleString("fr-FR"):""}" aria-label="Forcer l'enregistrement dans le Drive">☁ Drive${d.drive_attente?" (en attente)":d.drive?" ✓":""}</button>
   </div>
-  <div id="tab"></div>`;
+  <div id="posePart"></div><div id="tab"></div>`;
   $$("[data-tab]").forEach(b=>b.onclick=()=>{ S.tab=b.dataset.tab; renderDossier(); });
   $("#tabAdd").onclick=()=>ajouterAuMetre(d);
   $("#tabDAO").onclick=async()=>{ clearTimeout(S.saveT); await DB.put(d); location.href="dao/?client="+encodeURIComponent((d.client&&d.client.nom||"").trim())+"&retour="+encodeURIComponent(d.id); };   // Mini DAO (voir CLAUDE.md du dépôt)
@@ -1933,11 +1983,11 @@ function renderDossier(){
           :`<p class="hint">Reprend les menuiseries du devis signé (repère, produit, couleurs, vitrage, sens, volet, pose…), sauf les cotes, et les volets battants en entier (cotes à confirmer), puis compare automatiquement.</p>`}
         <div class="row" style="gap:8px"><button class="btn ${d.devis_signe?"":"primary"}" id="cDevis">${d.devis_signe?"Changer de devis / relire":"Partir du devis signé"}</button>
         ${d.devis_signe?`<button class="btn small" id="cDevisOff">Détacher le devis</button>`:""}${d.drive&&d.drive.dossier?`<button class="btn small" id="cVersions">🕘 Versions précédentes (Drive)</button>`:""}</div></div>`:""}
-      <div class="card" style="grid-column:1/-1"><h2><span class="num">3</span>Pose <small style="font-weight:400;text-transform:none">– pour tout le chantier</small></h2>
-        <div class="grid g4"><label class="f">Combien de personnes ?<select data-poseqs="1"><option value="">—</option>${EQUIPES_POSE.map(x=>`<option${d.equipe_pose===x?" selected":""}>${esc(x)}</option>`).join("")}</select></label>
-        ${d.equipe_pose!=="Sans pose"?`<label class="f">Combien de temps ?<select data-poseds="1"><option value="">—</option>${[...(d.jours_pose&&!DUREES_POSE.includes(d.jours_pose)?[d.jours_pose]:[]),...DUREES_POSE].map(x=>`<option${d.jours_pose===x?" selected":""}>${esc(x)}</option>`).join("")}</select></label>`:""}</div>
-        ${d.equipe_pose!=="Sans pose"?`
-        ${nbPoseurs(d.equipe_pose)&&heuresPose(d.jours_pose)?`<div class="pose-total">⏱ ${nbPoseurs(d.equipe_pose)} × ${heuresPose(d.jours_pose)} h = <b>${nbPoseurs(d.equipe_pose)*heuresPose(d.jours_pose)} heures</b> de main-d'œuvre</div>`:""}`:""}
+      <div class="card" style="grid-column:1/-1"><h2><span class="num">3</span>Pose <small style="font-weight:400;text-transform:none">– par partie (réglable aussi en haut de chaque onglet)</small></h2>
+        ${(()=>{ const P=partiesPose(d), t=totalPose(d); if(!P.length) return `<p class="hint">Choisis d'abord ce que tu métrés (bouton « + Ajouter… ») : une ligne de pose apparaîtra pour chaque partie.</p>`;
+          return `<table class="pt pose-tab"><tr><th>Partie</th><th>Combien de personnes ?</th><th>Combien de temps ?</th></tr>
+          ${P.map(([k,l])=>{ const h=selectsPose(d,k).split("</select>"); return `<tr><td><b>${esc(l)}</b></td><td>${h[0]}</select></td><td>${h[1]?h[1]+"</select>":"<i>fourniture seule</i>"}</td></tr>`; }).join("")}
+          <tr class="tot"><th>Total</th><td>${t.sansPose?"Sans pose":t.eq?`${t.eq} pers. maxi`:"–"}</td><td><b>${esc(texteHeures(t.h)||"–")}</b>${t.mo?` <span class="hint">· ${Math.round(t.mo*10)/10} h de main-d'œuvre</span>`:""}</td></tr></table>`; })()}
         <div class="checks" style="margin-top:12px">${F.chk("pose_pas_vu","⚠ Je n'ai pas vu tout le chantier",d.pose_pas_vu)}</div>
         <div class="hint" style="margin:14px 0 6px;font-weight:700;color:#1b2f5e">À prévoir pour les poseurs <span style="font-weight:400">– imprimé en liste à cocher sur le PDF</span></div>
         ${prevoirAuto(d).length?`<ul class="prev-auto">${prevoirAuto(d).map(x=>`<li>${esc(x)}</li>`).join("")}</ul><div class="hint" style="margin:-2px 0 6px">↑ proposé tout seul d'après le métré</div>`:""}
@@ -2027,6 +2077,7 @@ function renderDossier(){
   const climAPart = (S.tab==="clim" && aAutreQueClim(d)) || (["ouvertures","vr","pt","vb","zip","vit","per","gar","gca","sb","pp","vt"].includes(S.tab) && aClim(d) && !aAutreQueClim(d));
   if(climAPart){ carteDevisAPart(d, t); }
   else {
+  if(POSE_PARTIES.some(([k])=>k===S.tab)) $("#posePart").innerHTML=blocPosePartie(d,S.tab);
   if(S.tab==="vr") renderVR(t);
   if(S.tab==="clim") renderClim(t);
   if(S.tab==="vb") renderVB(t);
@@ -4165,7 +4216,7 @@ function pagesSB(d, head, row){
     ["Volant déroulable",g&&g.volant?[v.volant_toile,v.volant_ref].filter(Boolean).join(" – ")||"à préciser":""],["Éclairage",g&&g.led||""],
     ["Manœuvre",v.manoeuvre],["Télécommande",sbMotorise(v)&&sbRadio(v)?v.telecommande:""],["Automatismes",(v.automatismes||[]).join(", ")],["Options",opts]].filter(x=>x[1]);
   let h=`<div class="pg">${head(`Store banne Marquises – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
-    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","Marquises"],["Pose (équipe · durée)",typeof textePose==="function"?textePose(d):""],["Manutention",v.manutention],["Dépose ancien store",v.depose],["Nombre de stores",String(v.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div>
+    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","Marquises"],["Pose (équipe · durée)",typeof textePose==="function"?textePose(d,"sb"):""],["Manutention",v.manutention],["Dépose ancien store",v.depose],["Nombre de stores",String(v.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div>
     <div><table class="pt">${row(commun)}</table></div></div>
     <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Largeur</th><th>Avancée</th><th>Bras croisés</th><th>Côté cde<br><small>vu de l'ext.</small></th><th>Pose</th>${sbManivelle(v)?"<th>Manivelle</th>":""}<th>H fixation</th><th>Inclin.</th><th>Sous lambrequin</th><th>Support</th><th>Électricité</th>${obsV?"<th>Observation</th>":""}</tr>
     ${v.lignes.map((l,i)=>{ const hh=sbHauteurs(v,l); return `<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.qte)}</td><td><b>${esc(l.L)}</b></td><td><b>${esc(l.A)}</b></td><td>${sbBC(v,l)?"Oui":""}</td><td>${esc(l.cote)}</td><td>${esc(sbPose(v,l))}${l.sortie_treuil?" · treuil "+esc(l.sortie_treuil.toLowerCase()):""}</td>${sbManivelle(v)?`<td>${esc(l.manivelle||"1600")}</td>`:""}<td>${esc(l.h_fix)}</td><td>${l.incl!==""?esc(l.incl)+"°":""}</td><td>${hh?hh.passage:""}</td><td>${esc(l.support)}${l.ite_ep?" · isolant "+esc(l.ite_ep):""}</td><td>${esc(l.elec)}</td>${obsV?`<td>${esc(l.obs)}</td>`:""}</tr>`; }).join("")}</table>
@@ -4436,7 +4487,7 @@ function pagesGCA(d, head, row){
   const tot=v.lignes.reduce((s,l)=>s+(gcaLongueur(l)||0),0);
   const commun=[["Modèle",v.modele],["Main courante",m&&m[1]==="rampe"?"Main courante seule":v.main_courante],["Vitrage",m&&m[1]==="verre"?v.vitrage:""],["Tôle",v.tole],["Couleur",gcaCouleurTexte(v)],["Usage",v.usage],["Hauteur finie",v.hauteur?v.hauteur+" mm":""],["Pose",v.pose]].filter(x=>x[1]);
   let h=`<div class="pg">${head(`Garde-corps alu La Toulousaine – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
-    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","La Toulousaine"],["Pose (équipe · durée)",typeof textePose==="function"?textePose(d):""],["Manutention",v.manutention],["Dépose ancien garde-corps",v.depose],["Longueur totale",tot?`${tot} mm (${(tot/1000).toLocaleString("fr-FR",{maximumFractionDigits:2})} ml)`:""]])}</table></div>
+    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","La Toulousaine"],["Pose (équipe · durée)",typeof textePose==="function"?textePose(d,"gca"):""],["Manutention",v.manutention],["Dépose ancien garde-corps",v.depose],["Longueur totale",tot?`${tot} mm (${(tot/1000).toLocaleString("fr-FR",{maximumFractionDigits:2})} ml)`:""]])}</table></div>
     <div><table class="pt">${row(commun)}</table></div></div>
     <table class="pt"><tr><th>N°</th><th>Repère</th><th>Type</th><th>Pose</th><th>Longueur</th><th>Hauteur</th><th>Départ (gauche)</th><th>Arrivée (droite)</th><th>Chute</th><th>Support</th><th>Nez de dalle / muret</th>${obsV?"<th>Observation</th>":""}</tr>
     ${v.lignes.map((l,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.type)}${gcaRampant(l)&&gcaPente(l)!=null?" "+gcaPente(l)+"°":""}</td><td>${esc(gcaPose(v,l))}</td><td><b>${esc(gcaLongueur(l)??"")}</b>${l.L_bas?`<br><small>bas ${esc(l.L_bas)}</small>`:""}</td><td><b>${gcaH(v,l)}</b></td><td>${esc(l.depart)}${l.depart==="Portillon"&&l.portillon_l?" "+esc(l.portillon_l):""}</td><td>${esc(l.arrivee)}${l.arrivee==="Portillon"&&l.portillon_l?" "+esc(l.portillon_l):""}${l.angle_txt?" · "+esc(l.angle_txt)+"°":""}</td><td>${esc(l.h_chute)}</td><td>${esc(l.support)}</td><td>${[/Nez|Habillage|sceller/.test(gcaPose(v,l))&&l.ep_dalle&&"nez "+l.ep_dalle,/muret/i.test(gcaPose(v,l))&&l.muret_h&&`muret ${l.muret_h}×${l.muret_ep||"?"}`].filter(Boolean).map(esc).join(" · ")}</td>${obsV?`<td>${esc(l.obs)}</td>`:""}</tr>`).join("")}</table>
@@ -4746,7 +4797,7 @@ function pagesGAR(d, head, row){
   const v=d.gar; if(!aGAR(d)) return ""; const c=controleGAR(d), n=(l,i)=>l.repere||`porte ${i+1}`, obsV=v.lignes.some(l=>l.obs);
   const fourn=[...new Set(v.lignes.map(l=>l.fourn).filter(Boolean))].join(", ");
   let h=`<div class="pg">${head(`Portes de garage – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
-    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur(s)",fourn],["Pose (équipe · durée)",typeof textePose==="function"?textePose(d):""]])}</table></div>
+    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur(s)",fourn],["Pose (équipe · durée)",typeof textePose==="function"?textePose(d,"gar"):""]])}</table></div>
     <div><table class="pt">${row([["Nombre de portes",String(v.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))],["Manutention",v.manutention],["Dépose",v.depose]])}</table></div></div>
     <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Type</th><th>Fournisseur · gamme</th><th>Largeur</th><th>Hauteur</th><th>Éc. G</th><th>Éc. D</th><th>Retombée</th><th>Profondeur</th><th>Manœuvre</th><th>Couleur</th>${obsV?"<th>Observation</th>":""}</tr>
     ${v.lignes.map((l,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.qte)}</td><td>${esc(l.type)}</td><td>${esc(garNom(l))}</td><td><b>${garLT(l)??""}</b></td><td><b>${garHT(l)??""}</b></td><td>${esc(l.EG)}</td><td>${esc(l.ED)}</td><td>${esc(l.RL)}</td><td>${esc(l.P)}</td><td>${esc(l.man)}</td><td>${esc(garCoul(l))}</td>${obsV?`<td>${esc(l.obs)}</td>`:""}</tr>`).join("")}</table>
@@ -5025,7 +5076,7 @@ function dessinPER(l, cls="pdessin"){
 function pagesPER(d, head, row){
   const v=d.per; if(!aPER(d)) return ""; const c=controlePER(d), n=(l,i)=>l.repere||`ouvrage ${i+1}`, obsV=v.lignes.some(l=>l.obs);
   let h=`<div class="pg">${head(`Pergolas et carports GardenGate – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
-    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","GardenGate"],["Pose (équipe · durée)",typeof textePose==="function"?textePose(d):""]])}</table></div>
+    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","GardenGate"],["Pose (équipe · durée)",typeof textePose==="function"?textePose(d,"per"):""]])}</table></div>
     <div><table class="pt">${row([["Livraison",v.livraison],["Manutention",v.manutention],["Nombre d'ouvrages",String(v.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div></div>
     <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Produit</th><th>Configuration</th><th>L1 longueur</th><th>L2 largeur</th><th>H</th><th>Couleur</th><th>Options</th><th>Sol</th>${obsV?"<th>Observation</th>":""}</tr>
     ${v.lignes.map((l,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.qte)}</td><td>${esc(l.produit)}</td><td>${esc(l.config)}</td><td><b>${esc(l.L1)}</b></td><td><b>${perL2(l)??""}</b></td><td><b>${esc(l.H)}</b></td><td>${esc([perCoul(l.coul_cadre,l.coul_cadre_ral),perPergola(l)&&l.coul_lames?"lames "+perCoul(l.coul_lames,l.coul_lames_ral):""].filter(Boolean).join(" · "))}</td><td>${esc([...(l.options||[]),l.zip&&"store ZIP",l.vitre,l.pan&&"panneaux décoratifs"].filter(Boolean).join(", "))}</td><td>${esc(l.sol)}</td>${obsV?`<td>${esc(l.obs)}</td>`:""}</tr>`).join("")}</table>
@@ -5425,7 +5476,7 @@ function pagesVIT(d, head, row){
   const fourn = v.fournisseur===VIT_FOURN[1] ? (v.fournisseur_autre||"Autre") : v.fournisseur;
   const dFr = x => x&&/^\d{4}-\d\d-\d\d$/.test(x)?x.split("-").reverse().join("/"):x||"";
   let h=`<div class="pg">${head(`Vitrages – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
-    <div class="pcols"><div><table class="pt">${row([["Client / référence commande",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur",fourn],["Pose (équipe · durée)",typeof textePose==="function"?textePose(d):""]])}</table></div>
+    <div class="pcols"><div><table class="pt">${row([["Client / référence commande",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur",fourn],["Pose (équipe · durée)",typeof textePose==="function"?textePose(d,"vit"):""]])}</table></div>
     <div><table class="pt">${row([["Prise en charge",vitAssur(v)?"Assurance":A.prise==="client"?"Client direct":""],["Urgence",v.urgence],["Prestations",(v.presta||[]).join(", ")],["Manutention",v.manutention||(v.manut||[]).join(", ")],["Total",vitTotalTexte(v)]])}</table></div></div>
     ${vitAssur(v)?`<div class="pposetitre" style="margin-top:4px">Assurance – bris de glace</div><div class="pcols"><div><table class="pt">${row([["Compagnie",A.assureur],["N° de contrat",A.contrat],["N° de sinistre",A.sinistre],["Date du sinistre",dFr(A.date)],["Contact assureur / expert",A.contact]])}</table></div>
       <div><table class="pt">${row([["Cause",A.cause==="Autre"?(A.cause_txt||"Autre"):A.cause],["Déclaré par le client",A.declare],["Expertise",A.expert],["Client",A.qualite],["Franchise",A.franchise?A.franchise+" €":""],["Devis / facture à",A.dest],["Pièces",(A.pieces||[]).join(", ")]])}</table></div></div>`:""}
@@ -5709,7 +5760,7 @@ function dessinZIP(l, z, cls="pdessin"){
 function pagesZIP(d, head, row){
   const z=d.zip; if(!aZIP(d)) return ""; const c=controleZIP(d), g=z.gamme, n=(l,i)=>l.repere||`store ${i+1}`, obsV=z.lignes.some(l=>l.obs);
   let h=`<div class="pg">${head(`Stores zip ${g} – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
-    <div class="pcols"><div><table class="pt">${row([["Client / réf. chantier",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","Soprofen – "+g],["Pose (équipe · durée)",typeof textePose==="function"?textePose(d):""],["Manutention",d.manutention||z.manutention||""]])}</table></div>
+    <div class="pcols"><div><table class="pt">${row([["Client / réf. chantier",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","Soprofen – "+g],["Pose (équipe · durée)",typeof textePose==="function"?textePose(d,"zip"):""],["Manutention",d.manutention||z.manutention||""]])}</table></div>
     <div><table class="pt">${row([["Coloris coffre, coulisses, barre",zipColTexte(z)],["Toile",zipToileTexte(z)+(z.sens_toile?` · sens ${z.sens_toile}`:"")],["Capteur",z.capteur],["Haute résistance bord de mer",g==="SCREENAMAX"?z.bord_mer:""],["Total",zipTotal(z)]])}</table></div></div>
     <table class="pt vit-tab" style="table-layout:fixed;width:100%"><colgroup><col style="width:3%"><col style="width:11%"><col style="width:4%"><col style="width:6%"><col style="width:6%"><col style="width:6%"><col style="width:8%"><col style="width:14%"><col style="width:6%"><col style="width:10%"><col style="width:7%"><col style="width:7%"><col style="width:6%"><col></colgroup>
     <tr><th>N°</th><th>Position chantier</th><th>Qté</th><th>Enroul.</th><th>Largeur</th><th>Hauteur</th><th>Caisson</th><th>Manœuvre</th><th>Côté (vue int.)</th><th>Commande</th><th>Coulisses</th><th>Sortie</th><th>Perçage</th><th>Options${obsV?" / obs.":""}</th></tr>
@@ -6010,7 +6061,7 @@ function pagesPP(d, head, row){
     ["Étanchéité basse",[p.etancheite,p.etancheite==="Seuil suisse"?p.seuil:""].filter(Boolean).join(" – ")],["Serrure",p.serrure],["Microviseur",p.microviseur?"Oui – "+p.microviseur_fin:""],["Cylindre en fourniture",ck(p.cylindre)],
     ["Plots anti-dégondage",ck(p.plots)],["Entrebâilleur chrome en applique",ck(p.entrebailleur)],["Garniture et béquille anodisé argent",ck(p.garniture)]];
   let h=`<div class="pg">${head(`Portes palières réno HUET – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
-    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","HUET (JH Industries)"],["Nombre de portes",String(p.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div>
+    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","HUET (JH Industries)"],["Pose",textePose(d,"pp")],["Nombre de portes",String(p.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div>
     <div><table class="pt">${row(commun)}</table></div></div>
     <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Sens (vue ext.)</th><th>Huisserie existante</th><th>A hauteur</th><th>B largeur</th><th>C prof.</th><th>D larg.</th><th>Espace libre G · D · H</th><th>Observation</th></tr>
     ${p.lignes.map((l,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.qte)}</td><td>${esc(l.sens)}</td><td>${esc(l.existant)}</td><td><b>${ppA(l)??""}</b></td><td><b>${ppB(l)??""}</b></td><td>${esc(l.C)}</td><td>${esc(l.D)}</td><td>${[l.el_g,l.el_d,l.el_h].map(x=>x||"–").join(" · ")}</td><td>${esc(l.obs)}</td></tr>`).join("")}</table>
@@ -6084,7 +6135,7 @@ function pagesVB(d, head, row){
   const v=d.vb; if(!aVB(d)) return ""; const c=controleVB(d), n=(l,i)=>l.repere||`volet ${i+1}`, ge=gondsExistants(v)||v.lignes.some(l=>vbSurGonds(v,l)), mix=vbPosesMixtes(v), obsV=v.lignes.some(l=>l.obs||(l.g&&l.g.obs)), gmix=vbGondsMixtes(v), amix=new Set(v.lignes.map(vbArret)).size>1;
   const commun=[["Matière",v.matiere],["Type",vbTypeSansDim(v.type)],[v.matiere==="Bois"?"Finition":"Couleur",vbCouleurTexte(v)],["Essence",v.essence],["Lame",v.lame],["Barres et écharpes",v.barre],["Ferrage (pentures)",v.ferrage],["Gonds",vbMemeValeur(v,l=>vbGonds(v,l))],["Couleur des ferrages",v.ferrage_couleur],["Pose",mix?"Variable selon le volet (voir le tableau)":vbPoseLigne(v,v.lignes[0])],["Type de dimensions",mix?"":vbTypeDim(v,v.lignes[0])],["Arrêts de vent",vbMemeValeur(v,vbArret)],["Manutention",v.manutention]];
   let h=`<div class="pg">${head(`Volets battants Corrèze – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
-    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","Corrèze Fermetures"],["Pose (équipe · durée)",textePose(d)],["Nombre de volets",String(v.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div>
+    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","Corrèze Fermetures"],["Pose (équipe · durée)",textePose(d,"vb")],["Nombre de volets",String(v.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div>
     <div><table class="pt">${row(commun)}</table></div></div>
     <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Vantaux</th>${mix?"<th>Pose</th>":""}${gmix?"<th>Gonds</th>":""}${amix?"<th>Arrêts</th>":""}<th>Largeur</th><th>Hauteur</th><th>Allège</th><th>Espagn. sur ouvrant</th><th>Feuillure l × p · côtés</th><th>Cintre</th><th>Espagnolette</th><th>Options</th>${obsV?"<th>Observation</th>":""}</tr>
     ${v.lignes.map((l,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.qte)}</td><td>${esc(l.vantaux)}</td>${mix?`<td>${esc(vbPoseLigne(v,l))}${vbTypeDim(v,l)===VB_TYPE_DIM[1]?" (fond de feuill.)":""}</td>`:""}${gmix?`<td>${esc(vbGonds(v,l))}</td>`:""}${amix?`<td>${esc(vbArret(l))}</td>`:""}<td><b>${esc(l.L)}</b></td><td><b>${esc(l.H)}</b></td><td>${esc(l.allege)}</td><td>${[l.sens_g&&"Gauche",l.sens_d&&"Droite"].filter(Boolean).join(" + ")}</td>
@@ -6614,7 +6665,7 @@ function renderVT(t){
 function pagesVT(d, head, row){
   const v=d.vt; if(!aVT(d)) return ""; const c=controleVT(d), n=(l,i)=>l.repere||`vitrage ${i+1}`;
   let h=`<div class="pg">${head(`Remplacement de vitrage – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
-    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Pose",textePose(d)],["Kilomètres depuis Gourdon",v.km]])}</table></div>
+    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Pose",textePose(d,"vt")],["Kilomètres depuis Gourdon",v.km]])}</table></div>
     <div><table class="pt">${row([["Assurance",v.assurance],["Assureur",v.assureur],["N° de sinistre",v.sinistre],["Date du sinistre",v.date_sinistre?new Date(v.date_sinistre+"T12:00").toLocaleDateString("fr-FR"):""],["Mise en sécurité provisoire",v.provisoire],["Vitrages isolants",v.fe_argon?"FE + argon":""]])}</table></div></div>
     <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Menuiserie / où</th><th>Type vitrage</th><th>Épaisseur</th><th>Verre</th><th>Couleur intercalaires</th><th>Largeur</th><th>Hauteur</th><th>Cote prise</th><th>Type de support</th><th>Observation</th></tr>
     ${v.lignes.map((l,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.qte)}</td><td>${esc([l.menuiserie,l.position].filter(Boolean).join(" – "))}</td><td><b>${esc(l.composition)}</b></td><td>${esc(l.epaisseur?l.epaisseur+" mm":"")}</td><td>${esc(l.verre)}</td><td>${esc(l.intercalaire)}</td><td><b>${esc(l.L)}</b></td><td><b>${esc(l.H)}</b></td><td>${esc((l.cote||"").replace(/ \(.*\)/,""))}</td><td>${esc(l.support)}</td><td>${esc([l.forme&&l.forme!=="Rectangle"?l.forme+(l.fleche?" flèche "+l.fleche:""):"",l.petits_bois&&l.petits_bois!=="Non"?"petits bois "+l.petits_bois.toLowerCase():"",l.obs].filter(Boolean).join(" · "))}</td></tr>`).join("")}</table>
@@ -6913,7 +6964,7 @@ function pagesPT(d){
     h+=`<div class="pg pt-pg">
       <div class="pt-top"><img src="${LOGO}" class="pt-logo"><div class="pt-devis">${estDefinitif(d)?"MÉTRÉ DÉFINITIF":"DEVIS"}</div></div>
       <div class="pt-haut"><table class="ct pt-id"><tr><td class="lb b">REF CHANTIER</td><td class="cv">${esc(p.ref||d.client.nom)}</td></tr><tr><td class="lb b">DATE</td><td class="cv c">${fmtDate(d.client.date_rdv)}</td></tr><tr><td class="lb b">METREUR</td><td class="cv c b">${esc((d.metreur||"").toUpperCase())}</td></tr></table>
-        <table class="ct pt-jours"><tr><td class="b c">Jours de pose estimée</td></tr><tr><td class="cv c">${esc(p.jours)}</td></tr><tr><td class="c">${p.elements.length>1?`Élément ${i+1} / ${p.elements.length}`:"&nbsp;"}</td></tr></table></div>
+        <table class="ct pt-jours"><tr><td class="b c">Jours de pose estimée</td></tr><tr><td class="cv c">${esc(textePose(d,"pt")||p.jours)}</td></tr><tr><td class="c">${p.elements.length>1?`Élément ${i+1} / ${p.elements.length}`:"&nbsp;"}</td></tr></table></div>
       <table class="ct pt-t"><tr><th>TYPE</th><th>MODEL</th><th>COULEUR</th><th>FINITION DE LA COULEUR</th><th colspan="2">LAMES</th><th colspan="2">POIGNEE</th><th colspan="2">MOTORISATION</th><th colspan="2">SENS D'OUVERTURE VUE EXTERIEUR</th></tr>
         ${[0,1,2].map(r=>`<tr><td><span class="pt-l">${esc(PT_TYPES[r])}</span>${cb(e.type===PT_TYPES[r])}</td>${r===0?`<td rowspan="3" class="cv c">${esc(e.modele)}</td><td rowspan="3" class="cv c">${esc(e.couleur)}</td><td rowspan="3" class="cv c">${esc(e.finition)}</td>`:""}
           <td class="c">${esc(PT_LAMES[r])}</td><td class="c">${cb(e.lames===PT_LAMES[r])}</td><td>${esc(PT_POIGNEES[r])}</td><td class="c">${cb(e.poignee===PT_POIGNEES[r])}</td><td>${esc(PT_MOTO[r])}</td><td class="c">${cb(e.moto===PT_MOTO[r])}</td>
@@ -7017,7 +7068,7 @@ function construireImpression(d){
   const PV=estDefinitif(d)?prevoirTout(d):[], boitePrev=PV.length?`${estDefinitif(d)?`<div class="pres-pos">RÉSERVÉ AUX POSEURS</div>`:""}<div class="pprev"><div class="pst">À PRÉVOIR POUR LA POSE</div>${PV.map(x=>`<div class="pprev-i"${PREVOIR_ROUGE.test(x)?' style="color:#d3232f;font-weight:700"':""}><span class="pcase"></span>${esc(x)}</div>`).join("")}</div>`:"";
   let h=(estDefinitif(d)
    ? `<div class="pg">${head("Métré définitif – "+(d.client.nom||""))}
-    <div class="pcols"><div><table class="pt">${row([["Nom",d.client.nom],["Téléphone",d.client.telephone],["Adresse chantier",d.adresse_chantier],["Pose",textePose(d)],["Observations",d.observations]])}</table></div>
+    <div class="pcols"><div><table class="pt">${row([["Nom",d.client.nom],["Téléphone",d.client.telephone],["Adresse chantier",d.adresse_chantier],["Observations",d.observations]])}</table>${tablePosePDF(d)}</div>
     <div>${boitePrev}</div></div>
 `
    : `<div class="pg">${head("Fiche d'identité client – "+(d.client.nom||""))}
@@ -7025,7 +7076,7 @@ function construireImpression(d){
       <table class="pt">${row([["Maison",d.logement.maison],["Motivation 1",d.logement.motivation1],["Motivation 2",d.logement.motivation2]])}</table></div>
     <div><table class="pt">${row([["Moyens financiers",d.budget.moyens],["Ressenti",d.budget.ressenti],["Projet",d.budget.projet],["Demande d'aide",d.budget.aide],["Laquelle",d.budget.aide_laquelle]])}</table>
       <table class="pt">${row(d.concurrents.map((c,i)=>[`Concurrent ${i+1}`,c]))}</table>
-      <table class="pt">${row([["Pose",textePose(d)],["Observations",d.observations]])}</table>${boitePrev}</div></div>
+      ${tablePosePDF(d)}<table class="pt">${row([["Observations",d.observations]])}</table>${boitePrev}</div></div>
 `) + `    ${!d.ouvertures.length?"":`<table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Pose</th><th>Gamme</th><th>Tableau L×H</th><th>Fabrication L×H</th><th>Vantaux</th></tr>
     ${d.ouvertures.map((o,i)=>{const f=calcFab(o);return `<tr><td><b>${esc(o.num_poseur||"")}</b></td><td>${esc(o.repere)}</td><td>${esc(o.quantite)}</td><td>${esc(libellePose(o))}</td><td>${esc(o.gamme)}</td><td>${esc(coteTab(o,"L"))} × ${esc(coteTab(o,"H"))}</td><td><b>${f.L??""} × ${f.H??""}</b></td><td>${esc([o.vantaux.G,o.vantaux.M,o.vantaux.D].filter(Boolean).join(" · "))}</td></tr>`;}).join("")}</table>`}</div>`;
   d.ouvertures.forEach((o,i)=>{ const f=calcFab(o), P=CAT.poses[o.pose], c=controleOuverture(o,d);
@@ -7059,7 +7110,7 @@ function construireImpression(d){
     const errs=[...ch.E,...ch.W.map(x=>x)].map(x=>"En-tête : "+x).concat(v.lignes.flatMap((l,i)=>{const c=controleLigneVR(l,v); return [...c.E,...c.W].map(x=>`${i+1}. ${l.repere||"?"} : ${x}`);}));
     h+=`<div class="pg">${head(`Volet roulant – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
       <div class="pcols" style="grid-template-columns:3fr 1fr"><div>
-      <table class="pt">${row([["Client",d.client.nom],["Adresse",d.adresse_chantier],["Pose",textePose(d)],["Type de pose",tp?.nom||""],["Manutention",v.manutention],["Assurance",v.assurance?"Oui":""]])}</table></div>
+      <table class="pt">${row([["Client",d.client.nom],["Adresse",d.adresse_chantier],["Pose",textePose(d,"vr")],["Type de pose",tp?.nom||""],["Manutention",v.manutention],["Assurance",v.assurance?"Oui":""]])}</table></div>
       <div><table class="pt">${row([["Coffre",v.coffre],["Couleur coffre",v.couleur_coffre],["Couleur coulisses",v.couleur_coulisses],["Couleur tablier",v.couleur_tablier],["Motorisation",v.motorisation],["Options",v.options_sup]])}</table></div></div>
       <div class="pcols" style="grid-template-columns:5fr 1fr;align-items:start"><div>
       <table class="pt vrt"><tr><th rowspan="2">Repère</th><th rowspan="2">Qté</th><th colspan="2">Tableau</th><th colspan="2">Fabrication</th><th colspan="2">Sortie de fil<br>vue int.</th><th colspan="2">Perçage<br>coulisse</th><th rowspan="2">Sortie de fil<br>coffre</th><th rowspan="2">Électricité</th><th rowspan="2">Dépose</th><th rowspan="2">Option</th></tr>

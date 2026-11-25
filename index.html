@@ -1146,6 +1146,7 @@ const POSES_RENO = ["tunnel","embrasure","feuillure","neuf_depose"];
 const POSES_APPLIQUE = ["neuf","neuf_depose"];
 /* Portes d'entrée (25/11/2026, demandes de Nicolas) : jamais de grille de ventilation ; sens vue extérieure déduit des vantaux
    (OP en D = tirant droit → poussant gauche vue ext. ; OP en G = tirant gauche → poussant droit). */
+const sansGV = o => porteEntree(o) || cintreDe(o);   // 25/11 : jamais de grille sur une porte d'entrée ni sur une menuiserie cintrée
 const porteEntree = o => { const md=modeleDe(o); return !!md && md.famille==="porte" && !/service|habitat|lourde|campagnarde|oculus|vitrée/i.test(md.nom||""); };
 function sensExterieur(o){ const md=modeleDe(o); if(!md||md.famille!=="porte") return null; const v=o.vantaux||{}, g=/OP/.test(v.G||""), dr=/OP/.test(v.D||"");
   if(dr&&!g) return "Poussant gauche"; if(g&&!dr) return "Poussant droit"; return null; }
@@ -1201,7 +1202,7 @@ function syncCintreCotes(o){ if(!cintreDe(o)||!o.cintre) return false; const c=o
 .ci-res{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.ci-res div{background:#eef3fb;border-radius:8px;padding:6px 8px}.ci-res span{display:block;font-size:12px;color:#5b6478}.ci-res b{font-size:17px}
 .ci-al{margin-top:8px;padding:8px 10px;border-radius:8px;font-size:14px}.ci-al.ok{background:#e6f4ea;color:#1e6b34}.ci-al.ko{background:#fff4e5;color:#a35b00}`; document.head.appendChild(st); })();
 function reglesPose(o){ let ch=false;
-  if(porteEntree(o) && o.gv){ o.gv=""; ch=true; }
+  if(sansGV(o) && o.gv){ o.gv=""; ch=true; }
   if(syncSensPorte(o)) ch=true;
   if(o.renovation && !POSES_RENO.includes(o.pose)){ o.renovation=false; ch=true; }
   if(o.applique_neuf && !POSES_APPLIQUE.includes(o.pose)){ o.applique_neuf=false; ch=true; }
@@ -1441,6 +1442,7 @@ function calcVolet(o){
 function controleOuverture(o, d=S.dossier){ const Wpb=[];
   try{ const aPBx=x=>(x.petits_bois||[]).length>0 || !!x.pb_motif, fen=x=>{ const m=modeleDe(x); return !m || m.famille!=="porte"; };
     if(d && fen(o) && !aPBx(o)){ const autres=(d.ouvertures||[]).filter(x=>x!==o && fen(x)); if(autres.length>=2 && autres.every(aPBx)) Wpb.push("Petits bois : toutes les autres fenêtres en ont, pas celle-ci – oubli ?"); } }catch(e){}
+  if(cintreDe(o) && o.gv) Wpb.push("Menuiserie cintrée : pas de grille de ventilation possible – à retirer");
   if(cintreDe(o)){ const r=cintreCalc(o); if(r.Hm==null) Wpb.push("Cintre : départ du cintre (hauteur des montants) à prendre");
     else if(r.H!=null && r.H<=r.Hm) Wpb.push("Cintre : la hauteur au sommet doit être plus grande que celle des montants");
     if(r.Hqth!=null && Math.abs(r.Hq-r.Hqth)>5) Wpb.push(`Cintre : à ¼ de la largeur ${r.Hq} mesuré pour ${Math.round(r.Hqth)} attendu → cintre irrégulier, faire un gabarit`);
@@ -1453,8 +1455,12 @@ function controleOuverture(o, d=S.dossier){ const Wpb=[];
   if(!o.num_poseur) W.push("N° poseur non renseigné");
   if(!o.gamme) W.push("Produit et gamme non choisis");
   /* cotes tableau pas prenables (accès extérieur impossible, échelle…) : sur un devis ce n'est plus une erreur (18/11/2026) */
-  const tabImp = !!o.tab_impossible && !estDefinitif(d||{});
-  if(tabImp && (tL==null||tH==null)) W.push("Cotes tableau pas prises (accès impossible) : à relever au métré définitif");
+  const tabImp0 = !!o.tab_impossible && !estDefinitif(d||{});
+  /* 25/11/2026 : sur un DEVIS, des cotes prises sur le cadre existant (ou l'embrasure, ou le cintre) suffisent – tableau et embrasure pas obligatoires */
+  const autreRef = !estDefinitif(d||{}) && (tL==null||tH==null) && (()=>{ const ri=cintreDe(o)?cintreRef(o):null; return [ri,1,2].some(i=>i!=null && num(o.cotes.L[i])!=null && num(o.cotes.H[i])!=null); })();
+  const tabImp = tabImp0 || autreRef;
+  if(autreRef && !tabImp0) W.push("Devis : cotes prises sur le cadre existant / l'embrasure – tableau à relever au métré définitif");
+  else if(tabImp && (tL==null||tH==null)) W.push("Cotes tableau pas prises (accès impossible) : à relever au métré définitif");
   else { if(tL==null) E.push("Largeur tableau manquante"); if(tH==null) E.push("Hauteur tableau manquante"); }
   if(o.pose!=="libre" && (f.L==null||f.H==null)) (tabImp?W:E).push("Cote de fabrication incomplète");
   if(cotesARecontroler(o).length) W.push(o.reprise.src==="metre"?"Cotes reprises du métré de devis → à recontrôler sur place (cases jaunes)":`Dimensions du devis signé (${o.reprise.champs["fab_force.L"]} × ${o.reprise.champs["fab_force.H"]}) mises en cote de fabrication → à recontrôler sur place (cases jaunes)`);
@@ -2337,7 +2343,7 @@ function renderOuverture(){
 
   <div class="card"><h2><span class="num">4</span>Ouvrants</h2><div class="grid g4">
     <label class="f">Répartition vantaux (G · M · D)<div class="vantaux">${["G","M","D"].map(k=>`<select data-k="vantaux.${k}">${opts(CAT.vantail,o.vantaux[k],k)}</select>`).join("")}</div></label>
-    ${porteEntree(o)?`<div class="hint" style="align-self:end">Porte d'entrée : pas de grille de ventilation${sensExterieur(o)?`<br><b>Sens vue extérieure : ${sensExterieur(o).toUpperCase()}</b>`:""}</div>`:F.sel("gv","GV (grille de ventilation)",listeGV(o.gamme),o.gv)}
+    ${sansGV(o)?`<div class="hint" style="align-self:end">${porteEntree(o)?"Porte d'entrée":"Menuiserie cintrée"} : pas de grille de ventilation${sensExterieur(o)?`<br><b>Sens vue extérieure : ${sensExterieur(o).toUpperCase()}</b>`:""}</div>`:F.sel("gv","GV (grille de ventilation)",listeGV(o.gamme),o.gv)}
     ${sansAllege(o)&&!o.allege?"":F.numb("allege","Allège (mm)",o.allege)}<div class="checks" style="align-self:end">${F.chk("gc.etage","À l'étage",o.gc.etage)}<span class="rep-num">${[1,2,3,4].map(n=>`<button class="btn small${new RegExp(`\\s${n}$`).test(o.repere||"")?" on":""}" data-repnum="${n}" title="Ajouter ${n} au repère (ex. Chambre ${n})">${n}</button>`).join("")}</span></div>${FRN(o.gamme).ob&&!["coulissant","galandage","fixe"].includes(modeleDe(o)?.famille)?F.sel("ob_type","Oscillo-battant (type)",FRN(o.gamme).ob,o.ob_type):""}${FRN(o.gamme).ferrage?F.sel("ferrage","Ferrage / fiches",FRN(o.gamme).ferrage,o.ferrage):""}
   </div></div>
 
@@ -2530,7 +2536,7 @@ function colorerCases(c){
 /* Cases jaunes = à renseigner, même pour dire « rien » (19/11) : grille de ventilation, finition intérieure */
 function casesJaunes(o){ if(!o) return []; const J=[];
   cotesARecontroler(o).forEach(k=>J.push(`[data-k="${k}"]`));   // 23/11 : cotes reprises à recontrôler
-  if(!o.gv && !porteEntree(o)) J.push('[data-k="gv"]');
+  if(!o.gv && !sansGV(o)) J.push('[data-k="gv"]');
   if(cintreDe(o) && !(o.cintre&&o.cintre.Hm)) J.push('[data-k="cintre.Hm"]');
   ["int","ext"].forEach(c=>{ const f0=(o.finitions?.[c+"_l"]||[])[0]||{}; if(!f0.t) J.push(`[data-k="finitions.${c}_l.0.t"]`); });   // 19/11 : finition int. ET ext. (« Pas de finition » suffit), pas les côtés
   return J; }

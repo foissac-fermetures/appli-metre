@@ -6900,8 +6900,14 @@ function dessinPT(e, cls=""){
     <defs><marker id="ptFl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="#1f4fd8"/></marker><marker id="ptFlR" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,1 L9,5 L0,9 z" fill="#d3232f"/></marker><linearGradient id="ptAlu" x1="0" x2="1"><stop offset="0" stop-color="#aab2c0"/><stop offset=".35" stop-color="#eef1f5"/><stop offset="1" stop-color="#9099a8"/></linearGradient></defs>
     <rect width="${VW}" height="${VH}" fill="#fff"/>${g}<text x="${VW/2}" y="${VH-14}" text-anchor="middle" font-size="13" font-weight="700" fill="#1b2f5e">${esc(sous)}</text></svg></div>`;
 }
+(function(){ const st=document.createElement("style"); st.textContent=`.pt-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-bottom:14px}
+.pt-carte{display:flex;gap:10px;align-items:center;text-align:left;cursor:pointer;padding:10px;font:inherit;color:inherit;background:#fff}.pt-carte:hover{border-color:#1b2f5e}
+.pt-vig{width:110px;flex:none}.pt-vig svg{width:100%;height:auto;max-height:90px}.pt-ct{display:flex;flex-direction:column;gap:2px;min-width:0}.pt-ct b{color:#1b2f5e;font-size:16px}.pt-ct span{font-size:13px;color:#5b6478}`; document.head.appendChild(st); })();
 function renderPT(t){
   const d=S.dossier; if(!d.pt) d.pt=nouveauPT(); const p=d.pt;
+  /* 25/11/2026 : présentation comme les ouvertures – liste de cartes, puis une fiche par élément (S.ptEl) */
+  if(S.ptElDos!==d.id){ S.ptElDos=d.id; S.ptEl=null; } if(S.ptEl!=null && !p.elements[S.ptEl]) S.ptEl=null;
+  const libEl=e=>({BATTANT:"Portail battant",COULISSANT:"Portail coulissant",PORTILLON:"Portillon"}[e.type]||"Élément");
   const el=e=>{ const i=p.elements.indexOf(e), k=`pt.elements.${i}.`, f=fabPT(e);
     return `<div class="card clim-l"><div class="row" style="margin-bottom:8px"><b>${esc(e.type||"Élément")} ${i+1}</b><span class="spacer"></span><button class="btn small" data-ptdup="${i}">Dupliquer</button><button class="btn small danger" data-ptdel="${i}" aria-label="Supprimer">✕</button></div>
       <div class="seg" style="margin-bottom:10px">${PT_TYPES.map(x=>`<button class="${e.type===x?"on":""}" data-pttype="${i}" data-v="${x}">${x[0]+x.slice(1).toLowerCase()}</button>`).join("")}</div>
@@ -6928,19 +6934,32 @@ function renderPT(t){
     <p class="hint">Réf. chantier = nom du client (${esc(d.client.nom||"—")}) ; temps de pose réglé en haut de l'onglet. Date et métreur repris du métré. Fabrication = largeur entre piliers (pas de jeu déduit) ; hauteur = pilier − ${PT_H_RETRAIT} mm ou hauteur choisie par le client.</p></div>
   <div class="row" style="margin:14px 0 8px"><h2 style="margin:0"><span class="num">2</span> Éléments</h2><span class="spacer"></span>
     <button class="btn" id="ptAddP">+ Portillon</button><button class="btn" id="ptAddC">+ Coulissant</button><button class="btn primary" id="ptAddB">+ Portail battant</button></div>
-  ${p.elements.map(el).join("")||`<p class="hint">Ajoute un portail battant, un coulissant ou un portillon.</p>`}
-  <div class="card"><h2><span class="num">3</span>Photos <small style="font-weight:400;text-transform:none">– piliers, seuil, pente, emplacement du moteur…</small></h2>
+  ${S.ptEl!=null ? `<div class="row pt-nav" style="margin-bottom:8px;gap:8px"><button class="btn" id="ptListe">← Tous les éléments (${p.elements.length})</button><span class="spacer"></span>
+      <button class="btn small" id="ptPrev" ${S.ptEl>0?"":"disabled"}>◀</button><span class="hint">Élément ${S.ptEl+1} / ${p.elements.length}</span><button class="btn small" id="ptNext" ${S.ptEl<p.elements.length-1?"":"disabled"}>▶</button></div>`
+      + el(p.elements[S.ptEl])
+      + `<div class="row" style="justify-content:center;margin:18px 0 30px;gap:8px"><button class="btn primary" id="ptComme">⧉ Élément suivant, comme celui-ci</button><button class="btn" id="ptListe2">← Tous les éléments</button></div>`
+    : (p.elements.length ? `<div class="pt-cards">${p.elements.map((e,i)=>{ const f=fabPT(e), Hh=num(e.H)??hauteurAutoPT(e);
+        return `<button class="card pt-carte" data-ptopen="${i}"><div class="pt-vig">${dessinPT(e)}</div><div class="pt-ct"><b>${esc(libEl(e))} ${i+1}</b>
+          <span>${esc(e.modele||"Modèle à choisir")}${e.couleur?" · "+esc(e.couleur):""}</span>
+          <span>${f!=null||num(e.L)!=null?`L ${f??e.L}`:"L ?"} × ${Hh!=null?`H ${Hh}`:"H ?"}${e.moto&&e.moto!=="Manuel"?" · "+esc(e.moto):""}</span></div></button>`; }).join("")}</div>`
+      : `<p class="hint">Ajoute un portail battant, un coulissant ou un portillon.</p>`)}
+  ${S.ptEl!=null?"":`<div class="card"><h2><span class="num">3</span>Photos <small style="font-weight:400;text-transform:none">– piliers, seuil, pente, emplacement du moteur…</small></h2>
     <div class="photos">${p.photos.map((ph,k)=>`<figure class="photo"><img src="${ph.img}" alt="Photo ${k+1}" data-phedit="${k}">
       <textarea data-k="pt.photos.${k}.txt" rows="2" placeholder="Remarque">${esc(ph.txt||"")}</textarea>
       <div class="row"><button class="btn small" data-phedit="${k}">✏️ Annoter</button><span class="spacer"></span><button class="btn small danger" data-phdel="${k}" aria-label="Supprimer la photo ${k+1}">✕</button></div></figure>`).join("")}
-    <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple id="phAdd" class="hide"></label></div></div>`;
-  const re=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); };
-  $("#ptAddB").onclick=()=>{ p.elements.push(nouvelElementPT("BATTANT")); save(); re(); };
-  $("#ptAddC").onclick=()=>{ p.elements.push(nouvelElementPT("COULISSANT")); save(); re(); };
-  $("#ptAddP").onclick=()=>{ p.elements.push(nouvelElementPT("PORTILLON")); save(); re(); };
+    <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple id="phAdd" class="hide"></label></div></div>`}`;
+  const re=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); }, ouvrir=i=>{ S.ptEl=i; renderDossier(); scrollTo(0,0); };
+  $("#ptAddB").onclick=()=>{ p.elements.push(nouvelElementPT("BATTANT")); save(); ouvrir(p.elements.length-1); };
+  $("#ptAddC").onclick=()=>{ p.elements.push(nouvelElementPT("COULISSANT")); save(); ouvrir(p.elements.length-1); };
+  $("#ptAddP").onclick=()=>{ p.elements.push(nouvelElementPT("PORTILLON")); save(); ouvrir(p.elements.length-1); };
+  $$("[data-ptopen]").forEach(b=>b.onclick=()=>ouvrir(+b.dataset.ptopen));
+  ["#ptListe","#ptListe2"].forEach(q=>{ if($(q)) $(q).onclick=()=>{ S.ptEl=null; renderDossier(); scrollTo(0,0); }; });
+  if($("#ptPrev")) $("#ptPrev").onclick=()=>ouvrir(S.ptEl-1);
+  if($("#ptNext")) $("#ptNext").onclick=()=>ouvrir(S.ptEl+1);
+  if($("#ptComme")) $("#ptComme").onclick=()=>{ const i=S.ptEl, n=JSON.parse(JSON.stringify(p.elements[i])); n.id=uid(); n.obs=""; p.elements.splice(i+1,0,n); save(); ouvrir(i+1); };
   $$("[data-pttype]").forEach(b=>b.onclick=()=>{ const e=p.elements[+b.dataset.pttype]; e.type=b.dataset.v; if(e.moto_type && !motoTypesPT(e).includes(e.moto_type)){ e.moto_type=e.type==="COULISSANT"?PT_MOTO_TYPES_C[0]:""; e.moto_modele=PT_MOTO_DEFAUT[`${e.moto_marque}|${e.moto_type}`]||""; } save(); re(); });
-  $$("[data-ptdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer cet élément ?","Supprimer")) return; p.elements.splice(+b.dataset.ptdel,1); save(); re(); });
-  $$("[data-ptdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.ptdup, n=JSON.parse(JSON.stringify(p.elements[i])); n.id=uid(); p.elements.splice(i+1,0,n); save(); re(); });
+  $$("[data-ptdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer cet élément ?","Supprimer")) return; p.elements.splice(+b.dataset.ptdel,1); S.ptEl=null; save(); re(); });
+  $$("[data-ptdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.ptdup, n=JSON.parse(JSON.stringify(p.elements[i])); n.id=uid(); p.elements.splice(i+1,0,n); save(); ouvrir(i+1); });
   $$("[data-ptresa]").forEach(b=>b.onclick=()=>voirPlanResa([p.elements[+b.dataset.ptresa]]));
   initPhotos(p, re);
 }

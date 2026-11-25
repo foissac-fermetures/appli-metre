@@ -1153,19 +1153,22 @@ function syncSensPorte(o){ const s=sensExterieur(o), L=FRN(o.gamme).sens_porte; 
   const v=L.find(x=>new RegExp(s.split(" ")[1].slice(0,6),"i").test(x)); if(v && o.sens_porte!==v){ o.sens_porte=v; return true; } return false; }
 const CINTRE_TYPES=[["plein","Plein cintre"],["surb","Cintre surbaissé"],["anse","Anse de panier"],["faux","Faux cintre"]];
 const cintreDe = o => { const m=modeleDe(o); return !!(m&&m.cintre); };
-function cintreCalc(o){ const c=o.cintre||{}, t=c.type||"plein", L=num(coteTab(o,"L")), Hm=num(c.Hm); let H=num(coteTab(o,"H"));
-  if(t==="plein" && L!=null && Hm!=null && H==null) H=Hm+L/2;
+const cintreRefs = o => { const P=CAT.poses[o.pose]||{}; return (P.cotes||["Tableau"]).map((l,i)=>[i,l]).filter(([i,l])=>i<3 && l!=="—" && !/information/i.test(l)); };
+const cintreRef = o => { const c=o.cintre||{}, P=CAT.poses[o.pose]||{}; return c.ref!=null&&c.ref!=="" ? +c.ref : (P.actifs?P.actifs.H[0]:0); };
+function cintreCalc(o){ const c=o.cintre||{}, t=c.type||"plein", ri=cintreRef(o), L=num(c.L)??num(o.cotes.L[ri]), Hm=num(c.Hm); let H=num(c.Hs)??num(o.cotes.H[ri]);
+  if(t==="plein" && L!=null && Hm!=null && (c.Hs==null||c.Hs==="")) H=Hm+L/2;
   const r={t, L, Hm, H, f:null, R:null, dev:null, Hq:num(c.Hq), Hqth:null, fab:null};
   if(L==null||Hm==null||H==null||H<=Hm) return r;
   r.f=H-Hm; if(t!=="anse"){ r.R=(L*L/4+r.f*r.f)/(2*r.f); const a=2*Math.asin(Math.min(1,L/(2*r.R))); r.dev=r.f<=L/2?r.R*a:r.R*(2*Math.PI-a);
     if(r.Hq!=null){ const x=L/4; r.Hqth=Hm+Math.sqrt(Math.max(0,r.R*r.R-x*x))-(r.R-r.f); } }
   const fb=calcFab(o), Lf=num(fb.L), Hf=num(fb.H);
   if(Lf!=null && Hf!=null){ if(t==="faux") r.fab={L:Lf,H:Hf};
-    else if(r.R!=null){ const Rf=r.R+(Lf-L)/2, ff=Rf-Math.sqrt(Math.max(0,Rf*Rf-Lf*Lf/4)); r.fab={L:Lf,H:Hf,f:ff,R:Rf,Hm:Hf-ff}; }
+    else if(r.R!=null){ const Rf=r.R+(Lf-L)/2, sq=Math.sqrt(Math.max(0,Rf*Rf-Lf*Lf/4)), ff=r.f>L/2?Rf+sq:Rf-sq; r.fab={L:Lf,H:Hf,f:ff,R:Rf,Hm:Hf-ff}; }
     else r.fab={L:Lf,H:Hf}; }
   return r; }
 function texteCintre(o){ if(!cintreDe(o)) return ""; const r=cintreCalc(o), lib=(CINTRE_TYPES.find(x=>x[0]===r.t)||[])[1], R=x=>x==null?"?":Math.round(x);
-  let t=`${lib} – tableau : montants ${R(r.Hm)}, sommet ${R(r.H)}, flèche ${R(r.f)}${r.R?`, rayon ${R(r.R)}`:""}`;
+  const ref=((cintreRefs(o).find(x=>x[0]===cintreRef(o))||[])[1]||"tableau").toLowerCase();
+  let t=`${lib} – mesuré sur ${ref} : largeur ${R(r.L)}, départ du cintre ${R(r.Hm)}, fin du cintre ${R(r.H)}, flèche ${R(r.f)}${r.R?`, rayon ${R(r.R)}`:""}`;
   if(r.fab&&r.fab.Hm!=null) t+=` · Fabrication : montants ${R(r.fab.Hm)}, flèche ${R(r.fab.f)}, rayon ${R(r.fab.R)}`;
   if(r.t==="anse") t+=" · GABARIT";
   if(r.t==="faux") t+=" · menuiserie rectangulaire, cintre rapporté"; return t; }
@@ -1176,21 +1179,24 @@ function blocCintreRes(o){ const r=cintreCalc(o), R=x=>x==null?"–":Math.round(
   else if(r.R) al=`Rayon ${Math.round(r.R)} mm – rayon mini à vérifier chez le fournisseur.`;
   return `<div class="ci-res"><div><span>Flèche</span><b>${R(r.f)}</b></div><div><span>Rayon</span><b>${R(r.R)}</b></div><div><span>Longueur du cintre</span><b>${R(r.dev)}</b></div>
     ${r.fab&&r.fab.Hm!=null?`<div><span>Montants (fab.)</span><b>${R(r.fab.Hm)}</b></div><div><span>Flèche (fab.)</span><b>${R(r.fab.f)}</b></div><div><span>Rayon (fab.)</span><b>${R(r.fab.R)}</b></div>`:""}</div>
-    ${al?`<div class="ci-al ${ok?"ok":"ko"}">${esc(al)}</div>`:""}`; }
+    ${al?`<div class="ci-al ${ok?"ok":"ko"}">${esc(al)}</div>`:""}${r.f!=null&&!r.fab?`<div class="hint" style="margin-top:6px">Cotes de fabrication pas encore calculées : il faut les cotes de la pose (ou forcer la fabrication).</div>`:""}`; }
 function blocCintre(o){ if(!cintreDe(o)) return ""; o.cintre=o.cintre||{type:"plein",Hm:"",Hq:""}; const c=o.cintre, t=c.type||"plein";
   return `<div class="card ci-bloc"><b>⌒ Cintre</b><div class="chips" style="margin:6px 0">${CINTRE_TYPES.map(([k,l])=>`<button class="chip${t===k?" on":""}" data-citype="${k}">${l}</button>`).join("")}</div>
+    <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px"><span class="hint">Mesures prises sur :</span>${cintreRefs(o).map(([i,l])=>`<button class="chip${cintreRef(o)===i?" on":""}" data-ciref="${i}">${esc(l)}</button>`).join("")}</div>
     <div class="row" style="gap:12px;flex-wrap:wrap">
+      <label class="f">Largeur<input data-k="cintre.L" inputmode="numeric" value="${esc(c.L??o.cotes.L[cintreRef(o)]??"")}"></label>
       <label class="f">Départ du cintre (hauteur des montants)<input data-k="cintre.Hm" inputmode="numeric" value="${esc(c.Hm||"")}"></label>
-      <label class="f">Hauteur fin du cintre (sommet)<input data-k="cintre.Hs" inputmode="numeric" value="${esc(coteTab(o,"H")||"")}"></label>
+      <label class="f">Hauteur fin du cintre (sommet)<input data-k="cintre.Hs" inputmode="numeric" value="${esc(c.Hs??o.cotes.H[cintreRef(o)]??"")}"></label>
       <label class="f">Contrôle : hauteur à ¼ de la largeur (facultatif)<input data-k="cintre.Hq" inputmode="numeric" value="${esc(c.Hq||"")}"></label></div>
-    <div class="hint">Hauteurs prises depuis le bas du tableau. La fin du cintre est recopiée dans la hauteur tableau ci-dessous${t==="plein"?" ; en plein cintre, elle se calcule toute seule si tu ne la mets pas (départ + largeur ÷ 2)":""}.</div>
+    <div class="hint">Hauteurs prises depuis le bas. La largeur et la fin du cintre sont recopiées dans les cotes « ${esc(((cintreRefs(o).find(x=>x[0]===cintreRef(o))||[])[1])||"Tableau")} » ci-dessous${t==="plein"?" ; en plein cintre, la fin se calcule toute seule si tu ne la mets pas (départ + largeur ÷ 2)":""}.</div>
     <div id="ciRes">${blocCintreRes(o)}</div></div>`; }
 function majCintre(o){ const z=$("#ciRes"); if(z&&cintreDe(o)) z.innerHTML=blocCintreRes(o); }
-function syncCintreCotes(o){ if(!cintreDe(o)||!o.cintre) return false; const c=o.cintre, P=CAT.poses[o.pose]||{}, i=P.actifs?P.actifs.H[0]:0;
-  if(c.Hs!==undefined && c.Hs!==""){ const v=String(c.Hs); delete c.Hs; c.fin_saisie=true; if(o.cotes.H[i]===v) return false; o.cotes.H[i]=v; return true; }
-  if(c.Hs===""){ delete c.Hs; c.fin_saisie=false; }
-  if((c.type||"plein")!=="plein" || c.fin_saisie) return false; const L=num(coteTab(o,"L")), Hm=num(c.Hm); if(L==null||Hm==null) return false;
-  const v=String(Math.round(Hm+L/2)); if(o.cotes.H[i]===v) return false; o.cotes.H[i]=v; return true; }
+function syncCintreCotes(o){ if(!cintreDe(o)||!o.cintre) return false; const c=o.cintre, ri=cintreRef(o); let ch=false;
+  const set=(K,v)=>{ v=v==null?"":String(v); if((o.cotes[K][ri]??"")!==v){ o.cotes[K][ri]=v; ch=true; } };
+  if(c.L!=null && c.L!=="") set("L",c.L);
+  if(c.Hs!=null && c.Hs!=="") set("H",c.Hs);
+  else if((c.type||"plein")==="plein"){ const L=num(c.L)??num(o.cotes.L[ri]), Hm=num(c.Hm); if(L!=null&&Hm!=null) set("H",Math.round(Hm+L/2)); }
+  return ch; }
 (function(){ const st=document.createElement("style"); st.textContent=`.ci-bloc{border-left:5px solid #1b2f5e;margin-bottom:12px}.ci-bloc>b{font-size:16px;color:#1b2f5e}
 .ci-res{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.ci-res div{background:#eef3fb;border-radius:8px;padding:6px 8px}.ci-res span{display:block;font-size:12px;color:#5b6478}.ci-res b{font-size:17px}
 .ci-al{margin-top:8px;padding:8px 10px;border-radius:8px;font-size:14px}.ci-al.ok{background:#e6f4ea;color:#1e6b34}.ci-al.ko{background:#fff4e5;color:#a35b00}`; document.head.appendChild(st); })();
@@ -1435,10 +1441,11 @@ function calcVolet(o){
 function controleOuverture(o, d=S.dossier){ const Wpb=[];
   try{ const aPBx=x=>(x.petits_bois||[]).length>0 || !!x.pb_motif, fen=x=>{ const m=modeleDe(x); return !m || m.famille!=="porte"; };
     if(d && fen(o) && !aPBx(o)){ const autres=(d.ouvertures||[]).filter(x=>x!==o && fen(x)); if(autres.length>=2 && autres.every(aPBx)) Wpb.push("Petits bois : toutes les autres fenêtres en ont, pas celle-ci – oubli ?"); } }catch(e){}
-  if(cintreDe(o)){ const r=cintreCalc(o); if(r.Hm==null) Wpb.push("Cintre : hauteur des montants (naissance du cintre) à prendre");
+  if(cintreDe(o)){ const r=cintreCalc(o); if(r.Hm==null) Wpb.push("Cintre : départ du cintre (hauteur des montants) à prendre");
     else if(r.H!=null && r.H<=r.Hm) Wpb.push("Cintre : la hauteur au sommet doit être plus grande que celle des montants");
     if(r.Hqth!=null && Math.abs(r.Hq-r.Hqth)>5) Wpb.push(`Cintre : à ¼ de la largeur ${r.Hq} mesuré pour ${Math.round(r.Hqth)} attendu → cintre irrégulier, faire un gabarit`);
     if(r.t==="anse") Wpb.push("Cintre en anse de panier : gabarit conseillé");
+    if(r.t!=="anse" && r.t!=="faux" && r.f!=null && r.L!=null && r.f>r.L/2+5) Wpb.push(`Cintre : la flèche (${Math.round(r.f)}) dépasse la demi-largeur (${Math.round(r.L/2)}) → cintre surhaussé (elliptique ou outrepassé) : vérifier les hauteurs, sinon gabarit`);
     if(r.t==="plein" && r.L!=null && r.Hm!=null && r.H!=null && Math.abs(r.H-(r.Hm+r.L/2))>5) Wpb.push(`Cintre : fin du cintre ${Math.round(r.H)} au lieu de ${Math.round(r.Hm+r.L/2)} pour un plein cintre → c'est plutôt un cintre surbaissé ?`); }
   const E=[], W=[...Wpb], tL=num(coteTab(o,"L")), tH=num(coteTab(o,"H")), f=calcFab(o);
   const vt=[o.vantaux.G,o.vantaux.M,o.vantaux.D].filter(Boolean);
@@ -1833,7 +1840,8 @@ function refreshLive(k){
     if(k==="dormant_aile"||k==="delignage"){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(k==="comp.type"){ const c=S.ouv.comp; if(c.type && !c.h) c.h=String((c.type.match(/^(\d+)/)||[])[1]||""); if(c.type && !c.compris) c.compris=COMP_COMPRIS[1]; if(!c.type){ c.h=""; c.compris=""; } save(); const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(k==="volet.type"||k==="gc.zsp"){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
-    if(String(k).startsWith("cintre.")||(cintreDe(S.ouv)&&String(k).startsWith("cotes."))){ const o=S.ouv; if(syncCintreCotes(o)) save(); { const P=CAT.poses[o.pose]||{}, i=P.actifs?P.actifs.H[0]:0; [`[data-k="cotes.H.${i}"]`,'[data-k="cintre.Hs"]'].forEach(q=>{ const el=$(q); if(el&&el!==document.activeElement) el.value=o.cotes.H[i]??""; }); } majCintre(o); }
+    if(cintreDe(S.ouv)&&/^cotes\.[LH]\.\d$/.test(k)){ const o=S.ouv, m=k.split("."); o.cintre=o.cintre||{type:"plein"}; if(+m[2]===cintreRef(o)){ if(m[1]==="L") o.cintre.L=o.cotes.L[+m[2]]; else o.cintre.Hs=o.cotes.H[+m[2]]; } }
+    if(String(k).startsWith("cintre.")||(cintreDe(S.ouv)&&String(k).startsWith("cotes."))){ const o=S.ouv; if(syncCintreCotes(o)) save(); { const i=cintreRef(o); [[`[data-k="cotes.H.${i}"]`,o.cotes.H[i]],[`[data-k="cotes.L.${i}"]`,o.cotes.L[i]],['[data-k="cintre.Hs"]',o.cotes.H[i]],['[data-k="cintre.L"]',o.cotes.L[i]]].forEach(([q,v])=>{ const el=$(q); if(el&&el!==document.activeElement) el.value=v??""; }); } majCintre(o); }
     if(String(k).startsWith("forme.")){ const o=S.ouv; if(syncFormeCotes(o)){ save(); ["L","H"].forEach(K=>o.cotes[K].forEach((x,i)=>{ const el=$(`[data-k="cotes.${K}.${i}"]`); if(el&&el!==document.activeElement&&el.value!==String(x??"")) el.value=x??""; })); } majForme(o); }
     if(String(k).startsWith("gc.")||k==="allege") majGC();
     if(String(k).endsWith(".avec_menuiserie")){ syncVR(S.dossier); renderVRInline(); }
@@ -2431,6 +2439,7 @@ function renderOuverture(){
   $$("[data-findel]").forEach(b=>b.onclick=()=>{ const [c,i]=b.dataset.findel.split(":"); o.finitions[c+"_l"].splice(+i,1); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $$("[data-modchg]").forEach(b=>b.onclick=()=>{ S.modOuvert=true; const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $$("[data-pbm]").forEach(b=>b.onclick=()=>{ o.pb_motif=b.dataset.pbm; save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
+  $$("[data-ciref]").forEach(b=>b.onclick=()=>{ o.cintre=Object.assign(o.cintre||{}, {ref:+b.dataset.ciref}); syncCintreCotes(o); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $$("[data-citype]").forEach(b=>b.onclick=()=>{ o.cintre=Object.assign(o.cintre||{}, {type:b.dataset.citype}); syncCintreCotes(o); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $$("[data-fotype]").forEach(b=>b.onclick=()=>{ o.forme=Object.assign(o.forme||{}, {type:b.dataset.fotype}); syncFormeCotes(o); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });
   $$("[data-mod]").forEach(b=>b.onclick=()=>{ o.modele = o.modele===b.dataset.mod ? "" : b.dataset.mod; S.modOuvert=false; save(); const y=scrollY; renderOuverture(); scrollTo(0,y); });

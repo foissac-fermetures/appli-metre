@@ -246,6 +246,7 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .sk-tool b{font-size:22px;line-height:1} .sk-tool.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 .sk-planaide{width:100%;margin:0} .sk-zoom{display:inline-flex;gap:4px} .sk-zv{font-size:14px!important;min-width:92px} .sk-zv.on{background:var(--navy);color:#fff} .sk-sep{width:1px;height:30px;background:#c9d1e3;margin:0 4px} .sk-ipad .sk-c.on{box-shadow:0 0 0 3px var(--navy)} .sk-sym.on{background:var(--navy);color:#fff} .gc-det>summary{cursor:pointer;min-height:40px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 input.f-err,select.f-err,.chip.f-err,.modgrid.f-err,#chgPose.f-err{border-color:#d3232f!important;background:#fdecec!important;box-shadow:0 0 0 2px rgba(211,35,47,.25)}
+.chip.f-todo,button.f-todo,summary.f-todo{background:#fff9d6!important;border-color:#e0b800!important;box-shadow:0 0 0 2px rgba(224,184,0,.3)}
 input.f-todo,select.f-todo{border-color:#e0b800!important;background:#fff9d6!important;box-shadow:0 0 0 2px rgba(224,184,0,.3)}
 input.f-warn,select.f-warn,.chip.f-warn,.modgrid.f-warn{border-color:#e08a00!important;background:#fff4e0!important;box-shadow:0 0 0 2px rgba(224,138,0,.25)}
 .modgrid.f-err,.modgrid.f-warn{border:2px solid;border-radius:10px;padding:4px} .pb-det>summary,.acc-det>summary{cursor:pointer;min-height:40px;display:flex;align-items:center;gap:10px;flex-wrap:wrap} .acc-det{border:1.5px solid var(--line);border-radius:10px;padding:6px 10px;margin-top:6px} .acc-det[open]{border-color:var(--navy)}
@@ -2391,7 +2392,7 @@ function renderOuverture(){
   </div><div class="grid g4" style="margin-top:10px">${F.numb("sb","Soubassement (SB) en mm",o.sb)}${F.sel("sb_type","Type de soubassement",listeSB(o.gamme),o.sb_type)}</div>
   <div class="grid g4" style="margin-top:10px">${F.text("imposte","Imposte",o.imposte)}${F.sel("imposte_type","Type d'imposte",CAT.sb_type,o.imposte_type)}</div></div>
 
-  <details class="card pb-det" ${(o.petits_bois||[]).length||o.pb_motif||o.pb_entre?"open":""}><summary><h2 style="display:inline"><span class="num">6</span>Petits bois</h2> <span class="hint">${(o.petits_bois||[]).length||o.pb_motif||o.pb_entre?esc([o.pb_entre?"Entre vitrage":"", ...(o.petits_bois||[]), (PB_MOTIFS.find(m=>m.id===o.pb_motif)||{}).nom].filter(Boolean).join(" · ")):"aucun – touche pour en ajouter"}</span></summary><div class="hint" style="margin:8px 0 6px">Type de petits bois / entre vitrage</div><div class="chips" style="margin-bottom:6px"><button class="chip${o.pb_entre?" on":""}" data-pbentre>Entre vitrage</button></div>${F.multi("petits_bois",listePetitsBois(o.gamme),o.petits_bois)}
+  <details class="card pb-det" ${(o.petits_bois||[]).length||o.pb_motif||o.pb_entre||pbAttendus(o)?"open":""}><summary><h2 style="display:inline"><span class="num">6</span>Petits bois</h2> <span class="hint">${(o.petits_bois||[]).length||o.pb_motif||o.pb_entre?esc([o.pb_entre?"Entre vitrage":"", ...(o.petits_bois||[]), (PB_MOTIFS.find(m=>m.id===o.pb_motif)||{}).nom].filter(Boolean).join(" · ")):"aucun – touche pour en ajouter"}</span></summary><div class="hint" style="margin:8px 0 6px">Type de petits bois / entre vitrage</div><div class="chips" style="margin-bottom:6px"><button class="chip${o.pb_entre?" on":""}" data-pbentre>Entre vitrage</button></div>${F.multi("petits_bois",listePetitsBois(o.gamme),o.petits_bois)}
     <div class="hint" style="margin:10px 0 6px">Dessin des petits bois (par vantail) – touche un modèle</div>
     <div class="pbgrid">${PB_MOTIFS.map(m=>`<button data-pbm="${m.id}" class="${(o.pb_motif||"")===m.id?"on":""}">${miniPB(m)}<small>${esc(m.nom)}</small></button>`).join("")}</div>
     ${o.pb_motif==="perso"?`<div class="grid g4" style="margin-top:8px">${F.numb("pb_c","Carreaux en largeur",o.pb_c)}${F.numb("pb_r","Carreaux en hauteur",o.pb_r)}</div>`:""}</details>
@@ -2503,7 +2504,8 @@ function renderOuverture(){
     if(!await demander(`Supprimer la fiche « ${o.repere||"n° "+(o.num_poseur||i+1)} »${lv?" et son volet roulant":""} ?`,"Supprimer")) return;
     d.ouvertures=d.ouvertures.filter(x=>x!==o); if(lv) d.vr.lignes=d.vr.lignes.filter(l=>l!==lv); save();
     const n=d.ouvertures[Math.min(i,d.ouvertures.length-1)]; if(n){ S.ouv=n; renderOuverture(); } else { S.tab="ouvertures"; renderDossier(); } scrollTo(0,0); toast("Fiche supprimée"); };
-  $("#app").insertAdjacentHTML("beforeend",`<div class="row" style="justify-content:center;margin:18px 0 30px"><button class="btn" id="oPrev3">‹ Précédente</button><button class="btn primary" id="oComme3">⧉ Ouverture suivante, comme celle-ci</button><button class="btn primary" id="oAdd3">+ Ajouter une ouverture</button><button class="btn" id="oNext3">Suivante ›</button></div>`); $("#oComme3").onclick=()=>commePrecedente(d,o); $("#oAdd3").onclick=()=>$("#mPose").classList.add("open");
+  $("#app").insertAdjacentHTML("beforeend",`<div class="row" style="justify-content:center;margin:18px 0 30px"><button class="btn primary" id="oComme3">⧉ Ouverture suivante, comme celle-ci</button><button class="btn primary" id="oAdd3">+ Ajouter une ouverture</button></div>
+    <div class="row" style="justify-content:flex-end;gap:10px;margin:-14px 0 30px"><button class="btn" id="oPrev3" style="min-height:48px;font-size:16px">‹ Page précédente</button><button class="btn primary" id="oNext3" style="min-height:48px;font-size:16px">Page suivante ›</button></div>`); $("#oComme3").onclick=()=>commePrecedente(d,o); $("#oAdd3").onclick=()=>$("#mPose").classList.add("open");
   { const ix=d.ouvertures.indexOf(o); $("#oPrev3").disabled=ix<=0; $("#oNext3").disabled=ix>=d.ouvertures.length-1;
     $("#oPrev3").onclick=()=>{ S.ouv=d.ouvertures[ix-1]; renderOuverture(); scrollTo(0,0); }; $("#oNext3").onclick=()=>{ S.ouv=d.ouvertures[ix+1]; renderOuverture(); scrollTo(0,0); }; }
   majFab(); majControle(); renderVRInline();
@@ -2577,7 +2579,11 @@ function colorerCases(c){
   c.E.forEach(m=>marque(m,"f-err")); c.W.forEach(m=>marque(m,"f-warn"));
   $$(".f-todo").forEach(x=>x.classList.remove("f-todo")); casesJaunes(S.ouv).forEach(sel=>$$(sel).forEach(e=>{ if(!e.classList.contains("f-err")&&!e.classList.contains("f-warn")) e.classList.add("f-todo"); })); }
 /* Cases jaunes = à renseigner, même pour dire « rien » (19/11) : grille de ventilation, finition intérieure */
+/* 25/11/2026 : petits bois déjà mis sur une autre fenêtre du métré → cases petits bois en jaune sur celles qui n'en ont pas */
+const aPBo = x => (x.petits_bois||[]).length>0 || !!x.pb_motif || !!x.pb_entre;
+const pbAttendus = (o,d=S.dossier) => { const fen=x=>{ const m=modeleDe(x); return !m || m.famille!=="porte"; }; return !!d && fen(o) && !aPBo(o) && (d.ouvertures||[]).some(x=>x!==o && fen(x) && aPBo(x)); };
 function casesJaunes(o){ if(!o) return []; const J=[];
+  if(pbAttendus(o)) J.push('.pb-det > summary','[data-pbentre]','.pb-det label.chip','.pbgrid button');
   cotesARecontroler(o).forEach(k=>J.push(`[data-k="${k}"]`));   // 23/11 : cotes reprises à recontrôler
   if(!o.gv && !sansGV(o) && !pieceHumide(o)) J.push('[data-k="gv"]');
   if(aOculus(o) && !num(o.oculus_h)) J.push('[data-k="oculus_h"]');

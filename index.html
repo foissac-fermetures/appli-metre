@@ -1884,6 +1884,7 @@ function refreshLive(k){
     if(k==="comp.type"){ const c=S.ouv.comp; if(c.type && !c.h) c.h=String((c.type.match(/^(\d+)/)||[])[1]||""); if(c.type && !c.compris) c.compris=COMP_COMPRIS[1]; if(!c.type){ c.h=""; c.compris=""; } save(); const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(k==="volet.type"||k==="gc.zsp"){ const y=scrollY; renderOuverture(); scrollTo(0,y); return; }
     if(cintreDe(S.ouv)&&/^cotes\.[LH]\.\d$/.test(k)){ const o=S.ouv, m=k.split("."); o.cintre=o.cintre||{type:"plein"}; if(+m[2]===cintreRef(o)){ if(m[1]==="L") o.cintre.L=o.cotes.L[+m[2]]; else o.cintre.Hs=o.cotes.H[+m[2]]; } }
+    if(k==="repere" && S.ouv){ const av=S.ouv.gv; reglesPose(S.ouv); const g=$('[data-k="gv"]'); if(S.ouv.gv!==av || (g && g.value!==(S.ouv.gv||""))){ save(); if(g){ g.value=S.ouv.gv; g.classList.remove("f-todo"); g.closest(".f-todo")?.classList.remove("f-todo"); } if(typeof majControle==="function") majControle(); } }
     if(String(k).startsWith("cintre.")||(cintreDe(S.ouv)&&String(k).startsWith("cotes."))){ const o=S.ouv; if(syncCintreCotes(o)|syncCintreFab(o)) save(); { const i=cintreRef(o); [[`[data-k="cotes.H.${i}"]`,o.cotes.H[i]],[`[data-k="cotes.L.${i}"]`,o.cotes.L[i]],['[data-k="cintre.Hs"]',o.cotes.H[i]],['[data-k="cintre.L"]',o.cotes.L[i]]].forEach(([q,v])=>{ const el=$(q); if(el&&el!==document.activeElement) el.value=v??""; }); } majCintre(o); }
     if(String(k).startsWith("forme.")){ const o=S.ouv; if(syncFormeCotes(o)){ save(); ["L","H"].forEach(K=>o.cotes[K].forEach((x,i)=>{ const el=$(`[data-k="cotes.${K}.${i}"]`); if(el&&el!==document.activeElement&&el.value!==String(x??"")) el.value=x??""; })); } majForme(o); }
     if(String(k).startsWith("gc.")||k==="allege") majGC();
@@ -2578,7 +2579,7 @@ function colorerCases(c){
 /* Cases jaunes = à renseigner, même pour dire « rien » (19/11) : grille de ventilation, finition intérieure */
 function casesJaunes(o){ if(!o) return []; const J=[];
   cotesARecontroler(o).forEach(k=>J.push(`[data-k="${k}"]`));   // 23/11 : cotes reprises à recontrôler
-  if(!o.gv && !sansGV(o)) J.push('[data-k="gv"]');
+  if(!o.gv && !sansGV(o) && !pieceHumide(o)) J.push('[data-k="gv"]');
   if(aOculus(o) && !num(o.oculus_h)) J.push('[data-k="oculus_h"]');
   if(cintreDe(o) && !(o.cintre&&o.cintre.Hm)) J.push('[data-k="cintre.Hm"]');
   ["int","ext"].forEach(c=>{ const f0=(o.finitions?.[c+"_l"]||[])[0]||{}; if(!f0.t) J.push(`[data-k="finitions.${c}_l.0.t"]`); });   // 19/11 : finition int. ET ext. (« Pas de finition » suffit), pas les côtés

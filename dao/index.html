@@ -149,7 +149,7 @@
   #layMenu input{flex:1;background:#11151b;border:1px solid var(--line);color:#fff;border-radius:6px;padding:5px 8px;font-size:13px}
   #layMenu .rad{width:18px;height:18px;border-radius:50%;border:2px solid var(--mut);margin-left:12px;cursor:pointer;background:none;padding:0}
   #layMenu .rad.on{border-color:var(--acc);background:radial-gradient(var(--acc) 45%,transparent 50%)}
-  #colMenu{position:fixed;top:50px;right:10px;width:340px;background:var(--panel);border:1px solid var(--acc);border-radius:10px;padding:10px 12px;display:none;z-index:6;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  #colMenu{position:fixed;top:50px;right:10px;width:340px;background:var(--panel);border:1px solid var(--acc);border-radius:10px;padding:10px 12px;display:none;z-index:6;box-shadow:0 10px 30px rgba(0,0,0,.5);max-height:calc(100vh - 70px);overflow:auto}
   #colMenu.show{display:block}
   #colMenu .ch{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
   #colMenu .crow{padding:6px 0;border-top:1px solid var(--line)}
@@ -250,6 +250,7 @@
       <label>Taille à l'impression <select id="tH"><option value="2">2 mm</option><option value="2.5">2,5 mm</option><option value="3.5">3,5 mm</option><option value="5">5 mm</option><option value="7">7 mm</option><option value="10">10 mm</option><option value="14">14 mm</option></select></label>
       <label>Angle <select id="tA"><option value="0">0° (horizontal)</option><option value="90">90° (vertical)</option></select></label>
       <label><input type="checkbox" id="tB"> Gras</label>
+      <label>Couleur <input type="color" id="tC" title="Couleur du texte (nouveaux textes et textes sélectionnés)" style="width:34px;height:26px;padding:0;border:0;background:none;cursor:pointer"></label>
       <button class="hbtn primary" id="tOk" style="display:none">✓ Valider le texte</button>
     </div>
     <textarea id="tEdit" rows="1" spellcheck="true" placeholder="Écrivez… (Entrée = ligne suivante)"></textarea>
@@ -389,6 +390,9 @@
   <div class="crow" data-c="hachure"><div class="cl">Hachures</div><div class="sw"></div></div>
   <div class="crow" data-c="coteLigne"><div class="cl">Lignes et flèches des cotes</div><div class="sw"></div></div>
   <div class="crow" data-c="coteTexte"><div class="cl">Chiffres des cotes</div><div class="sw"></div></div>
+  <div class="crow" data-c="texte"><div class="cl">Textes</div><div class="sw"></div></div>
+  <div class="crow" data-c="repLigne"><div class="cl">Flèche + texte : flèche et trait</div><div class="sw"></div></div>
+  <div class="crow" data-c="repTexte"><div class="cl">Flèche + texte : texte</div><div class="sw"></div></div>
   <div class="note">Le blanc s'imprime en noir. Pour changer la couleur d'objets déjà dessinés : sélectionnez-les, puis cliquez une couleur de « Traits » (ou de « Hachures » pour une hachure).</div>
 </div>
 <div class="modal" id="mSym"><div class="box" style="width:780px">
@@ -507,7 +511,7 @@ let claudeUrl = "https://claude.ai/artifact/7PvXDGDYbMSxNXBWj7XyUt";   // artefa
 let driveAuto = true;   // à chaque 💾 : PDF → « 09 - Plan », plan .mdao → Métrés/Plans/AAAA (logiciel installé seulement)
 let snapModes = {end:true, mid:true, cen:true, inter:true, perp:true, near:false};
 let dimTxt = 2.5, lastDimId = null, win = null, repeatOn = true, clickShift = false;
-let colors = {trait:"#ffffff", hachure:"#8d9bb0", coteLigne:"#6ec8ff", coteTexte:"#ff2a2a"};
+let colors = {trait:"#ffffff", hachure:"#8d9bb0", coteLigne:"#6ec8ff", coteTexte:"#ff2a2a", texte:"#ffffff", repLigne:"#6ec8ff", repTexte:"#ff2a2a"};
 let cart = {societe:"",titre:"",client:"",chantier:"",dessine:"",date:new Date().toLocaleDateString("fr-FR"),numero:"",indice:"A",format:"A4",orient:"paysage",mode:"echelle",echelle:"auto",couleurs:"couleur",obs:""};
 
 // ---------- Utilitaires ----------
@@ -524,7 +528,7 @@ const clone = o => JSON.parse(JSON.stringify(o));
 function save(){ cartDefauts(); try{ localStorage.setItem("miniDAO2D", JSON.stringify({ents,nextId,cart,visuel,iaHist,claudeUrl,driveAuto,lastOffset,hatchOpts,textOpts,dimTxt,snapModes,colors,repeatOn,planId,planNameTxt,layers,curLayer,symOpts,driveNom,lastFillet})); }catch(e){} }
 function load(){ try{ const s=JSON.parse(localStorage.getItem("miniDAO2D")||"null"); if(s){ ents=s.ents||[]; nextId=s.nextId||1; Object.assign(cart,s.cart||{}); lastOffset=s.lastOffset||100; if(s.hatchOpts) Object.assign(hatchOpts,s.hatchOpts); if(s.dimTxt) dimTxt=s.dimTxt; if(s.textOpts) Object.assign(textOpts,s.textOpts); visuel=s.visuel||null; iaHist=s.iaHist||[]; if(s.claudeUrl && !/S998mSD3A3dCjL1aqwmDJy/.test(s.claudeUrl)) claudeUrl=s.claudeUrl; /* ancienne adresse (compte perso) ignorée */ if(typeof s.driveAuto==="boolean") driveAuto=s.driveAuto; if(s.snapModes) Object.assign(snapModes,s.snapModes); if(s.colors) Object.assign(colors,s.colors); if(typeof s.repeatOn==="boolean") repeatOn=s.repeatOn; planId=s.planId||null; planNameTxt=s.planNameTxt||""; if(Array.isArray(s.layers)&&s.layers.length) layers=s.layers; if(s.curLayer) curLayer=s.curLayer; if(s.symOpts) Object.assign(symOpts,s.symOpts); if(s.driveNom) driveNom=s.driveNom; if(typeof s.lastFillet==="number") lastFillet=s.lastFillet; } }catch(e){} }
 function pushUndo(){ undoStack.push(JSON.stringify(ents)); if(undoStack.length>200) undoStack.shift(); redoStack.length=0; }
-function addEnt(e){ pushUndo(); e.id=nextId++; e.layer = e.type==="dim" ? "Cotes" : curLayer; ensureLayers(); { const l=layers.find(x=>x.name===e.layer); if(l && !l.visible){ l.visible=true; log(`  calque « ${l.name} » réaffiché`); updLayerUI(); } } if(e.type!=="dim" && !e.color) e.color = e.type==="hatch" ? colors.hachure : colors.trait; ents.push(e); save(); renderEnts(); return e; }
+function addEnt(e){ pushUndo(); e.id=nextId++; if(e.type==="text" && !e.color) e.color=colors.texte; e.layer = e.type==="dim" ? "Cotes" : curLayer; ensureLayers(); { const l=layers.find(x=>x.name===e.layer); if(l && !l.visible){ l.visible=true; log(`  calque « ${l.name} » réaffiché`); updLayerUI(); } } if(e.type!=="dim" && !e.color) e.color = e.type==="hatch" ? colors.hachure : colors.trait; ents.push(e); save(); renderEnts(); return e; }
 
 // ---------- Hachures : géométrie ----------
 function bArea(b){ if(b.kind==="rect") return Math.abs((b.b.x-b.a.x)*(b.b.y-b.a.y)); if(b.kind==="circle") return Math.PI*b.r*b.r; let s=0; const p=b.pts; for(let i=0;i<p.length;i++){ const q=p[(i+1)%p.length]; s+=p[i].x*q.y-q.x*p[i].y; } return Math.abs(s/2); }
@@ -835,7 +839,7 @@ function renderEnts(){
   for(const e of VE()) if(e.type==="hatch"){ const isSel=selected.has(e.id); const hc=e.color||"#8d9bb0"; hm+=hatchMarkup(e,W2S,view.z,isSel?"#ffb648":hc,3,isSel?"rgba(255,182,72,.35)":hc+"59"); }
   if(hm){ const g=el("g",{},gEnt); g.innerHTML=hm; }
   let dm="";
-  for(const e of VE()) if(e.type==="dim"){ const isSel=selected.has(e.id)||e.id===hl; dm+=dimMarkup(e,W2S,view.z,DIM_SCREEN,isSel?"#ffb648":null); }
+  for(const e of VE()) if(e.type==="dim"){ const isSel=selected.has(e.id)||e.id===hl; const S=e.kind==="lead"?{...DIM_SCREEN,color:e.color||colors.repLigne,tcolor:e.tcolor||colors.repTexte}:DIM_SCREEN; dm+=dimMarkup(e,W2S,view.z,S,isSel?"#ffb648":null); }
   if(dm){ const g=el("g",{},gEnt); g.innerHTML=dm; }
   let tm="";
   for(const e of VE()) if(e.type==="text" && !(textEdit && textEdit.ent===e)){ const isSel=selected.has(e.id); const S=W2S(e.p); tm+=textMarkup(e,S.x,S.y,e.h*TXT_PX,isSel?"#ffb648":(e.color||"#fff"));
@@ -1461,6 +1465,10 @@ function buildColMenu(){
 }
 function setColor(key,c){
   colors[key]=c;
+  if((key==="texte"||key==="repLigne"||key==="repTexte") && selected.size){
+    const targets=ents.filter(e=>selected.has(e.id) && (key==="texte" ? e.type==="text" : (e.type==="dim"&&e.kind==="lead")));
+    if(targets.length){ pushUndo(); targets.forEach(e=>{ if(key==="repTexte") e.tcolor=c; else e.color=c; }); log(`  couleur appliquée à ${targets.length} objet(s)`); } }
+  if(key==="texte" && textEdit && textEdit.ent){ textEdit.ent.color=c; }
   if((key==="trait"||key==="hachure") && selected.size){ const targets=ents.filter(e=>selected.has(e.id) && e.type!=="dim" && (key==="hachure" ? e.type==="hatch" : e.type!=="hatch"));
     if(targets.length){ pushUndo(); targets.forEach(e=>e.color=c); log(`  couleur appliquée à ${targets.length} objet(s)`); } }
   save(); buildColMenu(); renderEnts();
@@ -1476,7 +1484,7 @@ $("dimTxt").oninput=()=>{ const v=parseFloat($("dimTxt").value); if(v>0){ dimTxt
 
 // ---------- Éditeur de texte ----------
 let textEdit=null;
-function showTextOpts(on){ const o=$("topts"); o.style.display=on?"flex":"none"; if(on){ $("tH").value=String(textOpts.h); $("tA").value=String(textOpts.angle); $("tB").checked=!!textOpts.bold; } }
+function showTextOpts(on){ const o=$("topts"); o.style.display=on?"flex":"none"; if(on){ $("tC").value=colors.texte; $("tH").value=String(textOpts.h); $("tA").value=String(textOpts.angle); $("tB").checked=!!textOpts.bold; } }
 function placeEditor(){ if(!textEdit) return; const S=W2S(textEdit.p), fs=(textEdit.ent?textEdit.ent.h:textOpts.h)*TXT_PX, ed=$("tEdit");
   const ls=ed.value.split("\n"), f=Math.max(12,fs); ed.rows=ls.length; ed.style.width=Math.max(160, Math.max(...ls.map(l=>l.length))*f*0.6+24)+"px";
   ed.style.fontSize=f+"px"; ed.style.left=Math.max(4,S.x-8)+"px"; ed.style.top=Math.max(4,S.y-Math.max(12,fs)-12)+"px"; }
@@ -1499,6 +1507,7 @@ $("tOk").addEventListener("pointerdown",ev=>ev.preventDefault());
 $("tOk").onclick=()=>closeTextEdit(true);
 $("tH").onchange=()=>{ textOpts.h=parseFloat($("tH").value); save(); applyTextOpts(); };
 $("tA").onchange=()=>{ textOpts.angle=parseFloat($("tA").value); save(); applyTextOpts(); };
+$("tC").oninput=()=>{ const c=$("tC").value; colors.texte=c; const t=textEdit&&textEdit.ent?[textEdit.ent]:ents.filter(e=>e.type==="text"&&selected.has(e.id)); if(t.length){ pushUndo(); t.forEach(e=>e.color=c); } save(); renderEnts(); if(textEdit) $("tEdit").style.color=c; };
 $("tB").onchange=()=>{ textOpts.bold=$("tB").checked; save(); applyTextOpts(); };
 function applyTextOpts(){ // modifie aussi le texte en cours d'édition ou les textes sélectionnés
   const targets = textEdit&&textEdit.ent ? [textEdit.ent] : ents.filter(e=>e.type==="text"&&selected.has(e.id));
@@ -1712,7 +1721,7 @@ function buildSheet(mode){ mode=mode||"plan"; cartDefauts();
     const ps={txt:dimTxt,arr:dimTxt,gap:1,ext:1.5,off:dimTxt*0.35,color:pc(colors.coteLigne),tcolor:pc(colors.coteTexte),sw:0.18};
     if(mode==="visuel"){ for(const e of VE()) if(e.type==="text") dg+=textMarkup(e,X(e.p.x),Y(e.p.y),e.h,"#222"); } else {
     for(const e of VE()) if(e.type==="text") dg+=textMarkup(e,X(e.p.x),Y(e.p.y),e.h,pc(e.color));
-    for(const e of VE()) if(e.type==="dim") dg+=dimMarkup(e,p=>({x:X(p.x),y:Y(p.y)}),1/den,ps);
+    for(const e of VE()) if(e.type==="dim") dg+=dimMarkup(e,p=>({x:X(p.x),y:Y(p.y)}),1/den,e.kind==="lead"?{...ps,color:pc(e.color||colors.repLigne),tcolor:pc(e.tcolor||colors.repTexte)}:ps);
     for(const e of VE()) if(e.type==="hatch") hg+=hatchMarkup({...e,sw:0.18},p=>({x:X(p.x),y:Y(p.y)}),1/den,pc(e.color||colors.hachure),0.6,cart.couleurs==="nb"?"#c8c8c8":pc(e.color||colors.hachure)+"55");
     }
   }

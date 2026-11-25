@@ -145,7 +145,10 @@ Taper une autre commande pendant une commande permet de changer de commande.
   **toujours « Plan <client> »** (demande de Nicolas, fonction `withPlan`). Ensuite, l'enregistrement se fait directement.
   Le nom du client va aussi dans le cartouche s'il est vide. « Nouveau plan » vide les champs client du cartouche.
   📁 (Fichier) sert pour la liste des plans, les copies et l'export/import `.mdao`.
-- **Couleurs** (bouton 🎨 en haut) : traits, hachures, lignes de cote, **chiffres des cotes en rouge vif** par défaut.
+- **Couleurs** (bouton 🎨 en haut) : traits, hachures, lignes de cote, **chiffres des cotes en rouge vif** par défaut,
+  **textes** (`colors.texte`), **flèche + texte : flèche et trait** (`colors.repLigne`) et **flèche + texte : texte** (`colors.repTexte`) — dao-v11.
+  Avec des objets sélectionnés, la couleur leur est aussi appliquée (texte → `e.color` ; repère → `e.color` pour la flèche, `e.tcolor` pour le texte ;
+  un repère sans couleur propre suit la couleur générale). Pastille « Couleur » dans la barre de l'outil Texte. Menu 🎨 défilant (iPad).
 - **Barre d'outils de gauche sur UNE seule colonne** (demande explicite), réorganisable (⇅ Organiser), avec l'ordre mémorisé.
 - **Sélection comme AutoCAD** : chaque clic **ajoute** l'objet, la fenêtre ajoute, Maj+clic retire, Ctrl/⌘+A sélectionne tout.
   Cliquer dans le vide ne désélectionne pas : on utilise Échap, le clic droit ou ✕.
@@ -255,6 +258,7 @@ PROMPT-POUR-CLAUDE-PRO.md ← le message que Nicolas te donne
 | 18/11/2026 | dao-v6 | **Bibliothèque de symboles** (Nicolas a coché toutes les options) : voir § 13. |
 | 24/11/2026 | dao-v9 | Flèche + texte (repère), texte libre des cotes, nom automatique « Plan CLIENT – Titre », cartouche par défaut (Foissac Fermetures / Nicolas), arc 2 points + flèche, cercle 3 points, arrondi entre 2 traits : voir § 14. |
 | 25/11/2026 | dao-v10 | Commandes toujours actives : une fonction reste accrochée à la souris jusqu'au clic droit (ou Échap) ; bouton 🔁 retiré : voir § 15. |
+| 25/11/2026 | dao-v11 | Couleurs des **textes** et de la **flèche + texte** (flèche/trait et texte séparément) dans 🎨, appliquées aussi aux objets sélectionnés ; pastille couleur dans la barre Texte ; menu 🎨 défilant. Préparé dans une autre conversation sur la base de dao-v10, testé (écran + impression). |
 | 18/11/2026 | dao-v5 | **Essai réel Google Drive réussi** (« Plan TEST », 2 enregistrements : PDF dans 09 - Plan, .mdao dans Métrés › Plans › 2026, remplacés sans doublon). « Métrés » fixé : `DOSSIERS_DAO.metres = 1HoXaRkku5deGnEtg6t3SK6jtvs4zr1lz`. |
 
 ## 11. Service worker de l'appli de métré : corrigé le 18/11/2026 (accord de Nicolas)

@@ -1201,6 +1201,9 @@ function syncCintreCotes(o){ if(!cintreDe(o)||!o.cintre) return false; const c=o
 (function(){ const st=document.createElement("style"); st.textContent=`.ci-bloc{border-left:5px solid #1b2f5e;margin-bottom:12px}.ci-bloc>b{font-size:16px;color:#1b2f5e}
 .ci-res{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.ci-res div{background:#eef3fb;border-radius:8px;padding:6px 8px}.ci-res span{display:block;font-size:12px;color:#5b6478}.ci-res b{font-size:17px}
 .ci-al{margin-top:8px;padding:8px 10px;border-radius:8px;font-size:14px}.ci-al.ok{background:#e6f4ea;color:#1e6b34}.ci-al.ko{background:#fff4e5;color:#a35b00}`; document.head.appendChild(st); })();
+/* Cote à dessiner quand il n'y a ni fabrication ni tableau (devis pris sur le cadre existant / l'embrasure, 25/11/2026) */
+function coteSecours(o,k){ if(cintreDe(o)){ const r=cintreCalc(o), v=k==="L"?r.L:r.H, i=cintreRef(o); if(v!=null) return {v, lib:(CAT.poses[o.pose]?.cotes||[])[i]||"Tableau"}; }
+  for(const i of [1,2]){ const v=num(o.cotes[k][i]); if(v!=null) return {v, lib:(CAT.poses[o.pose]?.cotes||[])[i]||""}; } return null; }
 function reglesPose(o){ let ch=false;
   if(sansGV(o) && o.gv){ o.gv=""; ch=true; }
   if(syncSensPorte(o)) ch=true;
@@ -1215,7 +1218,7 @@ function libellePose(o){ const P=CAT.poses[o.pose]; return [P?.nom, o.renovation
 /* Cotes affichées selon la pose et le sens (L = largeur, H = hauteur) */
 function coteUtile(o,i,k){ const P=CAT.poses[o.pose]||{};
   // Dépose totale en embrasure / feuillure (24/11/2026) : pas de cadre existant ; pas de largeur du dormant (sauf en feuillure, gardée)
-  if(o.depose_totale && !o.renovation && ["embrasure","feuillure"].includes(o.pose) && (i===1 || (i===3 && o.pose!=="feuillure"))) return false;
+  if(o.depose_totale && !o.renovation && ["embrasure","feuillure"].includes(o.pose) && (i===1 || (i===3 && o.pose!=="feuillure")) && !(i===1 && (String(o.cotes.L[1]??"")!==""||String(o.cotes.H[1]??"")!==""||(o.cintre&&+o.cintre.ref===1)))) return false;   // 25/11 : gardées si remplies (devis sur cadre existant)
   if(P.actifs){ return k ? P.actifs[k].includes(i) : (P.actifs.L.includes(i)||P.actifs.H.includes(i)); }
   return !(i===1 && !POSES_RENO.includes(o.pose)); }
 function numCote(o,k,i){ const P=CAT.poses[o.pose]||{}; return P.actifs ? P.actifs[k].indexOf(i)+1 : i+1; }  // numéro affiché (neuf : 1 en largeur, 1 en hauteur)
@@ -2593,7 +2596,9 @@ function dessinMenuiserie(o, opt={}){
   const codes={G:o.vantaux.G,M:o.vantaux.M,D:o.vantaux.D};
   let n = md ? md.vantaux : [codes.G,codes.M,codes.D].filter(Boolean).length || 1;
   if(fam==="fixe" || n===0){ fam="fixe"; n=1; }
-  const f=calcFab(o), Lr=num(f.L)??num(coteTab(o,"L")), Hr=num(f.H)??num(coteTab(o,"H"));
+  const f=calcFab(o), secL=typeof coteSecours==="function"?coteSecours(o,"L"):null, secH=typeof coteSecours==="function"?coteSecours(o,"H"):null;
+  const Lr=num(f.L)??num(coteTab(o,"L"))??(secL&&secL.v), Hr=num(f.H)??num(coteTab(o,"H"))??(secH&&secH.v);
+  const libSecours = num(f.L)==null && num(coteTab(o,"L"))==null && secL ? secL.lib : "";
   /* ERP / accessoires : barre anti-panique et ferme-porte dessinés sur la porte */
   const sbMM = num(o.sb) ?? num(String(o.sb_type||"").match(/haut\s*(\d{3,4})\s*mm/i)?.[1]);
   const AP_COL="#2d6a4f", accTxt=(o.accessoires||[]).join(" | "), erpOn=typeof porteERP==="function"&&porteERP(o);
@@ -2784,7 +2789,7 @@ function dessinMenuiserie(o, opt={}){
         + (cCompris ? cote(xC,Y0,xC,yC,`${vH-ch} sans compensateur`) : cote(xC,Y0,xC,yC+hCp,`${tot} avec compensateur`)); } }
   if(sbCote){ const x=X0-26; c+=line(X0-3,sbY,x-6,sbY,0.7,COT)+line(X0-3,Y1,x-6,Y1,0.7,COT)+cote(x,sbY,x,Y1,String(sbMM)); }
   if(coffre){ const x=X0-26; c+=line(X0-3,P,x-6,P,0.7,COT)+line(X0-3,P+CH,x-6,P+CH,0.7,COT)+cote(x,P,x,P+CH,hC!=null?String(hC):"?"); }
-  const leg = vL!=null||vH!=null ? (estFab?"Cotes de fabrication":"Cotes tableau (fabrication non calculée)")+(o.pose==="neuf"?" · ENDUIT COMPRIS":"")+(typeof aileRecouvrement==="function"&&aileRecouvrement(o)?` · ailes de recouvrement ${largeurAile(o)} mm`:"")+(coffre&&vH!=null&&hC!=null?` · hauteur totale = ${vH} + coffre ${hC}`:"")+(enc?` · seuil encastré ${SEUIL_ENC} mm compris`:"")+(ch!=null?` · compensateur ${ch} mm ${cCompris?"compris":"NON compris"}`:"") : "";
+  const leg = vL!=null||vH!=null ? (estFab?"Cotes de fabrication":libSecours?`Cotes « ${libSecours} » (fabrication non calculée)`:"Cotes tableau (fabrication non calculée)")+(o.pose==="neuf"?" · ENDUIT COMPRIS":"")+(typeof aileRecouvrement==="function"&&aileRecouvrement(o)?` · ailes de recouvrement ${largeurAile(o)} mm`:"")+(coffre&&vH!=null&&hC!=null?` · hauteur totale = ${vH} + coffre ${hC}`:"")+(enc?` · seuil encastré ${SEUIL_ENC} mm compris`:"")+(ch!=null?` · compensateur ${ch} mm ${cCompris?"compris":"NON compris"}`:"") : "";
   if(erpTxt) c+=`<text x="${W/2}" y="${H+MB-4}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#b3202a">${erpTxt}</text>`;
   if(leg) c+=`<text x="${W/2}" y="${H+MB-(erpTxt?22:5)}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#5b6478">${leg}</text>`;
   /* Menuiserie cintrée (25/11/2026) : le haut du dessin suit le cintre (plein, surbaissé, anse de panier) ; faux cintre = trait pointillé */
@@ -7206,7 +7211,7 @@ function construireImpression(d){
         P.cotes.map((_,j)=>!coteUtile(o,j,k)?"":`<tr><th><span class="pn">${numCote(o,k,j)}</span>${esc(libCote(o,k,j))}</th><td>${esc(o.cotes[k][j]??"")||(o.tab_impossible&&/tableau/i.test(libCote(o,k,j))?"<small>pas possible</small>":"")}</td></tr>`).join("")
         +`<tr class="pfabr"><th>FABRICATION</th><td>${f[k]??""}</td></tr>`
         +(k==="H"&&cintreDe(o)?(()=>{ const r=cintreCalc(o), R=x=>x==null?"":Math.round(x); if(r.t==="faux") return "";
-          return `<tr><th>Départ du cintre</th><td>${R(r.Hm)}</td></tr><tr><th>Flèche</th><td>${R(r.f)}</td></tr><tr class="pfabr"><th>DÉPART CINTRE FAB.</th><td>${R(r.fab&&r.fab.Hm)}</td></tr><tr class="pfabr"><th>FLÈCHE FAB.</th><td>${R(r.fab&&r.fab.f)}</td></tr>`; })():"")
+          return `<tr><th>Départ du cintre</th><td>${R(r.Hm)}</td></tr><tr><th>Flèche</th><td>${R(r.f)}</td></tr>${r.fab&&r.fab.Hm!=null?`<tr class="pfabr"><th>DÉPART CINTRE FAB.</th><td>${R(r.fab.Hm)}</td></tr><tr class="pfabr"><th>FLÈCHE FAB.</th><td>${R(r.fab.f)}</td></tr>`:""}`; })():"")
         +`</table>`).join("")}</div>`}
       ${texteElarg(o)?`<div class="pelarg">Élargisseurs : <b>${esc(texteElarg(o))}</b></div>`:""}
       ${(()=>{const l=vrLie(d,o); return l&&l.avec_menuiserie?`<div class="pelarg">${esc(l.avec_menuiserie)} : <b>${esc(l.coffre_hauteur||"coffre compris dans la hauteur ? À PRÉCISER")}</b></div>`:"";})()}

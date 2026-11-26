@@ -161,6 +161,15 @@ canvas.sketch{display:block;width:100%;height:420px;touch-action:none;background
 .seg{display:flex;flex-wrap:wrap;gap:8px}.seg button{min-height:44px;padding:8px 16px;border-radius:12px;border:2px solid #d6dbe6;background:#f4f6fa;color:#1b2f5e;font:inherit;font-weight:700;cursor:pointer}.seg button.on{background:#1b2f5e;border-color:#1b2f5e;color:#fff}
 .gc-conseil .gc-oblig{border:2px solid #d3232f;background:#fdecee;color:#8f1520;border-radius:10px;padding:8px 10px;font-size:14px}
 .gc-conseil .gc-ok{border:2px solid #1f8a4c;background:#eaf6ef;color:#14532d;border-radius:10px;padding:8px 10px;font-size:14px}
+/* RDV de l'accueil en lignes (26/11/2026) */
+.rdvl{display:flex;flex-direction:column}
+.rdvl-r{display:flex;align-items:center;gap:8px;padding:6px 2px;border-top:1px solid var(--line);position:relative}
+.rdvl-h{width:118px;flex:none;font-size:12.5px;font-weight:700;color:#b51d28;text-transform:capitalize}
+.rdvl-n{min-width:90px;font-size:15px}.rdvl-s{flex:1;min-width:0;color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rdvl-ic{min-width:34px;padding:4px 6px;text-align:center;text-decoration:none}
+.rdvl-plus{position:relative}.rdvl-plus>summary{list-style:none;cursor:pointer}.rdvl-plus>summary::-webkit-details-marker{display:none}
+.rdvl-menu{position:absolute;right:0;top:110%;z-index:20;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px;display:flex;flex-direction:column;gap:6px;box-shadow:0 6px 18px #0002;white-space:nowrap}
+@media (max-width:600px){.rdvl-h{width:84px}.rdvl-s{display:none}}
 .rdv-liste{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
 .rdv{border:1px solid #d6dbe6;border-left:5px solid #1b2f5e;border-radius:12px;padding:10px 12px;background:#fff}
 .rdv-h{font-size:12px;font-weight:700;color:#b51d28;text-transform:capitalize}
@@ -2033,6 +2042,7 @@ function refreshLive(k){
 }
 
 /* ======================= ÉCRANS ======================= */
+document.addEventListener("click",e=>{ document.querySelectorAll("details.rdvl-plus[open]").forEach(x=>{ if(!x.contains(e.target)) x.open=false; }); });   // menu ⋯ des RDV : se ferme en touchant ailleurs
 function setBar(title, back){ $("#app").classList.remove("hb"); $("#barTitle").textContent=title||""; $("#btnBack").classList.toggle("hide",!back); setTimeout(()=>{ majBoutonsHist(); if(typeof majEtatDrive==="function") majEtatDrive(); },0); }
 function majTitre(){ if(S.dossier) setBar(`${S.dossier.client.nom||"Nouveau client"}${S.dossier.devis_nom?" – "+S.dossier.devis_nom:""} · ${S.dossier.variante}`, true); }
 
@@ -8227,24 +8237,27 @@ async function afficherAgenda(forcer){
   const avant=aReporter.length; aReporter=aReporter.filter(r=>!nouveauRdv(r)); if(aReporter.length!==avant){ try{ localStorage.setItem("rdv_a_reporter",JSON.stringify(aReporter)); }catch(_){} }
   const absentIds=aReporter.map(r=>r.id);
   const tous=(data?data.rdv:[]).filter(e=>!sansMetre.includes(e.id) && !absentIds.includes(e.id)), masques=tous.filter(e=>passe(e)&&!dejaFait(e)), L=S.agTous?tous:tous.filter(e=>!masques.includes(e));
-  z2.innerHTML=`<div class="row" style="margin-bottom:8px"><h2 style="margin:0">Mes rendez-vous</h2><span class="spacer"></span>
-      <span class="hint">${data?"Agenda lu à "+new Date(data.le).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}):""}</span>
-      <button class="btn small" id="agMaj">${data?"Actualiser":"Afficher mes rendez-vous"}</button></div>
+  /* 26/11/2026 (choix A de Nicolas) : une ligne par rendez-vous ; itinéraire / appel en icônes, « + Métré » ou « Ouvrir », le reste dans ⋯ */
+  z2.innerHTML=`<div class="row" style="margin-bottom:4px;gap:8px"><h2 style="margin:0">Mes rendez-vous</h2><span class="hint">${L.length?"· "+L.length+" sur 8 jours":""}</span><span class="spacer"></span>
+      <span class="hint" style="font-size:12px">${data?"lu à "+new Date(data.le).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}):""}</span>
+      <button class="btn small${data?" rdvl-ic":""}" id="agMaj" title="Relire l'agenda Google" aria-label="Actualiser les rendez-vous">${data?"↻":"Afficher mes rendez-vous"}</button></div>
     ${aReporter.length?`<div class="rdv-areporter" style="background:#fff4e5;border:2px solid #e8a33d;border-radius:10px;padding:8px 12px;margin-bottom:10px">
       <b style="color:#a35b00">🚪 À reporter (client absent)</b>${aReporter.map((r,j)=>`<div class="row" style="gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
         <span><b>${esc(r.nom||"Client")}</b> <span class="hint">– RDV du ${esc(new Date(r.debut).toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"}))}${r.journee?"":" à "+esc(new Date(r.debut).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}))}, absent</span></span>
         <span class="spacer"></span>${r.tel?`<a class="btn small" href="tel:${esc(String(r.tel).replace(/[^\d+]/g,""))}">Appeler</a>`:""}<button class="btn small" data-agrep="${j}">✓ Reporté</button></div>`).join("")}
       <div class="hint" style="margin-top:4px">Disparaît tout seul dès qu'un nouveau rendez-vous à ce nom est dans ton agenda.</div></div>`:""}
     ${err?`<p class="hint" style="color:var(--err)">${esc(err)}${/403/.test(err)?" – autorisation Google à redonner (bouton Actualiser).":""}</p>`:""}
-    ${L.length?`<div class="rdv-liste">${L.map((e,k)=>{ const f=dejaFait(e), i=infosRdv(e);
-      return `<div class="rdv"><div class="rdv-h">${esc(jour(e.debut))}${e.journee?"":" · "+new Date(e.debut).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</div>
-        <div class="t">${esc(i.nom)}</div><div class="s">${esc(i.projet||"")}</div><div class="s">${esc(e.lieu)}</div>
-        <div class="row" style="gap:6px;margin-top:6px">${f?`<button class="btn small" data-agouv="${f.id}">Ouvrir le métré</button>`:`<button class="btn small primary" data-agnew="${k}">+ Créer le métré</button>`}
-        ${e.lieu?`<button class="btn small" data-agnav="${k}">Itinéraire</button>`:""}${i.tel?`<a class="btn small" href="tel:${esc(i.tel.replace(/[^\d+]/g,""))}">Appeler</a>`:""}<button class="btn small" data-agabs="${k}" title="Le client n'était pas là : à reporter">🚪 Client absent</button>${f?"":`<button class="btn small" data-agsans="${k}" title="Retirer ce rendez-vous de la liste (l'agenda Google n'est pas modifié)">✕ Pas de métré</button>`}</div></div>`; }).join("")}</div>`
+    ${L.length?`<div class="rdvl">${L.map((e,k)=>{ const f=dejaFait(e), i=infosRdv(e), jr=jour(e.debut);
+      return `<div class="rdvl-r"><span class="rdvl-h">${esc(jr.length>12?new Date(e.debut).toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"}):jr)}${e.journee?"":" "+new Date(e.debut).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</span>
+        <b class="rdvl-n">${esc(i.nom||"Client")}</b><span class="rdvl-s">${esc([i.projet,e.lieu&&String(e.lieu).split(",").slice(-1)[0].trim()].filter(Boolean).join(" · "))}</span>
+        ${e.lieu?`<button class="btn small rdvl-ic" data-agnav="${k}" title="Itinéraire : ${esc(e.lieu)}" aria-label="Itinéraire">📍</button>`:""}${i.tel?`<a class="btn small rdvl-ic" href="tel:${esc(i.tel.replace(/[^\d+]/g,""))}" title="Appeler ${esc(i.tel)}" aria-label="Appeler">📞</a>`:""}
+        ${f?`<button class="btn small" data-agouv="${f.id}">Ouvrir</button>`:`<button class="btn small primary" data-agnew="${k}">+ Métré</button>`}
+        <details class="rdvl-plus"><summary class="btn small rdvl-ic" title="Autres actions" aria-label="Autres actions">⋯</summary><div class="rdvl-menu">
+          <button class="btn small" data-agabs="${k}" title="Le client n'était pas là : à reporter">🚪 Client absent</button>${f?"":`<button class="btn small" data-agsans="${k}" title="Retirer ce rendez-vous de la liste (l'agenda Google n'est pas modifié)">✕ Pas de métré</button>`}</div></details></div>`; }).join("")}</div>`
       : data?`<p class="hint">Aucun rendez-vous client à venir dans les 8 prochains jours.</p>`:`<p class="hint">Touche « Afficher mes rendez-vous » pour lire ton agenda Google.</p>`}
     ${masques.length?`<p class="hint" style="margin:8px 0 0">${S.agTous?`${masques.length} rendez-vous passé(s) sans métré affiché(s) · <a href="#" id="agTous">les masquer</a>`:`${masques.length} rendez-vous passé(s) sans métré masqué(s) · <a href="#" id="agTous">afficher</a>`}</p>`:""}`;
   if($("#agTous")) $("#agTous").onclick=ev=>{ ev.preventDefault(); S.agTous=!S.agTous; afficherAgenda(false); };
-  $("#agMaj").onclick=()=>{ $("#agMaj").textContent="Lecture…"; afficherAgenda(true); };
+  $("#agMaj").onclick=()=>{ $("#agMaj").textContent="…"; afficherAgenda(true); };
   $$("[data-agnew]").forEach(b=>b.onclick=async()=>{ b.textContent="Création…"; const base=await metreDepuisRdv(L[+b.dataset.agnew]); b.textContent="+ Créer le métré";
     const d=await nouveauRendezVous({nom:base.client.nom, base, crm:false}); if(d) toast("Métré créé depuis l'agenda"+(d.crm?" et le CRM":"")); });
   $$("[data-agouv]").forEach(b=>b.onclick=()=>{ S.dossier=ds.find(d=>d.id===b.dataset.agouv); normaliser(S.dossier); S.tab="client"; renderDossier(); });

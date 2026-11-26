@@ -787,6 +787,14 @@ function garderMesures(d, anciennes){
   if(n && S.view==="dossier") renderDossier(); return n;
 }
 const cotesARecontroler=o=>o&&o.reprise&&!o.reprise.ok ? COTE_CLES(o).filter(k=>{ const m=k.match(/^cotes\.([LH])\.(\d)$/); if(m&&!coteUtile(o,+m[2],m[1])) return false; const v=String(valCle(o,k)??""); return k in o.reprise.champs ? v===o.reprise.champs[k] : v.trim()===""; }) : [];   // toutes les cotes (23/11)
+/* 26/11/2026 : volet roulant de la menuiserie détaillé ligne par ligne sur le PDF (pour les secrétaires qui tapent le devis) */
+function lignesVRPDF(d,o){ const l=vrLie(d,o); if(!l) return []; if(!l.avec_menuiserie) return [["Volet roulant","Oui"]];
+  const typ=String(l.avec_menuiserie).replace(/\s*\(([^)]*)\)\s*/," – $1").trim(), ch=l.coffre_hauteur&&!String(l.avec_menuiserie).includes(l.coffre_hauteur)?l.coffre_hauteur:"";
+  const fil=[l.fil_coffre&&("sortie de fil "+String(l.fil_coffre).toLowerCase()), l.fil_droite&&"sortie de fil à droite", l.fil_gauche&&"sortie de fil à gauche"].filter(Boolean).join(", ");
+  return [["Volet roulant",[typ,ch].filter(Boolean).join(" – ")],["Vendu avec la menuiserie","Oui"],["Coffre",l.couleur_coffre||""],["Coulisses",l.couleur_coulisses||""],["Tablier",l.couleur_tablier||""],
+    ["Motorisation",[l.manoeuvre_menuis,fil].filter(Boolean).join(" – ")],["Option volet",l.option||""]]; }
+/* hauteur du coffre : choix « coffre compris… » puis le texte du volet intégré (ex. Laloi « hauteur 205 mm »), sinon 195 */
+const hauteurCoffreVR = l => { const m=String((l&&l.coffre_hauteur)||"").match(/(\d{2,4})\s*mm/) || String((l&&l.avec_menuiserie)||"").match(/(\d{2,4})\s*mm/); return m?+m[1]:null; };
 function normaliser(d){ (d.vr&&d.vr.lignes||[]).forEach(l=>{ ["avec_menuiserie","coffre_hauteur"].forEach(k=>{ if(/hauteur 168 mm/.test(l[k]||"")) l[k]=l[k].replace("hauteur 168 mm","hauteur 205 mm"); }); });   // LALOI : toujours coffre 205 (Nicolas, 18/11/2026)
   migrerPose(d); try{ migrerPoseParties(d); }catch(e){} (d.ouvertures||[]).forEach(o=>["fermeture","profil"].forEach(k=>{ if(typeof o[k]==="string" && /G63|G75/.test(o[k])) o[k]=o[k].replace("6 points","5 points"); }));   /* 26/11/2026 : GardenGate G63/G75 = serrure 5 points */
   (d.ouvertures||[]).forEach(o=>["poignee_modele","poignee","accessoires_poignee"].forEach(k=>{ if(typeof o[k]==="string" && /F9$/.test(o[k])) o[k]=o[k]+" (inox)"; })); if(d.vb) migrerVB(d.vb); d.ouvertures.forEach(nettoyerOuv); if(!d.vr) d.vr=nouveauVR(); d.ouvertures.forEach(migrerObs); d.ouvertures.forEach(o=>{ if(o.semi_fixe && modeleDe(o) && !aSemiFixe(o)) o.semi_fixe=""; }); d.ouvertures.forEach(o=>{ o.comp=Object.assign(COMP_VIDE(), o.comp||{}); }); if(d.clim && !d.clim.tableau) d.clim.tableau={img:"",txt:"",place:""}; d.ouvertures.forEach(o=>{ o.gc=Object.assign(GC_VIDE(), o.gc||{}); o.erp=Object.assign(ERP_VIDE(), o.erp||{}); }); d.ouvertures.forEach((o,i)=>{ if(o.num_poseur===undefined) o.num_poseur=String(i+1); if(!Array.isArray(o.photos)) o.photos=[]; }); d.ouvertures.forEach(o=>repriseCotes(o,d)); if(!d.equipe_pose && d.vr.equipe) d.equipe_pose={"Seul":"Tout seul"}[d.vr.equipe]||d.vr.equipe; d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
@@ -1709,7 +1717,7 @@ function controleLigneVR(l, v){
   if(!vrUsine(l)&&vrMotorise(l,v)&&!vrSolaire(l,v)&&!l.electricite) W.push("Électricité non renseignée (VR motorisé)");
   if(l.avec_menuiserie && !l.manoeuvre_menuis) W.push("Manœuvre du volet (vendu avec la menuiserie) non choisie");
   if(l.ps_deporte && vrSolaire(l,v)){ if(num(l.ps_dist)==null) W.push("Panneau solaire déporté : distance de déport à préciser"); if(!l.ps_cote) W.push("Panneau solaire déporté : côté à préciser"); if(!l.ps_empl) W.push("Panneau solaire déporté : emplacement à préciser"); if(/^Autre/.test(l.ps_empl||"") && !l.ps_prec) W.push("Panneau solaire déporté : préciser l'emplacement « Autre »"); }
-  if(l.avec_menuiserie && !l.coffre_hauteur) E.push("Préciser si le coffre (195 mm) est compris dans la hauteur");
+  if(l.avec_menuiserie && !l.coffre_hauteur && !/compris|en plus/i.test(l.avec_menuiserie)) E.push("Préciser si le coffre est compris dans la hauteur");
   if(!vrUsine(l)&&!l.depose) W.push("Dépose à faire non renseignée");
   return {E,W};
 }
@@ -2720,7 +2728,7 @@ function dessinMenuiserie(o, opt={}){
   /* coffre de volet roulant vendu avec la menuiserie : dessiné au-dessus, la GV va dessus */
   const dos=opt.d||S.dossier, vr=dos&&dos.vr?vrLie(dos,o):null, coffre=!!(vr&&vr.avec_menuiserie);
   const Hm=Math.round(W*ratio);
-  const CH = coffre ? Math.round(Math.min(60,Math.max(26,(W-2*P)*ratio*195/(Hr||1350)))) : 0;
+  const CH = coffre ? Math.round(Math.min(60,Math.max(26,(W-2*P)*ratio*((typeof hauteurCoffreVR==="function"&&hauteurCoffreVR(vr))||195)/(Hr||1350)))) : 0;
   const H=Hm+CH, X0=P, Y0=P+CH, X1=W-P, Y1=H-P;
   let s="";
   if(coffre){ s+=`<rect x="${X0}" y="${P}" width="${X1-X0}" height="${CH}" fill="#eef1f6" stroke="${NAVY}" stroke-width="3"/>`
@@ -2875,7 +2883,7 @@ function dessinMenuiserie(o, opt={}){
   const COT="#d3232f";
   const fabL=num(f.L), fabH=num(f.H), estFab=fabL!=null||fabH!=null;
   const vL = fabL ?? Lr, vH = fabH ?? Hr;
-  const hC = coffre ? (num(String(vr.coffre_hauteur||"").match(/(\d{2,4})\s*mm/)?.[1]) ?? 195) : null;
+  const hC = coffre ? ((typeof hauteurCoffreVR==="function" ? hauteurCoffreVR(vr) : null) ?? 195) : null;   // 26/11 : 205 mm du volet intégré Laloi (avant : 195 par défaut)
   const sbCote = sbY!=null && sbMM!=null;
   const enc = typeof seuilEncastre==="function" && seuilEncastre(o) && vH!=null;
   const ML = (coffre||sbCote ? 50 : 8)+(enc ? (coffre||sbCote ? 44 : 50) : 0), MR = (coffre ? 96 : 50)+(enc ? 46 : 0)+(o.comp&&o.comp.type&&num(o.comp.h)!=null ? 48 : 0), erpTxt0 = typeof porteERP==="function" && porteERP(o) ? [o.erp.sens===ERP_SENS[0]&&"OUVERTURE EXT.", o.erp.ap&&"anti-panique", o.erp.groom&&"groom"].filter(Boolean).join(" · ") : "", erpTxt = erpTxt0, ch = typeof compH==="function" ? compH(o) : null, cCompris = ch!=null && compCompris(o), hCp = ch!=null && vH ? Math.max(14, Math.round((Y1-Y0)*ch/vH)) : 0, exB = ch!=null && !cCompris ? hCp : 0, MB = 58 + (erpTxt?18:0) + exB + (o.elarg&&Object.values(o.elarg).some(v=>/\d/.test(v||""))?16:0);
@@ -7401,7 +7409,7 @@ function construireImpression(d){
           return `<tr><th>Départ du cintre</th><td>${R(r.Hm)}</td></tr><tr><th>Flèche</th><td>${R(r.f)}</td></tr>${r.fab&&r.fab.Hm!=null?`<tr class="pfabr"><th>DÉPART CINTRE FAB.</th><td>${R(r.fab.Hm)}</td></tr><tr class="pfabr"><th>FLÈCHE FAB.</th><td>${R(r.fab.f)}</td></tr>`:""}`; })():"")
         +`</table>`).join("")}</div>`}
       ${texteElarg(o)?`<div class="pelarg">Élargisseurs : <b>${esc(texteElarg(o))}</b></div>`:""}
-      ${(()=>{const l=vrLie(d,o); return l&&l.avec_menuiserie?`<div class="pelarg">${esc(l.avec_menuiserie)} : <b>${esc(l.coffre_hauteur||"coffre compris dans la hauteur ? À PRÉCISER")}</b></div>`:"";})()}
+      
       </div><div>
       ${modeleDe(o)?`<div class="pmod">${imgModele(modeleDe(o),o.gamme)}<b>${esc(modeleDe(o).nom)}</b></div>`:""}
       <table class="pt">${row([["Type de pose",libellePose(o)],["Quantité",o.quantite],["Produit et gamme",o.gamme],["Profil / essence",[o.profil,o.essence].filter(Boolean).join(" – ")],["Couleur int.",texteCouleur(o,"int")],["Couleur ext.",texteCouleur(o,"ext")],["Dormant / aile",[o.dormant_aile, aileRecouvrement(o)&&o.delignage?"délignage : "+o.delignage.toLowerCase():""].filter(Boolean).join(" – ")],
@@ -7409,8 +7417,7 @@ function construireImpression(d){
         ["Vantaux G·M·D",[o.vantaux.G,o.vantaux.M,o.vantaux.D].some(Boolean)?[o.vantaux.G,o.vantaux.M,o.vantaux.D].map(x=>x||"–").join(" · "):""],["Sens vue intérieure",sensInterieur(o)],["Sens vue extérieure",sensExterieurPDF(o)],["Oculus vitré",texteOculus(o)],["Cintre",texteCintre(o)],["Vitrage",[o.vitrage,o.teinte,o.clair_voulu&&"clair à la demande du client",o.intercalaire&&"intercalaire "+o.intercalaire].filter(Boolean).join(" – ")],["Petits bois",textePB(o)],
         ["Appui bas",o.appui_bas===DORMANT_PERI?"Dormant en périphérique (sans appui)":o.appui_bas],["Seuil",[o.seuil_std&&"Alu standard",o.seuil_plat&&"Alu PLAT",seuilEncastre(o)&&"ENCASTRÉ 4 cm (+40 mm compris dans la hauteur de fabrication)"].filter(Boolean)],["Serrure à pêne",o.serrure],["Cylindre",o.cylindre],["Clé",texteCle(d,o)],["Fermeture semi-fixe",o.semi_fixe],["Soubassement",[o.sb&&o.sb+" mm",o.sb_type].filter(Boolean).join(" – ")],["Poignée",[o.poignee,o.poignee_modele].filter(Boolean).join(" – ")],["Fermeture",o.fermeture],["Oscillo-battant",sansOB(o)?"":o.ob_type],["Ferrage",o.ferrage],["Seuil fournisseur",o.seuil_type],["Modèle de porte",modelePorteTexte(o)],["GV",o.gv],["Allège",o.allege],["Imposte",[o.imposte,o.imposte_type].filter(Boolean).join(" – ")],["Accessoires",o.accessoires],["Garde-corps",texteGC(o)],["Accès public (ERP)",texteERP(o)],["Compensateur",texteComp(o)],["Appui",o.gc&&num(o.gc.appui_h)!=null?`${o.gc.appui_h} mm du sol${o.gc.etage?" · étage":""}${o.gc.zsp&&o.gc.zsp_h?` · radiateur/marche ${o.gc.zsp_h} mm`:""}`:""]])}</table></div><div>
       <table class="pt">${row([
-        ["Volet roulant",(()=>{const l=vrLie(d,o); if(!l) return ""; const det=vrUsine(l)?[VR_COUL.filter(([c])=>l[c]).map(([c,lab])=>lab.replace("Couleur ","")+" "+l[c]).join(" · "), l.fil_coffre&&("sortie de fil "+l.fil_coffre.toLowerCase()), l.option].filter(Boolean).join(" – "):"";
-          return `Oui${l.avec_menuiserie?` – ${l.avec_menuiserie}, vendu avec la menuiserie${l.manoeuvre_menuis?" ("+l.manoeuvre_menuis+")":""}`:""}${det?" – "+det:""}`;})()],
+        ...lignesVRPDF(d,o),
         ["Finitions int.",texteFinitions(o,"int").join(" + ")],["Finitions ext.",texteFinitions(o,"ext").join(" + ")],["Chantier",o.observations],["Support",o.support],["Note devis",o.obs_libre],["Note poseurs",o.obs_pose]])}</table>
       <div class="pst" style="margin-top:6px">DESSIN <small>– vue de l'intérieur</small></div>${dessinMenuiserie(o,{cls:"pdessin"+(o.croquis?" pdpetit":"")})}
       ${o.croquis?`<div class="pst" style="margin-top:6px">CROQUIS</div><img class="pimg pcroq" src="${o.croquis}">`:""}

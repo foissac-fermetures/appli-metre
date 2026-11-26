@@ -788,6 +788,13 @@ html.resa-open{overflow:hidden}
 .rdvlieu{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:.9rem}.rdvlieu label{display:flex!important;flex-direction:row!important;gap:6px;align-items:center}.rdvlieu input{width:auto}
 .kpib{font:inherit;color:inherit;text-align:left;cursor:pointer;border:1px solid var(--line)}.kpib:hover{border-color:var(--kc)}.kpib.on{outline:3px solid var(--kc);outline-offset:-1px;background:color-mix(in srgb,var(--kc) 10%,var(--panel))}
 .pfrdv{display:grid;gap:8px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--soft)}.pfrg{display:flex;gap:10px;flex-wrap:wrap}.pfrg label{display:grid;gap:4px;flex:1;min-width:120px}.pfrdv>label{display:grid;gap:4px}
+.dbtools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}.dbtools .seg{display:inline-flex;gap:4px}
+.dashwrap{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}.dbk{grid-column:1/-1;position:relative;min-width:0;display:grid;gap:6px}.dbk-half{grid-column:auto}.dbk>section,.dbk>div:not(.dbk-bar){min-width:0;margin:0!important}.dbk-empty{display:none!important}
+.dbk-fb{position:absolute;top:-11px;right:14px;z-index:2;border:1px solid var(--line);background:var(--panel);color:var(--muted);font:inherit;font-size:.75rem;line-height:1;cursor:pointer;padding:3px 8px;border-radius:999px}.dbk-fb:hover{color:inherit;border-color:var(--accent)}
+.dbk-fold>*:not(.dbk-bar){display:none!important}.dbk-fold .dbk-fb{position:static;font-size:.92rem;width:100%;text-align:left;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);font-weight:600;color:inherit}
+.dbk-bar:empty{display:none}.dbk:has(> .dbk-bar .dbk-act){outline:2px dashed color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:4px;border-radius:12px}.dbk-bar:has(.dbk-act){display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 10px;border-radius:10px;background:color-mix(in srgb,var(--accent) 12%,var(--panel));cursor:grab}.dbk-act{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}.dbk-grip{font-size:1.2rem;color:var(--muted)}
+.dbk-off>*:not(.dbk-bar){opacity:.35}.dbk-drag{opacity:.5}.dbx .hd{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}.dbx-b{padding:4px 16px 14px;display:grid;gap:6px}.dbx-l{margin:0;padding-left:18px;display:grid;gap:4px}.dbx-n{font-size:.92rem}
+@media (max-width:820px){.dashwrap{grid-template-columns:1fr}.dbk-half{grid-column:1/-1}}
 .tri-set{display:grid;gap:10px;padding:4px 16px 16px}.tri-set label{display:grid;gap:4px}.tri-set label.tri-ck{display:flex}.tri-base{font-size:.85rem;color:var(--muted);line-height:1.5}
 .mlist{display:grid}.mrow{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:4px 12px;padding:12px 16px;border-top:1px solid var(--line);align-items:start}
 .mrow.unread .msub{font-weight:800}.mav{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;background:var(--mc,#64748b);font-size:1rem}
@@ -1047,19 +1054,25 @@ h2{text-transform:none;letter-spacing:0;font-weight:800;font-size:1.12rem}
   </div>
 
   <div id="v-dash" hidden>
-    <section class="panel hj" id="dday" aria-label="Ma journée"></section>
-    <section class="panel hj" id="dmyweek" aria-label="Mon planning de la semaine"></section>
-    <section class="panel hj" id="dposeurs" aria-label="Mes poseurs"></section>
-    <section class="panel hj" id="dcock" aria-label="Le cockpit"></section>
-    <div id="dalert"></div>
-    <section class="dtiles" id="dtiles" aria-label="Chiffres clés" hidden></section>
-    <div class="dgrid" hidden>
-      <section class="panel dcard" aria-label="Chiffre d'affaires signé par mois"><div class="hd"><h2>CA signé par mois</h2><span class="sub">HT, d'après le récap des ventes</span></div><div class="dbody" id="dmonths"></div></section>
-      <section class="panel dcard" aria-label="Dossiers par statut"><div class="hd"><h2>Où en sont mes dossiers</h2><span class="sub" id="dstn"></span></div><div class="dbody" id="dstatus"></div></section>
-      <section class="panel dcard" aria-label="Chantiers en cours"><div class="hd"><h2>Chantiers en cours</h2><span class="sub" id="dchn"></span></div><div class="dbody" id="dchan"></div></section>
-      <section class="panel dcard" aria-label="Plus gros devis en jeu"><div class="hd"><h2>Plus gros devis en jeu</h2><span class="sub">à relancer, en attente ou positifs</span></div><div class="dbody" id="dtop"></div></section>
-      <section class="panel dcard" aria-label="D'où viennent les clients"><div class="hd"><h2>D'où viennent mes clients</h2><span class="sub">colonne « connaissance » du suivi des FIC</span></div><div class="dbody" id="dsrc"></div></section>
-      <section class="panel dcard" aria-label="Cette semaine"><div class="hd"><h2>Cette semaine</h2><span class="sub" id="dweekn"></span></div><div class="dbody" id="dweek"></div></section>
+    <div class="dbtools" id="dbtools"></div>
+    <div class="dashwrap" id="dashwrap">
+    <div class="dbk" data-dbk="day"><section class="panel hj" id="dday" aria-label="Ma journée"></section></div>
+    <div class="dbk" data-dbk="myweek"><section class="panel hj" id="dmyweek" aria-label="Mon planning de la semaine"></section></div>
+    <div class="dbk" data-dbk="poseurs"><section class="panel hj" id="dposeurs" aria-label="Mes poseurs"></section></div>
+    <div class="dbk" data-dbk="cock"><section class="panel hj" id="dcock" aria-label="Le cockpit"></section></div>
+    <div class="dbk" data-dbk="alert"><div id="dalert"></div></div>
+    <div class="dbk" data-dbk="xmail"><section class="panel dbx"></section></div>
+    <div class="dbk" data-dbk="xrel"><section class="panel dbx"></section></div>
+    <div class="dbk" data-dbk="xrdv"><section class="panel dbx"></section></div>
+    <div class="dbk" data-dbk="xpay"><section class="panel dbx"></section></div>
+    <div class="dbk" data-dbk="xtask"><section class="panel dbx"></section></div>
+    <div class="dbk" data-dbk="tiles"><section class="dtiles" id="dtiles" aria-label="Chiffres clés"></section></div>
+    <div class="dbk" data-dbk="ca"><section class="panel dcard" aria-label="Chiffre d'affaires signé par mois"><div class="hd"><h2>CA signé par mois</h2><span class="sub">HT, d'après le récap des ventes</span></div><div class="dbody" id="dmonths"></div></section></div>
+    <div class="dbk" data-dbk="stat"><section class="panel dcard" aria-label="Dossiers par statut"><div class="hd"><h2>Où en sont mes dossiers</h2><span class="sub" id="dstn"></span></div><div class="dbody" id="dstatus"></div></section></div>
+    <div class="dbk" data-dbk="chan"><section class="panel dcard" aria-label="Chantiers en cours"><div class="hd"><h2>Chantiers en cours</h2><span class="sub" id="dchn"></span></div><div class="dbody" id="dchan"></div></section></div>
+    <div class="dbk" data-dbk="top"><section class="panel dcard" aria-label="Plus gros devis en jeu"><div class="hd"><h2>Plus gros devis en jeu</h2><span class="sub">à relancer, en attente ou positifs</span></div><div class="dbody" id="dtop"></div></section></div>
+    <div class="dbk" data-dbk="src"><section class="panel dcard" aria-label="D'où viennent les clients"><div class="hd"><h2>D'où viennent mes clients</h2><span class="sub">colonne « connaissance » du suivi des FIC</span></div><div class="dbody" id="dsrc"></div></section></div>
+    <div class="dbk" data-dbk="week"><section class="panel dcard" aria-label="Cette semaine"><div class="hd"><h2>Cette semaine</h2><span class="sub" id="dweekn"></span></div><div class="dbody" id="dweek"></div></section></div>
     </div>
   </div>
 
@@ -5034,9 +5047,65 @@ function renderCockpit(){ const el = $("#dcock"); if (!el) return;
   const b = $("#ckobj"); if (b) b.onclick = () => { const box = document.createElement("span"); box.innerHTML = `<input type="number" id="ckv" min="0" step="1000" style="width:110px" value="${obj || ""}" placeholder="60000"> <button class="btn sm" type="button" id="ckok">OK</button>`; b.replaceWith(box); $("#ckv").focus();
     $("#ckok").onclick = async () => { const v = Math.round(+$("#ckv").value || 0); if (!db || !canWrite) { toast("Enregistrement impossible dans cette vue"); return; } try { await db.doc("meta/cockpit").set({ obj: v || null, updated: new Date().toISOString() }); cockObj = v || null; toast("Objectif enregistré"); renderCockpit(); } catch(_){ toast("Pas enregistré"); } }; };
 }
-function renderDash(){
+/* ===== Tableau de bord à organiser soi-même : ordre, masquer, largeur, replier, blocs en plus, 2 dispositions ===== */
+const DB_BLOCKS = [["day", "Ma journée"], ["myweek", "Mon planning de la semaine"], ["poseurs", "Mes poseurs"], ["cock", "Le résumé (cockpit)"], ["alert", "Alertes"],
+  ["xmail", "📧 Mails à traiter"], ["xrel", "🔁 Relances du jour"], ["xrdv", "📅 RDV à prendre"], ["xpay", "💶 Paiements en retard"], ["xtask", "✅ Mes tâches du jour"],
+  ["tiles", "Chiffres clés"], ["ca", "CA signé par mois"], ["stat", "Où en sont mes dossiers"], ["chan", "Chantiers en cours"], ["top", "Plus gros devis en jeu"], ["src", "D'où viennent mes clients"], ["week", "Cette semaine"]];
+const DB_DEF = { bureau: { order: DB_BLOCKS.map(b => b[0]), hidden: ["xmail", "xrel", "xrdv", "xpay", "xtask", "tiles", "ca", "stat", "chan", "top", "src", "week"], half: [] },
+  terrain: { order: ["day", "xrdv", "xtask", "xrel", "xmail", "xpay", "alert", "myweek", "poseurs", "cock", "tiles", "ca", "stat", "chan", "top", "src", "week"], hidden: ["poseurs", "cock", "tiles", "ca", "stat", "chan", "top", "src", "week", "myweek"], half: [] } };
+let dbCfg = { lay: "bureau", L: JSON.parse(JSON.stringify(DB_DEF)), fold: [] }, dbEdit = false;
+const dbLay = () => { const L = dbCfg.L[dbCfg.lay] || JSON.parse(JSON.stringify(DB_DEF[dbCfg.lay] || DB_DEF.bureau)); const all = DB_BLOCKS.map(b => b[0]); L.order = L.order.filter(k => all.includes(k)).concat(all.filter(k => !L.order.includes(k))); L.hidden = L.hidden || []; L.half = L.half || []; return L; };
+async function dbSave(){ try { localStorage.setItem("crm-tdb", JSON.stringify(dbCfg)); } catch(_){} if (db && canWrite) { try { await db.doc("meta/tableau_bord").set(dbCfg); } catch(_){} } }
+function dbExtra(k){ const t = iso(today()), go = (v, h) => `<button class="btn sm" type="button" data-dbgo="${v}" data-h="${h}">Ouvrir l'onglet</button>`, li = (L, f) => L.length ? `<ul class="dbx-l">${L.slice(0, 5).map(f).join("")}</ul>${L.length > 5 ? `<span class="sub">… et ${L.length - 5} de plus</span>` : ""}` : `<span class="sub">Rien pour l'instant 👍</span>`;
+  const nm = r => `<button class="lnk" type="button" data-id="${esc(r.id)}">${esc(r.client)}</button>`;
+  if (k === "xmail") { let R = null; try { R = triSort(mailsList.filter(m => !MAIL_ME.test(mailAddr(m.from).a)).map(m => mailAna(m))); } catch(_){}
+    return [R ? R.tt.length : 0, R ? `<div class="dbx-n"><b>${R.tt.length}</b> à traiter · <b>${R.cr.length}</b> compte${R.cr.length > 1 ? "s" : ""} rendu${R.cr.length > 1 ? "s" : ""} · <b>${R.eq.length}</b> pris en charge</div>${li(R.tt, o => `<li><b>${esc(triWho(o))}</b> · ${esc(o.m.subject || "")}</li>`)}` : `<span class="sub">Ouvre l'onglet Mails et clique Actualiser.</span>`, go("mail", "#mails")]; }
+  if (k === "xrel") { const L = rows.filter(r => { const d = due(r); return d && d <= t; }).sort((a, b) => (relRef(a) || "9").localeCompare(relRef(b) || "9"));
+    return [L.length, li(L, r => `<li>${nm(r)} <span class="sub">${amount(r) != null ? eur(amount(r)) : ""}${relRef(r) ? " · devis du " + fd(relRef(r)) : ""}</span></li>`), go("pros", "#prospection")]; }
+  if (k === "xrdv") { let L = []; try { L = rdvTodo().filter(x => !attenteOf(x.r) && !(x.kind === "premier" && x.since && -diffDays(x.since) > RDV_RECENT_J)); } catch(_){}
+    const p = L.filter(x => x.kind === "premier").length; return [L.length, `<div class="dbx-n"><b>${p}</b> 1er${p > 1 ? "s" : ""} RDV · <b>${L.length - p}</b> métré${L.length - p > 1 ? "s" : ""} définitif${L.length - p > 1 ? "s" : ""}</div>` + li(L, x => `<li>${nm(x.r)} <span class="sub">${x.kind === "premier" ? "1er RDV" : "métré définitif"} · ${esc(x.r.lieu || "")}</span></li>`), go("rdv", "#rendez-vous")]; }
+  if (k === "xpay") { let L = []; try { L = payItems().filter(x => !x.wait).sort((a, b) => (b.late - a.late) || b.days - a.days); } catch(_){}
+    return [L.length, li(L, x => `<li>${nm(x.r)} <span class="sub">${x.solde ? "solde" : "acompte"} · ${x.days} j${x.late ? " · promesse dépassée" : ""}</span></li>`), go("pay", "#relance-paiement")]; }
+  if (k === "xtask") { const L = tOpen().filter(x => !x.due || x.due <= t).sort((a, b) => String(a.due || "").localeCompare(String(b.due || "")));
+    return [L.length, li(L, x => `<li>${x.rid && tRow(x) ? nm(tRow(x)) + " · " : ""}${esc(tLabel(x))}${x.due && x.due < t ? ` <span class="sub" style="color:var(--s-lost)">en retard</span>` : ""}</li>`), go("taches", "#taches")]; }
+  return [0, "", ""]; }
+function dashLayout(){ const W = $("#dashwrap"); if (!W) return; const L = dbLay(), lab = Object.fromEntries(DB_BLOCKS);
+  ["xmail", "xrel", "xrdv", "xpay", "xtask"].forEach(k => { const b = W.querySelector(`[data-dbk="${k}"] .dbx`); if (!b || (L.hidden.includes(k) && !dbEdit)) return; const [n, h, g] = dbExtra(k); b.innerHTML = `<div class="hd"><h2>${esc(lab[k])} <span class="cnt">${n}</span></h2>${g}</div><div class="dbx-b">${h}</div>`; b.dataset.n = n; });
+  L.order.forEach(k => { const el = W.querySelector(`[data-dbk="${k}"]`); if (!el) return; W.appendChild(el);
+    el.hidden = L.hidden.includes(k) && !dbEdit; el.classList.toggle("dbk-off", L.hidden.includes(k)); el.classList.toggle("dbk-half", L.half.includes(k)); el.classList.toggle("dbk-fold", (dbCfg.fold || []).includes(k) && !dbEdit);
+    let bar = el.querySelector(":scope > .dbk-bar"); if (!bar) { bar = document.createElement("div"); bar.className = "dbk-bar"; el.prepend(bar); }
+    bar.innerHTML = dbEdit ? `<span class="dbk-grip" title="Glisse pour déplacer">⠿</span><b>${esc(lab[k])}</b>${L.hidden.includes(k) ? `<span class="sub">(masqué)</span>` : ""}<span class="dbk-act"><button type="button" class="btn sm" data-dbup="${k}" aria-label="Monter">↑</button><button type="button" class="btn sm" data-dbdn="${k}" aria-label="Descendre">↓</button><button type="button" class="btn sm" data-dbw="${k}">${L.half.includes(k) ? "⇔ Pleine largeur" : "⇹ Demi-largeur"}</button><button type="button" class="btn sm" data-dbh="${k}">${L.hidden.includes(k) ? "👁 Afficher" : "🙈 Masquer"}</button></span>`
+      : `<button type="button" class="dbk-fb" data-dbf="${k}" title="${(dbCfg.fold || []).includes(k) ? "Déplier" : "Replier"}" aria-label="${(dbCfg.fold || []).includes(k) ? "Déplier" : "Replier"} ${esc(lab[k])}">${(dbCfg.fold || []).includes(k) ? "▸ " + esc(lab[k]) + (el.querySelector(".dbx") && el.querySelector(".dbx").dataset.n ? " · " + el.querySelector(".dbx").dataset.n : "") : "▾"}</button>`;
+    el.draggable = dbEdit; const body = [...el.children].find(c => !c.classList.contains("dbk-bar")); el.classList.toggle("dbk-empty", !dbEdit && !!body && !body.innerHTML.trim() && !(dbCfg.fold || []).includes(k)); });
+  const tb = $("#dbtools"); if (tb) { const hid = L.hidden.filter(k => lab[k]);
+    tb.innerHTML = `<div class="seg" role="group" aria-label="Disposition">${[["bureau", "🖥️ Bureau"], ["terrain", "🚐 Terrain"]].map(([v, l]) => `<button type="button" class="btn sm ${dbCfg.lay === v ? "pri" : ""}" data-dblay="${v}" aria-pressed="${dbCfg.lay === v}">${l}</button>`).join("")}</div>
+      <button type="button" class="btn sm ${dbEdit ? "pri" : ""}" id="dbedit">${dbEdit ? "✓ Terminé" : "✏️ Organiser mon tableau de bord"}</button>
+      ${dbEdit ? `<button type="button" class="lnk sub" id="dbreset">Remettre comme avant</button><span class="sub">Glisse les blocs ou utilise ↑ ↓. ${hid.length ? hid.length + " bloc" + (hid.length > 1 ? "s masqués" : " masqué") + " (en gris)." : ""}</span>` : hid.length ? `<span class="sub">${hid.length} bloc${hid.length > 1 ? "s" : ""} masqué${hid.length > 1 ? "s" : ""}</span>` : ""}`; }
+  dashWire(); }
+function dashWire(){ const W = $("#dashwrap"), tb = $("#dbtools"); if (!W || W.dataset.w) return; W.dataset.w = 1;
+  const mv = (k, d) => { const L = dbLay(), i = L.order.indexOf(k); let j = i + d; while (j >= 0 && j < L.order.length && L.hidden.includes(L.order[j]) !== L.hidden.includes(k)) j += d; if (j < 0 || j >= L.order.length) return; L.order.splice(i, 1); L.order.splice(j, 0, k); dbCfg.L[dbCfg.lay] = L; dbSave(); dashLayout(); };
+  W.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; const L = dbLay();
+    if (b.dataset.dbup) mv(b.dataset.dbup, -1); else if (b.dataset.dbdn) mv(b.dataset.dbdn, 1);
+    else if (b.dataset.dbw) { const k = b.dataset.dbw; L.half = L.half.includes(k) ? L.half.filter(x => x !== k) : L.half.concat([k]); dbCfg.L[dbCfg.lay] = L; dbSave(); dashLayout(); }
+    else if (b.dataset.dbh) { const k = b.dataset.dbh; L.hidden = L.hidden.includes(k) ? L.hidden.filter(x => x !== k) : L.hidden.concat([k]); dbCfg.L[dbCfg.lay] = L; dbSave(); renderDash(); }
+    else if (b.dataset.dbf) { const k = b.dataset.dbf, F = dbCfg.fold || []; dbCfg.fold = F.includes(k) ? F.filter(x => x !== k) : F.concat([k]); dbSave(); dashLayout(); }
+    else if (b.dataset.dbgo) { goView(b.dataset.dbgo, b.dataset.h); }
+    else if (b.dataset.id && b.closest(".dbx")) { openDossier(b.dataset.id); } });
+  let drag = null;
+  W.addEventListener("dragstart", e => { const el = e.target.closest("[data-dbk]"); if (!dbEdit || !el) return; drag = el.dataset.dbk; el.classList.add("dbk-drag"); try { e.dataTransfer.setData("text/plain", drag); e.dataTransfer.effectAllowed = "move"; } catch(_){} });
+  W.addEventListener("dragover", e => { if (!drag) return; e.preventDefault(); });
+  W.addEventListener("drop", e => { if (!drag) return; e.preventDefault(); const el = e.target.closest("[data-dbk]"); const L = dbLay(); if (el && el.dataset.dbk !== drag) { const r = el.getBoundingClientRect(), after = e.clientY > r.top + r.height / 2; L.order = L.order.filter(x => x !== drag); const i = L.order.indexOf(el.dataset.dbk); L.order.splice(after ? i + 1 : i, 0, drag); dbCfg.L[dbCfg.lay] = L; dbSave(); } drag = null; dashLayout(); });
+  W.addEventListener("dragend", () => { drag = null; W.querySelectorAll(".dbk-drag").forEach(x => x.classList.remove("dbk-drag")); });
+  if (tb) tb.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
+    if (b.id === "dbedit") { dbEdit = !dbEdit; renderDash(); if (!dbEdit) toast("Tableau de bord enregistré"); }
+    else if (b.id === "dbreset") { dbCfg.L[dbCfg.lay] = JSON.parse(JSON.stringify(DB_DEF[dbCfg.lay])); dbCfg.fold = []; dbSave(); renderDash(); toast("Disposition « " + (dbCfg.lay === "bureau" ? "Bureau" : "Terrain") + " » remise comme avant"); }
+    else if (b.dataset.dblay) { dbCfg.lay = b.dataset.dblay; dbSave(); renderDash(); } }); }
+try { const c = JSON.parse(localStorage.getItem("crm-tdb") || "null"); if (c && c.L) dbCfg = Object.assign({ fold: [] }, c); } catch(_){}
+function renderDash(){ try { renderDashCore(); } finally { try { dashLayout(); } catch(e){ console.warn(e); } } }
+function renderDashCore(){
   try { renderDay(); } catch(e){ console.warn(e); } try { renderMyWeek(); } catch(e){ console.warn(e); } try { renderPoseurs(); } catch(e){ console.warn(e); } try { renderCockpit(); } catch(e){ console.warn(e); }
   if (!$("#v-dash")) return;
+  try { dashLayout(); } catch(e){ console.warn(e); }
   if (!rows.length) { $("#dtiles").innerHTML = `<div class="empty" style="grid-column:1/-1">Les chiffres s'affichent dès que les dossiers sont chargés.</div>`; return; }
   const t = iso(today()), t7 = addDays(t, 7);
   const sales = rows.flatMap(r => (r.vente || []).filter(v => !v.ann).map(v => ({ r, v })));
@@ -6314,6 +6383,7 @@ function rebuild(){
   db.doc("meta/rattach").onSnapshot(sn => { rattach = Object.assign({ f: {}, v: {} }, sn.exists ? sn.data() : {}); rebuild(); }, () => {});
   db.doc("meta/onglets").onSnapshot(sn => { if (!tabEdit) applyTabOrder(sn.exists ? (sn.data() || {}).order : null); }, () => {});
   db.doc("meta/listes").onSnapshot(sn => { const v = sn.exists ? sn.data() : {}; const j = JSON.stringify(v); if (j === listCfgJson) return; listCfg = v; listCfgJson = j; renderAll(); }, () => {});
+  db.doc("meta/tableau_bord").onSnapshot(sn => { if (sn.exists) { const d = sn.data() || {}; if (d.L) { dbCfg = Object.assign({ fold: [] }, d); try { localStorage.setItem("crm-tdb", JSON.stringify(dbCfg)); } catch(_){} if (!dbEdit) renderDash(); } } }, () => {});
   db.doc("meta/projets").onSnapshot(sn => { if (sn.exists) { const d = sn.data() || {}; projMeta = { lbl: d.lbl || {}, mv: d.mv || {}, sg: d.sg || {}, ok: d.ok || {} }; renderAll(); } }, () => {});
   db.doc("meta/organisation").onSnapshot(sn => { if (sn.exists) { const d = sn.data() || {}; orgCfg = Object.assign(JSON.parse(JSON.stringify(ORG_DEF)), d, { jours: Object.assign({}, ORG_DEF.jours, d.jours || {}), dur: Object.assign({}, ORG_DEF.dur, d.dur || {}) }); } if (!orgEditCfg) renderOrg(); }, () => {});
   db.doc("meta/temps_rdv").onSnapshot(sn => { orgTemps = (sn.exists && (sn.data() || {}).L) || []; renderOrg(); }, () => {});

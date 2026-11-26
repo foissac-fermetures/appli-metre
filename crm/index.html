@@ -3227,7 +3227,7 @@ function evBody(r, rv){
   ].filter(Boolean).join("\n");
   const b = { summary: "RDV " + r.client + (projLbl(r) ? " – " + projLbl(r) : r.proj ? " – " + r.proj : ""), startTime: start, endTime: end, description: desc, calendarId: AGENDA };
   if (!h) b.allDay = true;
-  const loc = rdvOu(r, rv) || r.lieu; if (loc) b.location = loc; if (rdvMag(rv)) { b.summary += " (au magasin)"; b.description = "Au magasin de Gourdon\n" + b.description; }
+  const loc = rdvOu(r, rv) || r.lieu; if (loc) b.location = loc; if (rdvMag(rv)) { b.summary += " (" + rdvMagTxt(rv) + ")"; b.description = "RDV " + rdvMagTxt(rv) + "\n" + b.description; }
   return b;
 }
 async function agendaCall(tool, input){
@@ -3247,16 +3247,16 @@ async function saveRdv(r, clear){
   const cur = suivi[r.id] || {};
   const next = Object.assign({}, cur);
   const toAgenda = !!($("#rdvcal") && $("#rdvcal").checked);
-  const oldEv = rdvCur(r) && rdvCur(r).ev;
+  const oldEv = rdvCur(r) && rdvCur(r).d >= iso(today()) && rdvCur(r).ev;   // RDV passé : on crée un nouvel événement, l'ancien reste dans l'agenda
   if (clear) { delete next.rdv; next.log = (cur.log || []).concat([{ d: iso(today()), at: new Date().toISOString(), t: "RDV du " + rdvLabel(cur.rdv || {d: iso(today())}) + " annulé" }]); }
   else {
     const d = $("#rdvd").value, h = $("#rdvh").value, t = $("#rdvt").value.trim();
     if (!d) { toast("Indique le jour du rendez-vous"); return; }
     next.rdv = { d }; if (h) next.rdv.h = h; if (t) next.rdv.t = t;
     { const du = +(($("#rdvdur") || {}).value || 0); if (du) next.rdv.dur = du; }
-    { const lq = document.querySelector('input[name="rdvlieu"]:checked'); if (lq && lq.value === "mag") next.rdv.lieu = "mag"; }
+    { const lq = document.querySelector('input[name="rdvlieu"]:checked'); if (lq && MAGS[lq.value]) next.rdv.lieu = lq.value; }
     if (oldEv) next.rdv.ev = oldEv;
-    next.log = (cur.log || []).concat([{ d: iso(today()), at: new Date().toISOString(), t: (metreStage(r) ? "RDV métré définitif fixé au " : "RDV fixé au ") + rdvLabel(next.rdv) + (rdvMag(next.rdv) ? " au magasin de Gourdon" : "") + (t ? " · " + t : "") }]);
+    next.log = (cur.log || []).concat([{ d: iso(today()), at: new Date().toISOString(), t: (metreStage(r) ? "RDV métré définitif fixé au " : "RDV fixé au ") + rdvLabel(next.rdv) + (rdvMag(next.rdv) ? " " + rdvMagTxt(next.rdv) : "") + (t ? " · " + t : "") }]);
   }
   next.client = r.client; next.updated = new Date().toISOString();
   saving = true;
@@ -3381,10 +3381,14 @@ function renderGpsList(){
 function adrChantier(r){ return (suivi[r.id] || {}).adr_chantier || ""; }
 function adrRdv(r){ return adrChantier(r) || adrOf(r); }
 /* RDV au magasin de Gourdon (au lieu de chez le client) */
-const MAGASIN = "Foissac Fermetures, route de Cahors, 46300 Gourdon";
-const rdvMag = rv => !!(rv && rv.lieu === "mag");
-function rdvOu(r, rv){ return rdvMag(rv) ? MAGASIN : adrRdv(r); }
-function lieuSelect(rv){ const m = rdvMag(rv); return `<div class="rdvlieu"><span class="sub">Où ?</span><label><input type="radio" name="rdvlieu" value="" ${m ? "" : "checked"}> 🏠 Chez le client</label><label><input type="radio" name="rdvlieu" value="mag" ${m ? "checked" : ""}> 🏬 Au magasin de Gourdon</label></div>`; }
+const MAGS = { mag: { l: "Gourdon", a: "Foissac Fermetures, route de Cahors, 46300 Gourdon", p: "route de Cahors" }, sarlat: { l: "Sarlat", a: "Foissac Fermetures, 24200 Sarlat-la-Canéda", p: "" }, pinsac: { l: "Pinsac", a: "Foissac Fermetures, Brugières, 46200 Pinsac", p: "lieu-dit Brugières" } };
+const MAGASIN = MAGS.mag.a;
+const rdvMagOf = rv => (rv && MAGS[rv.lieu]) || null;
+const rdvMag = rv => !!rdvMagOf(rv);
+const rdvMagTxt = rv => { const m = rdvMagOf(rv); return m ? "au magasin de " + m.l : ""; };
+const rdvMagPhrase = rv => { const m = rdvMagOf(rv); return m ? "à notre magasin de " + m.l + (m.p ? ", " + m.p : "") : ""; };
+function rdvOu(r, rv){ const m = rdvMagOf(rv); return m ? m.a : adrRdv(r); }
+function lieuSelect(rv){ const k = rdvMagOf(rv) ? rv.lieu : ""; return `<div class="rdvlieu"><span class="sub">Où ?</span><label><input type="radio" name="rdvlieu" value="" ${k ? "" : "checked"}> 🏠 Chez le client</label>${Object.entries(MAGS).map(([v, m]) => `<label><input type="radio" name="rdvlieu" value="${v}" ${k === v ? "checked" : ""}> 🏬 Magasin de ${m.l}</label>`).join("")}</div>`; }
 async function saveAdrC(r, val){
   if (!db || saving) return; saving = true;
   const cur = suivi[r.id] || {}, next = Object.assign({}, cur), now = new Date().toISOString();
@@ -3776,7 +3780,7 @@ function cmTemplates(r){
   T.envoi_plan = { l: "Envoi du plan de réservation", s: "Plan de réservation de votre portail – Foissac Fermetures",
     b: `Bonjour,\n\nVous trouverez ci-joint le plan de réservation pour la pose de votre portail.\n\nIl indique les cotes à respecter pour la préparation (piliers, seuil, fourreaux pour la motorisation le cas échéant). Merci de le transmettre à votre maçon si besoin et de me faire signe s'il y a la moindre question.\n\nPourriez-vous me retourner ce plan daté et signé, avec la mention « bon pour accord » ? Dès réception, nous pourrons passer votre commande.\n\n${SIGN}` };
   if (rv) T.confirm = { l: "Confirmation du rendez-vous", s: "Confirmation de notre rendez-vous du " + fd(rv.d),
-    b: `Bonjour,\n\nJe vous confirme notre rendez-vous du ${fd(rv.d)}${rv.h ? " à " + rv.h.replace(":", "h") : ""}${rdvMag(rv) ? " à notre magasin de Gourdon (Foissac Fermetures, route de Cahors)" : adrRdv(r) ? " à l'adresse suivante : " + adrRdv(r) : ""}.\n\nEn cas d'empêchement, n'hésitez pas à me prévenir au 06 82 19 99 10.\n\nÀ très bientôt,\n\n${SIGN}` };
+    b: `Bonjour,\n\nJe vous confirme notre rendez-vous du ${fd(rv.d)}${rv.h ? " à " + rv.h.replace(":", "h") : ""}${rdvMag(rv) ? " " + rdvMagPhrase(rv) : adrRdv(r) ? " à l'adresse suivante : " + adrRdv(r) : ""}.\n\nEn cas d'empêchement, n'hésitez pas à me prévenir au 06 82 19 99 10.\n\nÀ très bientôt,\n\n${SIGN}` };
   return T;
 }
 /* Outlook (logiciel sur le PC) : le message s'ouvre tout prêt dans une nouvelle fenêtre Outlook (lien mailto), envoyé depuis le compte par défaut d'Outlook */
@@ -3858,7 +3862,7 @@ function smsTemplates(r){
     libre: { l: "Message libre", t: `Bonjour, c'est Nicolas de Foissac Fermetures à Gourdon. ` },
   };
   { const px = typeof payLine === "function" ? payLine(r) : null; if (px) T.paie = { l: "Relance paiement", t: `Bonjour, c'est Nicolas de Foissac Fermetures à Gourdon. Sauf erreur de notre part, ${px.solde ? "le solde de votre facture" : "l'acompte de votre commande"} reste en attente de règlement. Pouvez-vous me dire quand vous prévoyez de le régler, et par quel moyen ? Merci.` + fin }; }
-  if (rv) T.confirm = { l: "Confirmation du rendez-vous", t: `Bonjour, c'est Nicolas de Foissac Fermetures à Gourdon. Je vous confirme notre rendez-vous ${metreStage(r) ? "pour le métré définitif de votre commande " : ""}le ${JOURS[pd(rv.d).getDay()]} ${rdvLabel(rv)}${rdvMag(rv) ? " à notre magasin de Gourdon, route de Cahors" : adrRdv(r) ? " à l'adresse suivante : " + adrRdv(r) : " à votre domicile"}. En cas d'empêchement, n'hésitez pas à me prévenir.` + fin };
+  if (rv) T.confirm = { l: "Confirmation du rendez-vous", t: `Bonjour, c'est Nicolas de Foissac Fermetures à Gourdon. Je vous confirme notre rendez-vous ${metreStage(r) ? "pour le métré définitif de votre commande " : ""}le ${JOURS[pd(rv.d).getDay()]} ${rdvLabel(rv)}${rdvMag(rv) ? " " + rdvMagPhrase(rv) : adrRdv(r) ? " à l'adresse suivante : " + adrRdv(r) : " à votre domicile"}. En cas d'empêchement, n'hésitez pas à me prévenir.` + fin };
   return T;
 }
 function smsHref(r, txt, tel){ return "sms:" + smsNumber(tel || r.tel) + "?&body=" + encodeURIComponent(txt); }
@@ -5860,10 +5864,10 @@ function renderDrawer(){
       </section>
       ${(() => { const MS = metreStage(r), rv0 = myRdv(r), vd = venteD(r);
         const done = V0 => `<div class="sub">${r.r1 ? "1er RDV le " + fd(r.r1) + " (suivi des FIC)" : rv0 && (!vd || rv0.d < vd) ? "1er RDV le " + fd(rv0.d) : sansOf(r) ? "Devis fait sans 1er RDV" : "Pas de date de 1er RDV notée"}${r.r1t ? " · " + esc(r.r1t) : ""}</div>`;
-        const rv = MS ? null : rdvCur(r), lg = "1er rendez-vous";
+        const rvAll = MS ? null : rdvCur(r), rv = rvAll && rvAll.d < iso(today()) ? null : rvAll, lg = rvAll && !rv ? "Nouveau rendez-vous (le précédent était le " + fd(rvAll.d) + ")" : "1er rendez-vous";
         return `<section class="fcard" style="--fc:var(--c-rdv)"><span class="fct">1er rendez-vous</span>${sansOf(r) ? `<div class="sanschip">Devis sans 1er RDV : ${esc(sansOf(r).motif)}${sansOf(r).p ? " · " + esc(sansOf(r).p) : ""} · depuis le ${fd(sansOf(r).d)} · <button class="lnk" type="button" data-sansback="${esc(r.id)}">remettre en 1er RDV</button></div>` : ""}${MS || (r.vente || []).some(v => !v.ann) ? done() : status(r) !== "afaire" && !(rv && rv.d >= iso(today())) ? done() + `<details class="rdvmore"><summary>Noter un nouveau rendez-vous</summary><fieldset class="rdvset" id="rdvset">
           <legend>${lg}</legend>
-          ${rv?`<span class="rdvnow">RDV fixé le ${esc(fd(rv.d))}${rv.h?" · "+esc(rdvPlage(rv)):""}${rdvMag(rv)?" · 🏬 au magasin":""}${rv.t?" · "+esc(rv.t):""}</span>`:(!MS&&r.r1?`<span class="sub">Date de 1er RDV dans le suivi des FIC : ${fd(r.r1)}</span>`:`<span class="sub">Aucun rendez-vous noté.</span>`)}
+          ${rv?`<span class="rdvnow">RDV fixé le ${esc(fd(rv.d))}${rv.h?" · "+esc(rdvPlage(rv)):""}${rdvMag(rv)?" · 🏬 "+rdvMagTxt(rv):""}${rv.t?" · "+esc(rv.t):""}</span>`:(!MS&&r.r1?`<span class="sub">Date de 1er RDV dans le suivi des FIC : ${fd(r.r1)}</span>`:`<span class="sub">Aucun rendez-vous noté.</span>`)}
           <div class="three">
             <label>Jour<input type="date" id="rdvd" value="${esc((rv||{}).d||"")}"></label>
             <label>Heure<input type="time" id="rdvh" value="${esc((rv||{}).h||"")}"></label>
@@ -5876,7 +5880,7 @@ function renderDrawer(){
           <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" id="rdvsave" type="button" ${canWrite&&db?"":"disabled"}>${rv?"Modifier le RDV":"Enregistrer le RDV"}</button>${rv?`<button class="btn" id="rdvdel" type="button" ${canWrite&&db?"":"disabled"}>Retirer le RDV</button>`:""}</div>
         </fieldset>${status(r) === "afaire" || attenteOf(r) && !MS ? attBox(r) : ""}</details>` : `<fieldset class="rdvset" id="rdvset">
           <legend>${lg}</legend>
-          ${rv?`<span class="rdvnow">RDV fixé le ${esc(fd(rv.d))}${rv.h?" · "+esc(rdvPlage(rv)):""}${rdvMag(rv)?" · 🏬 au magasin":""}${rv.t?" · "+esc(rv.t):""}</span>`:(!MS&&r.r1?`<span class="sub">Date de 1er RDV dans le suivi des FIC : ${fd(r.r1)}</span>`:`<span class="sub">Aucun rendez-vous noté.</span>`)}
+          ${rv?`<span class="rdvnow">RDV fixé le ${esc(fd(rv.d))}${rv.h?" · "+esc(rdvPlage(rv)):""}${rdvMag(rv)?" · 🏬 "+rdvMagTxt(rv):""}${rv.t?" · "+esc(rv.t):""}</span>`:(!MS&&r.r1?`<span class="sub">Date de 1er RDV dans le suivi des FIC : ${fd(r.r1)}</span>`:`<span class="sub">Aucun rendez-vous noté.</span>`)}
           <div class="three">
             <label>Jour<input type="date" id="rdvd" value="${esc((rv||{}).d||"")}"></label>
             <label>Heure<input type="time" id="rdvh" value="${esc((rv||{}).h||"")}"></label>
@@ -5942,10 +5946,10 @@ function renderDrawer(){
       </section>
       ${(() => { const V = (r.vente || []).filter(v => !v.ann); if (!V.length && !planOf(r)) return "";
         if (!metreStage(r)) { const et = V.map(v => v.et).find(k => ET[k]); return `<section class="fcard" style="--fc:var(--c-metre)"><span class="fct">Rendez-vous métré définitif</span><div class="sub">Étape du métré passée${et ? " · chantier au stade « " + ET[et].l + " »" : ""}${(r.pdf_metres || []).length ? " · " + r.pdf_metres.length + " métré(s) dans le Drive (carte Devis)" : ""}</div>${(suivi[r.id] || {}).metreok && V.some(v => v.et0 === "commande") ? `<button class="lnk" type="button" data-metundo="${esc(r.id)}">Le métré n'est pas encore fait : le remettre à faire</button>` : ""}</section>`; }
-        const rv = rdvCur(r), MS = true;
+        const rvAll = rdvCur(r), rv = rvAll && rvAll.d < iso(today()) ? null : rvAll, MS = true;
         return `<section class="fcard" style="--fc:var(--c-metre)"><span class="fct">Rendez-vous métré définitif</span>${planOf(r) ? "" : `<fieldset class="rdvset" id="rdvset">
           <legend>RDV métré définitif</legend>
-          ${rv?`<span class="rdvnow">RDV fixé le ${esc(fd(rv.d))}${rv.h?" · "+esc(rdvPlage(rv)):""}${rdvMag(rv)?" · 🏬 au magasin":""}${rv.t?" · "+esc(rv.t):""}</span>`:(!MS&&r.r1?`<span class="sub">Date de 1er RDV dans le suivi des FIC : ${fd(r.r1)}</span>`:`<span class="sub">Aucun rendez-vous noté.</span>`)}
+          ${rv?`<span class="rdvnow">RDV fixé le ${esc(fd(rv.d))}${rv.h?" · "+esc(rdvPlage(rv)):""}${rdvMag(rv)?" · 🏬 "+rdvMagTxt(rv):""}${rv.t?" · "+esc(rv.t):""}</span>`:(!MS&&r.r1?`<span class="sub">Date de 1er RDV dans le suivi des FIC : ${fd(r.r1)}</span>`:`<span class="sub">Aucun rendez-vous noté.</span>`)}
           <div class="three">
             <label>Jour<input type="date" id="rdvd" value="${esc((rv||{}).d||"")}"></label>
             <label>Heure<input type="time" id="rdvh" value="${esc((rv||{}).h||"")}"></label>

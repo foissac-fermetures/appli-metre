@@ -2629,6 +2629,7 @@ function filtered(){
   let out = rows.filter(r => {
     if (m && (m.includes("-") ? yOf(r) + "-" + r.m !== m : String(r.m) !== m)) return false;
     if (s && status(r) !== s) return false;
+    if (s === "relancer" && (suivi[r.id] || {}).norel) return false;   // « Plus de relance » : il sort de la liste des devis à relancer
     if (q){
       const hay = [r.client,aliasOf(r),r.lieu,r.adr,r.proj,r.tel,r.notes,r.src,(r.vente||[]).map(v=>(v.it||[]).join(" ")+" "+(v.inf||[]).join(" ")).join(" "),((suivi[r.id]||{}).log||[]).map(l=>l.t).join(" "),((suivi[r.id]||{}).relances||[]).map(l=>l.t||"").join(" ")].join(" ").toLowerCase();
       const digits = q.replace(/\s/g,"");
@@ -2704,7 +2705,7 @@ function renderList(){
       <td class="hide-s">${esc(r.proj||"—")}</td>
       <td class="r num">${a!=null?eur(a):"—"}<div class="sub">${signed(r)!=null?"signé HT":(a!=null?"devis TTC":"")}</div></td>
       <td class="hide-s num">${r.remise?fd(r.remise):"—"}</td>
-      <td><span class="pill ${ST[st].c}">${ST[st].l}</span>${(() => { const n = nextStep(r); return n && n.l !== "Terminé" ? `<div style="margin-top:4px">${nextPill(r).replace('class="nxp ', 'class="nxp nxp-sm ')}</div>` : ""; })()}${canLose(r)?`<div><span class="r3">${relInfo(r).n} relances sans réponse</span></div>`:""}${lastRel(r)?`<div class="sub">${esc(relLabel(lastRel(r)))}</div>`:""}${w?`<div class="sub ${w.late?"late":""}">Relance ${esc(w.t)}</div>`:""}</td>
+      <td>${st === "relancer" && (suivi[r.id] || {}).norel ? `<span class="pill" style="background:var(--soft);color:var(--muted)">🔕 Plus de relance</span>` : `<span class="pill ${ST[st].c}">${ST[st].l}</span>`}${(() => { const n = nextStep(r); return n && n.l !== "Terminé" ? `<div style="margin-top:4px">${nextPill(r).replace('class="nxp ', 'class="nxp nxp-sm ')}</div>` : ""; })()}${canLose(r)?`<div><span class="r3">${relInfo(r).n} relances sans réponse</span></div>`:""}${lastRel(r)?`<div class="sub">${esc(relLabel(lastRel(r)))}</div>`:""}${w?`<div class="sub ${w.late?"late":""}">Relance ${esc(w.t)}</div>`:""}</td>
     </tr>`;
   }).join("");
   $("#more").hidden = list.length <= shown;

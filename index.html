@@ -1787,9 +1787,9 @@ function nettoyerOuv(o){ const fam=modeleDe(o)?.famille;
     if(ob.some(x=>/s'engage à poser un garde-corps/.test(x))) o.gc.client_pose=true;
     o.observations=ob.filter(x=>!/Dormant en périphérique|Pose à 2 personnes|Garde-corps existant|Garde-corps déjà posé|s'engage à poser un garde-corps/.test(x)); } }
 /* poignée de fenêtre à clé (ou poignée serrure) : la fenêtre se verrouille → plus besoin de garde-corps */
-/* 26/11/2026 : « Béquille double standard » en premier dans les poignées de toutes les portes, chez tous les fournisseurs */
+/* 26/11/2026 : « Béquille double standard » en premier dans les poignées de toutes les portes et portes-fenêtres (v186), chez tous les fournisseurs */
 const BEQUILLE_STD = "Béquille double standard";
-const listePoignees = (o,lst) => { const md=modeleDe(o); if(!md || md.famille!=="porte") return lst; lst=lst||[]; return typeof lst[0]==="string" ? [BEQUILLE_STD,...lst.filter(x=>x!==BEQUILLE_STD)] : [{groupe:"Standard",items:[BEQUILLE_STD]},...lst]; };
+const listePoignees = (o,lst) => { const md=modeleDe(o); if(!md || !(md.famille==="porte" || md.famille==="pf" || /porte/i.test(md.nom||"")) || /fixe en dormant/i.test(md.nom||"")) return lst; lst=lst||[]; return typeof lst[0]==="string" ? [BEQUILLE_STD,...lst.filter(x=>x!==BEQUILLE_STD)] : [{groupe:"Standard",items:[BEQUILLE_STD]},...lst]; };
 const poigneeACle = o => /à cl[ée]|serrure/i.test([o.poignee_modele,o.poignee].filter(Boolean).join(" "));
 const aSeuil = o => !!(o.seuil_std || o.seuil_plat || o.seuil_type || (typeof seuilEncastre==="function" && seuilEncastre(o)));
 const seuilSansAppui = o => aSeuil(o) && !seuilEncastre(o);   // coulissant avec seuil alu encastré 40 mm : on peut AUSSI mettre un profil d'appui bas

@@ -613,7 +613,7 @@ function nouveauVR(){
 function nouvelleLigneVR(){
   return { id:uid(), repere:"", quantite:1, tab_l:"", tab_h:"", fab_l:"", fab_h:"",
     fil_droite:false, fil_gauche:false, percage_tableau:false, percage_face:false,
-    fil_coffre:"", electricite:"", depose:"", option:"", avec_menuiserie:"", manoeuvre_menuis:"", coffre_hauteur:"", plus_coulisses:false, plus_coffre:false,
+    fil_coffre:"", electricite:"", depose:"", option:"", avec_menuiserie:"", manoeuvre_menuis:"", coffre_hauteur:"",
     type_pose:"", obs:"", ps_deporte:false, ps_cote:"", ps_dist:"", ps_empl:"", ps_prec:"", photos:[], photos_corbeille:[] };   // 23/11/2026 : observation, panneau solaire déporté, photos par volet
 }
 function normFinitions(o){ const f=o.finitions||(o.finitions={});
@@ -795,7 +795,8 @@ function lignesVRPDF(d,o){ const l=vrLie(d,o); if(!l) return []; if(!l.avec_menu
     ["Motorisation",[l.manoeuvre_menuis,fil].filter(Boolean).join(" – ")],["Option volet",l.option||""]]; }
 /* hauteur du coffre : choix « coffre compris… » puis le texte du volet intégré (ex. Laloi « hauteur 205 mm »), sinon 195 */
 const hauteurCoffreVR = l => { const m=String((l&&l.coffre_hauteur)||"").match(/(\d{2,4})\s*mm/) || String((l&&l.avec_menuiserie)||"").match(/(\d{2,4})\s*mm/); return m?+m[1]:null; };
-function normaliser(d){ (d.vr&&d.vr.lignes||[]).forEach(l=>{ ["avec_menuiserie","coffre_hauteur"].forEach(k=>{ if(/hauteur 168 mm/.test(l[k]||"")) l[k]=l[k].replace("hauteur 168 mm","hauteur 205 mm"); }); });   // LALOI : toujours coffre 205 (Nicolas, 18/11/2026)
+function migrerPlusVR(d){ (d.vr&&d.vr.lignes||[]).forEach(l=>{ [["plus_coulisses","L"],["plus_coffre","H"]].forEach(([k,K])=>{ if(l[k]){ const [f,t,suf]=VR_PLUS[K]; if(!plusVR(l,K)){ const b=numFab(l[f])??num(l[t]); l[f]=(b!=null?b+" ":"")+suf; } } delete l[k]; }); }); }
+function normaliser(d){ try{ migrerPlusVR(d); }catch(e){} (d.vr&&d.vr.lignes||[]).forEach(l=>{ ["avec_menuiserie","coffre_hauteur"].forEach(k=>{ if(/hauteur 168 mm/.test(l[k]||"")) l[k]=l[k].replace("hauteur 168 mm","hauteur 205 mm"); }); });   // LALOI : toujours coffre 205 (Nicolas, 18/11/2026)
   migrerPose(d); try{ migrerPoseParties(d); }catch(e){} (d.ouvertures||[]).forEach(o=>["fermeture","profil"].forEach(k=>{ if(typeof o[k]==="string" && /G63|G75/.test(o[k])) o[k]=o[k].replace("6 points","5 points"); }));   /* 26/11/2026 : GardenGate G63/G75 = serrure 5 points */
   (d.ouvertures||[]).forEach(o=>["poignee_modele","poignee","accessoires_poignee"].forEach(k=>{ if(typeof o[k]==="string" && /F9$/.test(o[k])) o[k]=o[k]+" (inox)"; })); if(d.vb) migrerVB(d.vb); d.ouvertures.forEach(nettoyerOuv); if(!d.vr) d.vr=nouveauVR(); d.ouvertures.forEach(migrerObs); d.ouvertures.forEach(o=>{ if(o.semi_fixe && modeleDe(o) && !aSemiFixe(o)) o.semi_fixe=""; }); d.ouvertures.forEach(o=>{ o.comp=Object.assign(COMP_VIDE(), o.comp||{}); }); if(d.clim && !d.clim.tableau) d.clim.tableau={img:"",txt:"",place:""}; d.ouvertures.forEach(o=>{ o.gc=Object.assign(GC_VIDE(), o.gc||{}); o.erp=Object.assign(ERP_VIDE(), o.erp||{}); }); d.ouvertures.forEach((o,i)=>{ if(o.num_poseur===undefined) o.num_poseur=String(i+1); if(!Array.isArray(o.photos)) o.photos=[]; }); d.ouvertures.forEach(o=>repriseCotes(o,d)); if(!d.equipe_pose && d.vr.equipe) d.equipe_pose={"Seul":"Tout seul"}[d.vr.equipe]||d.vr.equipe; d.ouvertures.forEach(o=>{ normFinitions(o); if(typeof reglesPose==='function') reglesPose(o); }); return d; }
 /* Volet roulant lié à une ouverture : repère, quantité et cotes tableau suivent la fiche ouverture */
@@ -1605,7 +1606,7 @@ function questionsOuverture(o, d=S.dossier){
   const rp=(o.repere||"").trim().toLowerCase();
   if(rp && tL!=null && tH!=null){ const j=autres.find(x=>(x.repere||"").trim().toLowerCase()===rp && num(coteTab(x,"L"))===tL && num(coteTab(x,"H"))===tH && (x.modele||"")===(o.modele||""));
     if(j) add("identique",tL+"x"+tH+"|"+rp,`Même repère « ${o.repere} » et mêmes cotes que ${j.num_poseur?"la n°"+j.num_poseur:"une autre ouverture"} : c'est voulu (2 identiques) ?`,{lib:"Non, copie à modifier",champ:"repere"}); }
-  const vl=d?.vr?vrLie(d,o):null, vL=vl?num(vl.tab_l)??num(vl.fab_l):null;
+  const vl=d?.vr?vrLie(d,o):null, vL=vl?num(vl.tab_l)??numFab(vl.fab_l):null;
   if(vL!=null && tL!=null && Math.abs(vL-tL)>150) add("volet",vL+"|"+tL,`Volet roulant de ${vL} de large pour une fenêtre de ${tL} : c'est juste ?`,{lib:"Non, je corrige",go:"vr"});
   /* ---- 2e série (19/11/2026, idées tirées des guides de prise de cotes / autocontrôle) ---- */
   if(o.pose==="tunnel" && ((f.L!=null&&tL!=null&&f.L>=tL)||(f.H!=null&&tH!=null&&f.H>=tH)))
@@ -1617,7 +1618,7 @@ function questionsOuverture(o, d=S.dossier){
   const vitBas = !!o.gc?.etage && !porte && !sbPlein && (pfLike || fam==="coulissant" || fam==="galandage" || (fam==="fixe" && (aSeuil(o)||(num(o.allege)!=null&&num(o.allege)<900))));   // 19/11 : à l'étage + soubassement vitré seulement
   if(vitBas && !/feuillet|44[.,]2|33[.,]2|s[ée]curit|stadip|sp ?\d|tremp/i.test(o.vitrage||"")) add("vitrage_bas",o.vitrage||"-",`À l'étage avec un soubassement vitré : vitrage de sécurité (feuilleté) prévu ?`,{lib:"Non, je le mets",champ:"vitrage"});
   if(fam==="of" && /cuisine/i.test(o.repere||"")) add("evier",String(o.modele),`Fenêtre de cuisine : l'ouvrant passe bien au-dessus du robinet / de l'évier ?`,{lib:"Non (soufflet / OB ?)",champ:"modele"});
-  if(vl && d?.vr){ const v=d.vr, moto=vrMotorise(vl,v), larg=num(vl.fab_l)??vL;
+  if(vl && d?.vr){ const v=d.vr, moto=vrMotorise(vl,v), larg=numFab(vl.fab_l)??vL;
     if(moto && !vrSolaire(vl,v) && !vrUsine(vl)) add("vr_elec",vl.electricite||"-",`Volet motorisé : il y a bien une alimentation électrique à côté${vl.electricite?` (${vl.electricite})`:""} ?`,{lib:"Non, à prévoir",go:"vr"});
     if(!moto && larg!=null && larg>2000) add("vr_lourd",larg,`Volet de ${larg} de large en manuel : c'est bien voulu (pas de moteur) ?`,{lib:"Non, je le motorise",go:"vr"});
     const cv=(vl.couleur_tablier||vl.couleur_coffre||"").trim(), cm=(o.couleur_ext||o.couleur_int||"").trim(), mot=x=>x.toLowerCase().split(/[\s(/-]+/)[0];
@@ -1689,13 +1690,22 @@ const vrPose = (l, v) => (l && l.type_pose) || (v && v.type_pose) || "";
 const vrApplique = (l,v) => /^applique/.test(vrPose(l,v)) && !vrUsine(l);
 /* texte de la cote de fabrication VR : « 1200 + coulisses », « 1400 + coffre » */
 function texteFabVR(l,v,K){ const fb=fabVR(l,v), x=K==="L"?fb.L:fb.H, p=K==="L"?fb.plusL:fb.plusH; return x==null?"":String(x)+(p?(K==="L"?" + coulisses":" + coffre"):""); }
-const casesPlusVR = (l,v,k) => vrApplique(l,v) ? `<div style="align-self:end"><div class="hint">Pose en applique : le fabricant ajoute</div><div class="checks">${F.chk(`${k}.plus_coulisses`,"+ coulisses (largeur)",l.plus_coulisses)}${F.chk(`${k}.plus_coffre`,"+ coffre (hauteur)",l.plus_coffre)}</div></div>` : "";
+/* v197 : boutons SOUS les cotes de fabrication ; un appui écrit « 2487 + coulisses » / « 1174 + coffre » dans la case (cote tableau reprise si vide), un 2e appui l'enlève */
+const VR_PLUS = {L:["fab_l","tab_l","+ coulisses",/\s*\+\s*coulisses?/i], H:["fab_h","tab_h","+ coffre",/\s*\+\s*coffre/i]};
+const numFab = v => { const m=String(v??"").match(/^\s*(\d+(?:[.,]\d+)?)/); return m?num(m[1]):null; };
+const plusVR = (l,K) => VR_PLUS[K][3].test(String(l[VR_PLUS[K][0]]||""));
+const btnPlusVR = (l,v,i,K) => vrApplique(l,v) ? `<button type="button" class="btn small${plusVR(l,K)?" primary":""}" data-vrplus="${i}:${K}" style="margin-top:6px">${VR_PLUS[K][2]}</button>` : "";
+document.addEventListener("click", e=>{ const b=e.target.closest&&e.target.closest("[data-vrplus]"); if(!b||!S.dossier||!S.dossier.vr) return; e.preventDefault();
+  const [i,K]=b.dataset.vrplus.split(":"), l=S.dossier.vr.lignes[+i]; if(!l) return; const [f,t,suf,re]=VR_PLUS[K], cur=String(l[f]||"");
+  if(re.test(cur)) l[f]=cur.replace(re,"").trim(); else { const base=numFab(cur)??num(l[t]); l[f]=(base!=null?base+" ":"")+suf; }
+  const inp=document.querySelector(`[data-k="vr.lignes.${i}.${f}"],[data-dk="vr.lignes.${i}.${f}"]`); if(inp){ inp.value=l[f]; }
+  b.classList.toggle("primary", re.test(l[f])); save(); });
 function fabVR(l, v){
   const auto = VR_SOUS_LINTEAU.includes(vrPose(l,v)), tL=num(l.tab_l), tH=num(l.tab_h);
   const aL = auto&&tL!=null ? tL-10 : null, aH = auto&&tH!=null ? tH-5 : null;
-  const fL=num(l.fab_l), fH=num(l.fab_h);
+  const fL=numFab(l.fab_l), fH=numFab(l.fab_h);
   /* 26/11/2026 : pose en applique → cases « + coulisses » / « + coffre » : le fabricant ajoute ses cotes ; fabrication vide = cote tableau */
-  const app=vrApplique(l,v), pL=app&&!!l.plus_coulisses, pH=app&&!!l.plus_coffre;
+  const app=vrApplique(l,v), pL=plusVR(l,"L")||(app&&!!l.plus_coulisses), pH=plusVR(l,"H")||(app&&!!l.plus_coffre);
   const L0 = fL!=null?fL:(aL!=null?aL:(pL?tL:null)), H0 = fH!=null?fH:(aH!=null?aH:(pH?tH:null));
   return { L:L0, H:H0, autoL:aL!=null?aL:(pL?tL:null), autoH:aH!=null?aH:(pH?tH:null), auto, forceL:fL!=null, forceH:fH!=null, plusL:pL, plusH:pH };
 }
@@ -2352,9 +2362,8 @@ function renderVR(t){
       ${C.types_pose.map(p=>`<button data-vrlpose="${i}:${p.id}" class="${l.type_pose===p.id?"on":""}" title="${esc(p.nom)}"><img src="${SCHEMAS[p.img]||""}" alt=""><span>${esc(p.nom)}</span></button>`).join("")}</div>
     <div class="grid vrgrid">
       ${[F.numb(`${k}.quantite`,"Quantité",l.quantite),F.numb(`${k}.tab_l`,"Tableau – largeur",l.tab_l),F.numb(`${k}.tab_h`,"Tableau – hauteur",l.tab_h)].map(x=>lie?x.replace("<input","<input disabled"):x).join("")}
-      <label class="f">Fabrication – largeur <span class="fabhint" id="vrfl${i}"></span><input data-k="${k}.fab_l" inputmode="decimal" value="${esc(l.fab_l)}"></label>
-      <label class="f">Fabrication – hauteur <span class="fabhint" id="vrfh${i}"></span><input data-k="${k}.fab_h" inputmode="decimal" value="${esc(l.fab_h)}"></label>
-      ${casesPlusVR(l,v,k)}
+      <label class="f">Fabrication – largeur <span class="fabhint" id="vrfl${i}"></span><input data-k="${k}.fab_l" inputmode="decimal" value="${esc(l.fab_l)}">${btnPlusVR(l,v,i,"L")}</label>
+      <label class="f">Fabrication – hauteur <span class="fabhint" id="vrfh${i}"></span><input data-k="${k}.fab_h" inputmode="decimal" value="${esc(l.fab_h)}">${btnPlusVR(l,v,i,"H")}</label>
     </div>
     <div class="row" style="margin:12px 0;gap:18px">
       <div><div class="hint">Sortie de fil (vue intérieure)</div><div class="checks">${F.chk(`${k}.fil_gauche`,"Gauche",l.fil_gauche)}${F.chk(`${k}.fil_droite`,"Droite",l.fil_droite)}</div></div>
@@ -2402,7 +2411,7 @@ function majVR(){
   v.lignes.forEach((l,i)=>{ const fb=fabVR(l,v);
     [["L","vrfl","fab_l"],["H","vrfh","fab_h"]].forEach(([K,id,f])=>{ const a=K==="L"?fb.autoL:fb.autoH, inp=$(`[data-k="vr.lignes.${i}.${f}"]`), lab=$("#"+id+i);
       if(inp) inp.placeholder = a!=null ? String(a) : (fb.auto?"":"à saisir");
-      if(lab) lab.textContent = fb.auto ? (a!=null ? (num(l[f])!=null?`(calcul : ${a}, remplacé)`:`(auto : ${a})`) : "(auto)") : ""; });
+      if(lab) lab.textContent = fb.auto ? (a!=null ? (numFab(l[f])!=null?`(calcul : ${a}, remplacé)`:`(auto : ${a})`) : "(auto)") : ""; });
   });
   v.lignes.forEach((l,i)=>{ const el=$("#vrc"+i); if(el){ const c=controleLigneVR(l,v); el.innerHTML=badge(c)+(c.E.length||c.W.length?`<div class="hint" style="max-width:420px">${esc([...c.E,...c.W].join(" · "))}</div>`:""); } });
 }
@@ -2617,8 +2626,8 @@ function renderVRInline(){
       ${l.avec_menuiserie?`<div style="grid-column:1/-1">${F.sel(`${k}.coffre_hauteur`,"Dimensions : le coffre est-il compris dans la hauteur ?",listeCoffreVR(o.gamme),l.coffre_hauteur)}</div>`:""}</div>`:""}
     <div class="grid g3" style="margin-bottom:12px">${VR_COUL.map(([c,lab])=>{ const lst=CAT.vr.couleurs, val=l[c]||"", connu=dansListe(lst,val); return F.sel(`${k}.${c}`,lab,connu||!val?lst:[...lst,{groupe:"Couleur de la menuiserie",items:[val]}],val); }).join("")}</div>
     <div class="grid g4">
-      ${vrUsine(l)?`<div class="hint" style="grid-column:span 2;align-self:center">Fabrication : <b>cotes données par l'usine</b> (volet vendu avec la menuiserie), rien à saisir.</div>`:`<label class="f">Fabrication – largeur <span class="fabhint" id="vrInFl"></span><input data-k="${k}.fab_l" inputmode="decimal" value="${esc(l.fab_l)}"></label>
-      <label class="f">Fabrication – hauteur <span class="fabhint" id="vrInFh"></span><input data-k="${k}.fab_h" inputmode="decimal" value="${esc(l.fab_h)}"></label>${casesPlusVR(l,d.vr,k)}`}
+      ${vrUsine(l)?`<div class="hint" style="grid-column:span 2;align-self:center">Fabrication : <b>cotes données par l'usine</b> (volet vendu avec la menuiserie), rien à saisir.</div>`:`<label class="f">Fabrication – largeur <span class="fabhint" id="vrInFl"></span><input data-k="${k}.fab_l" inputmode="decimal" value="${esc(l.fab_l)}">${btnPlusVR(l,d.vr,i,"L")}</label>
+      <label class="f">Fabrication – hauteur <span class="fabhint" id="vrInFh"></span><input data-k="${k}.fab_h" inputmode="decimal" value="${esc(l.fab_h)}">${btnPlusVR(l,d.vr,i,"H")}</label>`}
       <div><div class="hint">Sortie de fil (vue int.)</div><div class="checks">${F.chk(`${k}.fil_gauche`,"Gauche",l.fil_gauche)}${F.chk(`${k}.fil_droite`,"Droite",l.fil_droite)}</div></div>
       ${vrUsine(l)?"":`<div><div class="hint">Perçage coulisse</div><div class="checks">${F.chk(`${k}.percage_tableau`,"Tableau",l.percage_tableau)}${F.chk(`${k}.percage_face`,"De face",l.percage_face)}</div></div>`}
       ${F.sel(`${k}.fil_coffre`,"Sortie de fil – coffre",C.sortie_fil_coffre,l.fil_coffre)}${vrUsine(l)?"":F.sel(`${k}.electricite`,"Électricité",C.electricite,l.electricite)}
@@ -2636,7 +2645,7 @@ function majVRInline(){
   $("#vrInTab").textContent=`${coteTab(o,"L")||"?"} × ${coteTab(o,"H")||"?"}`;
   [["L","#vrInFl","fab_l"],["H","#vrInFh","fab_h"]].forEach(([K,id,f])=>{ const a=K==="L"?fb.autoL:fb.autoH, inp=$(`[data-dk="vr.lignes.${i}.${f}"]`);
     if(inp) inp.placeholder = a!=null?String(a):(fb.auto?"":"à saisir");
-    if($(id)) $(id).textContent = fb.auto ? (a!=null?(num(l[f])!=null?`(calcul : ${a}, remplacé)`:`(auto : ${a})`):"(auto)") : ""; });
+    if($(id)) $(id).textContent = fb.auto ? (a!=null?(numFab(l[f])!=null?`(calcul : ${a}, remplacé)`:`(auto : ${a})`):"(auto)") : ""; });
   $("#vrInBadge").innerHTML = c.E.length?`<span class="badge b-err">${c.E.length} à corriger</span> <span class="hint">${esc([...c.E,...c.W].join(" · "))}</span>`
     : c.W.length?`<span class="badge b-warn">${c.W.length} conseillé(s)</span> <span class="hint">${esc(c.W.join(" · "))}</span>`:`<span class="badge b-ok">OK</span>`;
 }

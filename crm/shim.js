@@ -88,6 +88,18 @@
     bar.querySelector("button").onclick = () => signIn().then(() => { store.pull(true); }, e => { bar.querySelector("#gbarmsg").textContent = e.message; });
   }
   setInterval(() => { if (token && !tokenOk()) banner(); }, 60000);
+  /* Renouvellement automatique : le badge Google dure 1 h. Au premier clic après expiration (ou à moins de 10 min de la fin),
+     on le renouvelle sans rien demander (petite fenêtre Google qui se ferme seule). Le navigateur exige un clic pour l'ouvrir. */
+  if (localStorage.getItem(LS_OK)) loadGis().catch(() => {});
+  let renewAt = 0;
+  document.addEventListener("click", e => {
+    if (!localStorage.getItem(LS_OK) || !gClient) return;
+    if (token && Date.now() < tokenEnd - 600000) return;
+    if (Date.now() - renewAt < 30000) return;
+    if (e.target && e.target.closest && e.target.closest("#gbar")) return;
+    renewAt = Date.now(); const was = tokenOk();
+    signIn().then(() => { if (!was) { try { store.pull(true); } catch (_) {} } }, () => {});
+  }, true);
 
   /* ---------- données : stockage local + espace caché du Drive ---------- */
   // DOCS : { "collection/id": { d: données | null (supprimé), t: horodatage ms } }

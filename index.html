@@ -1790,8 +1790,8 @@ function sensInterieur(o){ const md=modeleDe(o); if(!md || ["coulissant","galand
   if(g && !dr && !m) return "Tirant gauche"; if(dr && !g && !m) return "Tirant droit"; if(m && !g && !dr) return "Tirant gauche"; return ""; }
 /* modèle de porte : seulement sur une porte ; pas choisi → « En attente du client » (26/11/2026) */
 const PORTE_ATTENTE = "En attente du client";
-const portesAvecModele = o => estPorteMd(o) && !!(FRN(o.gamme).modeles_porte || FRN(o.gamme).panneaux || porteEntree(o));
-function modelePorteTexte(o){ if(!estPorteMd(o)) return ""; const m=o.modele_porte||(portesAvecModele(o)?PORTE_ATTENTE:""); return [m,o.sens_porte].filter(Boolean).join(" – "); }
+const portesAvecModele = o => porteEntree(o);   // 26/11/2026 : pas de modèle de porte sur les portes de service (ni habitat / lourde)
+function modelePorteTexte(o){ if(!estPorteMd(o)) return ""; if(!porteEntree(o)) return ""; const m=o.modele_porte||(portesAvecModele(o)?PORTE_ATTENTE:""); return [m,o.sens_porte].filter(Boolean).join(" – "); }
 function nettoyerOuv(o){ const fam=modeleDe(o)?.famille;
   if(o.seuil_encastre && fam && !["coulissant","galandage"].includes(fam)) o.seuil_encastre=false;   // seuil encastré : seulement coulissant / galandage
   if(sansOB(o)){ o.ob_type=""; if(o.vantaux) ["G","M","D"].forEach(k=>{ if(/OB/.test(o.vantaux[k]||"")) o.vantaux[k]=o.vantaux[k].replace(/\s*\/\s*OB/,"").replace(/^OB$/,"OP"); }); }   // jamais d'oscillo-battant sur coulissant / fixe / porte / porte-fenêtre (26/11/2026)
@@ -2443,7 +2443,7 @@ function renderOuverture(){
 
   <div class="card${estFixe(o)?" q-fixe":""}"><h2><span class="num">7</span>Quincaillerie, seuil et appui <small style="font-weight:400;text-transform:none">– poignées, serrures, seuil ou appui bas</small></h2><div class="grid g4">
     ${FRN(o.gamme).poignees?F.sel("poignee_modele",`Poignée ${esc(FRN(o.gamme).fournisseur||"")}`,listePoignees(o,FRN(o.gamme).poignees),o.poignee_modele):F.sel("poignee","Poignée (position / type)",listePoignees(o,CAT.poignee),o.poignee)}${FRN(o.gamme).fermeture?F.sel("fermeture","Fermeture / serrure",FRN(o.gamme).fermeture,o.fermeture):""}
-    ${FRN(o.gamme).seuils?F.sel("seuil_type","Seuil (fournisseur)",FRN(o.gamme).seuils,o.seuil_type):""}${(FRN(o.gamme).modeles_porte||FRN(o.gamme).panneaux)&&(modeleDe(o)?.famille==="porte")?F.sel("modele_porte","Modèle / panneau de porte",(L=>typeof L[0]==="string"?[PORTE_ATTENTE,...L]:[{groupe:"Pas encore choisi",items:[PORTE_ATTENTE]},...L])(FRN(o.gamme).modeles_porte||FRN(o.gamme).panneaux),o.modele_porte):""}${FRN(o.gamme).sens_porte&&(modeleDe(o)?.famille==="porte")?F.sel("sens_porte","Sens d'ouverture (vue extérieure)",FRN(o.gamme).sens_porte,o.sens_porte):""}
+    ${FRN(o.gamme).seuils?F.sel("seuil_type","Seuil (fournisseur)",FRN(o.gamme).seuils,o.seuil_type):""}${(FRN(o.gamme).modeles_porte||FRN(o.gamme).panneaux)&&porteEntree(o)?F.sel("modele_porte","Modèle / panneau de porte",(L=>typeof L[0]==="string"?[PORTE_ATTENTE,...L]:[{groupe:"Pas encore choisi",items:[PORTE_ATTENTE]},...L])(FRN(o.gamme).modeles_porte||FRN(o.gamme).panneaux),o.modele_porte):""}${FRN(o.gamme).sens_porte&&(modeleDe(o)?.famille==="porte")?F.sel("sens_porte","Sens d'ouverture (vue extérieure)",FRN(o.gamme).sens_porte,o.sens_porte):""}
   </div><div class="checks" style="margin-top:12px">${F.chk("seuil_std","Seuil alu standard",o.seuil_std)}${F.chk("seuil_plat","Seuil alu PLAT",o.seuil_plat)}${["coulissant","galandage"].includes(modeleDe(o)?.famille)?F.chk("seuil_encastre","Seuil encastré 4 cm (hauteur de fabrication + 40 mm)",o.seuil_encastre):""}</div>
   ${seuilSansAppui(o)&&!o.appui_bas?`<div class="hint" style="margin-top:8px">Seuil choisi : pas d'appui bas ni d'allège à remplir.</div>`:`<div class="grid g4" style="margin-top:12px"><div style="grid-column:span 2">${F.sel("appui_bas","Profil : appui bas"+(peutDormantPeri(o)?" (ou dormant en périphérique)":""),(()=>{ const la=listeAppuis(o.gamme); return o.appui_bas&&!dansListe(la,o.appui_bas)?[...la,{groupe:"Ancienne valeur",items:[o.appui_bas]}]:la; })(),o.appui_bas)}</div></div>`}
   <div class="grid g4" style="margin-top:12px">${F.sel("comp.type","Compensateur sous la menuiserie",COMP_TYPES,o.comp.type)}
@@ -2921,7 +2921,11 @@ function dessinMenuiserie(o, opt={}){
     if(r.t!=="faux") s+=line(X0,yN,X1,yN,1,"#8b93a6","5 4");   // naissance du cintre
     if(hmF!=null && r.t!=="faux"){ const x=X0-26-(coffre||sbCote?44:0); c+=line(X0-3,yN,x-6,yN,0.7,COT)+line(X0-3,Y1,x-6,Y1,0.7,COT)+cote(x,yN,x,Y1,"départ cintre "+Math.round(hmF)); }
     const fF = r.fab&&r.fab.f!=null ? r.fab.f : r.f;
-    if(fF!=null && r.t!=="faux"){ const x=X0+w*0.25; c+=cote(x,Y0,x,yN,"flèche "+Math.round(fF)); } }
+    if(fF!=null && r.t!=="faux"){   /* 26/11/2026 : flèche bien visible – cote au milieu du cintre + étiquette horizontale à côté (avant : étiquette tournée et coupée) */
+      const x=(X0+X1)/2, ym=(Y0+yN)/2, t="FLÈCHE "+Math.round(fF), fs=15, bw=t.length*fs*0.66+14, bh=fs+10, bx=x+10;
+      c+=line(x,Y0+2,x,yN,1.6,COT)+tete(x,Y0+2,0,-1)+tete(x,yN,0,1)
+        +`<rect x="${bx}" y="${ym-bh/2}" width="${bw}" height="${bh}" rx="5" fill="#fff" stroke="${COT}" stroke-width="1.6"/>`
+        +`<text x="${bx+bw/2}" y="${ym+fs*0.36}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${fs}" font-weight="700" fill="${COT}">${t}</text>`; } }
   return `<svg class="dessin${opt.cls?" "+opt.cls:""}" viewBox="${-ML-(typeof cintreDe==="function"&&cintreDe(o)?40:0)} 0 ${W+ML+MR+(typeof cintreDe==="function"&&cintreDe(o)?40:0)} ${H+MB}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dessin de la menuiserie">${s}${c}</svg>`;
 }
 

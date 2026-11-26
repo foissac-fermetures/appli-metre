@@ -1487,6 +1487,7 @@ function controleOuverture(o, d=S.dossier){ const Wpb=[];
     if(d && fen(o) && !aPBx(o)){ const autres=(d.ouvertures||[]).filter(x=>x!==o && fen(x)); if(autres.length>=2 && autres.every(aPBx)) Wpb.push("Petits bois : toutes les autres fenêtres en ont, pas celle-ci – oubli ?"); } }catch(e){}
   if(grilleReelle(o) && pieceHumide(o)) Wpb.push(`Grille de ventilation interdite en cuisine, salle de bain ou WC (${o.repere}) – à retirer`);
   else if(grilleReelle(o) && vmcDoubleFlux(d)) Wpb.push("VMC double flux dans la maison : aucune grille de ventilation sur les fenêtres – à retirer");
+  if(gvAttendue(o,d) && !o.gv) Wpb.push("Grille de ventilation à choisir (obligatoire sauf cuisine, salle de bain, WC, porte d'entrée ou refus du client)");   // 26/11/2026
   if(aOculus(o) && !num(o.oculus_h)) Wpb.push("Oculus : hauteur de la partie vitrée à choisir");
   if(cintreDe(o) && o.gv) Wpb.push("Menuiserie cintrée : pas de grille de ventilation possible – à retirer");
   if(cintreDe(o)){ const r=cintreCalc(o); if(r.Hm==null) Wpb.push("Cintre : départ du cintre (hauteur des montants) à prendre");
@@ -1641,8 +1642,17 @@ function repondreQ(o, k, oui){ const q=questionsOuverture(o).find(x=>x.k===k); i
   if(q.non.go){ save(); S.tab=q.non.go; renderDossier(); scrollTo(0,0); toast(q.non.go==="vr"?"Corrige le volet roulant ici":q.non.go==="client"?"Coche le matériel d'accès dans « À prévoir pour la pose »":"Corrige ici"); return; }
   if(q.non.fix){ const msg=q.non.fix(); save(); const y=scrollY; renderOuverture(); scrollTo(0,y); toast(msg); return; }
   const el=q.non.champ&&$(`[data-k^="${q.non.champ}"]`); if(el){ const det=el.closest("details"); if(det) det.open=true; el.scrollIntoView({block:"center"}); el.classList.add("f-warn"); try{ el.focus(); }catch(_){} } toast("Corrige ici"); }
+/* 26/11/2026 (Nicolas) : une grille de ventilation sur chaque menuiserie, sauf cuisine / salle de bain / WC, porte d'entrée (et cintrée)
+   ou si le client n'en veut pas ; au moins une grille par pièce ; VMC double flux → aucune grille nulle part. Rien choisi → rien sur le PDF. */
+const gvAttendue = (o,d) => !estVariante(o) && !sansGV(o) && !pieceHumide(o) && !vmcDoubleFlux(d);
+const nomPiece = o => String(o.repere||"").toLowerCase().replace(/n°\s*\d+/g,"").replace(/[\s–-]+/g," ").trim();
+function controleGVPieces(d, W){ if(vmcDoubleFlux(d)) return; const P={};
+  (d.ouvertures||[]).filter(o=>!estVariante(o) && nomPiece(o) && !pieceHumide(o) && !sansGV(o)).forEach(o=>{ (P[nomPiece(o)]=P[nomPiece(o)]||[]).push(o); });
+  Object.values(P).forEach(L=>{ if(L.some(grilleReelle) || L.some(o=>o.gv===GV_SANS[0]) || L.some(o=>!o.gv)) return;
+    W.push(`Pièce « ${L[0].repere} » : aucune grille de ventilation – il en faut au moins une par pièce (sauf demande du client)`); }); }
 function controleDossier(d){
   const E=[],W=[];
+  try{ controleGVPieces(d,W); }catch(e){}
   if(!d.client.nom) E.push("Nom du client manquant");
   if(!d.client.date_rdv) W.push("Date du RDV manquante");
   if(!d.adresse_chantier) W.push("Adresse du chantier manquante");

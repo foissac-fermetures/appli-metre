@@ -786,6 +786,8 @@ html.resa-open{overflow:hidden}
 .ct-main{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;margin:8px 0;border-radius:10px;background:color-mix(in srgb,#7c3aed 10%,var(--panel));border-left:4px solid #7c3aed}.ct-main>span{flex:1;min-width:0;overflow-wrap:anywhere}
 .sms-to{display:grid;gap:4px;padding:8px 10px;border-radius:8px;background:var(--soft)}.sms-tok{display:flex!important;gap:8px;align-items:center;flex-direction:row!important}.sms-tok input{width:18px;height:18px;flex:none}
 .rdvlieu{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:.9rem}.rdvlieu label{display:flex!important;flex-direction:row!important;gap:6px;align-items:center}.rdvlieu input{width:auto}
+.kpib{font:inherit;color:inherit;text-align:left;cursor:pointer;border:1px solid var(--line)}.kpib:hover{border-color:var(--kc)}.kpib.on{outline:3px solid var(--kc);outline-offset:-1px;background:color-mix(in srgb,var(--kc) 10%,var(--panel))}
+.pfrdv{display:grid;gap:8px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--soft)}.pfrg{display:flex;gap:10px;flex-wrap:wrap}.pfrg label{display:grid;gap:4px;flex:1;min-width:120px}.pfrdv>label{display:grid;gap:4px}
 .tri-set{display:grid;gap:10px;padding:4px 16px 16px}.tri-set label{display:grid;gap:4px}.tri-set label.tri-ck{display:flex}.tri-base{font-size:.85rem;color:var(--muted);line-height:1.5}
 .mlist{display:grid}.mrow{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:4px 12px;padding:12px 16px;border-top:1px solid var(--line);align-items:start}
 .mrow.unread .msub{font-weight:800}.mav{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;background:var(--mc,#64748b);font-size:1rem}
@@ -2889,6 +2891,29 @@ async function payLog(r, e){
   const next = Object.assign({}, cur, { paie: P, client: r.client, updated: now });
   try { await db.collection("suivi").doc(r.id).set(next); suivi[r.id] = next; toast(r.client + " : relance notée"); renderAll(); return true; } catch(_){ toast("Pas enregistré, réessaie"); return false; }
 }
+/* RDV de contrôle avant paiement (le client veut vérifier les travaux avant de régler le solde) */
+function payRdvOf(r){ return (suivi[r.id] || {}).rdvctl || null; }
+function payRdvForm(r){ const c = payRdvOf(r), fut = c && c.d >= iso(today());
+  return `<div class="pfrdv" ${fut ? "" : "hidden"}><span class="eyebrow">📅 RDV avant paiement</span>${fut ? `<span class="sub">Prévu le ${esc(fd(c.d))}${c.h ? " à " + esc(c.h.replace(":", "h")) : ""}${rdvMag(c) ? " · " + esc(rdvMagTxt(c)) : ""}${c.t ? " · " + esc(c.t) : ""}</span>` : ""}
+    <div class="pfrg"><label>Jour<input type="date" class="pfrd" value="${esc(fut ? c.d : "")}"></label><label>Heure<input type="time" class="pfrh" value="${esc(fut ? c.h || "" : "")}" step="300"></label>
+      <label>Durée<select class="pfrdu">${[30, 45, 60, 90].map(n => `<option value="${n}" ${(fut ? c.dur : 30) === n ? "selected" : ""}>${n < 60 ? n + " min" : n / 60 + " h" + (n % 60 ? "30" : "")}</option>`).join("")}</select></label></div>
+    <div class="rdvlieu"><span class="sub">Où ?</span><label><input type="radio" name="pfrl-${esc(r.id)}" value="" ${fut && rdvMag(c) ? "" : "checked"}> 🏠 Chez le client</label>${Object.entries(MAGS).map(([v, m]) => `<label><input type="radio" name="pfrl-${esc(r.id)}" value="${v}" ${fut && c.lieu === v ? "checked" : ""}> 🏬 ${m.l}</label>`).join("")}</div>
+    <label>Motif<input type="text" class="pfrt" value="${esc(fut ? c.t || "" : "Contrôle des travaux avant paiement du solde")}"></label>
+    <label class="rdvlieu"><input type="checkbox" class="pfrcal" checked> Ajouter à mon agenda Google</label>
+    <div class="payb"><button class="btn pri pfrgo" type="button">💾 Enregistrer le RDV</button>${fut ? `<button class="btn pfrdel" type="button">Retirer le RDV</button>` : ""}</div></div>`; }
+async function payRdvSave(r, box, del){ if (!db || !canWrite) return toast("Enregistrement impossible dans cette vue");
+  const q = c => box.querySelector(c), cur = suivi[r.id] || {}, old = cur.rdvctl, now = new Date().toISOString(), d0 = iso(today()), next = Object.assign({}, cur, { client: r.client, updated: now });
+  if (del) { delete next.rdvctl; next.log = (cur.log || []).concat([{ d: d0, at: now, t: "RDV de contrôle avant paiement annulé" }]);
+    if (old && old.ev) { try { await agendaCall("delete_event", { calendarId: "primary", eventId: old.ev }); } catch(_){} } }
+  else { const d = q(".pfrd").value; if (!d) return toast("Choisis le jour du RDV");
+    const lq = box.querySelector('input[name^="pfrl-"]:checked'), rv = { d, h: q(".pfrh").value, dur: +q(".pfrdu").value || 30, t: q(".pfrt").value.trim() }; if (lq && MAGS[lq.value]) rv.lieu = lq.value;
+    let msg = "";
+    if (q(".pfrcal").checked) { try { const b = evBody(r, rv); b.summary = "RDV contrôle avant paiement – " + r.client + (rdvMag(rv) ? " (" + rdvMagTxt(rv) + ")" : ""); b.location = rdvOu(r, rv) || r.lieu || "";
+        const keep = old && old.ev && old.d >= d0; const p = keep ? await agendaCall("update_event", Object.assign({ calendarId: "primary", eventId: old.ev }, b)) : await agendaCall("create_event", b);
+        rv.ev = keep ? old.ev : ((p && (p.id || (p.event || {}).id)) || ""); msg = " et ajouté à ton agenda"; } catch(e){ msg = " · agenda : " + String((e && e.message) || e).slice(0, 80); } }
+    next.rdvctl = rv; next.log = (cur.log || []).concat([{ d: d0, at: now, t: "RDV de contrôle avant paiement fixé au " + rdvLabel(rv) + (rdvMag(rv) ? " " + rdvMagTxt(rv) : "") + (rv.t ? " · " + rv.t : "") }]);
+    toast("RDV du " + rdvLabel(rv) + " enregistré" + msg); }
+  try { await db.collection("suivi").doc(r.id).set(next); suivi[r.id] = next; renderAll(); } catch(_){ toast("Pas enregistré, réessaie"); } }
 function payForm(x){ const r = x.r, P = x.P, m = mailOf(r) || "";
   const mt = payMailText(r, x.solde);
   return `<div class="payf" data-pf="${esc(r.id)}">
@@ -2909,7 +2934,8 @@ function payForm(x){ const r = x.r, P = x.P, m = mailOf(r) || "";
     <div class="payb"><button class="btn pri pfgo" type="button">Noter la relance</button>
       <a class="btn pfmail" href="${esc(outlookHref(m ? [m] : [], [MAIL_COMPTA], mt.s, mt.b))}" target="_blank" rel="noopener" title="Delphine (comptable) est en copie">${m ? "Mail de relance (Outlook, Delphine en copie)" : "Mail de relance (adresse inconnue)"}</a>
       ${r.tel ? `<a class="btn" href="tel:${esc(r.tel.replace(/\s/g, ""))}" target="_blank" rel="noopener">Appeler ${esc(r.tel)}</a>` : ""}
-      <button class="btn pfsms" type="button">SMS de relance</button></div>
+      <button class="btn pfsms" type="button">SMS de relance</button><button class="btn pfrdvb" type="button">📅 Prendre un RDV</button></div>
+    ${payRdvForm(r)}
     ${x.rel.length ? `<div class="payh"><span class="eyebrow">Historique des relances (${x.rel.length})</span><ul class="log">${x.rel.slice().reverse().map(e => `<li><time>${fd(e.d)}</time><span><span class="mode mode-${e.mode === "mess" ? "tel" : e.mode}">${PAY_MODES[e.mode] || e.mode}</span> ${esc([e.res, e.prevu ? "prévu le " + fd(e.prevu) : "", e.moyen ? "par " + e.moyen.toLowerCase() : "", e.note].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul></div>` : ""}
   </div>`; }
 async function savePayInfo(r, info){
@@ -2941,32 +2967,41 @@ function wirePayForm(box, x){
   const mode = () => (box.querySelector('input[name="pfm"]:checked') || {}).value || "tel";
   box.querySelector(".pfgo").onclick = () => payLog(x.r, { mode: mode(), res: box.querySelector(".pfres").value.replace(/^__new$/, ""), prevu: box.querySelector(".pfprevu").value, moyen: box.querySelector(".pfmoy").value, note: box.querySelector(".pfnote").value.trim() });
   box.querySelector(".pfmail").addEventListener("click", () => { if (!mailOf(x.r)) return; setTimeout(() => payLog(x.r, { mode: "mail", note: "mail de relance envoyé depuis Outlook" }), 300); });
+  { const rb = box.querySelector(".pfrdvb"), rf = box.querySelector(".pfrdv"); if (rb && rf) rb.onclick = () => { rf.hidden = false; rf.scrollIntoView({ block: "nearest", behavior: "smooth" }); const d = rf.querySelector(".pfrd"); if (d) d.focus(); };
+    const g = box.querySelector(".pfrgo"); if (g) g.onclick = () => { g.disabled = true; payRdvSave(x.r, rf); };
+    const dl = box.querySelector(".pfrdel"); if (dl) dl.onclick = () => payRdvSave(x.r, rf, true); }
   box.querySelector(".pfsms").onclick = () => { smsFor = x.r.id; smsTpl = "paie"; openDossier(x.r.id); setTimeout(() => { const b = $("#smsbox"); if (b) { cardReveal(b); b.scrollIntoView({ block: "center" }); } }, 80); payLog(x.r, { mode: "sms", note: "SMS de relance préparé" }); };
 }
+let payFilt = "";
 function renderPay(){
   const el = $("#paylist"); if (!el) return;
   const q = $("#q").value.trim().toLowerCase();
-  const all2 = payItems(), L = all2.filter(x => matchQ(x.c, q));
+  const all2 = payItems(), L0 = all2.filter(x => matchQ(x.c, q));
   $("#tpay-n").textContent = all2.length || "";
   const lateN = all2.filter(x => x.late).length, tot = all2.reduce((a, x) => a + (x.v.ht || 0), 0), sold = all2.filter(x => x.solde && !x.wait).length, waitN = all2.filter(x => x.wait).length;
-  $("#paystrip").innerHTML = `<div class="kpi" style="cursor:default;--kc:var(--late)"><span class="eyebrow">Solde à encaisser</span><span class="v num">${sold}</span><span class="s">chantier${sold > 1 ? "s" : ""} posé${sold > 1 ? "s" : ""}</span></div>
-    <div class="kpi" style="cursor:default;--kc:var(--s-att)"><span class="eyebrow">Retenue · attend le SAV</span><span class="v num">${waitN}</span><span class="s">pas à relancer pour l'instant</span></div>
-    <div class="kpi" style="cursor:default;--kc:var(--s-rel)"><span class="eyebrow">Acompte manquant</span><span class="v num">${all2.filter(x => !x.solde).length}</span><span class="s">commande${all2.filter(x => !x.solde).length > 1 ? "s" : ""} signée${all2.filter(x => !x.solde).length > 1 ? "s" : ""}</span></div>
-    <div class="kpi" style="cursor:default;--kc:var(--s-lost)"><span class="eyebrow">Promesse dépassée</span><span class="v num">${lateN}</span><span class="s">date prévue passée</span></div>
+  const PF = { solde: x => x.solde && !x.wait, wait: x => x.wait, acompte: x => !x.solde, late: x => x.late };
+  const kb = (k, kc, lbl, n, sub) => `<button type="button" class="kpi kpib ${payFilt === k ? "on" : ""}" data-pfilt="${k}" style="--kc:${kc}" aria-pressed="${payFilt === k}" title="${payFilt === k ? "Cliquer pour tout revoir" : "Afficher seulement ceux-là"}"><span class="eyebrow">${lbl}</span><span class="v num">${n}</span><span class="s">${sub}</span></button>`;
+  $("#paystrip").innerHTML = kb("solde", "var(--late)", "Solde à encaisser", sold, "chantier" + (sold > 1 ? "s" : "") + " posé" + (sold > 1 ? "s" : ""))
+    + kb("wait", "var(--s-att)", "Retenue · attend le SAV", waitN, "pas à relancer pour l'instant")
+    + kb("acompte", "var(--s-rel)", "Acompte manquant", all2.filter(x => !x.solde).length, "commande" + (all2.filter(x => !x.solde).length > 1 ? "s" : "") + " signée" + (all2.filter(x => !x.solde).length > 1 ? "s" : ""))
+    + kb("late", "var(--s-lost)", "Promesse dépassée", lateN, "date prévue passée") + `
     <div class="kpi" style="cursor:default;--kc:var(--wood)"><span class="eyebrow">Montant des chantiers</span><span class="v num">${eur(tot)}</span><span class="s">HT concernés</span></div>`;
+  const L = payFilt && PF[payFilt] ? L0.filter(PF[payFilt]) : L0;
   const rank = x => x.wait ? 3 : x.late ? 0 : !x.P.prevu ? 1 : 2;
   L.sort((a, b) => rank(a) - rank(b) || (rank(a) === 2 ? a.P.prevu.localeCompare(b.P.prevu) : b.days - a.days));
-  $("#payTitle").textContent = "Paiements à relancer · " + L.length;
+  $("#payTitle").innerHTML = (payFilt ? esc({ solde: "Soldes à encaisser", wait: "Retenues en attente du SAV", acompte: "Acomptes manquants", late: "Promesses dépassées" }[payFilt]) + " · " + L.length + ` <button class="lnk sub" type="button" id="pfall">tout voir</button>` : "Paiements à relancer · " + L.length);
+  $("#paystrip").querySelectorAll("[data-pfilt]").forEach(b => b.onclick = () => { payFilt = payFilt === b.dataset.pfilt ? "" : b.dataset.pfilt; payOpen = null; renderPay(); });
+  { const a = $("#pfall"); if (a) a.onclick = () => { payFilt = ""; renderPay(); }; }
   el.innerHTML = L.length ? L.map((x, i) => { const n = payNote(x), lr = x.last;
     const sep = x.wait && (i === 0 || !L[i - 1].wait) ? `<div class="paysep">Retenues en attente du SAV · le client paiera le reste une fois le SAV fait</div>` : "";
     return sep + `<div class="payr${x.wait ? " wait" : ""} ${x.late ? "late" : ""} ${payOpen === x.key ? "open" : ""}" data-pid="${esc(x.key)}">
       <div class="payrh" role="button" tabindex="0">
-        <span style="min-width:0"><b>${esc(x.r.client)}</b> ${pdfBadge(Object.assign({}, x.r, { pdf_devis: [], pdf_metres: [] }))}<span class="sub" style="display:block">${esc(x.solde ? "Solde à régler" : "Acompte non versé")} · ${esc(x.sinceLbl)} · ${eur(x.v.ht)} HT${x.v.ac ? " · acompte " + eur(x.v.ac) + " versé" : ""}</span></span>
+        <span style="min-width:0"><b>${esc(x.r.client)}</b> ${pdfBadge(Object.assign({}, x.r, { pdf_devis: [], pdf_metres: [] }))}${payRdvOf(x.r) && payRdvOf(x.r).d >= iso(today()) ? `<span class="pj-tag">📅 RDV contrôle le ${esc(fd(payRdvOf(x.r).d))}${payRdvOf(x.r).h ? " " + esc(payRdvOf(x.r).h.replace(":", "h")) : ""}</span>` : ""}<span class="sub" style="display:block">${esc(x.solde ? "Solde à régler" : "Acompte non versé")} · ${esc(x.sinceLbl)} · ${eur(x.v.ht)} HT${x.v.ac ? " · acompte " + eur(x.v.ac) + " versé" : ""}</span></span>
         <span class="payd ${x.wait ? "" : x.days > 30 ? "hot" : x.days > 14 ? "warm" : ""}"><b class="num">${x.days}</b> j<small>${x.wait ? "depuis la pose" : x.ret && x.ret.savDone ? "depuis le SAV" : "sans paiement"}</small></span>
         <span class="payst">${n ? `<span class="${x.late ? "late" : ""}">${esc(n)}</span>` : `<span class="sub">pas encore relancé</span>`}${lr ? `<span class="sub" style="display:block">dernière relance : ${PAY_MODES[lr.mode] || lr.mode} le ${fd(lr.d)} · ${x.rel.length} au total</span>` : ""}</span>
       </div>
       ${payOpen === x.key ? payForm(x) : ""}</div>`; }).join("") : `<div class="empty">${q ? "Aucun paiement en attente pour cette recherche." : "Aucun paiement en attente. 👍"}</div>`;
-  { const fin = chantiers().filter(c => !c.v.ann && !["solde", "termine", "annule"].includes(c.v.et) && payAtEnd(c.r) && !(c.v.ac > 0));
+  if (!payFilt) { const fin = chantiers().filter(c => !c.v.ann && !["solde", "termine", "annule"].includes(c.v.et) && payAtEnd(c.r) && !(c.v.ac > 0));
     if (fin.length) el.insertAdjacentHTML("beforeend", `<div class="payfin"><span class="eyebrow">Paient tout à la fin du chantier · pas d'acompte attendu (${fin.length})</span><div>${fin.map(c => `<span class="payfc"><button class="lnk" type="button" data-pfo="${esc(c.r.id)}">${esc(c.r.client)}</button>${PUBLIC_RX.test(upAscii(c.r.client)) ? "" : ` <button class="lnk" type="button" data-pfu="${esc(c.r.id)}" title="Remettre l'alerte d'acompte">(acompte attendu)</button>`}</span>`).join(" · ")}</div></div>`);
     el.querySelectorAll("[data-pfo]").forEach(b => b.onclick = () => openDossier(b.dataset.pfo));
     el.querySelectorAll("[data-pfu]").forEach(b => b.onclick = () => { const r = rows.find(x => x.id === b.dataset.pfu); if (r) setPayFin(r, false); }); }

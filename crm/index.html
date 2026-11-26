@@ -784,7 +784,6 @@ html.resa-open{overflow:hidden}
 .fw-hd{display:flex;gap:10px;align-items:center}.fw-hd .sub{flex:1}.fw-row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.fw-row>label{flex:1;min-width:160px}.fw-box label.fw-tu{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.fw-tu input[type=checkbox]{width:18px;height:18px}.fw-ft{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .ct-found{display:grid;gap:8px;padding:10px 12px;margin-bottom:8px;border-radius:10px;border:1px dashed color-mix(in srgb,#f59e0b 55%,var(--line));background:color-mix(in srgb,#f59e0b 9%,var(--panel))}.ct-fi{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;align-items:center}.ct-fb{display:flex;gap:6px;flex-wrap:wrap}
 .ct-main{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;margin:8px 0;border-radius:10px;background:color-mix(in srgb,#7c3aed 10%,var(--panel));border-left:4px solid #7c3aed}.ct-main>span{flex:1;min-width:0;overflow-wrap:anywhere}
-.qi .amt{display:flex;flex-direction:column;align-items:flex-end;gap:4px}.qstop{font-size:.75rem;padding:3px 8px;white-space:nowrap}
 .tri-set{display:grid;gap:10px;padding:4px 16px 16px}.tri-set label{display:grid;gap:4px}.tri-set label.tri-ck{display:flex}.tri-base{font-size:.85rem;color:var(--muted);line-height:1.5}
 .mlist{display:grid}.mrow{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:4px 12px;padding:12px 16px;border-top:1px solid var(--line);align-items:start}
 .mrow.unread .msub{font-weight:800}.mav{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;background:var(--mc,#64748b);font-size:1rem}
@@ -2751,9 +2750,8 @@ function renderQueue(){
     <div class="qi" role="button" tabindex="0" data-id="${esc(r.id)}">
       <span class="when ${w.late?"late":""}">${esc(w.t)}</span>
       <span style="min-width:0"><span class="nm" style="display:block">${esc(r.client)}</span>${status(r)==="rappeler"?`<span class="pill st-rappeler" style="padding:1px 7px;margin:2px 0">Positif · à rappeler</span>`:""}${canLose(r)?`<span style="display:block;margin:3px 0">${loseBtn(r, true)}</span>`:""}<span class="sub">${lastRel(r)?esc(relLabel(lastRel(r))):(esc(r.proj||"")+(r.lieu?" · "+esc(r.lieu):""))}</span>${pdfBadge(r)?`<span class="qdv">${pdfBadge(r)}</span>`:""}${nousSel(r)}</span>
-      <span class="amt">${amount(r)!=null?eur(amount(r)):""}<button class="btn sm qstop" type="button" data-qstop="${esc(r.id)}" title="Ne plus relancer ce devis (tu pourras reprendre depuis sa fiche)">🔕 Plus de relance</button></span>
+      <span class="amt">${amount(r)!=null?eur(amount(r)):""}</span>
     </div>`; }).join("");
-  $("#queue").querySelectorAll("[data-qstop]").forEach(b => b.addEventListener("click", async e => { e.stopPropagation(); const r = rows.find(x => x.id === b.dataset.qstop); if (!r) return; b.disabled = true; await setNoRel(r, true); toast(r.client + " : plus de relance (tu peux reprendre depuis sa fiche)"); }));
   $("#queue").querySelectorAll(".qnous").forEach(q => { ["click", "keydown", "mousedown"].forEach(ev => q.addEventListener(ev, e => e.stopPropagation())); wireLists(q);
     q.querySelector("select").addEventListener("change", e => { const v = e.target.value; if (!v || v === "__new") return; const r = rows.find(x => x.id === q.dataset.qn); if (r) saveNous(r, listLabel("nous", v)); }); });
   $("#queue").querySelectorAll(".qi").forEach(b => {
@@ -6281,5 +6279,5 @@ function rebuild(){
   }, () => {});
 })();
 </script>
-<script src="import.js"></script>
+<script src="import.js?v=20261126"></script>
 </body></html>

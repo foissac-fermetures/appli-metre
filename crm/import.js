@@ -69,14 +69,15 @@
 
   /* -- boutons d'action -- */
   function qaRow(r){ const t = tel(r);
-    return `<div class="qa"><button type="button" class="qab rdv" data-qa="rdv" title="Noter un rendez-vous">📅 RDV</button>${t ? `<a class="qab" href="tel:${esc(t)}" title="Appeler">📞 Appeler</a><button type="button" class="qab" data-qa="sms" title="Préparer un SMS">💬 SMS</button>` : ""}<button type="button" class="qab" data-qa="rel" title="Noter une relance">🔁 Relance</button><button type="button" class="qab" data-qa="mail" title="Écrire un mail">✉️ Mail</button></div>`; }
+    return `<div class="qa"><button type="button" class="qab rdv" data-qa="rdv" title="Noter un rendez-vous">📅 RDV</button>${t ? `<a class="qab" href="tel:${esc(t)}" title="Appeler">📞 Appeler</a><button type="button" class="qab" data-qa="sms" title="Préparer un SMS">💬 SMS</button>` : ""}<button type="button" class="qab" data-qa="rel" title="Noter une relance">🔁 Relance</button><button type="button" class="qab" data-qa="mail" title="Écrire un mail">✉️ Mail</button>${(typeof status === "function" && status(r) === "relancer" && !((suivi[r.id] || {}).norel)) ? `<button type="button" class="qab" data-qa="norel" title="Ne plus relancer ce devis (tu pourras reprendre depuis sa fiche)">🔕 Plus de relance</button>` : ""}</div>`; }
   function fqaBar(r){ const t = tel(r);
-    return `<div class="fqa" aria-label="Actions rapides"><button type="button" class="qab rdv" data-fqa="rdv">📅 RDV</button>${t ? `<a class="qab" href="tel:${esc(t)}">📞 Appeler</a><button type="button" class="qab" data-fqa="sms">💬 SMS</button>` : ""}<button type="button" class="qab" data-fqa="rel">🔁 Relance</button><button type="button" class="qab" data-fqa="mail">✉️ Mail</button>${(r.pdf_devis || []).length ? `<button type="button" class="qab" data-resa="${esc(r.id)}">📐 Plan de réservation</button>` : ""}<span class="sep"></span><a class="qab lien" href="${lienMetre(r)}" title="Ouvrir le métré de ce client dans l'appli de métré (ou le créer)">📏 Métré</a><a class="qab lien" href="${lienPlan(r)}" title="Ouvrir le plan de ce client dans la Mini DAO (ou le créer)">📐 Plan</a></div>`; }
+    return `<div class="fqa" aria-label="Actions rapides"><button type="button" class="qab rdv" data-fqa="rdv">📅 RDV</button>${t ? `<a class="qab" href="tel:${esc(t)}">📞 Appeler</a><button type="button" class="qab" data-fqa="sms">💬 SMS</button>` : ""}<button type="button" class="qab" data-fqa="rel">🔁 Relance</button><button type="button" class="qab" data-fqa="mail">✉️ Mail</button>${(typeof status === "function" && status(r) === "relancer" && !((suivi[r.id] || {}).norel)) ? `<button type="button" class="qab" data-fqa="norel" title="Ne plus relancer ce devis (tu pourras reprendre depuis sa fiche)">🔕 Plus de relance</button>` : ""}${(r.pdf_devis || []).length ? `<button type="button" class="qab" data-resa="${esc(r.id)}">📐 Plan de réservation</button>` : ""}<span class="sep"></span><a class="qab lien" href="${lienMetre(r)}" title="Ouvrir le métré de ce client dans l'appli de métré (ou le créer)">📏 Métré</a><a class="qab lien" href="${lienPlan(r)}" title="Ouvrir le plan de ce client dans la Mini DAO (ou le créer)">📐 Plan</a></div>`; }
   function qaShow(el){ if (!el) return false; for (let p = el.parentElement; p; p = p.parentElement) if (p.tagName === "DETAILS") p.open = true;
     const box = el.closest("fieldset, .relblk, .fcard") || el; box.scrollIntoView({ block: "center", behavior: "smooth" });
     box.classList.add("qaflash"); setTimeout(() => box.classList.remove("qaflash"), 1400);
     setTimeout(() => { try { el.focus({ preventScroll: true }); } catch(_){} }, 350); return true; }
   function qaGo(kind){ const r = findRow(openId); if (!r) return;
+    if (kind === "norel") { setNoRel(r, true); return; }
     if (kind === "rdv") { if (!qaShow(q$("#rdvd"))) toast("Pas de rendez-vous à noter sur ce dossier"); }
     else if (kind === "rel") { if (!qaShow(q$("#mrc"))) toast("Pas de relance à noter sur ce dossier"); }
     else if (kind === "sms") { if (smsFor === r.id) { const b = q$("#smsbox"); if (b) b.scrollIntoView({ block: "center", behavior: "smooth" }); } else { const b = q$("#smsb"); if (b) b.click(); else toast("Pas de numéro pour un SMS"); } }
@@ -95,7 +96,7 @@
   const _renderList = renderList;
   renderList = function () { const out = _renderList.apply(this, arguments);
     try { document.querySelectorAll("#rows tr[data-id]").forEach(tr => { const td = tr.querySelector("td"); const r = findRow(tr.dataset.id); if (!td || !r || td.querySelector(".qa")) return; td.insertAdjacentHTML("beforeend", qaRow(r));
-      td.querySelectorAll("button[data-qa]").forEach(b => b.onclick = e => { e.stopPropagation(); e.preventDefault(); quickAct(tr.dataset.id, b.dataset.qa); }); }); renderRecbar(); } catch(_){}
+      td.querySelectorAll("button[data-qa]").forEach(b => b.onclick = e => { e.stopPropagation(); e.preventDefault(); if (b.dataset.qa === "norel") { const r2 = findRow(tr.dataset.id); if (r2) setNoRel(r2, true); return; } quickAct(tr.dataset.id, b.dataset.qa); }); }); renderRecbar(); } catch(_){}
     return out; };
   const _renderDrawer = renderDrawer;
   renderDrawer = function () { const out = _renderDrawer.apply(this, arguments);

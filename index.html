@@ -1733,9 +1733,18 @@ function controleLigneVR(l, v){
   try{ const m=motVRMajoritaire(v), k=cleMotVR(motVR(l,v)); if(m.cles.length>1 && k && k!==m.maj) W.push(`Motorisation « ${motVR(l,v)} » différente des autres volets (${m.maj}) : en principe tous les volets ont la même (marque et fonctionnement) – à vérifier`); }catch(e){}
   if(tL==null||tH==null) E.push("Cote tableau manquante");
   if(!vrUsine(l)){
-  if(fL==null||fH==null) E.push("Cote de fabrication manquante");
-  if(tL!=null&&fL!=null&&Math.abs(fL-tL)>150) E.push("Largeur : écart fabrication / tableau > 150 mm ?");
-  if(tH!=null&&fH!=null&&Math.abs(fH-tH)>150) E.push("Hauteur : écart fabrication / tableau > 150 mm ?"); }
+  const app=vrApplique(l,v);
+  if(fL==null||fH==null) E.push(app?"Cote de fabrication manquante (ou appuyer sur « + coulisses » / « + coffre » sous la fabrication)":"Cote de fabrication manquante");
+  /* 26/11/2026 : en applique, la cote peut comprendre les coulisses / le coffre → écarts admis plus grands (300 en largeur, 450 en hauteur) */
+  const eL=app?300:150, eH=app?450:150;
+  if(tL!=null&&fL!=null&&Math.abs(fL-tL)>eL) E.push(`Largeur : écart fabrication / tableau > ${eL} mm ?`);
+  if(tH!=null&&fH!=null&&Math.abs(fH-tH)>eH) E.push(`Hauteur : écart fabrication / tableau > ${eH} mm ?`);
+  if(app){
+    if(fb.plusL && fb.forceL && tL!=null && fL>tL+5) W.push(`Largeur ${fL} + coulisses : plus grande que le tableau (${tL}) – coulisses comptées deux fois ?`);
+    if(fb.plusH && fb.forceH && tH!=null && fH>tH+5) W.push(`Hauteur ${fH} + coffre : plus grande que le tableau (${tH}) – coffre compté deux fois ?`);
+    if(!fb.plusL && fL!=null && tL!=null && fL<=tL) W.push(`Pose en applique : largeur de fabrication (${fL}) ≤ tableau (${tL}) – coulisses comprises ? Sinon appuyer sur « + coulisses »`);
+    if(!fb.plusH && fH!=null && tH!=null && fH<=tH) W.push(`Pose en applique : hauteur de fabrication (${fH}) ≤ tableau (${tH}) – coffre compris ? Sinon appuyer sur « + coffre »`);
+  } }
   // 24/11/2026 : contrôle « multiple de 5 » supprimé (volets roulants)
   if(l.fil_droite&&l.fil_gauche) E.push("Sortie de fil cochée à droite ET à gauche ?");
   if(vrMotorise(l,v)&&!l.fil_droite&&!l.fil_gauche) W.push("Côté de sortie de fil non coché");

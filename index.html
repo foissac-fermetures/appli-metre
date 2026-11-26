@@ -7506,15 +7506,35 @@ function prechargerGoogle(){ if(driveDispo() && navigator.onLine) chargerScript(
 }).catch(()=>{}); }
 function jetonValide(){ return G_JETON && Date.now()<G_FIN-60000; }
 /* Doit être appelé dans le clic (sinon la fenêtre Google est bloquée). */
-function demanderJeton(){ return new Promise((ok,ko)=>{
-  if(jetonValide()) return ok(G_JETON);
+function demanderJeton(force){
+  if(!force && jetonValide()) return Promise.resolve(G_JETON);
+  if(G_JETON_EN_COURS) return G_JETON_EN_COURS;   // une demande est déjà partie (ex. renouvellement automatique du même clic) : on l'attend, pas de 2e fenêtre
+  const p=new Promise((ok,ko)=>{
   if(gParRedirection()){ gPartirChezGoogle(); return ko(new Error("connexion Google en cours…")); }
   if(!G_CLIENT) return ko(new Error("Google pas encore prêt, réessaie dans 2 secondes"));
   G_CLIENT.callback=r=>{ if(r.error) return ko(new Error(r.error)); G_JETON=r.access_token; G_FIN=Date.now()+r.expires_in*1000;
     try{ localStorage.setItem("g_jeton",JSON.stringify({t:G_JETON,f:G_FIN,s:DRIVE_SCOPE})); localStorage.setItem("g_ok4","1"); }catch(e){} ok(G_JETON); };
   G_CLIENT.error_callback=e=>ko(new Error(e.type==="popup_closed"?"fenêtre Google fermée":"connexion Google impossible"));
   G_CLIENT.requestAccessToken({prompt: localStorage.getItem("g_ok4") ? "" : "consent"});
-}); }
+  });
+  G_JETON_EN_COURS=p; const fin=()=>{ if(G_JETON_EN_COURS===p) G_JETON_EN_COURS=null; }; p.then(fin,fin);
+  return p; }
+var G_JETON_EN_COURS=null;
+/* Renouvellement automatique (26/11/2026, comme le CRM : crm/shim.js) : le jeton Google dure 1 h. Si Nicolas s'est déjà connecté une fois,
+   au premier clic n'importe où quand le jeton expire dans moins de 10 min (ou a expiré), on le renouvelle sans rien demander
+   (requestAccessToken prompt "" : la petite fenêtre Google se ferme seule). Le navigateur exige un clic pour l'ouvrir.
+   30 s minimum entre deux essais. Pas dans Bluefy (gParRedirection : connexion par redirection, inchangée). */
+var G_AUTO_AT=0;
+document.addEventListener("click", e=>{
+  try{
+    if(!localStorage.getItem("g_ok4") || !G_CLIENT || G_JETON_EN_COURS || gParRedirection() || !navigator.onLine) return;
+    if(G_JETON && Date.now() < G_FIN-600000) return;
+    if(Date.now()-G_AUTO_AT < 30000) return;
+    if(e.target && e.target.closest && e.target.closest("#gConnexion,[data-gconnexion]")) return;
+    G_AUTO_AT=Date.now();
+    demanderJeton(true).then(()=>{ try{ majEtatDrive(); }catch(_){} }, ()=>{});
+  }catch(_){}
+}, true);
 async function gdrive(url, opt={}){
   url+=(url.includes("?")?"&":"?")+"supportsAllDrives=true"; // plus de « corpora=allDrives » : résultats parfois incomplets → doublons (16/11)
   const r=await fetch(url,{...opt, headers:{...(opt.headers||{}), Authorization:"Bearer "+G_JETON}});

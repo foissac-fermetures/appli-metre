@@ -223,6 +223,7 @@
     const e = {}; ["summary", "description", "location"].forEach(k => { if (i[k] != null) e[k] = i[k]; });
     if (i.startTime) e.start = i.allDay ? { date: String(i.startTime).slice(0, 10) } : { dateTime: i.startTime.length === 19 ? i.startTime : i.startTime, timeZone: "Europe/Paris" };
     if (i.endTime) e.end = i.allDay ? { date: String(i.endTime).slice(0, 10) } : { dateTime: i.endTime, timeZone: "Europe/Paris" };
+    if (i.reminders) e.reminders = i.reminders;
     return e;
   }
   function utf8b64(s) { return b64(new TextEncoder().encode(s)); }

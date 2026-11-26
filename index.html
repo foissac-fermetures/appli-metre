@@ -837,8 +837,12 @@ function listeCoffreVR(g){ return FRN(g).vr_coffre || CAT.vr_coffre_hauteur_port
 const GAMME_VR_MANOEUVRE = { "PVC - REHAU PORTEO":"vr_manoeuvre_porteo" };
 function listeManoeuvreVR(g){ return FRN(g).vr_manoeuvre || (GAMME_VR_MANOEUVRE[g] ? CAT[GAMME_VR_MANOEUVRE[g]] : null); }
 /* Un volet vendu avec la menuiserie a sa propre manœuvre ; sinon on prend la motorisation commune de la feuille VR */
-function vrMotorise(l,v){ return l.avec_menuiserie ? /motorisation/i.test(l.manoeuvre_menuis||"") : motorise(v); }
-function vrSolaire(l,v){ return /solaire/i.test(l.avec_menuiserie ? (l.manoeuvre_menuis||"") : (v.motorisation||"")); }
+/* 26/11/2026 : chaque volet peut avoir SA motorisation (ex. 3 solaires, 1 radio, 1 filaire) ; vide = comme l'en-tête */
+const motVR = (l,v) => l.avec_menuiserie ? (l.manoeuvre_menuis||"") : (l.motorisation||v.motorisation||"");
+const motEstMotorise = t => !!t && !/manuel|sangle|treuil|tringle|tirage|choisir/i.test(t);
+function vrMotorise(l,v){ return motEstMotorise(motVR(l,v)); }
+function vrSolaire(l,v){ return /solaire/i.test(motVR(l,v)); }
+const selMotLigneVR = (l,v,k) => l.avec_menuiserie ? "" : `<div style="min-width:240px">${F.sel(`${k}.motorisation`,`Motorisation de ce volet${v.motorisation?` <small>(vide = comme l'en-tête : ${esc(v.motorisation)})</small>`:""}`,CAT.vr.motorisation,l.motorisation||"")}</div>`;
 function fournisseurGamme(g){ return (g||"").replace(/^(PVC|ALU|BOIS|MIXTE) - /,""); }
 function vrLie(d,o){ return d.vr.lignes.find(l=>l.ouv_id===o.id); }
 function syncVR(d){
@@ -1662,7 +1666,8 @@ function controleGVPieces(d, W){ if(vmcDoubleFlux(d)) return; const P={};
 function controleDossier(d){
   const E=[],W=[];
   try{ controleGVPieces(d,W); }catch(e){}
-  try{ if(d.vr){ const m=motVRMajoritaire(d.vr); if(m.cles.length>1) W.push(`Volets roulants : motorisations différentes (${m.cles.join(" / ")}) – en principe tous les volets ont la même motorisation (marque et fonctionnement), sauf demande exceptionnelle du client`); } }catch(e){}
+  try{ if(d.vr){ const inc=incoherencesMotVR(d.vr); if(inc.marques.length>1) W.push(`Volets roulants : marques de moteur différentes (${inc.marques.join(" / ")}) – en principe la même marque partout, sauf demande du client`);
+    else if(inc.protos.length>1) W.push(`Volets roulants : radio iO et RTS mélangées (télécommandes pas compatibles) – à vérifier`); } }catch(e){}
   if(!d.client.nom) E.push("Nom du client manquant");
   if(!d.client.date_rdv) W.push("Date du RDV manquante");
   if(!d.adresse_chantier) W.push("Adresse du chantier manquante");
@@ -1712,17 +1717,22 @@ function fabVR(l, v){
 const motorise = v => v.motorisation && v.motorisation!=="Manuel";
 /* 26/11/2026 (Nicolas) : en principe TOUS les volets ont la même motorisation (marque ET fonctionnement : Somfy iO, Somfy filaire…).
    Un volet différent est une demande exceptionnelle → avertissement (pas une erreur). */
-const motVR = (l,v) => l.avec_menuiserie ? (l.manoeuvre_menuis||"") : (v.motorisation||"");
 function cleMotVR(t){ t=nrm(String(t||"")); if(!t || /choisir/.test(t)) return "";
   const marque = /somfy|oximo|ilmo|rs100|\bio\b/.test(t)?"Somfy" : /futurol/.test(t)?"Futurol" : /zurii/.test(t)?"Zurii" : /zigbee/.test(t)?"Zigbee" : /wake/.test(t)?"Wake" : "";
   const fonct = /\bio\b/.test(t)?"iO" : /rts/.test(t)?"RTS" : /solaire/.test(t)?"solaire" : /filaire/.test(t)?"filaire" : /radio|zigbee|zurii/.test(t)?"radio" : /manuel|sangle|treuil|tringle|tirage/.test(t)?"manuel" : /electrique/.test(t)?"électrique" : "";
   return [marque,fonct].filter(Boolean).join(" ") || t; }
 function motVRMajoritaire(v){ const n={}; (v.lignes||[]).forEach(l=>{ const k=cleMotVR(motVR(l,v)); if(k) n[k]=(n[k]||0)+1; }); const L=Object.entries(n).sort((a,b)=>b[1]-a[1]); return {cles:L.map(x=>x[0]), maj:L[0]&&L[0][0]}; }
+/* Mélange solaire / radio / filaire / manuel : ça arrive → pas d'alerte. Alerte seulement si la MARQUE change (Somfy / Futurol…) ou le protocole radio (iO / RTS) */
+const marqueMot = k => (String(k).match(/^(Somfy|Futurol|Zurii|Zigbee|Wake)/)||[])[1]||"";
+const protoMot = k => (String(k).match(/\b(iO|RTS)\b/)||[])[1]||"";
+function incoherencesMotVR(v){ const L=(v.lignes||[]).map(l=>({l,k:cleMotVR(motVR(l,v))})).filter(x=>x.k&&!/manuel/.test(x.k));
+  const cpt=f=>{ const n={}; L.forEach(x=>{ const m=f(x.k); if(m) n[m]=(n[m]||0)+1; }); return Object.entries(n).sort((a,b)=>b[1]-a[1]).map(x=>x[0]); };
+  return {marques:cpt(marqueMot), protos:cpt(protoMot)}; }
 function controleVREntete(v){
   const E=[],W=[]; if(!v.lignes.length) return {E,W};
   if(!v.type_pose) E.push("Type de pose non choisi");
   if(!v.coffre) W.push("Type de coffre non choisi");
-  if(!v.motorisation) E.push("Motorisation non choisie");
+  if(!v.motorisation && !v.lignes.every(l=>l.avec_menuiserie||l.motorisation)) E.push("Motorisation non choisie (en-tête, ou volet par volet)");
   if(!v.couleur_coffre && !v.couleur_coulisses && !v.couleur_tablier && v.lignes.some(l=>!VR_COUL.some(([k])=>l[k]))) W.push("Couleurs coffre / coulisses / tablier non renseignées");
   if(!v.manutention) W.push("Manutention (échelle, nacelle…) non renseignée");
   return {E,W};
@@ -1730,7 +1740,9 @@ function controleVREntete(v){
 function controleLigneVR(l, v){
   const E=[],W=[], tL=num(l.tab_l), tH=num(l.tab_h), fb=fabVR(l,v), fL=fb.L, fH=fb.H;
   if(!l.repere) W.push("Repère manquant");
-  try{ const m=motVRMajoritaire(v), k=cleMotVR(motVR(l,v)); if(m.cles.length>1 && k && k!==m.maj) W.push(`Motorisation « ${motVR(l,v)} » différente des autres volets (${m.maj}) : en principe tous les volets ont la même (marque et fonctionnement) – à vérifier`); }catch(e){}
+  try{ const inc=incoherencesMotVR(v), k=cleMotVR(motVR(l,v)), ma=marqueMot(k), pr=protoMot(k);
+    if(inc.marques.length>1 && ma && ma!==inc.marques[0]) W.push(`Motorisation « ${motVR(l,v)} » : marque différente des autres volets (${inc.marques[0]}) – à vérifier (demande du client ?)`);
+    else if(inc.protos.length>1 && pr && pr!==inc.protos[0]) W.push(`Motorisation « ${motVR(l,v)} » : radio ${pr} alors que les autres sont en ${inc.protos[0]} (télécommandes pas compatibles) – à vérifier`); }catch(e){}
   if(tL==null||tH==null) E.push("Cote tableau manquante");
   if(!vrUsine(l)){
   const app=vrApplique(l,v);
@@ -2375,6 +2387,7 @@ function renderVR(t){
       <label class="f">Fabrication – hauteur <span class="fabhint" id="vrfh${i}"></span><input data-k="${k}.fab_h" inputmode="decimal" value="${esc(l.fab_h)}">${btnPlusVR(l,v,i,"H")}</label>
     </div>
     <div class="row" style="margin:12px 0;gap:18px">
+      ${selMotLigneVR(l,v,k)}
       <div><div class="hint">Sortie de fil (vue intérieure)</div><div class="checks">${F.chk(`${k}.fil_gauche`,"Gauche",l.fil_gauche)}${F.chk(`${k}.fil_droite`,"Droite",l.fil_droite)}</div></div>
       <div><div class="hint">Perçage coulisse</div><div class="checks">${F.chk(`${k}.percage_tableau`,"Tableau",l.percage_tableau)}${F.chk(`${k}.percage_face`,"De face",l.percage_face)}</div></div>
     </div>
@@ -2637,6 +2650,7 @@ function renderVRInline(){
     <div class="grid g4">
       ${vrUsine(l)?`<div class="hint" style="grid-column:span 2;align-self:center">Fabrication : <b>cotes données par l'usine</b> (volet vendu avec la menuiserie), rien à saisir.</div>`:`<label class="f">Fabrication – largeur <span class="fabhint" id="vrInFl"></span><input data-k="${k}.fab_l" inputmode="decimal" value="${esc(l.fab_l)}">${btnPlusVR(l,d.vr,i,"L")}</label>
       <label class="f">Fabrication – hauteur <span class="fabhint" id="vrInFh"></span><input data-k="${k}.fab_h" inputmode="decimal" value="${esc(l.fab_h)}">${btnPlusVR(l,d.vr,i,"H")}</label>`}
+      ${selMotLigneVR(l,d.vr,k)}
       <div><div class="hint">Sortie de fil (vue int.)</div><div class="checks">${F.chk(`${k}.fil_gauche`,"Gauche",l.fil_gauche)}${F.chk(`${k}.fil_droite`,"Droite",l.fil_droite)}</div></div>
       ${vrUsine(l)?"":`<div><div class="hint">Perçage coulisse</div><div class="checks">${F.chk(`${k}.percage_tableau`,"Tableau",l.percage_tableau)}${F.chk(`${k}.percage_face`,"De face",l.percage_face)}</div></div>`}
       ${F.sel(`${k}.fil_coffre`,"Sortie de fil – coffre",C.sortie_fil_coffre,l.fil_coffre)}${vrUsine(l)?"":F.sel(`${k}.electricite`,"Électricité",C.electricite,l.electricite)}
@@ -7473,7 +7487,7 @@ function construireImpression(d){
         <tr><th>L</th><th>H</th><th>L</th><th>H</th><th>G</th><th>D</th><th>Tab.</th><th>Face</th></tr>
         ${v.lignes.map(l=>`<tr><td><b>${l.num_poseur?"N°"+esc(l.num_poseur)+" ":""}${esc(l.repere)}</b>${l.avec_menuiserie?`<br><small>${esc(l.avec_menuiserie)} (avec menuiserie)${l.manoeuvre_menuis?"<br>"+esc(l.manoeuvre_menuis):""}${l.coffre_hauteur?"<br>"+esc(l.coffre_hauteur):""}</small>`:""}${VR_COUL.some(([c])=>l[c]&&l[c]!==v[c])?`<br><small>${esc(VR_COUL.filter(([c])=>l[c]).map(([c,lab])=>lab.replace("Couleur ","")+" "+l[c]).join(" · "))}</small>`:""}</td><td>${esc(l.quantite)}</td><td>${esc(l.tab_l)}</td><td>${esc(l.tab_h)}</td>${vrUsine(l)?`<td colspan="2"><small>usine</small></td>`:`<td><b>${esc(texteFabVR(l,v,"L"))}</b></td><td><b>${esc(texteFabVR(l,v,"H"))}</b></td>`}
           <td>${ck(l.fil_gauche)}</td><td>${ck(l.fil_droite)}</td><td>${ck(l.percage_tableau)}</td><td>${ck(l.percage_face)}</td><td>${esc(l.fil_coffre)}</td><td>${esc(l.electricite)}</td><td>${esc(l.depose)}</td><td>${esc(l.option)}</td></tr>${
-          (()=>{ const det=[l.type_pose&&l.type_pose!==v.type_pose?"POSE : "+(CAT.vr.types_pose.find(p=>p.id===l.type_pose)?.nom||l.type_pose).toUpperCase():"", l.ps_deporte&&vrSolaire(l,v)?`☀️ Panneau solaire DÉPORTÉ${l.ps_cote?" – "+l.ps_cote.toLowerCase()+" (vue int.)":""}${num(l.ps_dist)!=null?" – "+String(l.ps_dist).replace(".",",")+" m":" – distance ?"}${l.ps_empl?" – "+l.ps_empl.toLowerCase():""}${l.ps_prec?" ("+l.ps_prec+")":""}`:"", l.obs?"Observation : "+l.obs:"", (l.photos||[]).length?`📷 ${l.photos.length} photo(s)`:""].filter(Boolean);
+          (()=>{ const det=[!l.avec_menuiserie&&l.motorisation&&l.motorisation!==v.motorisation?"MOTORISATION : "+l.motorisation.toUpperCase():"", l.type_pose&&l.type_pose!==v.type_pose?"POSE : "+(CAT.vr.types_pose.find(p=>p.id===l.type_pose)?.nom||l.type_pose).toUpperCase():"", l.ps_deporte&&vrSolaire(l,v)?`☀️ Panneau solaire DÉPORTÉ${l.ps_cote?" – "+l.ps_cote.toLowerCase()+" (vue int.)":""}${num(l.ps_dist)!=null?" – "+String(l.ps_dist).replace(".",",")+" m":" – distance ?"}${l.ps_empl?" – "+l.ps_empl.toLowerCase():""}${l.ps_prec?" ("+l.ps_prec+")":""}`:"", l.obs?"Observation : "+l.obs:"", (l.photos||[]).length?`📷 ${l.photos.length} photo(s)`:""].filter(Boolean);
             return det.length?`<tr><td colspan="14" style="text-align:left"><small>${esc(det.join(" · "))}</small></td></tr>`:""; })()}`).join("")}
       </table>
       ${v.observation?`<table class="pt"><tr><th>Observation</th><td>${esc(v.observation)}</td></tr></table>`:""}

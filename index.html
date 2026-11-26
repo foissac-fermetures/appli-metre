@@ -1661,6 +1661,7 @@ function controleGVPieces(d, W){ if(vmcDoubleFlux(d)) return; const P={};
 function controleDossier(d){
   const E=[],W=[];
   try{ controleGVPieces(d,W); }catch(e){}
+  try{ if(d.vr){ const m=motVRMajoritaire(d.vr); if(m.cles.length>1) W.push(`Volets roulants : motorisations différentes (${m.cles.join(" / ")}) – en principe tous les volets ont la même motorisation (marque et fonctionnement), sauf demande exceptionnelle du client`); } }catch(e){}
   if(!d.client.nom) E.push("Nom du client manquant");
   if(!d.client.date_rdv) W.push("Date du RDV manquante");
   if(!d.adresse_chantier) W.push("Adresse du chantier manquante");
@@ -1692,6 +1693,14 @@ function fabVR(l, v){
   return { L: fL!=null?fL:aL, H: fH!=null?fH:aH, autoL:aL, autoH:aH, auto, forceL:fL!=null, forceH:fH!=null };
 }
 const motorise = v => v.motorisation && v.motorisation!=="Manuel";
+/* 26/11/2026 (Nicolas) : en principe TOUS les volets ont la même motorisation (marque ET fonctionnement : Somfy iO, Somfy filaire…).
+   Un volet différent est une demande exceptionnelle → avertissement (pas une erreur). */
+const motVR = (l,v) => l.avec_menuiserie ? (l.manoeuvre_menuis||"") : (v.motorisation||"");
+function cleMotVR(t){ t=nrm(String(t||"")); if(!t || /choisir/.test(t)) return "";
+  const marque = /somfy|oximo|ilmo|rs100|\bio\b/.test(t)?"Somfy" : /futurol/.test(t)?"Futurol" : /zurii/.test(t)?"Zurii" : /zigbee/.test(t)?"Zigbee" : /wake/.test(t)?"Wake" : "";
+  const fonct = /\bio\b/.test(t)?"iO" : /rts/.test(t)?"RTS" : /solaire/.test(t)?"solaire" : /filaire/.test(t)?"filaire" : /radio|zigbee|zurii/.test(t)?"radio" : /manuel|sangle|treuil|tringle|tirage/.test(t)?"manuel" : /electrique/.test(t)?"électrique" : "";
+  return [marque,fonct].filter(Boolean).join(" ") || t; }
+function motVRMajoritaire(v){ const n={}; (v.lignes||[]).forEach(l=>{ const k=cleMotVR(motVR(l,v)); if(k) n[k]=(n[k]||0)+1; }); const L=Object.entries(n).sort((a,b)=>b[1]-a[1]); return {cles:L.map(x=>x[0]), maj:L[0]&&L[0][0]}; }
 function controleVREntete(v){
   const E=[],W=[]; if(!v.lignes.length) return {E,W};
   if(!v.type_pose) E.push("Type de pose non choisi");
@@ -1704,6 +1713,7 @@ function controleVREntete(v){
 function controleLigneVR(l, v){
   const E=[],W=[], tL=num(l.tab_l), tH=num(l.tab_h), fb=fabVR(l,v), fL=fb.L, fH=fb.H;
   if(!l.repere) W.push("Repère manquant");
+  try{ const m=motVRMajoritaire(v), k=cleMotVR(motVR(l,v)); if(m.cles.length>1 && k && k!==m.maj) W.push(`Motorisation « ${motVR(l,v)} » différente des autres volets (${m.maj}) : en principe tous les volets ont la même (marque et fonctionnement) – à vérifier`); }catch(e){}
   if(tL==null||tH==null) E.push("Cote tableau manquante");
   if(!vrUsine(l)){
   if(fL==null||fH==null) E.push("Cote de fabrication manquante");

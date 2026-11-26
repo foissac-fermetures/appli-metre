@@ -785,6 +785,7 @@ html.resa-open{overflow:hidden}
 .ct-found{display:grid;gap:8px;padding:10px 12px;margin-bottom:8px;border-radius:10px;border:1px dashed color-mix(in srgb,#f59e0b 55%,var(--line));background:color-mix(in srgb,#f59e0b 9%,var(--panel))}.ct-fi{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;align-items:center}.ct-fb{display:flex;gap:6px;flex-wrap:wrap}
 .ct-main{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;margin:8px 0;border-radius:10px;background:color-mix(in srgb,#7c3aed 10%,var(--panel));border-left:4px solid #7c3aed}.ct-main>span{flex:1;min-width:0;overflow-wrap:anywhere}
 .sms-to{display:grid;gap:4px;padding:8px 10px;border-radius:8px;background:var(--soft)}.sms-tok{display:flex!important;gap:8px;align-items:center;flex-direction:row!important}.sms-tok input{width:18px;height:18px;flex:none}
+.rdvlieu{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:.9rem}.rdvlieu label{display:flex!important;flex-direction:row!important;gap:6px;align-items:center}.rdvlieu input{width:auto}
 .tri-set{display:grid;gap:10px;padding:4px 16px 16px}.tri-set label{display:grid;gap:4px}.tri-set label.tri-ck{display:flex}.tri-base{font-size:.85rem;color:var(--muted);line-height:1.5}
 .mlist{display:grid}.mrow{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:4px 12px;padding:12px 16px;border-top:1px solid var(--line);align-items:start}
 .mrow.unread .msub{font-weight:800}.mav{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;background:var(--mc,#64748b);font-size:1rem}
@@ -3226,7 +3227,7 @@ function evBody(r, rv){
   ].filter(Boolean).join("\n");
   const b = { summary: "RDV " + r.client + (projLbl(r) ? " – " + projLbl(r) : r.proj ? " – " + r.proj : ""), startTime: start, endTime: end, description: desc, calendarId: AGENDA };
   if (!h) b.allDay = true;
-  const loc = adrRdv(r) || r.lieu; if (loc) b.location = loc;
+  const loc = rdvOu(r, rv) || r.lieu; if (loc) b.location = loc; if (rdvMag(rv)) { b.summary += " (au magasin)"; b.description = "Au magasin de Gourdon\n" + b.description; }
   return b;
 }
 async function agendaCall(tool, input){
@@ -3253,8 +3254,9 @@ async function saveRdv(r, clear){
     if (!d) { toast("Indique le jour du rendez-vous"); return; }
     next.rdv = { d }; if (h) next.rdv.h = h; if (t) next.rdv.t = t;
     { const du = +(($("#rdvdur") || {}).value || 0); if (du) next.rdv.dur = du; }
+    { const lq = document.querySelector('input[name="rdvlieu"]:checked'); if (lq && lq.value === "mag") next.rdv.lieu = "mag"; }
     if (oldEv) next.rdv.ev = oldEv;
-    next.log = (cur.log || []).concat([{ d: iso(today()), at: new Date().toISOString(), t: (metreStage(r) ? "RDV métré définitif fixé au " : "RDV fixé au ") + rdvLabel(next.rdv) + (t ? " · " + t : "") }]);
+    next.log = (cur.log || []).concat([{ d: iso(today()), at: new Date().toISOString(), t: (metreStage(r) ? "RDV métré définitif fixé au " : "RDV fixé au ") + rdvLabel(next.rdv) + (rdvMag(next.rdv) ? " au magasin de Gourdon" : "") + (t ? " · " + t : "") }]);
   }
   next.client = r.client; next.updated = new Date().toISOString();
   saving = true;
@@ -3378,6 +3380,11 @@ function renderGpsList(){
 }
 function adrChantier(r){ return (suivi[r.id] || {}).adr_chantier || ""; }
 function adrRdv(r){ return adrChantier(r) || adrOf(r); }
+/* RDV au magasin de Gourdon (au lieu de chez le client) */
+const MAGASIN = "Foissac Fermetures, route de Cahors, 46300 Gourdon";
+const rdvMag = rv => !!(rv && rv.lieu === "mag");
+function rdvOu(r, rv){ return rdvMag(rv) ? MAGASIN : adrRdv(r); }
+function lieuSelect(rv){ const m = rdvMag(rv); return `<div class="rdvlieu"><span class="sub">Où ?</span><label><input type="radio" name="rdvlieu" value="" ${m ? "" : "checked"}> 🏠 Chez le client</label><label><input type="radio" name="rdvlieu" value="mag" ${m ? "checked" : ""}> 🏬 Au magasin de Gourdon</label></div>`; }
 async function saveAdrC(r, val){
   if (!db || saving) return; saving = true;
   const cur = suivi[r.id] || {}, next = Object.assign({}, cur), now = new Date().toISOString();
@@ -3769,7 +3776,7 @@ function cmTemplates(r){
   T.envoi_plan = { l: "Envoi du plan de réservation", s: "Plan de réservation de votre portail – Foissac Fermetures",
     b: `Bonjour,\n\nVous trouverez ci-joint le plan de réservation pour la pose de votre portail.\n\nIl indique les cotes à respecter pour la préparation (piliers, seuil, fourreaux pour la motorisation le cas échéant). Merci de le transmettre à votre maçon si besoin et de me faire signe s'il y a la moindre question.\n\nPourriez-vous me retourner ce plan daté et signé, avec la mention « bon pour accord » ? Dès réception, nous pourrons passer votre commande.\n\n${SIGN}` };
   if (rv) T.confirm = { l: "Confirmation du rendez-vous", s: "Confirmation de notre rendez-vous du " + fd(rv.d),
-    b: `Bonjour,\n\nJe vous confirme notre rendez-vous du ${fd(rv.d)}${rv.h ? " à " + rv.h.replace(":", "h") : ""}${adrRdv(r) ? " à l'adresse suivante : " + adrRdv(r) : ""}.\n\nEn cas d'empêchement, n'hésitez pas à me prévenir au 06 82 19 99 10.\n\nÀ très bientôt,\n\n${SIGN}` };
+    b: `Bonjour,\n\nJe vous confirme notre rendez-vous du ${fd(rv.d)}${rv.h ? " à " + rv.h.replace(":", "h") : ""}${rdvMag(rv) ? " à notre magasin de Gourdon (Foissac Fermetures, route de Cahors)" : adrRdv(r) ? " à l'adresse suivante : " + adrRdv(r) : ""}.\n\nEn cas d'empêchement, n'hésitez pas à me prévenir au 06 82 19 99 10.\n\nÀ très bientôt,\n\n${SIGN}` };
   return T;
 }
 /* Outlook (logiciel sur le PC) : le message s'ouvre tout prêt dans une nouvelle fenêtre Outlook (lien mailto), envoyé depuis le compte par défaut d'Outlook */
@@ -3851,7 +3858,7 @@ function smsTemplates(r){
     libre: { l: "Message libre", t: `Bonjour, c'est Nicolas de Foissac Fermetures à Gourdon. ` },
   };
   { const px = typeof payLine === "function" ? payLine(r) : null; if (px) T.paie = { l: "Relance paiement", t: `Bonjour, c'est Nicolas de Foissac Fermetures à Gourdon. Sauf erreur de notre part, ${px.solde ? "le solde de votre facture" : "l'acompte de votre commande"} reste en attente de règlement. Pouvez-vous me dire quand vous prévoyez de le régler, et par quel moyen ? Merci.` + fin }; }
-  if (rv) T.confirm = { l: "Confirmation du rendez-vous", t: `Bonjour, c'est Nicolas de Foissac Fermetures à Gourdon. Je vous confirme notre rendez-vous ${metreStage(r) ? "pour le métré définitif de votre commande " : ""}le ${JOURS[pd(rv.d).getDay()]} ${rdvLabel(rv)}${adrRdv(r) ? " à l'adresse suivante : " + adrRdv(r) : " à votre domicile"}. En cas d'empêchement, n'hésitez pas à me prévenir.` + fin };
+  if (rv) T.confirm = { l: "Confirmation du rendez-vous", t: `Bonjour, c'est Nicolas de Foissac Fermetures à Gourdon. Je vous confirme notre rendez-vous ${metreStage(r) ? "pour le métré définitif de votre commande " : ""}le ${JOURS[pd(rv.d).getDay()]} ${rdvLabel(rv)}${rdvMag(rv) ? " à notre magasin de Gourdon, route de Cahors" : adrRdv(r) ? " à l'adresse suivante : " + adrRdv(r) : " à votre domicile"}. En cas d'empêchement, n'hésitez pas à me prévenir.` + fin };
   return T;
 }
 function smsHref(r, txt, tel){ return "sms:" + smsNumber(tel || r.tel) + "?&body=" + encodeURIComponent(txt); }
@@ -5856,12 +5863,12 @@ function renderDrawer(){
         const rv = MS ? null : rdvCur(r), lg = "1er rendez-vous";
         return `<section class="fcard" style="--fc:var(--c-rdv)"><span class="fct">1er rendez-vous</span>${sansOf(r) ? `<div class="sanschip">Devis sans 1er RDV : ${esc(sansOf(r).motif)}${sansOf(r).p ? " · " + esc(sansOf(r).p) : ""} · depuis le ${fd(sansOf(r).d)} · <button class="lnk" type="button" data-sansback="${esc(r.id)}">remettre en 1er RDV</button></div>` : ""}${MS || (r.vente || []).some(v => !v.ann) ? done() : status(r) !== "afaire" && !(rv && rv.d >= iso(today())) ? done() + `<details class="rdvmore"><summary>Noter un nouveau rendez-vous</summary><fieldset class="rdvset" id="rdvset">
           <legend>${lg}</legend>
-          ${rv?`<span class="rdvnow">RDV fixé le ${esc(fd(rv.d))}${rv.h?" · "+esc(rdvPlage(rv)):""}${rv.t?" · "+esc(rv.t):""}</span>`:(!MS&&r.r1?`<span class="sub">Date de 1er RDV dans le suivi des FIC : ${fd(r.r1)}</span>`:`<span class="sub">Aucun rendez-vous noté.</span>`)}
+          ${rv?`<span class="rdvnow">RDV fixé le ${esc(fd(rv.d))}${rv.h?" · "+esc(rdvPlage(rv)):""}${rdvMag(rv)?" · 🏬 au magasin":""}${rv.t?" · "+esc(rv.t):""}</span>`:(!MS&&r.r1?`<span class="sub">Date de 1er RDV dans le suivi des FIC : ${fd(r.r1)}</span>`:`<span class="sub">Aucun rendez-vous noté.</span>`)}
           <div class="three">
             <label>Jour<input type="date" id="rdvd" value="${esc((rv||{}).d||"")}"></label>
             <label>Heure<input type="time" id="rdvh" value="${esc((rv||{}).h||"")}"></label>
             ${durSelect(rv)}
-          </div><div class="sub rdvfin" id="rdvfin" aria-live="polite"></div>
+          </div>${lieuSelect(rv)}<div class="sub rdvfin" id="rdvfin" aria-live="polite"></div>
           <label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:.88rem"><input type="checkbox" id="rdvcal" ${rv&&rv.ev?"checked disabled":"checked"} style="width:auto"> ${rv&&rv.ev?`Dans l'agenda Google Nicolas Brouqui${rv.lien?` · <a href="${esc(rv.lien)}" target="_blank" rel="noopener">voir</a>`:""}`:`Copier aussi dans l'agenda Google Nicolas Brouqui`}</label>
           ${agendaFor(r).length?`<div class="agok">Déjà dans ton agenda FOISSAC.FERMETURES : ${agendaFor(r).map(e => esc(fd(e.d) + (e.h ? " à " + e.h.replace(":", "h") : ""))).join(", ")}</div>`:""}
           <div id="appbox"></div><div class="agday" id="agday"></div><div class="agopen"><a class="btn" id="agol" href="https://calendar.google.com/calendar/r/week" target="_blank" rel="noopener">Ouvrir mon agenda</a><span class="sub">s\u2019ouvre à la semaine du jour choisi</span></div>
@@ -5869,12 +5876,12 @@ function renderDrawer(){
           <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" id="rdvsave" type="button" ${canWrite&&db?"":"disabled"}>${rv?"Modifier le RDV":"Enregistrer le RDV"}</button>${rv?`<button class="btn" id="rdvdel" type="button" ${canWrite&&db?"":"disabled"}>Retirer le RDV</button>`:""}</div>
         </fieldset>${status(r) === "afaire" || attenteOf(r) && !MS ? attBox(r) : ""}</details>` : `<fieldset class="rdvset" id="rdvset">
           <legend>${lg}</legend>
-          ${rv?`<span class="rdvnow">RDV fixé le ${esc(fd(rv.d))}${rv.h?" · "+esc(rdvPlage(rv)):""}${rv.t?" · "+esc(rv.t):""}</span>`:(!MS&&r.r1?`<span class="sub">Date de 1er RDV dans le suivi des FIC : ${fd(r.r1)}</span>`:`<span class="sub">Aucun rendez-vous noté.</span>`)}
+          ${rv?`<span class="rdvnow">RDV fixé le ${esc(fd(rv.d))}${rv.h?" · "+esc(rdvPlage(rv)):""}${rdvMag(rv)?" · 🏬 au magasin":""}${rv.t?" · "+esc(rv.t):""}</span>`:(!MS&&r.r1?`<span class="sub">Date de 1er RDV dans le suivi des FIC : ${fd(r.r1)}</span>`:`<span class="sub">Aucun rendez-vous noté.</span>`)}
           <div class="three">
             <label>Jour<input type="date" id="rdvd" value="${esc((rv||{}).d||"")}"></label>
             <label>Heure<input type="time" id="rdvh" value="${esc((rv||{}).h||"")}"></label>
             ${durSelect(rv)}
-          </div><div class="sub rdvfin" id="rdvfin" aria-live="polite"></div>
+          </div>${lieuSelect(rv)}<div class="sub rdvfin" id="rdvfin" aria-live="polite"></div>
           <label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:.88rem"><input type="checkbox" id="rdvcal" ${rv&&rv.ev?"checked disabled":"checked"} style="width:auto"> ${rv&&rv.ev?`Dans l'agenda Google Nicolas Brouqui${rv.lien?` · <a href="${esc(rv.lien)}" target="_blank" rel="noopener">voir</a>`:""}`:`Copier aussi dans l'agenda Google Nicolas Brouqui`}</label>
           ${agendaFor(r).length?`<div class="agok">Déjà dans ton agenda FOISSAC.FERMETURES : ${agendaFor(r).map(e => esc(fd(e.d) + (e.h ? " à " + e.h.replace(":", "h") : ""))).join(", ")}</div>`:""}
           <div id="appbox"></div><div class="agday" id="agday"></div><div class="agopen"><a class="btn" id="agol" href="https://calendar.google.com/calendar/r/week" target="_blank" rel="noopener">Ouvrir mon agenda</a><span class="sub">s\u2019ouvre à la semaine du jour choisi</span></div>
@@ -5938,12 +5945,12 @@ function renderDrawer(){
         const rv = rdvCur(r), MS = true;
         return `<section class="fcard" style="--fc:var(--c-metre)"><span class="fct">Rendez-vous métré définitif</span>${planOf(r) ? "" : `<fieldset class="rdvset" id="rdvset">
           <legend>RDV métré définitif</legend>
-          ${rv?`<span class="rdvnow">RDV fixé le ${esc(fd(rv.d))}${rv.h?" · "+esc(rdvPlage(rv)):""}${rv.t?" · "+esc(rv.t):""}</span>`:(!MS&&r.r1?`<span class="sub">Date de 1er RDV dans le suivi des FIC : ${fd(r.r1)}</span>`:`<span class="sub">Aucun rendez-vous noté.</span>`)}
+          ${rv?`<span class="rdvnow">RDV fixé le ${esc(fd(rv.d))}${rv.h?" · "+esc(rdvPlage(rv)):""}${rdvMag(rv)?" · 🏬 au magasin":""}${rv.t?" · "+esc(rv.t):""}</span>`:(!MS&&r.r1?`<span class="sub">Date de 1er RDV dans le suivi des FIC : ${fd(r.r1)}</span>`:`<span class="sub">Aucun rendez-vous noté.</span>`)}
           <div class="three">
             <label>Jour<input type="date" id="rdvd" value="${esc((rv||{}).d||"")}"></label>
             <label>Heure<input type="time" id="rdvh" value="${esc((rv||{}).h||"")}"></label>
             ${durSelect(rv)}
-          </div><div class="sub rdvfin" id="rdvfin" aria-live="polite"></div>
+          </div>${lieuSelect(rv)}<div class="sub rdvfin" id="rdvfin" aria-live="polite"></div>
           <label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:.88rem"><input type="checkbox" id="rdvcal" ${rv&&rv.ev?"checked disabled":"checked"} style="width:auto"> ${rv&&rv.ev?`Dans l'agenda Google Nicolas Brouqui${rv.lien?` · <a href="${esc(rv.lien)}" target="_blank" rel="noopener">voir</a>`:""}`:`Copier aussi dans l'agenda Google Nicolas Brouqui`}</label>
           ${agendaFor(r).length?`<div class="agok">Déjà dans ton agenda FOISSAC.FERMETURES : ${agendaFor(r).map(e => esc(fd(e.d) + (e.h ? " à " + e.h.replace(":", "h") : ""))).join(", ")}</div>`:""}
           <div id="appbox"></div><div class="agday" id="agday"></div><div class="agopen"><a class="btn" id="agol" href="https://calendar.google.com/calendar/r/week" target="_blank" rel="noopener">Ouvrir mon agenda</a><span class="sub">s\u2019ouvre à la semaine du jour choisi</span></div>

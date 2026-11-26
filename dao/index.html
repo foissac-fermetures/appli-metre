@@ -10,6 +10,9 @@
 <meta name="apple-mobile-web-app-title" content="Mini DAO"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Mini DAO 2D</title>
 <style>
+  #sheetBar{position:absolute;right:10px;bottom:10px;display:flex;gap:5px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:5px 7px;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:5;font-size:13px}
+  #sheetBar select{background:#11151b;border:1px solid var(--line);color:#fff;border-radius:6px;padding:4px 5px;font-size:13px}
+  #sheetBar .sbChk{display:flex;align-items:center;gap:4px;white-space:nowrap;cursor:pointer} #sheetBar.off select,#sheetBar.off #fbCart{display:none}
   #mOpen .pl{display:flex;align-items:center;gap:12px;padding:7px 4px;border-bottom:1px solid var(--line)} #mOpen .pl b{flex:1} #mOpen .pl small{color:var(--mut);white-space:nowrap} #mDone a{color:var(--acc)} #mCart.saving [data-k="client"], #mCart.saving [data-k="titre"]{border-color:var(--acc)!important} #mCart [data-k].manque{border-color:#ff5a5a!important;background:#2a1414!important}
   :root{
     --bg:#1e232b; --panel:#272d37; --panel2:#2f3642; --line:#3b4350; --txt:#e6e9ee; --mut:#9aa3b2;
@@ -222,9 +225,16 @@
 </nav>
   <div id="stage">
     <svg id="cv" xmlns="http://www.w3.org/2000/svg">
-      <g id="gGrid"></g><g id="gAxes"></g><g id="gEnt"></g><g id="gPrev"></g><g id="gSnap"></g>
+      <g id="gGrid"></g><g id="gAxes"></g><g id="gSheet" style="pointer-events:none"></g><g id="gEnt"></g><g id="gPrev"></g><g id="gSnap"></g>
     </svg>
     <div id="tip"></div>
+    <div id="sheetBar" title="Feuille d'impression affichée dans le dessin : ce que vous voyez sur la feuille sort tel quel en PDF">
+      <label class="sbChk"><input type="checkbox" id="fbOn"> 📄 Feuille</label>
+      <select id="fbFormat"><option>A4</option><option>A3</option></select>
+      <select id="fbOrient"><option value="paysage">Paysage</option><option value="portrait">Portrait</option></select>
+      <select id="fbEch"><option value="auto">Ajuster au dessin</option><option value="1">1:1</option><option value="2">1:2</option><option value="5">1:5</option><option value="10">1:10</option><option value="20">1:20</option><option value="25">1:25</option><option value="50">1:50</option><option value="100">1:100</option><option value="200">1:200</option><option value="500">1:500</option></select>
+      <button class="hbtn" id="fbCart" title="Remplir le cartouche">Cartouche…</button>
+    </div>
     <div id="selBar"><b id="selCount"></b>
       <button class="hbtn danger" id="sbDel">🗑 Supprimer</button>
       <button class="hbtn" id="sbMove">Déplacer</button>
@@ -307,7 +317,7 @@
     <label>Format<select data-k="format"><option>A4</option><option>A3</option></select></label>
     <label>Orientation<select data-k="orient"><option value="paysage">Paysage</option><option value="portrait">Portrait</option></select></label>
     <label>Couleurs à l'impression<select data-k="couleurs"><option value="couleur">En couleur</option><option value="nb">Noir &amp; blanc</option></select></label>
-    <label>Mise en page<select data-k="mode"><option value="echelle">À l'échelle</option><option value="ajuster">Ajuster à la page</option></select></label>
+    <label>Mise en page<select data-k="mode"><option value="feuille">Sur la feuille (comme à l'écran)</option><option value="echelle">À l'échelle, centré</option><option value="ajuster">Ajuster à la page</option></select></label>
     <label id="lblEch">Échelle<select data-k="echelle">
       <option value="auto">Automatique</option><option value="1">1:1</option><option value="2">1:2</option><option value="5">1:5</option>
       <option value="10">1:10</option><option value="20">1:20</option><option value="25">1:25</option><option value="50">1:50</option>
@@ -363,6 +373,8 @@
     <tr><td>iPad</td><td>Touchez pour poser un point. Pincez à deux doigts pour zoomer, glissez à deux doigts pour déplacer la vue. Les boutons <b>↵ Entrée</b> et <b>✕ Échap</b> à côté de la ligne de commande remplacent le clavier et le clic droit. Avec l'Apple Pencil, l'aperçu suit la pointe.</td></tr>
     <tr><td>💾 Enregistrer</td><td>Bouton en haut (ou Ctrl+S / ⌘S). Le <b>cartouche</b> s'ouvre à chaque fois, déjà rempli : complétez-le (le <b>client</b> et le <b>titre</b> sont obligatoires), puis touchez <b>💾 Enregistrer</b>. Le plan s'appelle « Plan CLIENT – Titre ». Un message indique où les 2 fichiers sont rangés, avec des liens pour les ouvrir.</td></tr>
     <tr><td>☁️ Google Drive</td><td>Dans le logiciel installé (pas dans Claude) : à <b>chaque</b> 💾 Enregistrer, le PDF (plan + visuel) va dans <b>« 09 - Plan »</b> (l'appli de métré le joint au métré du client) et le plan modifiable (.mdao) dans <b>Métrés › Plans › année</b>. Un fichier du même nom est remplacé, jamais en double.</td></tr>
+    <tr><td>📄 Feuille</td><td>La feuille d'impression (bord + cartouche) est affichée dans le dessin : dessinez dedans, le PDF sort <b>exactement comme à l'écran</b>. En bas à droite : format A4/A3, paysage/portrait, échelle (« Ajuster au dessin » choisit l'échelle qui contient tout le dessin). Le cartouche affiché se remplit au fur et à mesure. Décochez « Feuille » pour revenir à l'impression centrée automatique.</td></tr>
+    <tr><td>🆕 Après 💾</td><td>Le message de confirmation propose <b>🆕 Nouveau plan (page vierge)</b> : dessin vidé, nouveau cartouche (Société, Dessiné par, format et échelle gardés, N° de plan suivant). « Continuer ce plan » garde tout.</td></tr>
     <tr><td>📂 Ouvrir</td><td>Affiche directement les plans de <b>Métrés › Plans</b> (année en cours, ou une autre année dans la liste), du plus récent au plus ancien. Tapez un nom de client pour filtrer, puis « Ouvrir ». « ↗ Dossier dans Google Drive » ouvre ce dossier dans Drive. Un plan rouvert est réenregistré au même endroit.</td></tr>
     <tr><td>Fichier</td><td>📁 Fichier : enregistrer le plan avec un nom, rouvrir ses plans, en commencer un nouveau, exporter / ouvrir un fichier <code>.mdao</code> pour passer d'un appareil à l'autre (par Google Drive par exemple).</td></tr>
     <tr><td>Vue</td><td>Molette = zoom · clic molette glissé = déplacer la vue · bouton ✋ Main au doigt sur iPad · <code>ZE</code> = zoom étendu.</td></tr>
@@ -436,7 +448,7 @@
 <div class="modal" id="mDone"><div class="box" style="width:520px">
   <h2 id="dnTitle">✅ Plan enregistré</h2>
   <div id="dnBody" style="font-size:14px;line-height:1.6"></div>
-  <div class="row"><button class="hbtn primary" id="dnOk">OK</button></div>
+  <div class="row"><button class="hbtn" id="dnOk">Continuer ce plan</button><button class="hbtn primary" id="dnNew" style="font-size:16px;padding:9px 18px">🆕 Nouveau plan (page vierge)</button></div>
 </div></div>
 <div id="toast"></div>
 <div class="modal" id="mFile"><div class="box" style="width:640px">
@@ -498,6 +510,7 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const SVGNS = "http://www.w3.org/2000/svg";
+const gSheet=$("gSheet");
 const cv = $("cv"), gGrid=$("gGrid"), gAxes=$("gAxes"), gEnt=$("gEnt"), gPrev=$("gPrev"), gSnap=$("gSnap");
 const tip=$("tip"), cmdIn=$("cmd"), promptEl=$("prompt"), histEl=$("hist");
 
@@ -530,7 +543,7 @@ let driveAuto = true;   // à chaque 💾 : PDF → « 09 - Plan », plan .mdao 
 let snapModes = {end:true, mid:true, cen:true, inter:true, perp:true, near:false};
 let dimTxt = 2.5, lastDimId = null, win = null, repeatOn = true, clickShift = false;
 let colors = {trait:"#ffffff", hachure:"#8d9bb0", coteLigne:"#6ec8ff", coteTexte:"#ff2a2a", texte:"#ffffff", repLigne:"#6ec8ff", repTexte:"#ff2a2a"};
-let cart = {societe:"",titre:"",client:"",chantier:"",dessine:"",date:new Date().toLocaleDateString("fr-FR"),numero:"",indice:"A",format:"A4",orient:"paysage",mode:"echelle",echelle:"auto",couleurs:"couleur",obs:""};
+let cart = {societe:"",titre:"",client:"",chantier:"",dessine:"",date:new Date().toLocaleDateString("fr-FR"),numero:"",indice:"A",format:"A4",orient:"paysage",mode:"feuille",echelle:"20",couleurs:"couleur",obs:"",fx:null,fy:null};
 
 // ---------- Utilitaires ----------
 const fmt = v => { const r = Math.round(v*100)/100; return (Object.is(r,-0)?0:r).toLocaleString("fr-FR",{maximumFractionDigits:2}); };
@@ -544,7 +557,7 @@ function setPrompt(t){ promptEl.textContent = t; }
 const clone = o => JSON.parse(JSON.stringify(o));
 
 function save(){ cartDefauts(); try{ localStorage.setItem("miniDAO2D", JSON.stringify({ents,nextId,cart,visuel,iaHist,claudeUrl,driveAuto,lastOffset,hatchOpts,textOpts,leadOpts,dimTxt,snapModes,colors,repeatOn,planId,planNameTxt,layers,curLayer,symOpts,driveNom,driveDossier,lastFillet})); }catch(e){} }
-function load(){ try{ const s=JSON.parse(localStorage.getItem("miniDAO2D")||"null"); if(s){ ents=s.ents||[]; nextId=s.nextId||1; Object.assign(cart,s.cart||{}); lastOffset=s.lastOffset||100; if(s.hatchOpts) Object.assign(hatchOpts,s.hatchOpts); if(s.dimTxt) dimTxt=s.dimTxt; if(s.textOpts) Object.assign(textOpts,s.textOpts); if(s.leadOpts) Object.assign(leadOpts,s.leadOpts); visuel=s.visuel||null; iaHist=s.iaHist||[]; if(s.claudeUrl && !/S998mSD3A3dCjL1aqwmDJy/.test(s.claudeUrl)) claudeUrl=s.claudeUrl; /* ancienne adresse (compte perso) ignorée */  if(s.snapModes) Object.assign(snapModes,s.snapModes); if(s.colors) Object.assign(colors,s.colors); if(typeof s.repeatOn==="boolean") repeatOn=s.repeatOn; planId=s.planId||null; planNameTxt=s.planNameTxt||""; if(Array.isArray(s.layers)&&s.layers.length) layers=s.layers; if(s.curLayer) curLayer=s.curLayer; if(s.symOpts) Object.assign(symOpts,s.symOpts); if(s.driveNom) driveNom=s.driveNom; if(s.driveDossier) driveDossier=s.driveDossier; if(typeof s.lastFillet==="number") lastFillet=s.lastFillet; } }catch(e){} }
+function load(){ try{ const s=JSON.parse(localStorage.getItem("miniDAO2D")||"null"); if(s){ ents=s.ents||[]; nextId=s.nextId||1; Object.assign(cart,s.cart||{}); lastOffset=s.lastOffset||100; if(s.hatchOpts) Object.assign(hatchOpts,s.hatchOpts); if(s.dimTxt) dimTxt=s.dimTxt; if(s.textOpts) Object.assign(textOpts,s.textOpts); if(s.leadOpts) Object.assign(leadOpts,s.leadOpts); visuel=s.visuel||null; iaHist=s.iaHist||[]; if(s.claudeUrl && !/S998mSD3A3dCjL1aqwmDJy/.test(s.claudeUrl)) claudeUrl=s.claudeUrl; /* ancienne adresse (compte perso) ignorée */  if(s.snapModes) Object.assign(snapModes,s.snapModes); if(s.colors) Object.assign(colors,s.colors); if(typeof s.repeatOn==="boolean") repeatOn=s.repeatOn; planId=s.planId||null; planNameTxt=s.planNameTxt||""; if(Array.isArray(s.layers)&&s.layers.length) layers=s.layers; if(s.curLayer) curLayer=s.curLayer; if(s.symOpts) Object.assign(symOpts,s.symOpts); if(s.driveNom) driveNom=s.driveNom; if(s.driveDossier) driveDossier=s.driveDossier; feuilleMigre(); if(typeof s.lastFillet==="number") lastFillet=s.lastFillet; } }catch(e){} }
 function pushUndo(){ undoStack.push(JSON.stringify(ents)); if(undoStack.length>200) undoStack.shift(); redoStack.length=0; }
 function addEnt(e){ pushUndo(); e.id=nextId++; if(e.type==="text" && !e.color) e.color=colors.texte; e.layer = e.type==="dim" ? "Cotes" : curLayer; ensureLayers(); { const l=layers.find(x=>x.name===e.layer); if(l && !l.visible){ l.visible=true; log(`  calque « ${l.name} » réaffiché`); updLayerUI(); } } if(e.type!=="dim" && !e.color) e.color = e.type==="hatch" ? colors.hachure : colors.trait; ents.push(e); save(); renderEnts(); return e; }
 
@@ -870,7 +883,7 @@ function renderEnts(){
   }
   updateSelInfo();
 }
-function renderAll(){ if(typeof placeEditor==="function") placeEditor(); renderGrid(); renderEnts(); renderPreview(); }
+function renderAll(){ if(typeof placeEditor==="function") placeEditor(); renderGrid(); renderSheet(); renderEnts(); renderPreview(); }
 
 function showTip(t){ if(!t||!hasCursor){ tip.style.display="none"; return; } tip.textContent=t; tip.style.display="block"; const W=cv.clientWidth, tw=tip.offsetWidth; tip.style.left=Math.max(4,(cursorS.x+16+tw>W-4 ? cursorS.x-16-tw : cursorS.x+16))+"px"; tip.style.top=(cursorS.y+18)+"px"; }
 
@@ -1290,7 +1303,8 @@ function bbox(list){ let x1=Infinity,y1=Infinity,x2=-Infinity,y2=-Infinity;
   for(const e of list){ if(e.type==="text"){ const {fs,w,n}=textBoxS(e); const a=(e.angle||0)*Math.PI/180; add(e.p.x,e.p.y); { const hh=(n-1)*fs*1.25/view.z; add(e.p.x+hh*Math.sin(a), e.p.y-hh*Math.cos(a)); } add(e.p.x+w/view.z*Math.cos(a)-0*Math.sin(a), e.p.y+w/view.z*Math.sin(a)); add(e.p.x-fs/view.z*Math.sin(a), e.p.y+fs/view.z*Math.cos(a)); continue; } if(e.type==="poly"){ for(const q of e.pts) add(q.x,q.y); continue; } if(e.type==="arc"){ for(const q of arcSample(e,36)) add(q.x,q.y); continue; } if(e.type==="dim"){ for(const q of dimPoints(e)) add(q.x,q.y); continue; } if(e.type==="hatch"){ for(const q of bPoints(e.bounds[0])) add(q.x,q.y); if(e.bounds[0].kind==="circle"){ const b=e.bounds[0]; add(b.c.x-b.r,b.c.y-b.r); add(b.c.x+b.r,b.c.y+b.r);} continue; } if(e.type==="circle"){ add(e.c.x-e.r,e.c.y-e.r); add(e.c.x+e.r,e.c.y+e.r);} else { add(e.a.x,e.a.y); add(e.b.x,e.b.y);} }
   return x1===Infinity?null:{x1,y1,x2,y2}; }
 function zoomExtents(){
-  const {w,h}=size(); const b=bbox(VE());
+  const {w,h}=size(); let b=bbox(VE());
+  if(feuilleOn()){ feuillePrete(); const f=feuilleMonde(); b = b ? {x1:Math.min(b.x1,f.x1),y1:Math.min(b.y1,f.y1),x2:Math.max(b.x2,f.x2),y2:Math.max(b.y2,f.y2)} : f; }
   if(!b){ view={z:0.25,tx:80,ty:h-60}; renderAll(); return; }
   const bw=Math.max(b.x2-b.x1,1), bh=Math.max(b.y2-b.y1,1);
   view.z=Math.min((w-80)/bw,(h-80)/bh);
@@ -1713,20 +1727,68 @@ const SCALES=[1,2,5,10,20,25,50,75,100,200,250,500,1000,2000];
 function esc(s){ return String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 // couleur à l'impression : noir & blanc, ou couleur (les couleurs très claires deviennent noires, comme le blanc d'AutoCAD)
 function pc(c){ if(cart.couleurs==="nb"||!c) return "#000"; const m=/^#?([0-9a-f]{6})$/i.exec(c); if(!m) return "#000"; const n=parseInt(m[1],16), r=n>>16&255, g=n>>8&255, b=n&255; return (0.299*r+0.587*g+0.114*b)>235 ? "#000" : "#"+m[1]; }
-function buildSheet(mode){ mode=mode||"plan"; cartDefauts();
+// ----- Feuille affichée dans le dessin (dao-v14) : la feuille est posée dans le monde, à l'échelle choisie -----
+const F_M=10, F_CW=140, F_CH=42;
+function feuilleMigre(){ if(cart.mode!=="feuille" && !cart.sansFeuille){ if(cart.mode==="ajuster") cart.echelle="auto"; cart.mode="feuille"; cart.fx=null; cart.fy=null; } }
+function feuilleOn(){ return cart.mode==="feuille"; }
+function paperA(){ let A = cart.format==="A3" ? {w:420,h:297} : {w:297,h:210}; if(cart.orient==="portrait") A={w:A.h,h:A.w}; return A; }
+function paperArea(A){ const fw=A.w-2*F_M, fh=A.h-2*F_M; return {x:F_M+6,y:F_M+6,w:fw-12,h:fh-F_CH-12}; }
+function feuilleDen(){ const d=parseFloat(cart.echelle); return d>0?d:20; }
+function denPourDessin(A){ const b=bbox(VE()); if(!b) return 20; const ar=paperArea(A), bw=Math.max(b.x2-b.x1,1e-6), bh=Math.max(b.y2-b.y1,1e-6); return SCALES.find(s=>s>=5 && bw/s<=ar.w && bh/s<=ar.h) || Math.ceil(Math.max(bw/ar.w,bh/ar.h)); }
+// place la feuille : dessin centré dans la zone utile (comme l'ancienne impression), ou zone utile près de 0,0 si rien n'est dessiné
+function feuilleInit(){ const A=paperA(); if(!(parseFloat(cart.echelle)>0)) cart.echelle=String(denPourDessin(A)); const den=feuilleDen(), b=bbox(VE());
+  if(!b){ cart.fx=-F_M*2*den; cart.fy=-(F_M+F_CH+6)*den; return; }
+  const ar=paperArea(A), acx=ar.x+ar.w/2, acy=ar.y+ar.h/2, bcx=(b.x1+b.x2)/2, bcy=(b.y1+b.y2)/2;
+  cart.fx=bcx-acx*den; cart.fy=bcy-(A.h-acy)*den; }
+function feuillePrete(){ if(feuilleOn() && (typeof cart.fx!=="number" || typeof cart.fy!=="number")) feuilleInit(); }
+function feuilleMonde(){ const A=paperA(), den=feuilleDen(); return {x1:cart.fx,y1:cart.fy,x2:cart.fx+A.w*den,y2:cart.fy+A.h*den}; }
+let feuilleAvant=null;  // feuille avant un changement de format / échelle : on garde le même centre
+function feuilleMemo(){ feuilleAvant = feuilleOn() && typeof cart.fx==="number" ? feuilleMonde() : null; }
+function feuilleRecentre(){ if(!feuilleOn()){ feuilleAvant=null; return; } if(cart.echelle==="auto"){ cart.fx=null; cart.fy=null; cart.echelle=String(denPourDessin(paperA())); feuilleInit(); }
+  else if(feuilleAvant){ const A=paperA(), den=feuilleDen(), cx=(feuilleAvant.x1+feuilleAvant.x2)/2, cy=(feuilleAvant.y1+feuilleAvant.y2)/2; cart.fx=cx-A.w*den/2; cart.fy=cy-A.h*den/2; }
+  else feuillePrete(); feuilleAvant=null; }
+// le cartouche (en mm papier) – utilisé pour l'impression et pour l'écran
+function cartoucheSVG(cx,cy,mode,scaleTxt,coul){ coul=coul||{trait:"#000",lab:"#666",val:"#000",sw:0.35}; const cw=F_CW, ch=F_CH;
+  const c = (x,y,w,h,label,val,size=3.2,bold=false)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}"/><text x="${x+1.5}" y="${y+2.8}" font-size="1.9" fill="${coul.lab}" stroke="none">${label}</text><text x="${x+1.5}" y="${y+h-2.2}" font-size="${size}" ${bold?'font-weight="700"':''} fill="${coul.val}" stroke="none">${esc(val)}</text>`;
+  const r1=12, r2=10, r3=10, r4=ch-r1-r2-r3;
+  return `<g fill="none" stroke="${coul.trait}" stroke-width="${coul.sw}" ${coul.ns?'vector-effect="non-scaling-stroke"':''} font-family="Arial, Helvetica, sans-serif">`
+    + c(cx,cy,cw,r1,"SOCIÉTÉ",cart.societe,4.6,true)
+    + c(cx,cy+r1,cw,r2,mode==="visuel"?"VISUEL":"TITRE DU PLAN",mode==="visuel"?((cart.titre?cart.titre+" – ":"")+"Visuel couleur"):cart.titre,3.8,true)
+    + c(cx,cy+r1+r2,cw/2,r3,"CLIENT",cart.client) + c(cx+cw/2,cy+r1+r2,cw/2,r3,"CHANTIER",cart.chantier)
+    + c(cx,cy+r1+r2+r3,24,r4,"ÉCHELLE",scaleTxt,3.4,true) + c(cx+24,cy+r1+r2+r3,28,r4,"DATE",cart.date,2.8)
+    + c(cx+52,cy+r1+r2+r3,38,r4,"DESSINÉ PAR",cart.dessine,2.8) + c(cx+90,cy+r1+r2+r3,32,r4,"N° PLAN",cart.numero,3.2,true)
+    + c(cx+122,cy+r1+r2+r3,18,r4,"IND.",cart.indice,3.2,true)
+    + `</g>`; }
+// dessin de la feuille à l'écran, sous le dessin
+function renderSheet(){ if(!gSheet) return; syncSheetBar(); if(!feuilleOn()){ gSheet.innerHTML=""; return; } feuillePrete(); cartDefauts();
+  const A=paperA(), den=feuilleDen(), k=den*view.z, e=cart.fx*view.z+view.tx, f=view.ty-(cart.fy+A.h*den)*view.z;
+  const fw=A.w-2*F_M, fh=A.h-2*F_M, cx=F_M+fw-F_CW, cy=F_M+fh-F_CH;
+  gSheet.innerHTML = `<g transform="matrix(${k},0,0,${k},${e},${f})">`
+    + `<rect x="0" y="0" width="${A.w}" height="${A.h}" fill="rgba(255,255,255,0.035)" stroke="#5d6878" stroke-width="1" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>`
+    + `<rect x="${F_M}" y="${F_M}" width="${fw}" height="${fh}" fill="none" stroke="#9aa5b4" stroke-width="1.6" vector-effect="non-scaling-stroke"/>`
+    + cartoucheSVG(cx,cy,"plan","1:"+fmt(den),{trait:"#8f9aa9",lab:"#7d8897",val:"#d9e0e8",sw:1,ns:true})
+    + (cart.obs?`<text x="${F_M+4}" y="${F_M+fh-4}" font-size="2.6" font-family="Arial" fill="#c3cad3">${esc(cart.obs)}</text>`:"")
+    + `<text x="${F_M+4}" y="${F_M+fh-(cart.obs?8:4)}" font-size="2.2" font-family="Arial" fill="#7d8897">Cotes en mm</text>`
+    + `<text x="1" y="-2" font-size="3.2" font-family="Arial" fill="#7d8897">${cart.format} ${cart.orient==="portrait"?"portrait":"paysage"} – 1:${fmt(den)}</text>`
+    + `</g>`; }
+function syncSheetBar(){ const on=feuilleOn(); $("fbOn").checked=on; $("sheetBar").classList.toggle("off",!on); $("fbFormat").value=cart.format||"A4"; $("fbOrient").value=cart.orient||"paysage"; const v=String(parseFloat(cart.echelle)||""); $("fbEch").value=[...$("fbEch").options].some(o=>o.value===v)?v:"auto"; }
+function feuilleChange(k,v){ feuilleMemo(); cart[k]=v; feuilleRecentre(); save(); renderAll(); if($("mCart").classList.contains("show")) refreshPreview(); }
+function buildSheet(mode){ mode=mode||"plan"; cartDefauts(); if(mode!=="visuel") feuillePrete();
   let A = cart.format==="A3" ? {w:420,h:297} : {w:297,h:210};
   if(cart.orient==="portrait") A={w:A.h,h:A.w};
   const m=10, fx=m, fy=m, fw=A.w-2*m, fh=A.h-2*m;
   const cw=140, ch=42, cx=fx+fw-cw, cy=fy+fh-ch;
   const area={x:fx+6,y:fy+6,w:fw-12,h:fh-ch-12};
-  const b=bbox(VE()); let den=null, g="", hg="", dg="";
+  const b=bbox(VE()); let den=null, g="", hg="", dg="", X, Y; const surFeuille = feuilleOn() && mode!=="visuel";
+  if(surFeuille) den=feuilleDen();
   if(b){
     const bw=Math.max(b.x2-b.x1,1e-6), bh=Math.max(b.y2-b.y1,1e-6);
-    if(cart.mode==="ajuster" || mode==="visuel"){ den=Math.max(bw/area.w,bh/area.h); }
+    if(surFeuille){}
+    else if(cart.mode==="ajuster" || mode==="visuel"){ den=Math.max(bw/area.w,bh/area.h); }
     else if(cart.echelle==="auto"){ den=SCALES.find(s=>bw/s<=area.w && bh/s<=area.h) || Math.ceil(Math.max(bw/area.w,bh/area.h)); }
     else den=parseFloat(cart.echelle);
-    const ox=area.x+(area.w-bw/den)/2, oy=area.y+(area.h-bh/den)/2;
-    const X=x=>ox+(x-b.x1)/den, Y=y=>oy+(b.y2-y)/den;
+    if(surFeuille){ X=x=>(x-cart.fx)/den; Y=y=>A.h-(y-cart.fy)/den; }
+    else { const ox=area.x+(area.w-bw/den)/2, oy=area.y+(area.h-bh/den)/2; X=x=>ox+(x-b.x1)/den; Y=y=>oy+(b.y2-y)/den; }
     if(mode==="visuel"){ g=visuMarkup(X,Y,1/den); }
     else for(const e of VE()){
       const st=`stroke="${pc(e.color)}"`;
@@ -1743,17 +1805,8 @@ function buildSheet(mode){ mode=mode||"plan"; cartDefauts();
     for(const e of VE()) if(e.type==="hatch") hg+=hatchMarkup({...e,sw:0.18},p=>({x:X(p.x),y:Y(p.y)}),1/den,pc(e.color||colors.hachure),0.6,cart.couleurs==="nb"?"#c8c8c8":pc(e.color||colors.hachure)+"55");
     }
   }
-  const scaleTxt = !den ? "—" : (cart.mode==="ajuster"||mode==="visuel") ? "Sans échelle" : "1:"+fmt(den);
-  const c = (x,y,w,h,label,val,size=3.2,bold=false)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}"/><text x="${x+1.5}" y="${y+2.8}" font-size="1.9" fill="#666" stroke="none">${label}</text><text x="${x+1.5}" y="${y+h-2.2}" font-size="${size}" ${bold?'font-weight="700"':''} fill="#000" stroke="none">${esc(val)}</text>`;
-  const r1=12, r2=10, r3=10, r4=ch-r1-r2-r3;
-  let cart_ = `<g fill="none" stroke="#000" stroke-width="0.35" font-family="Arial, Helvetica, sans-serif">`
-    + c(cx,cy,cw,r1,"SOCIÉTÉ",cart.societe,4.6,true)
-    + c(cx,cy+r1,cw,r2,mode==="visuel"?"VISUEL":"TITRE DU PLAN",mode==="visuel"?((cart.titre?cart.titre+" – ":"")+"Visuel couleur"):cart.titre,3.8,true)
-    + c(cx,cy+r1+r2,cw/2,r3,"CLIENT",cart.client) + c(cx+cw/2,cy+r1+r2,cw/2,r3,"CHANTIER",cart.chantier)
-    + c(cx,cy+r1+r2+r3,24,r4,"ÉCHELLE",scaleTxt,3.4,true) + c(cx+24,cy+r1+r2+r3,28,r4,"DATE",cart.date,2.8)
-    + c(cx+52,cy+r1+r2+r3,38,r4,"DESSINÉ PAR",cart.dessine,2.8) + c(cx+90,cy+r1+r2+r3,32,r4,"N° PLAN",cart.numero,3.2,true)
-    + c(cx+122,cy+r1+r2+r3,18,r4,"IND.",cart.indice,3.2,true)
-    + `</g>`;
+  const scaleTxt = !den ? "—" : (!surFeuille && (cart.mode==="ajuster"||mode==="visuel")) ? "Sans échelle" : "1:"+fmt(den);
+  const cart_ = cartoucheSVG(cx,cy,mode,scaleTxt);
   const obs = cart.obs ? `<text x="${fx+4}" y="${fy+fh-4}" font-size="2.6" font-family="Arial" fill="#000">${esc(cart.obs)}</text>` : "";
   const unit = mode==="visuel" ? `<text x="${fx+4}" y="${fy+fh-(cart.obs?8:4)}" font-size="2.2" font-family="Arial" fill="#555">Visuel indicatif – teintes non contractuelles${visuel&&visuel.couleurMenuiseries?" – menuiseries "+esc(visuel.couleurNom||visuel.couleurMenuiseries):""}</text>` : `<text x="${fx+4}" y="${fy+fh-(cart.obs?8:4)}" font-size="2.2" font-family="Arial" fill="#555">Cotes en mm</text>`;
   const svg = `<svg xmlns="${SVGNS}" width="${A.w}mm" height="${A.h}mm" viewBox="0 0 ${A.w} ${A.h}">`
@@ -1761,7 +1814,7 @@ function buildSheet(mode){ mode=mode||"plan"; cartDefauts();
     + `<rect x="${fx}" y="${fy}" width="${fw}" height="${fh}" fill="none" stroke="#000" stroke-width="0.7"/>`
     + (mode==="visuel" ? `<g>${g}</g><g>${dg}</g>` : `<g>${hg}</g><g fill="none" stroke="#000" stroke-width="0.35" stroke-linecap="round" stroke-linejoin="round">${g}</g><g>${dg}</g>`)
     + cart_ + obs + unit + `</svg>`;
-  const fits = b && den ? ((b.x2-b.x1)/den<=area.w+0.01 && (b.y2-b.y1)/den<=area.h+0.01) : true;
+  const fits = b && den ? (surFeuille ? (X(b.x1)>=0 && X(b.x2)<=A.w && Y(b.y2)>=0 && Y(b.y1)<=A.h) : ((b.x2-b.x1)/den<=area.w+0.01 && (b.y2-b.y1)/den<=area.h+0.01)) : true;
   return {svg, den, A, fits};
 }
 function refreshPreview(){
@@ -1773,12 +1826,15 @@ function refreshPreview(){
     `Échelle ${cart.echelle==="auto"?"choisie automatiquement":"imposée"} : <b>1:${fmt(s.den)}</b> sur ${fmtName}.` + (s.fits?"":` <span style="color:var(--warn)">⚠ Le dessin dépasse la feuille à cette échelle.</span>`);
 }
 function openCart(saving){ cartSaving=!!saving; $("mCart").classList.toggle("saving",cartSaving); $("cTitle").textContent=cartSaving?"💾 Enregistrer le plan – cartouche":"Cartouche & impression"; $("cSaveNote").style.display=cartSaving?"block":"none"; $("cSave").style.display=cartSaving?"inline-block":"none"; $("cPrint").classList.toggle("primary",!cartSaving); document.querySelectorAll("#mCart .manque").forEach(i=>i.classList.remove("manque")); cartDefauts(); $("cDrive").style.display = driveDispo() ? "inline-block" : "none"; $("inClaudeNote").style.display = inClaude ? "block" : "none"; $("cPrint").textContent = inClaude ? "🖨 Imprimer (PDF)" : "🖨 Imprimer"; $("lblVisu").style.display = visuel ? "flex" : "none";
-  document.querySelectorAll("#mCart [data-k]").forEach(i=>{ i.value=cart[i.dataset.k]||""; if(i.dataset.k==="echelle"&&!i.value) i.value="auto"; if(i.dataset.k==="orient"&&!i.value) i.value="paysage"; if(i.dataset.k==="mode"&&!i.value) i.value="echelle"; if(i.dataset.k==="couleurs"&&!i.value) i.value="couleur"; });
+  document.querySelectorAll("#mCart [data-k]").forEach(i=>{ i.value=cart[i.dataset.k]||""; if(i.dataset.k==="echelle"&&!i.value) i.value="auto"; if(i.dataset.k==="orient"&&!i.value) i.value="paysage"; if(i.dataset.k==="mode"&&!i.value) i.value="feuille"; if(i.dataset.k==="couleurs"&&!i.value) i.value="couleur"; });
   refreshPreview(); majNomPrev(); $("mCart").classList.add("show");
   if(cartSaving){ const k=!String(cart.client||"").trim()?"client":!String(cart.titre||"").trim()?"titre":null; if(k) setTimeout(()=>document.querySelector(`#mCart [data-k="${k}"]`).focus(),60); }
 }
-document.querySelectorAll("#mCart [data-k]").forEach(i=>i.addEventListener("change",()=>{ cart[i.dataset.k]=i.value; save(); refreshPreview(); }));
-document.querySelectorAll("#mCart [data-k]").forEach(i=>i.addEventListener("input",()=>{ cart[i.dataset.k]=i.value; i.classList.remove("manque"); save(); refreshPreview(); majNomPrev(); }));
+document.querySelectorAll("#mCart [data-k]").forEach(i=>{ const fk=["format","orient","echelle","mode"].includes(i.dataset.k); if(fk) i.addEventListener("focus",feuilleMemo); i.addEventListener("change",()=>{ const k=i.dataset.k;
+  if(k==="mode"){ cart.sansFeuille = i.value!=="feuille"; if(i.value==="feuille"){ cart.fx=null; cart.fy=null; } }
+  if(fk){ if(!feuilleAvant) feuilleMemo(); cart[k]=i.value; feuilleRecentre(); const se=document.querySelector('#mCart [data-k="echelle"]'); se.value=cart.echelle; if(!se.value) se.value="auto"; }
+  else cart[k]=i.value; save(); refreshPreview(); renderAll(); }); });
+document.querySelectorAll("#mCart [data-k]").forEach(i=>i.addEventListener("input",()=>{ if(i.tagName==="SELECT") return; cart[i.dataset.k]=i.value; i.classList.remove("manque"); save(); refreshPreview(); majNomPrev(); renderSheet(); }));
 $("cClose").onclick=()=>{ if(cartSaving) retourApresSave=false; fermerCart(); };
 // ---------- Google Drive (repris de l'appli de métré, même compte, même autorisation) ----------
 /* Seulement dans le logiciel installé (https://foissac-fermetures.github.io/appli-metre/dao/) : Claude bloque Google.
@@ -1868,13 +1924,25 @@ async function nomDossier(id){ try{ return (await gdrive(`https://www.googleapis
 const lienDossier = id => "https://drive.google.com/drive/folders/"+encodeURIComponent(id);
 function montrerConfirmation(nom,liens,erreur){
   const b=$("dnBody"), esc2=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  if(erreur==="local"){ $("dnTitle").textContent="✅ Plan enregistré"; b.innerHTML=`<b>${esc2(nom)}</b> est enregistré sur cet appareil (📁 Fichier › Mes plans).<br><span class="note">Google Drive n'est utilisé que dans le logiciel installé.</span>`; $("dnNew").style.display="inline-block"; $("dnOk").textContent="Continuer ce plan"; $("mDone").classList.add("show"); return; }
   if(erreur){ $("dnTitle").textContent="⚠️ Plan enregistré sur l'appareil seulement"; b.innerHTML=`« ${esc2(nom)} » est bien enregistré sur cet appareil, mais Google Drive a répondu : <i>${esc2(erreur)}</i>.<br>Touchez de nouveau 💾 Enregistrer pour réessayer.`; }
   else { $("dnTitle").textContent="✅ Plan enregistré"; b.innerHTML=`<b>${esc2(nom)}</b><br>
     📄 <b>PDF</b> → « 09 - Plan » (joint au métré du client)${liens.pdf?` · <a href="${esc2(liens.pdf)}" target="_blank" rel="noopener">voir le PDF</a>`:""} · <a href="${lienDossier(liens.pdfDossier)}" target="_blank" rel="noopener">ouvrir le dossier</a><br>
     ✏️ <b>Plan modifiable</b> (.mdao) → Métrés › Plans › ${esc2(liens.mdaoNom||"")} · <a href="${lienDossier(liens.mdaoDossier)}" target="_blank" rel="noopener">ouvrir le dossier</a><br>
     <span class="note">Pour le modifier plus tard : bouton <b>📂 Ouvrir</b>.</span>`; }
+  $("dnNew").style.display = erreur ? "none" : "inline-block"; $("dnOk").textContent = erreur ? "OK" : "Continuer ce plan";
   $("mDone").classList.add("show"); }
 $("dnOk").onclick=()=>$("mDone").classList.remove("show");
+$("dnNew").onclick=()=>{ $("mDone").classList.remove("show"); nouveauPlanVierge(); };
+function numeroSuivant(n){ n=String(n||""); const m=/(\d+)(?!.*\d)/.exec(n); if(!m) return ""; const v=String(parseInt(m[1],10)+1).padStart(m[1].length,"0"); return n.slice(0,m.index)+v+n.slice(m.index+m[1].length); }
+function nouveauPlanVierge(){
+  const garde={societe:cart.societe,dessine:cart.dessine,format:cart.format,orient:cart.orient,echelle:cart.echelle,mode:cart.mode,couleurs:cart.couleurs,sansFeuille:cart.sansFeuille};
+  const num=numeroSuivant(cart.numero);
+  ents=[]; selected.clear(); visuel=null; iaHist=[]; undoStack=[]; redoStack=[]; driveNom=""; driveDossier=""; planId=null; planNameTxt="";
+  Object.assign(cart,{titre:"",client:"",chantier:"",obs:"",numero:num,indice:"A",date:new Date().toLocaleDateString("fr-FR"),fx:null,fy:null},garde);
+  if(!(parseFloat(cart.echelle)>0)) cart.echelle="20";
+  layers=[{name:"Dessin",visible:true},{name:"Cotes",visible:true}]; curLayer="Dessin"; ensureLayers(); updLayerUI(); cartDefauts(); updPlanName(); save(); zoomExtents();
+  toast("🆕 Nouveau plan : page vierge"+(num?" – N° "+num:"")); log("Nouveau plan (page vierge)"+(num?" – N° "+num:"")); }
 /* Lancé depuis un clic (💾, Ctrl+S, boutons) : demande le jeton tout de suite, puis range. */
 function rangerDriveClic(quoi){ if(!driveDispo()) return; if(!navigator.onLine){ toast("Hors ligne : rien n'a été envoyé dans Google Drive"); return; }
   demanderJeton().then(()=>rangerDrive(quoi)).catch(e=>toast("Google Drive : "+e.message)); }
@@ -1927,7 +1995,7 @@ const mNew=document.createElement("div"); mNew.className="modal"; mNew.id="mNew"
 mNew.innerHTML=`<div class="box" style="width:380px"><h2>Nouveau dessin</h2><p>Effacer tout le dessin en cours ? (Annuler reste possible.)</p><div class="row"><button class="hbtn" id="nNo">Non</button><button class="hbtn primary" id="nYes">Oui, tout effacer</button></div></div>`;
 document.body.appendChild(mNew);
 $("nNo").onclick=()=>mNew.classList.remove("show");
-$("nYes").onclick=()=>{ pushUndo(); driveNom=""; driveDossier=""; ents=[]; selected.clear(); visuel=null; iaHist=[]; Object.assign(cart,{client:"",chantier:"",titre:"",numero:"",indice:"A",obs:"",date:new Date().toLocaleDateString("fr-FR")}); layers=[{name:"Dessin",visible:true},{name:"Cotes",visible:true}]; curLayer="Dessin"; updLayerUI(); planId=null; planNameTxt=""; updPlanName(); save(); mNew.classList.remove("show"); zoomExtents(); log("Nouveau dessin"); };
+$("nYes").onclick=()=>{ pushUndo(); driveNom=""; driveDossier=""; cart.fx=null; cart.fy=null; ents=[]; selected.clear(); visuel=null; iaHist=[]; Object.assign(cart,{client:"",chantier:"",titre:"",numero:"",indice:"A",obs:"",date:new Date().toLocaleDateString("fr-FR")}); layers=[{name:"Dessin",visible:true},{name:"Cotes",visible:true}]; curLayer="Dessin"; updLayerUI(); planId=null; planNameTxt=""; updPlanName(); save(); mNew.classList.remove("show"); zoomExtents(); log("Nouveau dessin"); };
 
 // ---------- Organiser la barre d'outils ----------
 const navEl=$("tools"); const DEFAULT_ORDER=[...navEl.querySelectorAll(":scope > [data-key]")].map(e=>e.dataset.key);
@@ -1964,7 +2032,7 @@ const LIB_KEY="miniDAO2D_lib";
 function libGet(){ try{ return JSON.parse(localStorage.getItem(LIB_KEY)||"[]"); }catch(e){ return []; } }
 function libSet(l){ try{ localStorage.setItem(LIB_KEY,JSON.stringify(l)); return true; }catch(e){ $("fMsg").textContent="Mémoire de l'appareil pleine ou indisponible : exportez le fichier .mdao."; return false; } }
 function planData(){ return {app:"Mini DAO 2D",format:1,driveNom,driveDossier,name:planNameTxt,date:new Date().toISOString(),ents,nextId,cart,layers,curLayer,visuel,iaHist}; }
-function loadPlan(d,id){ pushUndo(); ents=d.ents||[]; nextId=d.nextId||(Math.max(0,...ents.map(e=>e.id||0))+1); if(d.cart) Object.assign(cart,d.cart); visuel=d.visuel||null; iaHist=d.iaHist||[]; layers=Array.isArray(d.layers)&&d.layers.length?d.layers:[{name:"Dessin",visible:true},{name:"Cotes",visible:true}]; curLayer=d.curLayer||"Dessin"; ensureLayers(); updLayerUI(); planNameTxt=d.name||""; driveNom=d.driveNom||""; driveDossier=d.driveDossier||""; planId=id||null; cartDefauts(); selected.clear(); undoStack=[]; redoStack=[]; save(); updPlanName(); zoomExtents(); log(`Plan ouvert : ${planNameTxt||"sans nom"}`); }
+function loadPlan(d,id){ pushUndo(); ents=d.ents||[]; nextId=d.nextId||(Math.max(0,...ents.map(e=>e.id||0))+1); cart.fx=null; cart.fy=null; cart.sansFeuille=false; if(d.cart) Object.assign(cart,d.cart); feuilleMigre(); visuel=d.visuel||null; iaHist=d.iaHist||[]; layers=Array.isArray(d.layers)&&d.layers.length?d.layers:[{name:"Dessin",visible:true},{name:"Cotes",visible:true}]; curLayer=d.curLayer||"Dessin"; ensureLayers(); updLayerUI(); planNameTxt=d.name||""; driveNom=d.driveNom||""; driveDossier=d.driveDossier||""; planId=id||null; cartDefauts(); selected.clear(); undoStack=[]; redoStack=[]; save(); updPlanName(); zoomExtents(); log(`Plan ouvert : ${planNameTxt||"sans nom"}`); }
 function updPlanName(){ $("planName").textContent = planNameTxt ? "— "+planNameTxt : ""; document.title = planNameTxt ? planNameTxt+" – Mini DAO 2D" : "Mini DAO 2D"; }
 function storePlan(asCopy){
   const name=withPlan($("fName").value.trim()||planNameTxt||new Date().toLocaleDateString("fr-FR")); planNameTxt=name;
@@ -2008,13 +2076,18 @@ function doSaveCart(){
   cart.client=cart.client.trim(); cart.titre=cart.titre.trim();
   $("fName").value=nomDuCartouche(); storePlan(false); fermerCart(); toast(`💾 « ${planNameTxt} » enregistré`);
   if(retourApresSave){ retourApresSave=false; revenir(); return; }
-  if(!driveDispo()){ log("  (Google Drive n'est disponible que dans le logiciel installé : plan enregistré sur cet appareil)"); return; }
+  if(!driveDispo()){ log("  (Google Drive n'est disponible que dans le logiciel installé : plan enregistré sur cet appareil)"); montrerConfirmation(planNameTxt,null,"local"); return; }
   if(!navigator.onLine){ montrerConfirmation(planNameTxt,null,"pas de connexion Internet"); return; }
   demanderJeton().then(()=>rangerDrive({pdf:true,mdao:true,confirm:true})).catch(e=>montrerConfirmation(planNameTxt,null,e.message));
 }
 function fermerCart(){ cartSaving=false; $("mCart").classList.remove("show","saving"); }
 $("bSave").onclick=quickSave;
 $("cSave").onclick=doSaveCart;
+$("fbOn").onchange=()=>{ if($("fbOn").checked){ cart.mode="feuille"; cart.sansFeuille=false; cart.fx=null; cart.fy=null; feuillePrete(); save(); zoomExtents(); } else { cart.mode="echelle"; cart.sansFeuille=true; save(); renderAll(); } };
+$("fbFormat").onchange=()=>feuilleChange("format",$("fbFormat").value);
+$("fbOrient").onchange=()=>feuilleChange("orient",$("fbOrient").value);
+$("fbEch").onchange=()=>feuilleChange("echelle",$("fbEch").value);
+$("fbCart").onclick=()=>openCart(false);
 // ---------- 📂 Ouvrir un plan depuis Google Drive (Métrés › Plans › année) ----------
 let oFiles=[], oPlansId=null;
 const sansAccent=t=>String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
@@ -2364,7 +2437,7 @@ function ouvrirPlanClient(cl){
   if(ex && ex.id===planId) return;
   garderDessinEnCours();
   if(ex){ loadPlan(ex.data,ex.id); log(`Plan de ${cl} rouvert`); return; }
-  pushUndo(); driveNom=""; driveDossier=""; ents=[]; selected.clear(); visuel=null; iaHist=[]; Object.assign(cart,{client:cl,chantier:"",titre:"",numero:"",indice:"A",obs:"",date:new Date().toLocaleDateString("fr-FR")});
+  pushUndo(); driveNom=""; driveDossier=""; cart.fx=null; cart.fy=null; ents=[]; selected.clear(); visuel=null; iaHist=[]; Object.assign(cart,{client:cl,chantier:"",titre:"",numero:"",indice:"A",obs:"",date:new Date().toLocaleDateString("fr-FR")});
   layers=[{name:"Dessin",visible:true},{name:"Cotes",visible:true}]; curLayer="Dessin"; updLayerUI(); planId=null; planNameTxt=nom; updPlanName(); save();
   log(`Nouveau plan pour ${cl} : dessinez, puis 💾 Enregistrer (le nom « ${nom} » est déjà prêt).`); }
 let retourForce=false;

@@ -261,6 +261,7 @@ PROMPT-POUR-CLAUDE-PRO.md ← le message que Nicolas te donne
 | 25/11/2026 | dao-v11 | Couleurs des **textes** et de la **flèche + texte** (flèche/trait et texte séparément) dans 🎨, appliquées aussi aux objets sélectionnés ; pastille couleur dans la barre Texte ; menu 🎨 défilant. Préparé dans une autre conversation sur la base de dao-v10, testé (écran + impression). |
 | 25/11/2026 | dao-v12 | Flèche + texte réglable : taille du texte, taille de la flèche, épaisseur du trait, couleurs, gras, encadré, dans sa fenêtre (double-clic) ; réglages repris pour les suivantes : voir § 16. |
 | 25/11/2026 | dao-v13 | 💾 = cartouche à chaque fois (client + titre obligatoires), Drive toujours (PDF « 09 - Plan » + .mdao Métrés › Plans › année) avec message de confirmation et liens ; nouveau bouton 📂 Ouvrir (plans Drive par année, recherche client, lien vers le dossier) : voir § 17. |
+| 26/11/2026 | dao-v14 | Feuille d'impression + cartouche affichés dans le dessin (PDF = écran), barre Feuille (format, orientation, échelle) ; après 💾, bouton « 🆕 Nouveau plan (page vierge) » : voir § 18. |
 | 18/11/2026 | dao-v5 | **Essai réel Google Drive réussi** (« Plan TEST », 2 enregistrements : PDF dans 09 - Plan, .mdao dans Métrés › Plans › 2026, remplacés sans doublon). « Métrés » fixé : `DOSSIERS_DAO.metres = 1HoXaRkku5deGnEtg6t3SK6jtvs4zr1lz`. |
 
 ## 11. Service worker de l'appli de métré : corrigé le 18/11/2026 (accord de Nicolas)
@@ -372,4 +373,21 @@ Options cochées : cartouche à chaque fois, client et titre obligatoires, Drive
 - Nouveau champ de plan `driveDossier` (dans `planData`, `loadPlan`, `save/load`, remis à "" pour un nouveau plan) : un plan rouvert depuis 2025 est réenregistré **dans 2025** (`dossierMdao()` l'utilise s'il existe encore), pas en double dans 2026.
 - Hors logiciel installé (Claude) : 📂 ouvre la fenêtre 📁 Fichier.
 - Tests : `tests/test_v13.py` (Drive simulé : refus sans client/titre, confirmation et liens, renommage sans doublon, liste par année, recherche « blouin elies », ouverture puis réenregistrement dans 2025) et `tests/test_retour.py` (↩ Retour → cartouche → Drive → retour au métré). `test_v9.py` adapté.
+
+## 18. Feuille dans le dessin, page vierge après 💾 (dao-v14, 26/11/2026, options cochées par Nicolas)
+
+Options cochées : feuille dès l'ouverture, échelle fixe choisie, changer le format en direct, cartouche rempli visible ; page vierge automatique **et** demander avant (combinés : la confirmation propose « 🆕 Nouveau plan (page vierge) » en bouton principal, ou « Continuer ce plan »), garder Société et Dessiné par, numéro de plan suivant.
+
+**Feuille** (`cart.mode = "feuille"`, nouveau mode par défaut)
+- La feuille est posée dans le monde : `cart.fx`, `cart.fy` = coin bas-gauche du papier (mm réels), `cart.echelle` = échelle fixe (nombre). Taille réelle = format papier × échelle. Constantes `F_M` (marge 10), `F_CW`/`F_CH` (cartouche 140 × 42 mm).
+- `feuilleInit()` place la feuille : dessin centré dans la zone utile (même résultat que l'ancienne impression centrée), ou zone utile près de 0,0 si la page est vide. `feuillePrete()` l'appelle si fx/fy manquent (nouveau plan : on remet fx/fy à null).
+- Écran : `<g id="gSheet">` sous le dessin, `renderSheet()` (dans `renderAll`) dessine papier (pointillés), cadre et cartouche via `cartoucheSVG()` (même fonction que l'impression), avec une matrice papier→écran. Le cartouche se met à jour à chaque frappe dans la fenêtre Cartouche.
+- Impression (`buildSheet`, mode plan) : si feuille, `X=(x-fx)/den`, `Y=A.h-(y-fy)/den` (pas de recentrage). Le visuel (page 2) reste « ajusté ».
+- Barre `#sheetBar` (bas droite) : case 📄 Feuille, format, orientation, échelle (« Ajuster au dessin » = `auto` → échelle standard ≥ 1:5 qui contient le dessin, feuille recentrée), bouton Cartouche…. Un changement garde le **même centre** (`feuilleMemo` / `feuilleRecentre`). La fenêtre Cartouche a la même liste (« Sur la feuille (comme à l'écran) », « À l'échelle, centré », « Ajuster à la page »).
+- Anciens plans : `feuilleMigre()` (au démarrage et dans `loadPlan`) les passe sur la feuille, avec la même mise en page qu'avant. Si Nicolas décoche la feuille, `cart.sansFeuille=true` et ça reste.
+- `zoomExtents()` montre toute la feuille.
+
+**Après 💾** : `montrerConfirmation` a deux boutons, `#dnOk` « Continuer ce plan » et `#dnNew` « 🆕 Nouveau plan (page vierge) » (caché si Drive a échoué). Dans Claude (sans Drive), la confirmation s'affiche aussi (`erreur==="local"`). `nouveauPlanVierge()` vide dessin, visuel, annulations, plan courant ; garde société, dessiné par, format, orientation, échelle, mode, couleurs ; vide client, titre, chantier, observations ; `numeroSuivant()` (P-009 → P-010) ; indice A ; date du jour ; feuille replacée.
+
+Test : `tests/test_v14.py` (feuille à l'ouverture, cartouche rempli à l'écran, position imprimée = position écran, 1:10 en gardant le centre, A3 portrait, ajuster au dessin, nouveau plan) + contrôle d'un ancien plan (même position imprimée qu'avant : 98,5 / 46,5 mm).
 

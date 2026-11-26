@@ -784,6 +784,7 @@ html.resa-open{overflow:hidden}
 .fw-hd{display:flex;gap:10px;align-items:center}.fw-hd .sub{flex:1}.fw-row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.fw-row>label{flex:1;min-width:160px}.fw-box label.fw-tu{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.fw-tu input[type=checkbox]{width:18px;height:18px}.fw-ft{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .ct-found{display:grid;gap:8px;padding:10px 12px;margin-bottom:8px;border-radius:10px;border:1px dashed color-mix(in srgb,#f59e0b 55%,var(--line));background:color-mix(in srgb,#f59e0b 9%,var(--panel))}.ct-fi{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;align-items:center}.ct-fb{display:flex;gap:6px;flex-wrap:wrap}
 .ct-main{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;margin:8px 0;border-radius:10px;background:color-mix(in srgb,#7c3aed 10%,var(--panel));border-left:4px solid #7c3aed}.ct-main>span{flex:1;min-width:0;overflow-wrap:anywhere}
+.sms-to{display:grid;gap:4px;padding:8px 10px;border-radius:8px;background:var(--soft)}.sms-tok{display:flex!important;gap:8px;align-items:center;flex-direction:row!important}.sms-tok input{width:18px;height:18px;flex:none}
 .tri-set{display:grid;gap:10px;padding:4px 16px 16px}.tri-set label{display:grid;gap:4px}.tri-set label.tri-ck{display:flex}.tri-base{font-size:.85rem;color:var(--muted);line-height:1.5}
 .mlist{display:grid}.mrow{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:4px 12px;padding:12px 16px;border-top:1px solid var(--line);align-items:start}
 .mrow.unread .msub{font-weight:800}.mav{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;background:var(--mc,#64748b);font-size:1rem}
@@ -3283,8 +3284,8 @@ async function saveRdv(r, clear){
   finally { saving = false; }
   toast(msg);
   // 1er RDV ou RDV métré fixé : le SMS de confirmation s'ouvre tout prêt dans la fiche
-  if (!clear && r.tel && /\d{6}/.test(r.tel.replace(/\s/g, "")) && openId === r.id) {
-    smsFor = r.id; smsTpl = "confirm"; renderDrawer();
+  if (!clear && smsDests(r).length && openId === r.id) {
+    smsFor = r.id; smsTpl = "confirm"; smsTo = null; renderDrawer();
     setTimeout(() => { const b = $("#smsbox"); if (b) b.scrollIntoView({ block: "center", behavior: "smooth" }); }, 40);
   }
 }
@@ -3853,21 +3854,30 @@ function smsTemplates(r){
   if (rv) T.confirm = { l: "Confirmation du rendez-vous", t: `Bonjour, c'est Nicolas de Foissac Fermetures à Gourdon. Je vous confirme notre rendez-vous ${metreStage(r) ? "pour le métré définitif de votre commande " : ""}le ${JOURS[pd(rv.d).getDay()]} ${rdvLabel(rv)}${adrRdv(r) ? " à l'adresse suivante : " + adrRdv(r) : " à votre domicile"}. En cas d'empêchement, n'hésitez pas à me prévenir.` + fin };
   return T;
 }
-function smsHref(r, txt){ return "sms:" + smsNumber(r.tel) + "?&body=" + encodeURIComponent(txt); }
+function smsHref(r, txt, tel){ return "sms:" + smsNumber(tel || r.tel) + "?&body=" + encodeURIComponent(txt); }
+/* À qui envoyer le SMS : le client (ses numéros) ou un autre contact (locataire, architecte…) */
+let smsTo = null;
+function smsDests(r){ const L = [], seen = new Set(), add = (l, t) => { const k = String(t || "").replace(/\D/g, "").slice(-9); if (k.length < 9 || seen.has(k)) return; seen.add(k); L.push({ l, t: String(t).trim() }); };
+  String(r.tel || "").split(/\s*(?:\/|;|,|\bou\b|\bet\b|\n)\s*/).forEach((t, i) => add(r.client + (i ? " (2e numéro)" : ""), t));
+  ctOf(r).forEach(c => add([c.lien, c.nom].filter(Boolean).join(" · ") || "Contact", c.tel)); return L; }
+function smsPick(r){ const D = smsDests(r); if (smsTo && smsTo.rid === r.id && D.some(d => d.t === smsTo.t)) return smsTo.t;
+  const c = ["confirm", "rdv", "rappel"].includes(smsTpl) ? ctRdv(r) : null; const hit = c && D.find(d => String(d.t).replace(/\D/g, "").slice(-9) === String(c.tel || "").replace(/\D/g, "").slice(-9)); return hit ? hit.t : D[0] ? D[0].t : r.tel; }
 function smsBox(r){
   const T = smsTemplates(r); if (!T[smsTpl]) smsTpl = "relance";
-  const txt = T[smsTpl].t;
-  return `<div class="smsbox" id="smsbox"><span class="eyebrow" style="color:var(--accent)">SMS à ${esc(r.client)} · ${esc(r.tel)}</span>
+  const txt = T[smsTpl].t, D = smsDests(r), to = smsPick(r);
+  return `<div class="smsbox" id="smsbox"><span class="eyebrow" style="color:var(--accent)">SMS · ${esc(r.client)}</span>
+    ${D.length > 1 ? `<div class="sms-to"><span class="sub">Envoyer à :</span>${D.map(d => `<label class="sms-tok"><input type="radio" name="smsto" value="${esc(d.t)}" ${d.t === to ? "checked" : ""}><span><b>${esc(d.l)}</b> · ${esc(d.t)}</span></label>`).join("")}</div>` : `<span class="sub">À : ${esc(to || "")}</span>`}
     <label>Modèle<select id="smst">${Object.entries(T).map(([k,v]) => `<option value="${k}" ${k===smsTpl?"selected":""}>${esc(v.l)}</option>`).join("")}</select></label>
     <label>Message (modifiable)<textarea id="smsx">${esc(txt)}</textarea></label><span class="cnt" id="smsc">${txt.length} caractères</span>
-    <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn pri" id="smso" href="${esc(smsHref(r, txt))}" target="_blank" rel="noopener">Envoyer le SMS</a><button class="btn" id="smscp" type="button">Copier le message</button><button class="btn" id="smslog" type="button" ${canWrite&&db?"":"disabled"}>Noter la relance par SMS</button></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn pri" id="smso" href="${esc(smsHref(r, txt, to))}" target="_blank" rel="noopener">Envoyer le SMS</a><button class="btn" id="smscp" type="button">Copier le message</button><button class="btn" id="smslog" type="button" ${canWrite&&db?"":"disabled"}>Noter la relance par SMS</button></div>
     <span class="sub">« Envoyer le SMS » ouvre l'appli Messages du téléphone (ou Lien avec Windows / Messages sur Mac) avec le texte prêt. Si rien ne s'ouvre sur ton ordinateur, copie le message et envoie-le depuis ton portable.</span></div>`;
 }
 function wireSms(r){
   const box = $("#smsbox"); if (!box) return;
   const x = $("#smsx"), o = $("#smso");
-  const upd = () => { o.href = smsHref(r, x.value); $("#smsc").textContent = x.value.length + " caractères"; };
-  x.oninput = upd;
+  const curTo = () => { const c = box.querySelector('input[name="smsto"]:checked'); return c ? c.value : smsPick(r); };
+  const upd = () => { o.href = smsHref(r, x.value, curTo()); $("#smsc").textContent = x.value.length + " caractères"; };
+  x.oninput = upd; box.querySelectorAll('input[name="smsto"]').forEach(i => i.onchange = () => { smsTo = { rid: r.id, t: i.value }; upd(); });
   $("#smst").onchange = e => { smsTpl = e.target.value; x.value = smsTemplates(r)[smsTpl].t; upd(); };
   $("#smscp").onclick = async () => { try { await navigator.clipboard.writeText(x.value); toast("Message copié"); } catch(e){ x.select(); toast("Message sélectionné, fais Ctrl+C"); } };
   $("#smslog").onclick = () => {

@@ -613,7 +613,7 @@ function nouveauVR(){
 function nouvelleLigneVR(){
   return { id:uid(), repere:"", quantite:1, tab_l:"", tab_h:"", fab_l:"", fab_h:"",
     fil_droite:false, fil_gauche:false, percage_tableau:false, percage_face:false,
-    fil_coffre:"", electricite:"", depose:"", option:"", avec_menuiserie:"", manoeuvre_menuis:"", coffre_hauteur:"",
+    fil_coffre:"", electricite:"", depose:"", option:"", avec_menuiserie:"", manoeuvre_menuis:"", coffre_hauteur:"", plus_coulisses:false, plus_coffre:false,
     type_pose:"", obs:"", ps_deporte:false, ps_cote:"", ps_dist:"", ps_empl:"", ps_prec:"", photos:[], photos_corbeille:[] };   // 23/11/2026 : observation, panneau solaire déporté, photos par volet
 }
 function normFinitions(o){ const f=o.finitions||(o.finitions={});
@@ -1686,11 +1686,18 @@ const vrSeparees = v => ({...v, lignes:((v&&v.lignes)||[]).filter(l=>!vrUsine(l)
 const VR_COUL = [["couleur_tablier","Couleur tablier"],["couleur_coulisses","Couleur coulisses"],["couleur_coffre","Couleur coffre"]];
 /* Pose par volet (23/11/2026) : l.type_pose vide = comme l'en-tête */
 const vrPose = (l, v) => (l && l.type_pose) || (v && v.type_pose) || "";
+const vrApplique = (l,v) => /^applique/.test(vrPose(l,v)) && !vrUsine(l);
+/* texte de la cote de fabrication VR : « 1200 + coulisses », « 1400 + coffre » */
+function texteFabVR(l,v,K){ const fb=fabVR(l,v), x=K==="L"?fb.L:fb.H, p=K==="L"?fb.plusL:fb.plusH; return x==null?"":String(x)+(p?(K==="L"?" + coulisses":" + coffre"):""); }
+const casesPlusVR = (l,v,k) => vrApplique(l,v) ? `<div style="align-self:end"><div class="hint">Pose en applique : le fabricant ajoute</div><div class="checks">${F.chk(`${k}.plus_coulisses`,"+ coulisses (largeur)",l.plus_coulisses)}${F.chk(`${k}.plus_coffre`,"+ coffre (hauteur)",l.plus_coffre)}</div></div>` : "";
 function fabVR(l, v){
   const auto = VR_SOUS_LINTEAU.includes(vrPose(l,v)), tL=num(l.tab_l), tH=num(l.tab_h);
   const aL = auto&&tL!=null ? tL-10 : null, aH = auto&&tH!=null ? tH-5 : null;
   const fL=num(l.fab_l), fH=num(l.fab_h);
-  return { L: fL!=null?fL:aL, H: fH!=null?fH:aH, autoL:aL, autoH:aH, auto, forceL:fL!=null, forceH:fH!=null };
+  /* 26/11/2026 : pose en applique → cases « + coulisses » / « + coffre » : le fabricant ajoute ses cotes ; fabrication vide = cote tableau */
+  const app=vrApplique(l,v), pL=app&&!!l.plus_coulisses, pH=app&&!!l.plus_coffre;
+  const L0 = fL!=null?fL:(aL!=null?aL:(pL?tL:null)), H0 = fH!=null?fH:(aH!=null?aH:(pH?tH:null));
+  return { L:L0, H:H0, autoL:aL!=null?aL:(pL?tL:null), autoH:aH!=null?aH:(pH?tH:null), auto, forceL:fL!=null, forceH:fH!=null, plusL:pL, plusH:pH };
 }
 const motorise = v => v.motorisation && v.motorisation!=="Manuel";
 /* 26/11/2026 (Nicolas) : en principe TOUS les volets ont la même motorisation (marque ET fonctionnement : Somfy iO, Somfy filaire…).
@@ -2347,6 +2354,7 @@ function renderVR(t){
       ${[F.numb(`${k}.quantite`,"Quantité",l.quantite),F.numb(`${k}.tab_l`,"Tableau – largeur",l.tab_l),F.numb(`${k}.tab_h`,"Tableau – hauteur",l.tab_h)].map(x=>lie?x.replace("<input","<input disabled"):x).join("")}
       <label class="f">Fabrication – largeur <span class="fabhint" id="vrfl${i}"></span><input data-k="${k}.fab_l" inputmode="decimal" value="${esc(l.fab_l)}"></label>
       <label class="f">Fabrication – hauteur <span class="fabhint" id="vrfh${i}"></span><input data-k="${k}.fab_h" inputmode="decimal" value="${esc(l.fab_h)}"></label>
+      ${casesPlusVR(l,v,k)}
     </div>
     <div class="row" style="margin:12px 0;gap:18px">
       <div><div class="hint">Sortie de fil (vue intérieure)</div><div class="checks">${F.chk(`${k}.fil_gauche`,"Gauche",l.fil_gauche)}${F.chk(`${k}.fil_droite`,"Droite",l.fil_droite)}</div></div>
@@ -2610,7 +2618,7 @@ function renderVRInline(){
     <div class="grid g3" style="margin-bottom:12px">${VR_COUL.map(([c,lab])=>{ const lst=CAT.vr.couleurs, val=l[c]||"", connu=dansListe(lst,val); return F.sel(`${k}.${c}`,lab,connu||!val?lst:[...lst,{groupe:"Couleur de la menuiserie",items:[val]}],val); }).join("")}</div>
     <div class="grid g4">
       ${vrUsine(l)?`<div class="hint" style="grid-column:span 2;align-self:center">Fabrication : <b>cotes données par l'usine</b> (volet vendu avec la menuiserie), rien à saisir.</div>`:`<label class="f">Fabrication – largeur <span class="fabhint" id="vrInFl"></span><input data-k="${k}.fab_l" inputmode="decimal" value="${esc(l.fab_l)}"></label>
-      <label class="f">Fabrication – hauteur <span class="fabhint" id="vrInFh"></span><input data-k="${k}.fab_h" inputmode="decimal" value="${esc(l.fab_h)}"></label>`}
+      <label class="f">Fabrication – hauteur <span class="fabhint" id="vrInFh"></span><input data-k="${k}.fab_h" inputmode="decimal" value="${esc(l.fab_h)}"></label>${casesPlusVR(l,d.vr,k)}`}
       <div><div class="hint">Sortie de fil (vue int.)</div><div class="checks">${F.chk(`${k}.fil_gauche`,"Gauche",l.fil_gauche)}${F.chk(`${k}.fil_droite`,"Droite",l.fil_droite)}</div></div>
       ${vrUsine(l)?"":`<div><div class="hint">Perçage coulisse</div><div class="checks">${F.chk(`${k}.percage_tableau`,"Tableau",l.percage_tableau)}${F.chk(`${k}.percage_face`,"De face",l.percage_face)}</div></div>`}
       ${F.sel(`${k}.fil_coffre`,"Sortie de fil – coffre",C.sortie_fil_coffre,l.fil_coffre)}${vrUsine(l)?"":F.sel(`${k}.electricite`,"Électricité",C.electricite,l.electricite)}
@@ -7445,7 +7453,7 @@ function construireImpression(d){
       <div class="pcols" style="grid-template-columns:5fr 1fr;align-items:start"><div>
       <table class="pt vrt"><tr><th rowspan="2">Repère</th><th rowspan="2">Qté</th><th colspan="2">Tableau</th><th colspan="2">Fabrication</th><th colspan="2">Sortie de fil<br>vue int.</th><th colspan="2">Perçage<br>coulisse</th><th rowspan="2">Sortie de fil<br>coffre</th><th rowspan="2">Électricité</th><th rowspan="2">Dépose</th><th rowspan="2">Option</th></tr>
         <tr><th>L</th><th>H</th><th>L</th><th>H</th><th>G</th><th>D</th><th>Tab.</th><th>Face</th></tr>
-        ${v.lignes.map(l=>`<tr><td><b>${l.num_poseur?"N°"+esc(l.num_poseur)+" ":""}${esc(l.repere)}</b>${l.avec_menuiserie?`<br><small>${esc(l.avec_menuiserie)} (avec menuiserie)${l.manoeuvre_menuis?"<br>"+esc(l.manoeuvre_menuis):""}${l.coffre_hauteur?"<br>"+esc(l.coffre_hauteur):""}</small>`:""}${VR_COUL.some(([c])=>l[c]&&l[c]!==v[c])?`<br><small>${esc(VR_COUL.filter(([c])=>l[c]).map(([c,lab])=>lab.replace("Couleur ","")+" "+l[c]).join(" · "))}</small>`:""}</td><td>${esc(l.quantite)}</td><td>${esc(l.tab_l)}</td><td>${esc(l.tab_h)}</td>${vrUsine(l)?`<td colspan="2"><small>usine</small></td>`:`<td><b>${fabVR(l,v).L??""}</b></td><td><b>${fabVR(l,v).H??""}</b></td>`}
+        ${v.lignes.map(l=>`<tr><td><b>${l.num_poseur?"N°"+esc(l.num_poseur)+" ":""}${esc(l.repere)}</b>${l.avec_menuiserie?`<br><small>${esc(l.avec_menuiserie)} (avec menuiserie)${l.manoeuvre_menuis?"<br>"+esc(l.manoeuvre_menuis):""}${l.coffre_hauteur?"<br>"+esc(l.coffre_hauteur):""}</small>`:""}${VR_COUL.some(([c])=>l[c]&&l[c]!==v[c])?`<br><small>${esc(VR_COUL.filter(([c])=>l[c]).map(([c,lab])=>lab.replace("Couleur ","")+" "+l[c]).join(" · "))}</small>`:""}</td><td>${esc(l.quantite)}</td><td>${esc(l.tab_l)}</td><td>${esc(l.tab_h)}</td>${vrUsine(l)?`<td colspan="2"><small>usine</small></td>`:`<td><b>${esc(texteFabVR(l,v,"L"))}</b></td><td><b>${esc(texteFabVR(l,v,"H"))}</b></td>`}
           <td>${ck(l.fil_gauche)}</td><td>${ck(l.fil_droite)}</td><td>${ck(l.percage_tableau)}</td><td>${ck(l.percage_face)}</td><td>${esc(l.fil_coffre)}</td><td>${esc(l.electricite)}</td><td>${esc(l.depose)}</td><td>${esc(l.option)}</td></tr>${
           (()=>{ const det=[l.type_pose&&l.type_pose!==v.type_pose?"POSE : "+(CAT.vr.types_pose.find(p=>p.id===l.type_pose)?.nom||l.type_pose).toUpperCase():"", l.ps_deporte&&vrSolaire(l,v)?`☀️ Panneau solaire DÉPORTÉ${l.ps_cote?" – "+l.ps_cote.toLowerCase()+" (vue int.)":""}${num(l.ps_dist)!=null?" – "+String(l.ps_dist).replace(".",",")+" m":" – distance ?"}${l.ps_empl?" – "+l.ps_empl.toLowerCase():""}${l.ps_prec?" ("+l.ps_prec+")":""}`:"", l.obs?"Observation : "+l.obs:"", (l.photos||[]).length?`📷 ${l.photos.length} photo(s)`:""].filter(Boolean);
             return det.length?`<tr><td colspan="14" style="text-align:left"><small>${esc(det.join(" · "))}</small></td></tr>`:""; })()}`).join("")}

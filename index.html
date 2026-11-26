@@ -27,6 +27,18 @@ header.bar{position:sticky;top:0;z-index:20;background:var(--navy);color:#fff;di
 header.bar .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.3px}
 header.bar .brand img{height:30px;background:#fff;border-radius:6px;padding:2px 6px}
 .vrpose.vrpose-mini{display:flex;flex-wrap:wrap;gap:6px} .vrpose.vrpose-mini button{width:auto;min-width:90px;max-width:120px;padding:4px 6px;font-size:11px} .vrpose.vrpose-mini img{max-height:44px} .vrpose.vrpose-mini button.on{outline:3px solid #e07b00}
+/* Accueil « tableau de bord » (26/11/2026, choix B de Nicolas) */
+.hb-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}.hb-top h1{margin:0;font-size:22px}
+.hb-ic{width:42px;height:42px;padding:0;font-size:19px;display:inline-flex;align-items:center;justify-content:center}
+.hb-cpt{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:8px 0 12px}
+.hb-c{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.hb-c .l{font-size:12.5px;color:var(--muted)}.hb-c .v{font-size:24px;font-weight:700;color:var(--navy,#1b2f5e);line-height:1.2}
+.hb-c.on{border:2px solid var(--navy,#1b2f5e);background:#eef1f7}
+.hb-rech{flex:1;min-width:180px;max-width:360px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px}
+#app.hb .list{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+#app.hb .item{padding:9px 10px;gap:3px}#app.hb .item .t{font-size:15px}#app.hb .item .s{font-size:12px}#app.hb .item .badge{font-size:11px}
+#app.hb #hAgenda{padding:10px 12px}#app.hb #hAgenda h2{font-size:16px}
+@media (max-width:700px){.hb-cpt{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .home-cat{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px;background:#fff} .home-cat-t{cursor:pointer;user-select:none} .home-cat.ouvert>.list{margin-top:10px}
 header.bar .hist-btn{font-size:22px;line-height:1;padding:6px 12px;min-width:44px} header.bar .hist-btn:disabled{opacity:.35}
 header.bar .title{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.9}
@@ -2021,7 +2033,7 @@ function refreshLive(k){
 }
 
 /* ======================= ÉCRANS ======================= */
-function setBar(title, back){ $("#barTitle").textContent=title||""; $("#btnBack").classList.toggle("hide",!back); setTimeout(()=>{ majBoutonsHist(); if(typeof majEtatDrive==="function") majEtatDrive(); },0); }
+function setBar(title, back){ $("#app").classList.remove("hb"); $("#barTitle").textContent=title||""; $("#btnBack").classList.toggle("hide",!back); setTimeout(()=>{ majBoutonsHist(); if(typeof majEtatDrive==="function") majEtatDrive(); },0); }
 function majTitre(){ if(S.dossier) setBar(`${S.dossier.client.nom||"Nouveau client"}${S.dossier.devis_nom?" – "+S.dossier.devis_nom:""} · ${S.dossier.variante}`, true); }
 
 /* ---------- Accueil ---------- */
@@ -2062,24 +2074,29 @@ async function renderHome(){
         <div class="s">${G.L.map(d=>esc(d.devis_nom||d.variante)).join(" · ")}</div>
         <div>${nE?`<span class="badge b-err">${nE} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} ${nC?`<span class="badge b-ok">📨 ${nC}/${G.L.length} envoyé(s) à Clémence</span>`:""} ${nA?`<span class="badge b-n">☁ ${nA} pas encore dans le Drive</span>`:""}</div></div>
         ${ouvert?`<div class="dos-sous">${G.L.map(d=>carteMetre(d,true)).join("")}</div>`:""}`; });
+  const rech=nrm(S.homeRech||""), catSel=lireLS("home_cat_sel","dv_a"), parCat=Object.fromEntries(HOME_CATS.map(([id,,test])=>[id,ds.filter(test)]));
+  const trouve=rech?ds.filter(d=>nrm([d.client.nom,d.devis_nom,d.adresse_chantier].filter(Boolean).join(" ")).includes(rech)):null;
+  $("#app").classList.add("hb");
   $("#app").innerHTML=`
-  <div class="row"><h1>Accueil</h1><span class="spacer"></span>
-    <button class="btn" id="hSync" title="Récupérer les métrés faits ou modifiés sur mes autres appareils">☁ Actualiser</button>
-    <button class="btn" id="hOpen">Ouvrir un fichier…</button>
-    <button class="btn" id="hCRM">Depuis le CRM</button>
-    <button class="btn" id="hTablette" title="Relier cet iPad au PC pour y dessiner">📲 Tablette de dessin</button>
-    <button class="btn" id="hDAO" title="Ouvrir la Mini DAO (dessin 2D, comme AutoCAD)">📐 Mini DAO</button>
-    <button class="btn primary" id="hNew" style="font-size:17px;padding:12px 20px">+ Nouveau rendez-vous</button></div>
-  <p class="hint">Chaque métré s'enregistre tout seul quand tu reviens à cette liste, dans <b>Mon Drive › Appli métré – Dossiers › Devis</b> (ou <b>› Métrés définitif</b> pour un métré définitif). Pour l'envoyer à Clémence : bouton <b>📨 Envoyer à Clémence</b> en haut du métré. Plusieurs devis pour un même client (gîtes, maison…) : « + Autre devis pour ce client » dans la fiche client, ou « ✂ Séparer en plusieurs devis » dans les ouvertures. Les métrés faits sur tes autres appareils apparaissent ici tout seuls (ou avec « ☁ Actualiser »).</p>
+  <div class="hb-top"><h1>Accueil</h1>
+    <input class="hb-rech" id="hRech" type="search" placeholder="🔎 Chercher un client…" value="${esc(S.homeRech||"")}" autocomplete="off">
+    <span class="spacer"></span>
+    <button class="btn hb-ic" id="hSync" title="Actualiser : récupérer les métrés faits ou modifiés sur mes autres appareils" aria-label="Actualiser">☁</button>
+    <button class="btn hb-ic" id="hOpen" title="Ouvrir un fichier…" aria-label="Ouvrir un fichier">📂</button>
+    <button class="btn hb-ic" id="hCRM" title="Nouveau métré depuis le CRM" aria-label="Depuis le CRM">📇</button>
+    <button class="btn hb-ic" id="hTablette" title="Tablette de dessin : relier cet iPad au PC pour y dessiner" aria-label="Tablette de dessin">📲</button>
+    <button class="btn hb-ic" id="hDAO" title="📐 Mini DAO (dessin 2D, comme AutoCAD)" aria-label="Mini DAO">📐</button>
+    <button class="btn hb-ic" id="hAide" title="Comment ça marche" aria-label="Aide">ⓘ</button>
+    <button class="btn primary" id="hNew" style="padding:10px 16px">+ Nouveau rendez-vous</button></div>
+  <p class="hint hide" id="hAideTxt">Chaque métré s'enregistre tout seul quand tu reviens à cette liste, dans <b>Mon Drive › Appli métré – Dossiers › Devis</b> (ou <b>› Métrés définitif</b> pour un métré définitif). Pour l'envoyer à Clémence : bouton <b>📨 Envoyer à Clémence</b> en haut du métré. Plusieurs devis pour un même client (gîtes, maison…) : « + Autre devis pour ce client » dans la fiche client, ou « ✂ Séparer en plusieurs devis » dans les ouvertures. Les métrés faits sur tes autres appareils apparaissent ici tout seuls (ou avec « ☁ Actualiser »).</p>
   ${(()=>{ const ua=navigator.userAgent||""; if(!(/iPad/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1))) return "";
       const blue=!!navigator.bluetooth, ic=navigator.standalone||matchMedia("(display-mode: standalone)").matches;
-      return `<p class="hint" style="border-left:4px solid #e07b00;padding:6px 10px;background:#fff7ec;border-radius:6px">📱 Appli ouverte dans <b>${blue?"Bluefy":ic?"l'icône de l'écran d'accueil":"Safari"}</b>. Bluefy et l'icône ont chacun <b>leur propre mémoire</b> : un métré passe de l'un à l'autre <b>seulement par le Drive</b>. Le témoin <b>☁ ✓</b> en haut d'un métré te dit qu'il est bien dans le Drive.</p>`; })()}
-  <div class="card" id="hAgenda" style="margin-bottom:16px"><p class="hint">Chargement des rendez-vous…</p></div>
-  <div class="row" style="margin:6px 0 10px"><h2 style="margin:0">Mes métrés</h2><span class="spacer"></span>
+      return `<p class="hint" style="border-left:4px solid #e07b00;padding:4px 10px;background:#fff7ec;border-radius:6px;font-size:12.5px">📱 Ouverte dans <b>${blue?"Bluefy":ic?"l'icône de l'écran d'accueil":"Safari"}</b> – Bluefy et l'icône ont chacun leur mémoire : un métré passe de l'un à l'autre par le Drive (témoin ☁ ✓).</p>`; })()}
+  <div class="hb-cpt">${HOME_CATS.map(([id,titre])=>`<button class="hb-c${!rech&&catSel===id?" on":""}" data-catsel="${id}"><div class="l">${titre.replace(/^\S+\s/,"").replace(/^Métrés /,"").replace(/^de devis/,"Devis").replace(/^définitifs/,"Définitifs")}</div><div class="v">${parCat[id].length}</div></button>`).join("")}</div>
+  <div class="card" id="hAgenda" style="margin-bottom:12px"><p class="hint">Chargement des rendez-vous…</p></div>
+  <div class="row" style="margin:4px 0 8px"><h2 style="margin:0;font-size:17px">${rech?`Résultats pour « ${esc(S.homeRech)} » (${trouve.length})`:esc(HOME_CATS.find(c=>c[0]===catSel)?.[1]||"Mes métrés")}</h2><span class="spacer"></span>
     ${ds.length?(S.selMode?`<button class="btn small" id="hSelTout">Tout cocher</button><button class="btn small danger" id="hSelDel">Supprimer la sélection</button><button class="btn small" id="hSelFin">Annuler</button>`:`<button class="btn small" id="hSel">Supprimer plusieurs…</button>`):""}</div>
-  ${ds.length?HOME_CATS.map(([id,titre,test])=>{ const L=ds.filter(test), ouv=S.selMode||homeCatOuverte(id);
-      return `<div class="home-cat${ouv?" ouvert":""}" data-cat="${id}"><div class="row home-cat-t" data-cattog="${id}"><h3 style="margin:0">${titre}</h3><span class="badge b-n" style="margin-left:8px">${L.length}</span><span class="spacer"></span><span class="dos-chev">${ouv?"▾":"▸"}</span></div>
-        ${ouv?`<div class="list">${groupesClients(L).map(rendGroupe).join("")||`<div class="hint" style="padding:6px 2px">Aucun.</div>`}</div>`:""}</div>`; }).join("")
+  ${ds.length?`<div class="list">${groupesClients(rech?trouve:(parCat[catSel]||[])).map(rendGroupe).join("")||`<div class="hint" style="padding:6px 2px">${rech?"Aucun métré à ce nom.":"Aucun."}</div>`}</div>`
     : `<div class="card hint">Aucun métré pour l'instant. Appuie sur « + Nouveau rendez-vous ».</div>`}
   <div id="hCorb"></div>`;
   CORB.all().then(C=>{ const z=$("#hCorb"); if(!z) return; const jours=d=>Math.max(0,30-Math.floor((Date.now()-new Date(d.supprime_le).getTime())/86400000));
@@ -2092,14 +2109,16 @@ async function renderHome(){
     const bd=$("#hCorbDrive"); if(bd) bd.onclick=afficherCorbeilleDrive; });
   $("#hNew").onclick=()=>nouveauRendezVous(); $("#hTablette").onclick=tabletteRejoindre; $("#hDAO").onclick=()=>{ location.href="dao/?retour=accueil"; };   // Mini DAO (voir CLAUDE.md du dépôt)
   $("#hOpen").onclick=()=>$("#fileOpen").click();
-  $("#hSync").onclick=async()=>{ const b=$("#hSync"); b.disabled=true; b.textContent="☁ Actualisation…"; await synchroAccueil(true); const b2=$("#hSync"); if(b2){ b2.disabled=false; b2.textContent="☁ Actualiser"; } };
-  { const z=document.createElement("div"); z.id="hSyncLe"; z.className="hint"; z.style.textAlign="right"; z.textContent=texteSyncLe(); $("#app .row").after(z); }
+  $("#hSync").onclick=async()=>{ const b=$("#hSync"); b.disabled=true; b.textContent="…"; await synchroAccueil(true); const b2=$("#hSync"); if(b2){ b2.disabled=false; b2.textContent="☁"; } };
+  { const z=document.createElement("div"); z.id="hSyncLe"; z.className="hint"; z.style.cssText="text-align:right;font-size:12px;margin-top:-6px"; z.textContent=texteSyncLe(); $("#app .hb-top").after(z); }
   if(!S.syncAuto || Date.now()-S.syncAuto>120000){ S.syncAuto=Date.now(); setTimeout(()=>synchroAccueil(false),300); } else setTimeout(envoyerEnAttente,500);
   if(driveDispo() && !jetonValide()){ const z=document.createElement("button"); z.className="btn small"; z.style.cssText="display:block;margin:4px 0 0 auto;border:2px solid #e07b00;color:#b35f00";
     z.textContent="⚠ Pas connecté au Drive : touche ici pour voir et envoyer les métrés de tous tes appareils"; z.onclick=()=>$("#hSync").click(); $("#hSyncLe").after(z); }
   $("#hCRM").onclick=()=>ouvrirCRM("nouveau");
   S.homeOuverts=S.homeOuverts||new Set();
-  $$("[data-cattog]").forEach(el=>el.onclick=()=>{ const m=lireLS("home_cats",{}), id=el.dataset.cattog; m[id]=!homeCatOuverte(id); ecrireLS("home_cats",m); renderHome(); });
+  $$("[data-catsel]").forEach(el=>el.onclick=()=>{ ecrireLS("home_cat_sel",el.dataset.catsel); S.homeRech=""; renderHome(); });
+  $("#hAide").onclick=()=>$("#hAideTxt").classList.toggle("hide");
+  { const r=$("#hRech"); let t=null; r.oninput=()=>{ clearTimeout(t); t=setTimeout(async()=>{ S.homeRech=r.value; const pos=r.selectionStart; await renderHome(); const r2=$("#hRech"); if(r2){ r2.focus(); try{ r2.setSelectionRange(pos,pos); }catch(_){} } },250); }; }
   $$(".item[data-grp]").forEach(el=>el.onclick=e=>{ if(e.target.closest("button")) return; const k=el.dataset.grp;
     if(S.selMode){ const ids=groupesClients(ds).find(G=>G.cle===k).L.map(d=>d.id), tous=ids.every(id=>S.sel.has(id)); ids.forEach(id=>tous?S.sel.delete(id):S.sel.add(id)); renderHome(); return; }
     S.homeOuverts.has(k)?S.homeOuverts.delete(k):S.homeOuverts.add(k); renderHome(); });
@@ -7589,7 +7608,7 @@ document.addEventListener("click", e=>{
     if(Date.now()-G_AUTO_AT < 30000) return;
     if(e.target && e.target.closest && e.target.closest("#gConnexion,[data-gconnexion]")) return;
     G_AUTO_AT=Date.now();
-    demanderJeton(true).then(()=>{ try{ majEtatDrive(); }catch(_){} }, ()=>{});
+    demanderJeton(true).then(()=>{ try{ majEtatDrive(); }catch(_){} try{ if(S.view==="home") afficherAgenda(false); }catch(_){} }, ()=>{});   // accueil : RDV affichés tout seuls dès que Google est reconnecté
   }catch(_){}
 }, true);
 async function gdrive(url, opt={}){

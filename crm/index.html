@@ -796,6 +796,7 @@ html.resa-open{overflow:hidden}
 .dbk-off>*:not(.dbk-bar){opacity:.35}.dbk-drag{opacity:.5}.dbx .hd{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}.dbx-b{padding:4px 16px 14px;display:grid;gap:6px}.dbx-l{margin:0;padding-left:18px;display:grid;gap:4px}.dbx-n{font-size:.92rem}
 @media (max-width:820px){.dashwrap{grid-template-columns:1fr}.dbk-half{grid-column:1/-1}}
 .rap-box{display:grid;gap:6px;margin:12px 16px 4px;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,#2563eb 10%,var(--panel));border-left:4px solid #2563eb}.rap-it{display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap}.rap-b{display:flex;gap:6px;flex-wrap:wrap}
+.sync-ok{color:inherit}.sync-old{color:#c2410c;font-weight:600}
 .tri-set{display:grid;gap:10px;padding:4px 16px 16px}.tri-set label{display:grid;gap:4px}.tri-set label.tri-ck{display:flex}.tri-base{font-size:.85rem;color:var(--muted);line-height:1.5}
 .mlist{display:grid}.mrow{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:4px 12px;padding:12px 16px;border-top:1px solid var(--line);align-items:start}
 .mrow.unread .msub{font-weight:800}.mav{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;background:var(--mc,#64748b);font-size:1rem}
@@ -6288,7 +6289,7 @@ async function runUpdate(){
   if (updating) return;
   if (!db) { updMsg("Le CRM n'est pas encore chargé ou n'est pas accessible dans cette vue.", "err"); return; }
   if (!canWrite) { updMsg("Seul le propriétaire du CRM peut lancer la mise à jour.", "err"); return; }
-  updating = true; $("#updBtn").disabled = true;
+  updating = true; $("#updBtn").disabled = true; try { syncAge(); } catch(_){}
   try {
     const mcp = await claude.use("mcp");
     if (!mcp) { updMsg("La mise à jour n'est pas disponible dans cette vue. Connecte-toi à Google (bouton en haut).", "err"); return; }
@@ -6368,9 +6369,23 @@ async function runUpdate(){
     updMsg(`À jour : ${out.meta.dossiers} dossiers, ${out.meta.ventes} ventes, ${eur(out.meta.ca_signe_ht)} signés HT` + (out.meta.pdf_devis_rattaches != null ? `, ${out.meta.pdf_devis_rattaches} devis et ${out.meta.pdf_metres_rattaches} métrés rattachés.` : ".") + pdfWarn, pdfWarn ? "err" : "ok");
   } catch (e) {
     updMsg(e && e.code === "invalid_argument" ? "Enregistrement refusé : tu n'as pas le droit de modifier ce CRM." : (e.message || String(e)), "err");
-  } finally { updating = false; $("#updBtn").disabled = false; }
+  } finally { updating = false; $("#updBtn").disabled = false; try { syncAge(); } catch(_){} }
 }
-$("#updBtn").onclick = runUpdate;
+$("#updBtn").onclick = () => runUpdate();
+/* Mise à jour automatique depuis le Drive : à l'ouverture (dès que la connexion Google est là), et au retour sur l'onglet après plus d'une heure */
+let autoUpdWant = "open", metaSeen = false;
+const updAge = () => meta && meta.at ? Date.now() - new Date(meta.at).getTime() : Infinity;
+const gOk = () => !window.CRM_ONLINE || window.CRM_ONLINE.tokenOk();
+function autoUpd(){ if (!autoUpdWant || updating || !metaSeen || !db || !canWrite) return;
+  const lim = autoUpdWant === "open" ? 30 * 60000 : 60 * 60000; if (updAge() < lim) { autoUpdWant = ""; return; }
+  if (!gOk()) return;   // on attend la connexion Google (elle se renouvelle au premier clic)
+  autoUpdWant = ""; runUpdate(); }
+setInterval(autoUpd, 10000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && updAge() > 60 * 60000) { autoUpdWant = "back"; autoUpd(); } });
+function syncAge(){ const el = $("#sync"); if (!el || !meta || !meta.at) return; const m = Math.round(updAge() / 60000), old = m > 240;
+  const t = m < 1 ? "à l'instant" : m < 60 ? "il y a " + m + " min" : m < 1440 ? "il y a " + Math.floor(m / 60) + " h" + (m % 60 >= 10 ? String(m % 60).padStart(2, "0") : "") : "le " + new Date(meta.at).toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  el.innerHTML = `<span class="${old ? "sync-old" : "sync-ok"}">${updating ? "⏳ Mise à jour depuis le Drive…" : (old ? "⚠️ " : "✓ ") + "À jour " + t}</span>`; el.title = "Suivi des FIC + récap des ventes + PDF devis et métrés (lecture seule)" + (old ? " · plus de 4 h : clique sur « Mettre à jour depuis le Drive »" : ""); }
+setInterval(syncAge, 60000);
 $("#newCli").onclick = () => openNewClient(null);
 
 /* ---------- data ---------- */
@@ -6426,7 +6441,7 @@ function rebuild(){
   db.doc("meta/mail").onSnapshot(s => { mailMeta = s.exists ? s.data() : null; renderMailCount(); }, () => {});
   db.doc("meta/sync").onSnapshot(s => {
     meta = s.exists ? s.data() : null;
-    if (meta) $("#sync").textContent = "Mis à jour depuis le Drive le " + new Date(meta.at).toLocaleString("fr-FR",{day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"}) + " · suivi des FIC + récap des ventes + PDF devis et métrés (lecture seule)";
+    metaSeen = true; if (meta) syncAge(); autoUpd();
   }, () => {});
 })();
 </script>

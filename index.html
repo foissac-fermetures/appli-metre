@@ -4266,15 +4266,18 @@ function ouvrirAideCouleur(){
     if(!L.length){ res.innerHTML=`<p class="hint">Rien trouvé. Essaie « beige », « gris », « vert », « bleu », « rouge », « marron », « clair », « foncé », ou un n° de RAL.</p>`; return; }
     const std=[], hors=[];
     L.forEach(r=>{ if(frn){ const f=frn.find(x=>x.ral===r[0]); (f?std:hors).push([r,f&&f.c]); } else std.push([r,null]); });
+    if(frn && hors.length){ const hex=x=>{ const n=parseInt(x.slice(1),16); return [n>>16,(n>>8)&255,n&255]; }, dist=(a,b)=>{ const p=hex(a),q=hex(b); return Math.hypot(p[0]-q[0],p[1]-q[1],p[2]-q[2]); };
+      const cible=hors[0][0][2]; frn.filter(f=>f.ral && RAL_TEINTES.some(r=>r[0]===f.ral) && !std.some(x=>x[1]===f.c)).map(f=>({f, r:RAL_TEINTES.find(r=>r[0]===f.ral)})).sort((a,b)=>dist(a.r[2],cible)-dist(b.r[2],cible)).slice(0,2).forEach(({f,r})=>std.push([r,f.c,"proche"])); }
     if(frn){ const mots=minAcc(inp.value).split(/\s+/).filter(x=>x.length>3); frn.filter(f=>!f.ral && mots.some(w=>minAcc(f.c).includes(w)) && !std.some(x=>x[1]===f.c)).forEach(f=>std.push([null,f.c])); }
-    const ligne=([r,fc],ok)=>`<button class="btn" data-coul="${esc(r?r[0]:"")}" data-coulf="${esc(fc||"")}" ${ok?"":"data-hors='1'"} style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin-bottom:6px;padding:8px;${ok?"":"opacity:.75"}">
-      ${pastille(r?r[2]:"linear-gradient(135deg,#b88a4a,#7a5530)")}<span><b>${r?`RAL ${r[0]} ${esc(r[1])}`:esc(fc)}</b><br><small>${fc?`Couleur Corrèze : ${esc(fc)}`:ok?`${v.matiere==="Bois"?"Peinture nuancier RAL Corrèze":"Tout RAL Corrèze"}`:"Pas au catalogue PVC Corrèze → possible en alu ou en bois peint"}</small></span></button>`;
+    const ligne=([r,fc,proche],ok)=>`<button class="btn" data-coul="${esc(r?r[0]:"")}" data-coulf="${esc(fc||"")}" ${ok?"":"data-hors='1'"} style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin-bottom:6px;padding:8px;${ok?"":"opacity:.75"}">
+      ${pastille(r?r[2]:"linear-gradient(135deg,#b88a4a,#7a5530)")}<span><b>${r?`RAL ${r[0]} ${esc(r[1])}`:esc(fc)}</b><br><small>${fc?`${proche?"La plus proche en PVC Corrèze":"Couleur Corrèze"} : ${esc(fc)}`:ok?`${v.matiere==="Bois"?"Peinture nuancier RAL Corrèze":"Tout RAL Corrèze"}`:"Pas au catalogue PVC Corrèze → possible en alu ou en bois peint"}</small></span></button>`;
     res.innerHTML=(note?`<p class="hint" style="margin-top:0">${esc(note)}</p>`:"")
+      +(frn&&hors.length&&!std.some(x=>!x[2])?`<p class="pwarn" style="margin:0 0 8px">Cette teinte n'existe pas en PVC chez Corrèze. Choisis la plus proche ci-dessous, ou passe le volet en alu (tout RAL).</p>`:"")
       +(std.length?`<h3 style="margin:4px 0 6px">${frn?"✅ Couleurs du fournisseur":"✅ Proposition de RAL"}</h3>`+std.map(x=>ligne(x,true)).join(""):"")
       +(hors.length?`<h3 style="margin:10px 0 6px">Autres RAL proches (hors standard PVC)</h3>`+hors.map(x=>ligne(x,false)).join(""):"")
       +`<p class="hint">Teintes à l'écran approchées : toujours valider sur le nuancier avec le client.</p>`;
     res.querySelectorAll("[data-coul]").forEach(b=>b.onclick=()=>{
-      if(b.dataset.hors){ toast("Pas en PVC chez Corrèze : passe le volet en alu ou en bois peint pour cette teinte"); return; }
+      if(b.dataset.hors){ demander("Cette teinte n'existe pas en PVC chez Corrèze. Choisis la couleur la plus proche proposée en haut, ou passe le volet en aluminium (tout RAL).","Compris","Fermer"); return; }
       const r=RAL_TEINTES.find(x=>x[0]===b.dataset.coul), nom=r?`RAL ${r[0]} ${r[1]}`:"";
       if(b.dataset.coulf){ v.couleur=b.dataset.coulf; v.couleur_ral=""; }
       else if(v.matiere==="Aluminium"){ if(!/TOUT RAL/.test(v.couleur||"")) v.couleur=VB_COULEURS_ALU[0]; v.couleur_ral=nom; retenirRAL(nom); }
@@ -7819,6 +7822,8 @@ function barreVariantes(){ const d=S.dossier, k=S.tab; if(S.view!=="dossier"||!d
   t.insertAdjacentHTML("afterbegin",`<div class="card" id="vpBar" style="border:2px solid #d3232f"><div class="row" style="flex-wrap:wrap;gap:8px"><b>Variantes ${esc(VPART_NOMS[k]||"")} :</b>
     ${L.map((e,j)=>`<button class="btn small${j===cur?" primary":""}" data-vp="${j}">${String.fromCharCode(65+j)}${e.nom?" – "+esc(e.nom):j===0?" – de base":""}</button>`).join("")}
     <span class="spacer"></span><button class="btn small" id="vpRen">✏️ Renommer</button>${cur>0?`<button class="btn small danger" id="vpDel">✕ Supprimer la variante ${String.fromCharCode(65+cur)}</button>`:""}</div>
+    ${(()=>{ if(k!=="vb") return ""; const cle=x=>[x.matiere,x.couleur,x.couleur_ral].join("|"), moi=cle(d.vb), memes=L.map((e,j)=>j!==cur&&e.data&&cle(e.data)===moi?String.fromCharCode(65+j):"").filter(Boolean);
+      return memes.length?`<p class="pwarn" style="margin:6px 0 0">⚠ La ${String.fromCharCode(65+cur)} a la même couleur que la ${memes.join(", ")} (${esc(vbCouleurTexte(d.vb)||"aucune")}) : change la couleur plus bas (🎨 Aide couleur).</p>`:""; })()}
     <p class="hint" style="margin:6px 0 0">Tu modifies la ${String.fromCharCode(65+cur)}. Toutes les variantes sortent sur le même PDF, l'une après l'autre.</p></div>`);
   t.querySelectorAll("[data-vp]").forEach(b=>b.onclick=()=>{ vpartAller(d,k,+b.dataset.vp); save(); renderDossier(); });
   $("#vpRen").onclick=async()=>{ const e=L[cur], n=await demanderTexte(`Nom de la variante ${String.fromCharCode(65+cur)} :`, e.nom||"", "Renommer"); if(n==null) return; e.nom=n.trim(); save(); renderDossier(); };

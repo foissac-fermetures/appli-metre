@@ -471,6 +471,13 @@ input:disabled{background:#eef1f7;color:#4a5368}
   <div id="dvZone"></div>
   <div class="row" style="margin-top:12px"><span class="spacer"></span><button class="btn" data-close>Fermer</button></div>
 </div></div>
+<div class="modal" id="mCoul"><div class="box" style="max-width:720px">
+  <h2>🎨 Aide au choix de la couleur</h2>
+  <p class="hint" style="margin-top:0">Tape ce que cherche le client : « beige », « gris clair », « vert Périgord », « bleu charrette », « gris Quercy »…</p>
+  <input id="coulRech" placeholder="Ex. beige" style="width:100%;font-size:18px;padding:10px;border:1px solid var(--line);border-radius:10px">
+  <div id="coulRes" style="margin-top:12px;max-height:55vh;overflow:auto"></div>
+  <div class="row" style="margin-top:12px"><span class="spacer"></span><button class="btn" id="coulFermer">Fermer</button></div>
+</div></div>
 <div class="modal" id="mRep"><div class="box" style="max-width:720px">
   <h2>Choisir le repère</h2>
   <div class="rep-apercu" id="repApercu">—</div>
@@ -4195,6 +4202,82 @@ function controleVB(d){
   if(typeof comparerDevisVB==="function") comparerDevisVB(d,E,W);
   return {E,W};
 }
+
+/* ---------- Aide au choix de la couleur des volets battants – 27/11/2026 ----------
+   On tape « beige », « vert Périgord »… → RAL proposés (pastille), couleurs du fournisseur (Corrèze) d'abord.
+   Les teintes des pastilles sont approchées (un écran ne remplace pas le nuancier). */
+const RAL_TEINTES = [
+ ["9016","Blanc signalisation","#F4F4F2","blanc"],["9010","Blanc pur","#F1EDE1","blanc"],["9001","Blanc crème","#E9E0D2","blanc creme beige ivoire clair"],
+ ["1013","Blanc perlé","#E3DCC4","blanc beige creme perle ivoire clair"],["1015","Ivoire clair","#E6D2B5","beige ivoire creme sable clair"],["1014","Ivoire","#DDC49A","beige ivoire sable"],
+ ["1001","Beige","#D0B084","beige sable"],["1000","Beige vert","#CDBA88","beige sable vert"],["1002","Jaune sable","#D2AA6D","beige sable jaune ocre"],["1019","Beige gris","#A48F7A","beige taupe gris"],
+ ["1011","Beige brun","#AF804F","beige ocre brun marron"],["1024","Jaune ocre","#AE8F4A","jaune ocre"],["7044","Gris soie","#B7B3A8","gris beige clair"],["7032","Gris silex","#B9B9A8","gris beige clair"],
+ ["7006","Gris beige","#6D6552","gris beige taupe fonce"],["7039","Gris quartz","#6B695F","gris taupe fonce"],["7030","Gris pierre","#939388","gris pierre moyen"],["7038","Gris agate","#B4B8B0","gris clair"],
+ ["7035","Gris clair","#CBD0CC","gris clair"],["7047","Télégris 4","#D0D0D0","gris clair"],["7040","Gris fenêtre","#9DA3A6","gris moyen"],["7001","Gris argent","#8A9597","gris moyen argent"],
+ ["7036","Gris platine","#9A9697","gris moyen"],["9006","Aluminium blanc","#A5A8A6","gris alu argent"],["9007","Aluminium gris","#8F8F8C","gris alu"],["7012","Gris basalte","#575D5E","gris fonce"],
+ ["7022","Gris terre d'ombre","#4B4D46","gris fonce taupe"],["7016","Gris anthracite","#383E42","gris fonce anthracite"],["9005","Noir foncé","#0A0A0A","noir"],
+ ["6019","Vert blanc","#B9CEAC","vert clair pastel amande"],["6021","Vert pâle","#8A9977","vert clair amande"],["6011","Vert réséda","#6C7C59","vert moyen"],["6013","Vert jonc","#7C765A","vert olive kaki"],
+ ["6003","Vert olive","#50533C","vert olive kaki fonce"],["6005","Vert mousse","#0F4336","vert fonce"],["6009","Vert sapin","#27352A","vert fonce"],["6034","Turquoise pastel","#7AADAC","vert bleu turquoise"],
+ ["5024","Bleu pastel","#6A93B0","bleu clair pastel"],["5014","Bleu pigeon","#637D96","bleu moyen gris lavande"],["5023","Bleu distant","#41678D","bleu moyen"],["5012","Bleu clair","#3B83BD","bleu clair vif"],
+ ["5007","Bleu brillant","#376B8C","bleu moyen"],["5008","Bleu gris","#2B3A44","bleu fonce gris"],["5003","Bleu saphir","#1F3855","bleu fonce"],["5011","Bleu acier","#1A2B3C","bleu fonce"],
+ ["3012","Rouge beige","#C1876B","rouge rose terre cuite"],["8023","Brun orangé","#A65E2F","orange terre cuite brique"],["3003","Rouge rubis","#8D1D2C","rouge"],["3011","Rouge brun","#78282B","rouge bordeaux brun"],
+ ["3004","Rouge pourpre","#6B1C23","rouge bordeaux"],["3005","Rouge vin","#59191F","rouge bordeaux"],["3007","Rouge noir","#412227","rouge bordeaux fonce"],["8011","Brun noisette","#5A3A29","marron brun"],
+ ["8014","Brun sépia","#4E3B31","marron brun fonce"],["8017","Brun chocolat","#45322E","marron brun fonce chocolat"],["8019","Brun gris","#3F3A3A","marron brun gris fonce"]];
+/* Couleurs traditionnelles (approchées) → RAL les plus proches, dans l'ordre */
+const COUL_REGIONS = [
+ [/gris (du )?(quercy|lot|causse)/,["7044","7032","7030","1019"],"Gris Quercy : gris chaud, un peu beige, comme la pierre du Lot"],
+ [/vert (du )?(perigord|sarlat|dordogne)/,["6021","6011","6019","6013"],"Vert Périgord : vert doux, un peu grisé"],
+ [/bleu charrette/,["5024","5014","5012","5023"],"Bleu charrette : bleu moyen lumineux des charrettes d'autrefois"],
+ [/rouge basque/,["3004","3011","3003"],"Rouge basque : rouge sang de bœuf"],
+ [/vert basque/,["6005","6009","6003"],"Vert basque : vert foncé"],
+ [/bleu (de )?(provence|lavande)|lavande/,["5014","5024","4009"],"Bleu lavande / Provence"],
+ [/sang de b(oe|œ)uf|bordeaux/,["3005","3004","3007","3011"],"Rouge bordeaux / sang de bœuf"],
+ [/taupe/,["1019","7006","7039","7044"],"Taupe : beige grisé"],
+ [/sable|creme|ivoire/,["1015","1014","9001","1013","1001"],"Tons sable / crème"],
+ [/terre cuite|brique|tuile/,["8023","3012","3011"],"Terre cuite"],
+ [/amande|tilleul|anis/,["6019","6021","6011"],"Vert amande"],
+ [/kaki|olive/,["6013","6003","7039"],"Kaki / olive"],
+ [/anthracite/,["7016","7012","7022"],"Anthracite"]];
+const minAcc = t => String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+function chercherRAL(q){
+  const t=minAcc(q).trim(); if(!t) return {L:[],note:""};
+  const num=t.match(/\b([1-9]\d{3})\b/); if(num) return {L:RAL_TEINTES.filter(r=>r[0].startsWith(num[1].slice(0,2))).sort((a,b)=>(a[0]===num[1]?-1:0)-(b[0]===num[1]?-1:0)),note:""};
+  for(const [re,ids,note] of COUL_REGIONS) if(re.test(t)) return {L:ids.map(i=>RAL_TEINTES.find(r=>r[0]===i)).filter(Boolean),note};
+  const mots=t.split(/\s+/).filter(m=>m.length>2), clair=/clair|pale|pastel/.test(t), fonce=/fonce|sombre/.test(t);
+  let L=RAL_TEINTES.filter(r=>mots.filter(m=>!/clair|pale|fonce|sombre/.test(m)).every(m=>(r[3]+" "+minAcc(r[1])).includes(m.replace(/s$/,""))));
+  if(clair) L=L.filter(r=>/clair|pastel|blanc|creme|ivoire/.test(r[3]));
+  if(fonce) L=L.filter(r=>/fonce/.test(r[3]));
+  return {L:L.slice(0,8),note:""};
+}
+/* Couleurs du fournisseur pour la matière choisie (Corrèze) */
+function coulFournisseur(v){
+  if(v.matiere==="PVC") return (vbCouleurs("PVC")||[]).map(c=>{ const m=String(c).match(/\b([1-9]\d{3})\b/); return {c, ral:/blanc/i.test(c)&&!m?"9016":(m?m[1]:null)}; });
+  return null; }   // aluminium et bois : tout RAL chez Corrèze
+function ouvrirAideCouleur(){
+  const v=S.dossier.vb; if(!v.matiere){ toast("Choisis d'abord la matière (PVC, alu ou bois)"); return; }
+  const m=$("#mCoul"), inp=$("#coulRech"), res=$("#coulRes"), frn=coulFournisseur(v);
+  const pastille=h=>`<span style="display:inline-block;width:46px;height:46px;border-radius:10px;border:1px solid #999;background:${h};flex:none"></span>`;
+  const aff=()=>{ const {L,note}=chercherRAL(inp.value);
+    if(!inp.value.trim()){ res.innerHTML=`<p class="hint">${v.matiere==="PVC"?"En PVC, Corrèze n'a que quelques couleurs : elles passent en premier.":"En "+v.matiere.toLowerCase()+", Corrèze fait tous les RAL."}</p>`; return; }
+    if(!L.length){ res.innerHTML=`<p class="hint">Rien trouvé. Essaie « beige », « gris », « vert », « bleu », « rouge », « marron », « clair », « foncé », ou un n° de RAL.</p>`; return; }
+    const std=[], hors=[];
+    L.forEach(r=>{ if(frn){ const f=frn.find(x=>x.ral===r[0]); (f?std:hors).push([r,f&&f.c]); } else std.push([r,null]); });
+    if(frn){ const mots=minAcc(inp.value).split(/\s+/).filter(x=>x.length>3); frn.filter(f=>!f.ral && mots.some(w=>minAcc(f.c).includes(w)) && !std.some(x=>x[1]===f.c)).forEach(f=>std.push([null,f.c])); }
+    const ligne=([r,fc],ok)=>`<button class="btn" data-coul="${esc(r?r[0]:"")}" data-coulf="${esc(fc||"")}" ${ok?"":"data-hors='1'"} style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin-bottom:6px;padding:8px;${ok?"":"opacity:.75"}">
+      ${pastille(r?r[2]:"linear-gradient(135deg,#b88a4a,#7a5530)")}<span><b>${r?`RAL ${r[0]} ${esc(r[1])}`:esc(fc)}</b><br><small>${fc?`Couleur Corrèze : ${esc(fc)}`:ok?`${v.matiere==="Bois"?"Peinture nuancier RAL Corrèze":"Tout RAL Corrèze"}`:"Pas au catalogue PVC Corrèze → possible en alu ou en bois peint"}</small></span></button>`;
+    res.innerHTML=(note?`<p class="hint" style="margin-top:0">${esc(note)}</p>`:"")
+      +(std.length?`<h3 style="margin:4px 0 6px">${frn?"✅ Couleurs du fournisseur":"✅ Proposition de RAL"}</h3>`+std.map(x=>ligne(x,true)).join(""):"")
+      +(hors.length?`<h3 style="margin:10px 0 6px">Autres RAL proches (hors standard PVC)</h3>`+hors.map(x=>ligne(x,false)).join(""):"")
+      +`<p class="hint">Teintes à l'écran approchées : toujours valider sur le nuancier avec le client.</p>`;
+    res.querySelectorAll("[data-coul]").forEach(b=>b.onclick=()=>{
+      if(b.dataset.hors){ toast("Pas en PVC chez Corrèze : passe le volet en alu ou en bois peint pour cette teinte"); return; }
+      const r=RAL_TEINTES.find(x=>x[0]===b.dataset.coul), nom=r?`RAL ${r[0]} ${r[1]}`:"";
+      if(b.dataset.coulf){ v.couleur=b.dataset.coulf; v.couleur_ral=""; }
+      else if(v.matiere==="Aluminium"){ if(!/TOUT RAL/.test(v.couleur||"")) v.couleur=VB_COULEURS_ALU[0]; v.couleur_ral=nom; retenirRAL(nom); }
+      else { if(!/Peinture/.test(v.couleur||"")) v.couleur=VB_FINITIONS_BOIS.find(x=>/nuancier RAL/.test(x)); v.couleur_ral=nom; retenirRAL(nom); }
+      m.classList.remove("open"); save(); const y=scrollY; renderDossier(); scrollTo(0,y); toast("Couleur : "+(b.dataset.coulf||nom)); });
+  };
+  inp.value=""; inp.oninput=aff; aff(); $("#coulFermer").onclick=()=>m.classList.remove("open"); m.classList.add("open"); setTimeout(()=>inp.focus(),50);
+}
 function renderVB(t){
   const d=S.dossier; if(!d.vb) d.vb=nouveauVB(); const v=d.vb, C=VB_CAT();
   if(v.pose==="Sur gonds existants"){ v.pose=""; v.sur_gonds=true; save(); }   // anciens métrés
@@ -4229,7 +4312,7 @@ function renderVB(t){
   ${estDefinitif(d)&&!d.devis_signe?`<div class="card dv-card"><h2>Métré définitif : partir du devis signé</h2><p class="hint">Reprend tous les volets du devis ProDevis signé (repères, vantaux, couleur, RAL, ferrage, gonds, espagnolettes, arrêts, allèges, cotes…). Tu n'as plus qu'à contrôler sur place.</p><button class="btn primary" id="vbDevis">Partir du devis signé</button></div>`
     :d.devis_signe?`<p class="hint" style="margin:0 0 8px">Relié au devis signé <b>n° ${esc(d.devis_signe.num||"?")}</b> du ${esc(d.devis_signe.date||"?")} – les écarts sont dans le contrôle.</p>`:""}
   <div class="card"><h2><span class="num">1</span>Volets battants – Corrèze Fermetures</h2><div class="grid g4">
-    ${F.sel("vb.matiere","Matière",VB_MATIERES,v.matiere)}<div style="grid-column:span 2">${F.sel("vb.type","Type",vbTypes(v.matiere),v.type)}</div>${F.sel("vb.couleur",v.matiere==="Bois"?"Finition":"Couleur",vbCouleurs(v.matiere),v.couleur)}
+    ${F.sel("vb.matiere","Matière",VB_MATIERES,v.matiere)}<div style="grid-column:span 2">${F.sel("vb.type","Type",vbTypes(v.matiere),v.type)}</div><div>${F.sel("vb.couleur",v.matiere==="Bois"?"Finition":"Couleur",vbCouleurs(v.matiere),v.couleur)}<button class="btn small" id="vbAideCoul" style="margin-top:6px">🎨 Aide couleur</button></div>
     ${vbRalAPreciser(v.couleur)?`<div style="grid-column:span 2"><label class="f">Teinte exacte <small>(tape « 70 » → RAL 70xx…, les nouvelles teintes sont retenues)</small><input data-k="vb.couleur_ral" list="dlRAL" value="${esc(v.couleur_ral||"")}" placeholder="RAL 7016 Gris anthracite"></label></div>`:""}
     ${v.matiere==="Bois"?F.sel("vb.essence","Essence",VB_ESSENCES,v.essence):""}
     ${""}${F.sel("vb.ferrage_couleur","Couleur des ferrages",VB_COUL_FERRAGE,v.ferrage_couleur||"")}${F.sel("vb.barre","Barres et écharpes (panneau / ferrage)",C.ferrage||[],v.barre)}${F.sel("vb.ferrage","Ferrage (pentures)",C.pentures||[],v.ferrage)}${F.sel("vb.lame","Lame",VB_LAMES,v.lame)}
@@ -4246,6 +4329,7 @@ function renderVB(t){
       <div class="row"><button class="btn small" data-phedit="${k}">✏️ Annoter</button><span class="spacer"></span><button class="btn small danger" data-phdel="${k}" aria-label="Supprimer la photo ${k+1}">✕</button></div></figure>`).join("")}
     <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple id="phAdd" class="hide"></label></div></div>`;
   const re=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); };
+  { const b=$("#vbAideCoul"); if(b) b.onclick=ouvrirAideCouleur; }
   remplirDlRAL(); const ri=$("[data-k='vb.couleur_ral']"); if(ri) ri.addEventListener("change",()=>retenirRAL(ri.value));
   $$("[data-vbcok]").forEach(b=>b.onclick=()=>{ v.lignes[+b.dataset.vbcok].cotes_devis=false; save(); const y=scrollY; re(); scrollTo(0,y); });
   if($("#vbDevis")) $("#vbDevis").onclick=ouvrirDevisSigne;

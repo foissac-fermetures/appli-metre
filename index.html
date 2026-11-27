@@ -7758,8 +7758,10 @@ async function dossierClient(d){
       if(f.trashed) id=null;
       else if((f.parents||[]).includes(autre)) await gdrive(`https://www.googleapis.com/drive/v3/files/${id}?addParents=${cible}&removeParents=${autre}&fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:"{}"});
     }catch(e){ if(/Drive 404/.test(e.message)) id=null; else throw e; } }
-  if(id) return id;
   const nom=(d.client.nom||"Sans nom").trim(), date=(d.client.date_rdv||new Date().toISOString().slice(0,10)).split("-").reverse().join("-");
+  // client remplacé depuis le CRM (27/11/2026) : le dossier du client (créé par l'appli) prend le nouveau nom
+  if(id && d.drive.renommer){ try{ await gdrive(`https://www.googleapis.com/drive/v3/files/${id}?fields=id`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:`${nom} – ${date}`})}); delete d.drive.renommer; }catch(e){ console.warn("renommage dossier",e); } }
+  if(id) return id;
   return dossierDrive(`${nom} – ${date}`, cible);
 }
 async function envoyerDossierDrive(d){
@@ -8147,8 +8149,13 @@ function origineCRM(t){ t=(t||"").toUpperCase();
   if(/^PA\b|PASSAGE|AGENCE|TRAJET|MAGASIN/.test(t)) return "Passage agence";
   return t ? "Autre" : ""; }
 /* Remplit la fiche (seulement les cases vides) avec un client du CRM */
-function remplirDepuisCRM(d, c){
-  const vide=v=>!v||!String(v).trim();
+function remplirDepuisCRM(d, c, remplacer){
+  /* remplacer (27/11/2026, cas GUZOU / SCI PAULOUIS BASTIE) : la fiche avait été remplie avec un autre client du CRM →
+     on remet nom, téléphone, adresse, origine et les lignes « (CRM) » de ce client-ci ; le dossier Drive est renommé au prochain envoi */
+  const vide=v=>remplacer||!v||!String(v).trim();
+  if(remplacer){ d.logement.precisions=String(d.logement.precisions||"").split("\n").filter(l=>!/\((CRM)\)/.test(l)).join("\n");
+    d.notes_client=String(d.notes_client||"").split("\n").filter(l=>!/^Suivi CRM :/.test(l)).join("\n");
+    if(d.drive && d.drive.dossier && normNom(d.client.nom)!==normNom(c.nom)) d.drive.renommer=true; }
   if(vide(d.client.nom)) d.client.nom=c.nom;
   if(vide(d.client.telephone)) d.client.telephone=c.tel;
   if(c.date_r1) d.client.date_rdv=c.date_r1;
@@ -8170,12 +8177,15 @@ function afficherCRM(){
   const q=($("#crmQ").value||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""), tous=$("#crmTous").checked;
   const L=S.crm.clients.filter(c=>(tous||CRM_COMMERCIAL.test(c.commercial)) && (!q || [c.nom,c.lieu,c.projet,c.tel].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").includes(q))).slice(0,80);
   $("#crmMaj").textContent=`Copie du ${new Date(S.crm.le).toLocaleString("fr-FR")} · ${S.crm.clients.length} lignes`;
-  $("#crmListe").innerHTML = L.length ? L.map((c,i)=>`<button class="crm-item" data-crm="${S.crm.clients.indexOf(c)}">
+  $("#crmListe").innerHTML = L.length ? L.map((c,i)=>`<button class="crm-item" data-crm="${i}">
       <b>${esc(c.nom)}</b> <span class="hint">${esc(c.lieu)}${c.date_fic?" · FIC "+fmtDate(c.date_fic):""}${tous?" · "+esc(c.commercial):""}</span>
       <small>${esc([c.projet,c.tel].filter(Boolean).join(" · "))}</small></button>`).join("") : `<p class="hint">Aucun client trouvé.</p>`;
-  $$("[data-crm]").forEach(b=>b.onclick=async()=>{ const c=S.crm.clients[+b.dataset.crm]; $("#mCRM").classList.remove("open");
+  // 27/11/2026 : le client touché est pris dans la liste AFFICHÉE (L), plus par un numéro dans S.crm (qui peut avoir été relu entre-temps → mauvais client)
+  $$("[data-crm]").forEach(b=>b.onclick=async()=>{ const c=L[+b.dataset.crm]; if(!c) return; $("#mCRM").classList.remove("open");
     if(S.crmMode==="nouveau"){ S.dossier=remplirDepuisCRM(nouveauDossier(), c); await DB.put(S.dossier); S.tab="client"; renderDossier(); }
-    else { remplirDepuisCRM(S.dossier, c); save(); renderDossier(); }
+    else { const d=S.dossier, autre=(d.client.nom&&normNom(d.client.nom)!==normNom(c.nom)) || (d.crm&&d.crm.nom&&(d.crm.onglet!==c.onglet||d.crm.ligne!==c.ligne));
+      const rempl = autre ? await demander(`La fiche contient « ${d.client.nom||d.crm.nom} ». Remplacer le nom, le téléphone, l'adresse et les infos CRM par celles de ${c.nom} ?`,"Remplacer","Compléter seulement les cases vides") : false;
+      remplirDepuisCRM(d, c, rempl); save(); renderDossier(); }
     toast(`Fiche remplie depuis le CRM : ${c.nom}`); });
 }
 

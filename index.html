@@ -459,7 +459,8 @@ input:disabled{background:#eef1f7;color:#4a5368}
   <div id="varBlocGamme"><label class="f">Nouvelle gamme des menuiseries<select id="varGamme"></select></label>
   <p class="hint">Les couleurs qui n'existent pas dans la nouvelle gamme sont vidées et signalées dans le contrôle.</p></div>
   <div id="varBlocAutre"><label class="f">Nom de la variante <small>(ce qui change, ex. « volets RAL 7016 »)</small><input id="varNom" placeholder="Ex. volets RAL 7016"></label>
-  <p class="hint">Après la copie, l'appli ouvre l'onglet choisi : change juste la couleur (ou autre chose), tout le reste est déjà rempli.</p></div>
+  <p class="hint">Comme pour les ouvertures : la variante B est ajoutée dans ce métré, sur le même PDF, à la suite de la solution A. Change juste la couleur (ou autre chose), tout le reste est déjà rempli.</p></div>
+  <p class="hint">Pour une seule menuiserie : bouton « Variante » dans la fiche de l'ouverture.</p>
   <div class="row" style="margin-top:16px"><button class="btn" data-close>Annuler</button><span class="spacer"></span><button class="btn primary" id="varGo">Créer la variante</button></div>
 </div></div>
 
@@ -2212,7 +2213,7 @@ function ajouterCartePlans(){ const d=S.dossier; if(S.view!=="dossier" || !d || 
 function mailDepuisLienCRM(){ const m=window.CRM_MAIL, d=S.dossier; if(!m||!d||!d.client) return;
   if(normNomCRM(d.client.nom)!==normNomCRM(m.client) && !normNomCRM(d.client.nom).split(" ").includes(normNomCRM(m.client).split(" ")[0])) return;
   if(!String(d.client.email||"").trim()){ d.client.email=m.mail; save(); } window.CRM_MAIL=null; }
-function renderDossier(){ try{ mailDepuisLienCRM(); }catch(e){} renderDossier0.apply(this, arguments); try{ ajouterCartePlans(); }catch(e){ console.warn("plans", e); } }
+function renderDossier(){ try{ mailDepuisLienCRM(); }catch(e){} renderDossier0.apply(this, arguments); try{ ajouterCartePlans(); }catch(e){ console.warn("plans", e); } try{ barreVariantes(); }catch(e){ console.warn("variantes", e); } }
 function renderDossier0(){
   S.view="dossier"; S.ouv=null; const d=normaliser(S.dossier); syncVR(d); S.derSuppr=null;
   if(HIST.id!==d.id) histInit(d); else histNoter();   // changements faits sans save() : comptent aussi comme une action
@@ -7716,12 +7717,14 @@ function ouvrirVariante(){ const d=S.dossier, T=ongletsVariante(d);
   if(T.some(x=>x[0]===S.tab)) $("#varQuoi").value=S.tab; $("#varQuoi").onchange=maj; maj(); $("#mVar").classList.add("open"); }
 /* 27/11/2026 : une variante peut aussi ne changer qu'une autre partie (couleur des volets battants, portail, ZIP…), sur tous les types de métré */
 function ongletsVariante(d){ const N={vr:"Volets roulants",pt:"Portail / portillon",vb:"Volets battants",zip:"Stores zip",vit:"Vitrages",per:"Pergola / carport",gar:"Porte de garage",gca:"Garde-corps",sb:"Store banne",pp:"Portes palières",pi:"Portes intérieures",rm:"Rideaux métalliques",vt:"Vitrages",clim:"Clim"};
-  const L=[]; if(d.ouvertures.length) L.push(["gamme","Les menuiseries : autre gamme (PVC / Alu / Bois)"],["ouvertures","Les menuiseries : autre chose (couleur, vitrage…)"]);
-  ongletsVisibles(d).filter(k=>N[k]).forEach(k=>L.push([k,`${N[k]} : couleur ou autre chose`]));
+  const L=[]; if(d.ouvertures.length) L.push(["gamme","Les menuiseries : autre gamme (PVC / Alu / Bois) – nouveau métré"]);
+  ongletsVisibles(d).filter(k=>N[k] && VPARTS.includes(k) && d[k]).forEach(k=>L.push([k,`${N[k]} : variante dans le même PDF (couleur ou autre)`]));
   if(!L.length) L.push(["client","Copie complète du métré"]); return L; }
 async function numeroVariante(src){ return 1+Math.max(1,...(await DB.all()).filter(x=>x.client.nom===src.client.nom).map(x=>parseInt(String(x.variante).replace(/\D/g,""))||1)); }
 $("#varGo").onclick=async()=>{
   const quoi=$("#varQuoi").value;
+  if(quoi!=="gamme" && VPARTS.includes(quoi)){ const d=S.dossier, e=vpartCreer(d,quoi,$("#varNom").value.trim()); save(); $("#mVar").classList.remove("open"); S.tab=quoi; renderDossier(); scrollTo(0,0);
+    toast(`Variante ${vpartLettre(d,quoi,e)} créée dans le même métré : change la couleur, A est gardée`); return; }
   if(quoi!=="gamme"){ const src=S.dossier, c=JSON.parse(JSON.stringify(src)); c.id=uid(); c.cree=new Date().toISOString(); delete c.drive; delete c.drive_attente; delete c.clemence; delete c._conflit; if(src.drive&&src.drive.dossier) c.drive={dossier:src.drive.dossier};
     const n=await numeroVariante(src), nom=$("#varNom").value.trim(); c.variante=`V${n}${nom?" – "+nom:""}`; if(nom) c.devis_nom=nom;
     await DB.put(c); S.dossier=c; $("#mVar").classList.remove("open"); S.tab=quoi; renderDossier(); toast(`Variante ${c.variante} créée : change ce que tu veux, l'original est gardé`); return; }
@@ -7793,7 +7796,42 @@ async function imprimer(){
     setTimeout(()=>URL.revokeObjectURL(url),120000);
   }catch(e){ if(w && !w.closed) w.close(); toast("PDF impossible : "+e.message+" – impression directe"); $("#print").innerHTML=construireImpression(d); setTimeout(()=>window.print(),150); }
 }
+
+/* ---------- Variantes d'une partie dans le même métré / même PDF (27/11/2026, comme les variantes d'ouvertures) ----------
+   d.vparts[k] = [{id, nom, data}] : l'entrée dont data est null est celle affichée (dans d[k]) ; les autres sont rangées. */
+const VPARTS = ["vr","pt","vb","zip","vit","per","gar","gca","sb","pp","pi","rm","vt"];
+const VPART_NOMS = {vr:"Volets roulants",pt:"Portail",vb:"Volets battants",zip:"Stores zip",vit:"Vitrages",per:"Pergola",gar:"Porte de garage",gca:"Garde-corps",sb:"Store banne",pp:"Portes palières",pi:"Portes intérieures",rm:"Rideaux métalliques",vt:"Vitrages"};
+const vpartListe = (d,k) => (d.vparts&&d.vparts[k]&&d.vparts[k].length>1) ? d.vparts[k] : null;
+const vpartLettre = (d,k,e) => String.fromCharCode(65+Math.max(0,(d.vparts[k]||[]).indexOf(e)));
+const sansPhotos = o => { if(Array.isArray(o)) return o.map(sansPhotos); if(o&&typeof o==="object"){ const r={}; for(const x in o) r[x]= x==="photos"?[]:sansPhotos(o[x]); return r; } return o; };
+function vpartAller(d,k,j){ const L=d.vparts[k], cur=L.findIndex(e=>e.data==null); if(j===cur||!L[j]) return; L[cur].data=d[k]; d[k]=L[j].data; L[j].data=null; }
+function vpartCreer(d,k,nom){ d.vparts=d.vparts||{}; if(!d.vparts[k]||!d.vparts[k].length) d.vparts[k]=[{id:"A",nom:"",data:null}];
+  const e={id:uid(), nom, data:null}; d.vparts[k].push(e); const copie=sansPhotos(JSON.parse(JSON.stringify(d[k]))); vpartAller(d,k,d.vparts[k].length-1); d[k]=copie;   // la variante devient celle affichée
+  return e; }
+function vpartSupprimer(d,k){ const L=d.vparts[k], cur=L.findIndex(e=>e.data==null); const autre=cur===0?1:0; vpartAller(d,k,autre); L.splice(cur,1); if(L.length<2){ delete d.vparts[k]; } }
+function barreVariantes(){ const d=S.dossier, k=S.tab; if(S.view!=="dossier"||!d||!VPARTS.includes(k)) return; const L=vpartListe(d,k); if(!L) return;
+  const t=document.getElementById("tab"); if(!t||document.getElementById("vpBar")) return; const cur=L.findIndex(e=>e.data==null);
+  t.insertAdjacentHTML("afterbegin",`<div class="card" id="vpBar" style="border:2px solid #d3232f"><div class="row" style="flex-wrap:wrap;gap:8px"><b>Variantes ${esc(VPART_NOMS[k]||"")} :</b>
+    ${L.map((e,j)=>`<button class="btn small${j===cur?" primary":""}" data-vp="${j}">${String.fromCharCode(65+j)}${e.nom?" – "+esc(e.nom):j===0?" – de base":""}</button>`).join("")}
+    <span class="spacer"></span><button class="btn small" id="vpRen">✏️ Renommer</button>${cur>0?`<button class="btn small danger" id="vpDel">✕ Supprimer la variante ${String.fromCharCode(65+cur)}</button>`:""}</div>
+    <p class="hint" style="margin:6px 0 0">Tu modifies la ${String.fromCharCode(65+cur)}. Toutes les variantes sortent sur le même PDF, l'une après l'autre.</p></div>`);
+  t.querySelectorAll("[data-vp]").forEach(b=>b.onclick=()=>{ vpartAller(d,k,+b.dataset.vp); save(); renderDossier(); });
+  $("#vpRen").onclick=async()=>{ const e=L[cur], n=await demanderTexte(`Nom de la variante ${String.fromCharCode(65+cur)} :`, e.nom||"", "Renommer"); if(n==null) return; e.nom=n.trim(); save(); renderDossier(); };
+  if($("#vpDel")) $("#vpDel").onclick=async()=>{ if(!await demander(`Supprimer la variante ${String.fromCharCode(65+cur)} ?`,"Supprimer")) return; vpartSupprimer(d,k); save(); renderDossier(); };
+}
+/* PDF : les parties à variantes sortent à la fin, A puis B, C… avec un bandeau rouge « VARIANTE B » sur chaque page */
 function construireImpression(d){
+  const K=VPARTS.filter(k=>vpartListe(d,k)); if(aSAV(d)||!K.length) return construireImpression0(d);
+  const sans=Object.assign({},d); K.forEach(k=>sans[k]=null); let h=construireImpression0(sans);
+  K.forEach(k=>{ const L=d.vparts[k];
+    L.forEach((e,j)=>{ const lettre=String.fromCharCode(65+j), titre=(j===0?"SOLUTION A":"VARIANTE "+lettre)+(e.nom?" – "+e.nom:"");
+      const dv={...d, ouvertures:[], clim:null, devis_signe:null}; VPARTS.forEach(x=>dv[x]=null); dv[k]=e.data==null?d[k]:e.data;
+      dv.client={nom:d.client.nom, date_rdv:d.client.date_rdv, tel:d.client.tel}; dv.pose=d.pose; dv.vparts=null;
+      let p=construireImpression0(dv); const i=p.indexOf('<div class="pg"'); if(i>0) p=p.slice(i);
+      h+=p.split('<div class="tt">').join(`<div class="tt"><span style="background:#d3232f;color:#fff;padding:1px 6px;border-radius:4px;margin-right:6px">${esc(titre.toUpperCase())}</span>`); }); });
+  return h;
+}
+function construireImpression0(d){
   if(aSAV(d)) return pagesSAV(d);
   const row=(a)=>a.filter(x=>x[1]!==""&&x[1]!=null&&!(Array.isArray(x[1])&&!x[1].length)).map(([k,v])=>`<tr><th>${esc(k)}</th><td>${esc(Array.isArray(v)?v.join(", "):v)}</td></tr>`).join("");
   const head=t=>`<div class="ph"><img src="${LOGO}"><div class="tt">${esc(t)}</div><div>${esc(d.type_document)} · ${esc(d.variante)}<br>${fmtDate(d.client.date_rdv)} · Métreur : ${esc(d.metreur)}</div></div>`;

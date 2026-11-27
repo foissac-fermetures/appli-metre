@@ -6440,7 +6440,8 @@ function bandeauPose(d){ if(!d) return ""; const vide=t=>`<span class="pb-vide">
    Reprend le « Bon de commande / devis pour Portes Palières Réno » HUET et la feuille de prise de cotes du bâti rénovation métallique (RE03).
    Cotes : A hauteur de passage · B largeur de passage · C profondeur de feuillure · D largeur de feuillure · espaces libres (intérieur).
    Sources : Drive FOURNISSEURS › HUET (bon de commande xlsx, fiche RE03, documentation commerciale rénovation porte palière). */
-const PP_MODELES = ["Axiome 39 DB (CR3 – EI30)","Axiome 42 DB","Isaclub 30 DB","Isaclub 39 DB"];
+/* 27/11/2026 : matière entre parenthèses (doc HUET Axiome 39 Réno : cadre hêtre + 2 tôles d'acier 5/10 = bois blindé acier ; Isaclub : cadre bois + parements fibres = bois) */
+const PP_MODELES = ["Axiome 39 DB (bois blindé acier – CR3 – EI30)","Axiome 42 DB (bois blindé acier)","Isaclub 30 DB (bois)","Isaclub 39 DB (bois)"];
 /* 27/11/2026 : relu dans ProDevis (lecture seule) – HUET « PORTE PALIERE RENOVATION LOGEMENT COLLECTIF 2026-07 » › Bloc porte rénovation AXIOME blindée :
    huisserie acier RAL 9016 blanc / RAL 9022 noir, 1 vantail, cadre hêtre HLCA, vantail 40 mm, stratifié Boréal côté logement et côté couloir (défaut Blanc Premium),
    4 paumelles avec pions anti-dégond, serrure 3 points VACHETTE A2P*, poignée de tirage extérieure / béquillage / aucune, cylindre VACHETTE A2P* débrayable 4 clés,
@@ -6458,6 +6459,7 @@ const PP_SERRURES = ["3 points VACHETTE A2P*","5 points – A2P*"];
 const PP_POIGNEES = ["Poignée de tirage extérieure","Poignée béquillage","Aucune poignée"];
 const PP_PERF = "Stabilité 3c · acoustique Rw = 39 dB · anti-effraction 5 min";
 function ppMigrer(p){ if(!p) return;
+  if(p.modele && !PP_MODELES.includes(p.modele)){ const m=PP_MODELES.find(x=>x.split(" (")[0]===String(p.modele).split(" (")[0]); if(m) p.modele=m; }
   if(p.huisserie==="Réno métallique blanc") p.huisserie=PP_HUISSERIES[0]; if(p.huisserie==="Réno métallique noir") p.huisserie=PP_HUISSERIES[1];
   if(p.serrure==="3 points – standard") p.serrure=PP_SERRURES[0];
   if(p.poignee==null) p.poignee = p.garniture ? "Poignée béquillage" : PP_POIGNEES[0];

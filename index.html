@@ -6341,25 +6341,38 @@ function bandeauPose(d){ if(!d) return ""; const vide=t=>`<span class="pb-vide">
    Cotes : A hauteur de passage · B largeur de passage · C profondeur de feuillure · D largeur de feuillure · espaces libres (intérieur).
    Sources : Drive FOURNISSEURS › HUET (bon de commande xlsx, fiche RE03, documentation commerciale rénovation porte palière). */
 const PP_MODELES = ["Axiome 39 DB (CR3 – EI30)","Axiome 42 DB","Isaclub 30 DB","Isaclub 39 DB"];
-const PP_HUISSERIES = ["Réno métallique blanc","Réno métallique noir","RBA (bois et aile alu blanche)","RBA (bois et aile alu noire)"];
+/* 27/11/2026 : relu dans ProDevis (lecture seule) – HUET « PORTE PALIERE RENOVATION LOGEMENT COLLECTIF 2026-07 » › Bloc porte rénovation AXIOME blindée :
+   huisserie acier RAL 9016 blanc / RAL 9022 noir, 1 vantail, cadre hêtre HLCA, vantail 40 mm, stratifié Boréal côté logement et côté couloir (défaut Blanc Premium),
+   4 paumelles avec pions anti-dégond, serrure 3 points VACHETTE A2P*, poignée de tirage extérieure / béquillage / aucune, cylindre VACHETTE A2P* débrayable 4 clés,
+   seuil suisse métallique intégré, microviseur chromé, entrebâilleur, stabilité 3c, Rw = 39 dB, anti-effraction 5 min. Dimensions maxi ProDevis 997 × 2494. */
+const PP_HUISSERIES = ["Réno métallique blanc (RAL 9016)","Réno métallique noir (RAL 9022)","RBA (bois et aile alu blanche)","RBA (bois et aile alu noire)"];
 const PP_FINITIONS = ["Pré-peint blanc","Stratifié 2 faces","Placage bois"];
 const PP_GRAVAGE = ["Non","Oui – 2 faces","Oui – 1 face extérieure","Oui – 1 face intérieure"];
 const PP_ETANCHEITE = ["Joint balai","Seuil suisse"];
 const PP_SEUILS = ["50 × 20 mm bois rouge","35 × 20 mm bois revêtu inox","37 × 20 mm métallique intégré"];
-const PP_SERRURES = ["3 points – standard","5 points – A2P*"];
+const PP_SERRURES = ["3 points VACHETTE A2P*","5 points – A2P*"];
+const PP_POIGNEES = ["Poignée de tirage extérieure","Poignée béquillage","Aucune poignée"];
+const PP_PERF = "Stabilité 3c · acoustique Rw = 39 dB · anti-effraction 5 min";
+function ppMigrer(p){ if(!p) return;
+  if(p.huisserie==="Réno métallique blanc") p.huisserie=PP_HUISSERIES[0]; if(p.huisserie==="Réno métallique noir") p.huisserie=PP_HUISSERIES[1];
+  if(p.serrure==="3 points – standard") p.serrure=PP_SERRURES[0];
+  if(p.poignee==null) p.poignee = p.garniture ? "Poignée béquillage" : PP_POIGNEES[0];
+  if(p.coloris && p.coloris_int==null){ p.coloris_int=p.coloris; p.coloris_ext=p.coloris; } }
 const PP_EXISTANT = ["Huisserie bois","Huisserie métallique"];
 const PP_SENS = ["Poussant gauche","Poussant droit"];
-const nouveauPP = () => ({ modele:PP_MODELES[0], huisserie:"", finition:"", coloris:"", gravage:"Non", motif:"", etancheite:"", seuil:"", microviseur:false, microviseur_fin:"Chrome",
-  serrure:PP_SERRURES[0], cylindre:false, plots:true, entrebailleur:false, garniture:false, lignes:[], photos:[] });
+const nouveauPP = () => ({ modele:PP_MODELES[0], huisserie:"", finition:"", coloris:"", coloris_int:"Blanc Premium", coloris_ext:"Blanc Premium", gravage:"Non", motif:"", etancheite:"Seuil suisse", seuil:"37 × 20 mm métallique intégré", microviseur:true, microviseur_fin:"Chrome",
+  serrure:PP_SERRURES[0], poignee:PP_POIGNEES[0], cylindre:true, plots:true, entrebailleur:false, garniture:false, lignes:[], photos:[] });
 const nouvelleLignePP = () => ({ id:uid(), repere:"", qte:"1", existant:"", sens:"", A1:"", A2:"", B1:"", B2:"", B3:"", C:"", D:"", el_g:"", el_d:"", el_h:"", cloison:false, obs:"" });
 const aPP = d => !!(d.pp && (d.pp.lignes.length));
 const ppMin = (...v) => { const n=v.map(num).filter(x=>x!=null); return n.length?Math.min(...n):null; };
 const ppA = l => ppMin(l.A1,l.A2), ppB = l => ppMin(l.B1,l.B2,l.B3);
 const ppAxiome = p => /axiome/i.test(p.modele||""), ppCR3 = p => /cr3/i.test(p.modele||"");
 function controlePP(d){
-  const p=d.pp, E=[], W=[]; if(!p) return {E,W};
+  const p=d.pp, E=[], W=[]; if(!p) return {E,W}; ppMigrer(p);
   if(!p.modele) E.push("Modèle de porte non choisi"); if(!p.huisserie) E.push("Modèle d'huisserie non choisi"); if(!p.finition) E.push("Finition de la porte non choisie");
-  if(/stratifi|placage/i.test(p.finition) && !p.coloris) E.push("Coloris du stratifié / placage non renseigné");
+  if(/stratifi|placage/i.test(p.finition) && !(p.coloris_int||p.coloris) ) E.push("Coloris côté logement non renseigné");
+  if(/stratifi|placage/i.test(p.finition) && !(p.coloris_ext||p.coloris)) E.push("Coloris côté couloir (palier) non renseigné");
+  if(!p.poignee) W.push("Poignée côté palier non choisie (tirage, béquillage ou aucune)");
   if(/^Oui/.test(p.gravage) && !p.motif) W.push("Gravage Technidécor : nom du motif à préciser");
   if(!p.etancheite) W.push("Étanchéité basse non choisie (joint balai ou seuil suisse)");
   if(p.etancheite==="Seuil suisse" && !p.seuil) E.push("Seuil suisse : type de seuil non choisi");
@@ -6371,6 +6384,7 @@ function controlePP(d){
     if(!l.existant) W.push(`${n} : huisserie existante bois ou métallique ?`);
     if(A!=null && A<1950) E.push(`${n} : A = ${A} < 1950 mini HUET`);
     if(B!=null && B<670) E.push(`${n} : B = ${B} < 670 mini HUET`);
+    if(B!=null && B>997 && B<=1206) W.push(`${n} : B = ${B} > 997 : au-delà du maxi chiffrable dans ProDevis → demander un prix à HUET`);
     if(A!=null && B!=null){
       if(ppAxiome(p)){ if(B>1206) E.push(`${n} : B = ${B} > 1206 maxi Axiome`); else if(B>1036 && A>2244) E.push(`${n} : B > 1036 → A maxi 2244 (A = ${A})`); else if(A>2494) E.push(`${n} : A = ${A} > 2494 maxi Axiome`);
         if(ppCR3(p) && B>1006) W.push(`${n} : B = ${B} : vantail > 1030 mm → plus de classement CR3`); }
@@ -6385,7 +6399,7 @@ function controlePP(d){
   return {E,W};
 }
 function renderPP(t){
-  const d=S.dossier; if(!d.pp) d.pp=nouveauPP(); const p=d.pp;
+  const d=S.dossier; if(!d.pp) d.pp=nouveauPP(); const p=d.pp; ppMigrer(p);
   const ligne=l=>{ const i=p.lignes.indexOf(l), k=`pp.lignes.${i}.`, A=ppA(l), B=ppB(l);
     return `<div class="card clim-l"><div class="row" style="margin-bottom:8px"><b>${esc(l.repere||"Nouvelle porte")}</b>${A!=null||B!=null?`<span class="badge b-n" style="margin-left:8px">Passage retenu : ${A??"?"} × ${B??"?"}</span>`:""}<span class="spacer"></span>
       <button class="btn small" data-ppdup="${i}">⧉ Comme celle-ci</button><button class="btn small danger" data-ppdel="${i}" aria-label="Supprimer la porte">✕</button></div>
@@ -6403,12 +6417,14 @@ function renderPP(t){
   t.innerHTML=`<datalist id="dlPiecesPP">${listePiecesDL()}</datalist>
   <div class="card"><h2><span class="num">1</span>Portes palières rénovation – HUET <small style="font-weight:400;text-transform:none">– bloc-porte blindé, bâti rénovation 4 côtés posé en applique, sans réduction de passage</small></h2><div class="grid g4">
     <div style="grid-column:span 2">${F.sel("pp.modele","Modèle de porte",PP_MODELES,p.modele)}</div><div style="grid-column:span 2">${F.sel("pp.huisserie","Modèle d'huisserie (bâti rénovation)",PP_HUISSERIES,p.huisserie)}</div>
-    ${F.sel("pp.finition","Finition de la porte",PP_FINITIONS,p.finition)}${/stratifi|placage/i.test(p.finition)?F.text("pp.coloris","Coloris stratifié / placage (nuancier Boréal…)",p.coloris):"<div></div>"}
+    ${F.sel("pp.finition","Finition de la porte",PP_FINITIONS,p.finition)}<div></div>
+    ${/stratifi|placage/i.test(p.finition)?F.text("pp.coloris_int","Coloris côté logement (Boréal : Blanc Premium…)",p.coloris_int)+F.text("pp.coloris_ext","Coloris côté couloir / palier",p.coloris_ext):"<div></div><div></div>"}
     ${F.sel("pp.gravage","Gravage Technidécor",PP_GRAVAGE,p.gravage)}${/^Oui/.test(p.gravage)?F.text("pp.motif","Nom du motif gravé",p.motif):"<div></div>"}
     ${F.sel("pp.etancheite","Étanchéité basse",PP_ETANCHEITE,p.etancheite)}${p.etancheite==="Seuil suisse"?F.sel("pp.seuil","Seuil suisse",PP_SEUILS,p.seuil):"<div></div>"}
-    ${F.sel("pp.serrure","Serrure",PP_SERRURES,p.serrure)}${p.microviseur?F.sel("pp.microviseur_fin","Finition microviseur",["Chrome","Laiton"],p.microviseur_fin):"<div></div>"}
+    ${F.sel("pp.serrure","Serrure",PP_SERRURES,p.serrure)}${F.sel("pp.poignee","Poignée côté palier",PP_POIGNEES,p.poignee)}${p.microviseur?F.sel("pp.microviseur_fin","Finition microviseur",["Chrome","Laiton"],p.microviseur_fin):"<div></div>"}
   </div>
-  <div class="checks" style="margin-top:10px">${F.chk("pp.microviseur","Microviseur",p.microviseur)}${F.chk("pp.cylindre","Cylindre en fourniture",p.cylindre)}${F.chk("pp.plots","Plots anti-dégondage",p.plots)}${F.chk("pp.entrebailleur","Entrebâilleur chrome en applique",p.entrebailleur)}${F.chk("pp.garniture","Garniture et béquille anodisé argent (béquille int. / poignée de tirage ext.)",p.garniture)}</div>
+  <div class="checks" style="margin-top:10px">${F.chk("pp.microviseur","Microviseur",p.microviseur)}${F.chk("pp.cylindre","Cylindre VACHETTE A2P* débrayable 4 clés",p.cylindre)}${F.chk("pp.plots","4 paumelles avec pions anti-dégond",p.plots)}${F.chk("pp.entrebailleur","Entrebâilleur chrome en applique",p.entrebailleur)}</div>
+  <p class="hint">ProDevis (Axiome blindée 2026-07) : 1 vantail, cadre hêtre, vantail 40 mm · ${PP_PERF} · maxi chiffrable 997 × 2494.</p>
   <p class="hint">Limites HUET : A (hauteur de passage) 1950 à 2494 · B (largeur) 670 à 1006 (Isaclub), 1036 (Axiome, ou 1206 si A ≤ 2244) · C 27 à 50 · D 11 à 20 · espace libre autour mini 50 mm.</p></div>
   <div class="row" style="margin:14px 0 8px"><h2 style="margin:0"><span class="num">2</span> Portes</h2><span class="spacer"></span><button class="btn primary" id="ppAdd">+ Ajouter une porte</button></div>
   ${p.lignes.map(ligne).join("")||`<p class="hint">Aucune porte. Appuie sur « + Ajouter une porte ».</p>`}
@@ -6444,11 +6460,11 @@ function dessinPP(l){
     <text x="${X+W/2}" y="${Y+H+44}" text-anchor="middle" font-family="Arial" font-size="11" fill="#5b6478">${esc(l.sens||"sens ?")}</text></svg>`;
 }
 function pagesPP(d, head, row){
-  const p=d.pp; if(!aPP(d)) return "";
+  const p=d.pp; if(!aPP(d)) return ""; ppMigrer(p);
   const ck=b=>b?"Oui":"", c=controlePP(d), n=(l,i)=>l.repere||`porte ${i+1}`;
-  const commun=[["Modèle de porte",p.modele],["Modèle d'huisserie",p.huisserie],["Finition",[p.finition,p.coloris].filter(Boolean).join(" – ")],["Gravage Technidécor",p.gravage!=="Non"?[p.gravage,p.motif].filter(Boolean).join(" – "):""],
-    ["Étanchéité basse",[p.etancheite,p.etancheite==="Seuil suisse"?p.seuil:""].filter(Boolean).join(" – ")],["Serrure",p.serrure],["Microviseur",p.microviseur?"Oui – "+p.microviseur_fin:""],["Cylindre en fourniture",ck(p.cylindre)],
-    ["Plots anti-dégondage",ck(p.plots)],["Entrebâilleur chrome en applique",ck(p.entrebailleur)],["Garniture et béquille anodisé argent",ck(p.garniture)]];
+  const commun=[["Modèle de porte",p.modele],["Modèle d'huisserie",p.huisserie],["Finition",p.finition],["Coloris côté logement",/stratifi|placage/i.test(p.finition||"")?p.coloris_int:""],["Coloris côté couloir",/stratifi|placage/i.test(p.finition||"")?p.coloris_ext:""],["Gravage Technidécor",p.gravage!=="Non"?[p.gravage,p.motif].filter(Boolean).join(" – "):""],
+    ["Étanchéité basse",[p.etancheite,p.etancheite==="Seuil suisse"?p.seuil:""].filter(Boolean).join(" – ")],["Serrure",p.serrure],["Poignée côté palier",p.poignee],["Microviseur",p.microviseur?"Oui – "+p.microviseur_fin:""],["Cylindre VACHETTE A2P* débrayable 4 clés",ck(p.cylindre)],
+    ["Paumelles avec pions anti-dégond",ck(p.plots)],["Entrebâilleur",ck(p.entrebailleur)],["Performances",PP_PERF]];
   let h=`<div class="pg">${head(`Portes palières réno HUET – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
     <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","HUET (JH Industries)"],["Pose",textePose(d,"pp")],["Nombre de portes",String(p.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div>
     <div><table class="pt">${row(commun)}</table></div></div>

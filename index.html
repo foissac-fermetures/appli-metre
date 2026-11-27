@@ -5961,7 +5961,7 @@ function zipMax(g, l){ const sol=/^A/.test(l.manoeuvre||"");
   return {L:7000,H:4000,t:"Screenamax coffre 105 : 7 m × 4 m maxi"}; }
 
 /* ---------- Modèle ---------- */
-const nouveauZIP = () => ({ gamme:"SCREENAMAX", coloris:"", finition:"", ral:"", toile:"", toile_autre:"", sens_toile:"A", bord_mer:"", capteur:"", lignes:[], photos:[] });
+const nouveauZIP = () => ({ gamme:"SCREENAMAX", coloris:"", finition:"", ral:"", toile:"", toile_autre:"", toile_couleur:"", sens_toile:"A", bord_mer:"", capteur:"", lignes:[], photos:[] });
 const nouvelleLigneZIP = () => ({ id:uid(), repere:"", qte:"1", pose:"", enroul:"Extérieur", tab_L:"", tab_H:"", prof:"", jeu:ZIP_JEU_TABLEAU, recouv:ZIP_RECOUV, depasse:ZIP_DEPASSE_HAUT, L:"", H:"",
   coffre:"", manoeuvre:"", cote:"", commande:"", coulisses:"", sortie:"", percage:"", rall_moteur:false, rall_panneau:false, reprise:[], rehausse:false, support:"", ite:false, obs:"" });
 const aZIP = d => !!(d.zip && d.zip.lignes.length);
@@ -5996,6 +5996,7 @@ function controleZIP(d){ const z=d.zip, E=[], W=[]; if(!z) return {E,W}; const g
   if(!z.coloris) E.push("Coloris du coffre, des coulisses et de la barre de charge à choisir"); else if(/RAL|Hors/.test(z.coloris) && !z.ral) E.push("Coloris : n° de RAL / code poudre à indiquer");
   if(z.coloris && !/sablé/.test(z.coloris) && !z.finition) W.push("Finition du coloris à choisir (structuré mat, lisse mat, lisse satiné)");
   if(!z.toile) E.push("Toile à choisir"); else if(z.toile==="__autre" && !z.toile_autre) E.push("Toile « autre » : marque et référence à indiquer");
+  if(z.toile && !String(z.toile_couleur||"").trim()) E.push("Couleur de la toile à indiquer (référence coloris)");   // 27/11/2026
   z.lignes.forEach((l,i)=>{ const n=l.repere||`store ${i+1}`, L=zipL(l), H=zipH(l), mx=zipMax(g,l), sol=/^A/.test(l.manoeuvre||"");
     if(!l.pose) E.push(`${n} : pose en tableau ou en façade ?`);
     if(L==null||H==null) E.push(`${n} : largeur et hauteur à mesurer`);
@@ -6051,7 +6052,10 @@ function renderZIP(t){
     ${zipSeg("zip.gamme",[["SCREENAMAX","SCREENAMAX","Coffre 85 / 105 · jusqu'à 7 m × 4 m"],["SCREENACCESS","SCREENACCESS","Coffre carré / pan coupé · jusqu'à 4,50 × 3,50 m"]],g)}
     <div class="grid g3 grp">${F.sel("zip.coloris","Coloris coffre, coulisses et barre de charge",ZIP_COLORIS,z.coloris)}${/RAL|Hors/.test(z.coloris||"")?F.text("zip.ral",/RAL/.test(z.coloris)?"N° de RAL":"Code poudre",z.ral):""}</div>
     ${z.coloris&&!/sablé/.test(z.coloris)?zipPast("zip.finition",ZIP_FINITIONS,z.finition,"Finition"):""}
-    <div class="grid g3 grp"><label class="f" style="grid-column:span 2">Toile<select data-k="zip.toile"><option value="">—</option>${toiles.map(([v])=>`<option${z.toile===v?" selected":""}>${esc(v)}</option>`).join("")}<option value="__autre"${z.toile==="__autre"?" selected":""}>Autre marque / référence…</option></select></label>${z.toile==="__autre"?F.text("zip.toile_autre","Marque et référence de la toile",z.toile_autre):""}</div>
+    <div class="grid g3 grp"><label class="f" style="grid-column:span 2">Toile<select data-k="zip.toile"><option value="">—</option>${toiles.map(([v])=>`<option${z.toile===v?" selected":""}>${esc(v)}</option>`).join("")}<option value="__autre"${z.toile==="__autre"?" selected":""}>Autre marque / référence…</option></select></label>
+      <label class="f">Couleur de la toile <small>(référence coloris)</small><input data-k="zip.toile_couleur" list="dlZipToileCoul" value="${esc(z.toile_couleur||"")}" placeholder="ex. 0202 Blanc, 7016 Anthracite…" autocomplete="off"></label>
+      <datalist id="dlZipToileCoul">${[...new Set([...(lireLS("zip_toile_couleurs",[])),"Blanc","Gris perle","Gris anthracite","Noir","Sable","Beige","Bronze","Charcoal","Gris / blanc"])].map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
+      ${z.toile==="__autre"?F.text("zip.toile_autre","Marque et référence de la toile",z.toile_autre):""}</div>
     <div class="grid g3"><div>${zipPast("zip.sens_toile",[["A","Sens A (par défaut)"],["B","Sens B"]],z.sens_toile,"Sens de la toile")}<details class="gca-aide"><summary>🖼️ Schéma du sens de la toile</summary><div>${zipSchemaToile(z.sens_toile)}</div></details></div>${g==="SCREENAMAX"?zipPast("zip.bord_mer",["Non","Oui"],z.bord_mer,"Option haute résistance bord de mer"):""}${zipPast("zip.capteur",["Non","Capteur vent","Capteur soleil","Vent + soleil"],z.capteur,"Capteur")}</div>
     ${typeof manutBloc==="function"?manutBloc("zip",z):""}</div>
   <div id="zipChk">${zipChkHTML(d)}</div>
@@ -6079,6 +6083,7 @@ function zipFab(l,g){ const da=zipDim(l), L=zipL(l), H=zipH(l), force=num(l.L)!=
   return `<div><small>Dimensions de fabrication (L × H)</small><br><b>${L!=null&&H!=null?`${L} × ${H} mm`:"— × —"}</b></div><span class="tag${trop?" est":""}">${trop?"TROP GRAND":force?"COTE FORCÉE":da?da.tag:"—"}</span>
     <div style="margin-left:auto;text-align:right"><small>Surface</small><br><span>${zipSurf(l)!=null?(zipSurf(l)*(num(l.qte)||1)).toLocaleString("fr-FR",{maximumFractionDigits:2})+" m²":"—"}</span></div>`; }
 function majZIP(k){ const d=S.dossier, z=d&&d.zip; if(!z) return;
+  if(k==="zip.toile_couleur" && String(z.toile_couleur||"").trim().length>2){ clearTimeout(S.zipCoulT); S.zipCoulT=setTimeout(()=>{ const L=lireLS("zip_toile_couleurs",[]), x=String(S.dossier.zip.toile_couleur||"").trim(); if(x&&!L.includes(x)) ecrireLS("zip_toile_couleurs",[x,...L].slice(0,30)); },1500); }
   if(/^zip\.(coloris|toile|lignes\.\d+\.(manoeuvre|ite))$/.test(k)){ const y=scrollY; renderDossier(); scrollTo(0,y); return; }
   z.lignes.forEach((l,i)=>{ const a=$("#zipF"+i); if(a) a.innerHTML=zipFab(l,z.gamme); const b=$("#zipD"+i); if(b) b.innerHTML=dessinZIP(l,z,"vitsvg"); const c=$("#zipC"+i); if(c){ const da=zipDim(l); c.innerHTML=esc(da?da.t:"")+(zipL(l)!=null?` · <span class="hint">${esc(zipMax(z.gamme,l).t)}</span>`:""); } });
   const tt=$("#zipTot"); if(tt) tt.textContent=zipTotal(z); const ck=$("#zipChk"); if(ck) ck.innerHTML=zipChkHTML(d); }
@@ -6121,7 +6126,7 @@ function pagesZIP(d, head, row){
   const z=d.zip; if(!aZIP(d)) return ""; const c=controleZIP(d), g=z.gamme, n=(l,i)=>l.repere||`store ${i+1}`, obsV=z.lignes.some(l=>l.obs);
   let h=`<div class="pg">${head(`Stores zip ${g} – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
     <div class="pcols"><div><table class="pt">${row([["Client / réf. chantier",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","Soprofen – "+g],["Pose (équipe · durée)",typeof textePose==="function"?textePose(d,"zip"):""],["Manutention",d.manutention||z.manutention||""]])}</table></div>
-    <div><table class="pt">${row([["Coloris coffre, coulisses, barre",zipColTexte(z)],["Toile",zipToileTexte(z)+(z.sens_toile?` · sens ${z.sens_toile}`:"")],["Capteur",z.capteur],["Haute résistance bord de mer",g==="SCREENAMAX"?z.bord_mer:""],["Total",zipTotal(z)]])}</table></div></div>
+    <div><table class="pt">${row([["Coloris coffre, coulisses, barre",zipColTexte(z)],["Toile",zipToileTexte(z)+(z.sens_toile?` · sens ${z.sens_toile}`:"")],["Couleur de toile",z.toile_couleur||""],["Capteur",z.capteur],["Haute résistance bord de mer",g==="SCREENAMAX"?z.bord_mer:""],["Total",zipTotal(z)]])}</table></div></div>
     <table class="pt vit-tab" style="table-layout:fixed;width:100%"><colgroup><col style="width:3%"><col style="width:11%"><col style="width:4%"><col style="width:6%"><col style="width:6%"><col style="width:6%"><col style="width:8%"><col style="width:14%"><col style="width:6%"><col style="width:10%"><col style="width:7%"><col style="width:7%"><col style="width:6%"><col></colgroup>
     <tr><th>N°</th><th>Position chantier</th><th>Qté</th><th>Enroul.</th><th>Largeur</th><th>Hauteur</th><th>Caisson</th><th>Manœuvre</th><th>Côté (vue int.)</th><th>Commande</th><th>Coulisses</th><th>Sortie</th><th>Perçage</th><th>Options${obsV?" / obs.":""}</th></tr>
     ${z.lignes.map((l,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td><b>${esc(l.qte||"1")}</b></td><td>${esc(l.enroul||"")}</td><td><b>${zipL(l)??""}</b></td><td><b>${zipH(l)??""}</b></td><td>${esc(l.coffre||"")}</td><td>${esc(zipManTexte(g,l.manoeuvre))}</td><td>${esc(l.cote||"")}</td><td>${esc(zipCdeTexte(g,l.manoeuvre,l.commande))}</td><td>${esc(l.coulisses||"")}</td><td>${esc(l.sortie||"")}</td><td>${esc(l.percage||"")}</td>

@@ -6523,7 +6523,8 @@ const PP_MODELES = ["Axiome 39 DB (bois blindé acier – CR3 – EI30)","Axiome
 const PP_HUISSERIES = ["Réno métallique blanc (RAL 9016)","Réno métallique noir (RAL 9022)","RBA (bois et aile alu blanche)","RBA (bois et aile alu noire)"];
 const PP_FINITIONS = ["Pré-peint blanc","Stratifié 2 faces","Placage bois","Laqué blanc ou couleur (RAL)"];
 /* doc HUET Axiome 39 Réno : « Placage bois essence fine » (liste précise non donnée → essences courantes, à confirmer à la commande) */
-const PP_ESSENCES = ["Chêne","Chêne teinté","Hêtre","Frêne","Merisier","Noyer","Sapelli","Sipo","Autre essence (à préciser en observation)"];
+const PP_ESSENCES = ["Chêne","Chêne teinté","Hêtre","Frêne","Merisier","Noyer","Sapelli","Sipo","Autre essence (à préciser)"];
+const ppEssence = (p,c) => { const v=p["coloris_"+c]||""; return /^Autre/.test(v) ? (String(p["essence_"+c]||"").trim()||"Autre essence (à préciser)") : v; };
 const PP_FIN_PLACAGE = ["Brut (à vernir / peindre sur place)","Vernis incolore","Vernis teinté (à préciser)"];
 const ppAvecColoris = f => /stratifi|placage|laqu/i.test(f||"");
 const PP_GRAVAGE = ["Non","Oui – 2 faces","Oui – 1 face extérieure","Oui – 1 face intérieure"];
@@ -6532,7 +6533,7 @@ const PP_SEUILS = ["50 × 20 mm bois rouge","35 × 20 mm bois revêtu inox","37 
 const PP_SERRURES = ["3 points VACHETTE A2P*","5 points – A2P*"];
 const PP_POIGNEES = ["Poignée de tirage extérieure","Poignée béquillage","Aucune poignée"];
 const PP_PERF = "Stabilité 3c · acoustique Rw = 39 dB · anti-effraction 5 min";
-function ppMigrer(p){ if(!p) return;
+function ppMigrer(p){ if(!p) return; ["coloris_int","coloris_ext"].forEach(k=>{ if(p[k]==="Autre essence (à préciser en observation)") p[k]="Autre essence (à préciser)"; });
   if(p.modele && !PP_MODELES.includes(p.modele)){ const m=PP_MODELES.find(x=>x.split(" (")[0]===String(p.modele).split(" (")[0]); if(m) p.modele=m; }
   if(p.huisserie==="Réno métallique blanc") p.huisserie=PP_HUISSERIES[0]; if(p.huisserie==="Réno métallique noir") p.huisserie=PP_HUISSERIES[1];
   if(p.serrure==="3 points – standard") p.serrure=PP_SERRURES[0];
@@ -6554,7 +6555,7 @@ function controlePP(d){
   if(ppAvecColoris(p.finition) && !(p.coloris_int||p.coloris) ) E.push(`${qq} côté logement non renseigné(e)`);
   if(ppAvecColoris(p.finition) && !(p.coloris_ext||p.coloris)) E.push(`${qq} côté couloir (palier) non renseigné(e)`);
   if(/placage/i.test(p.finition||"") && !p.fin_placage) W.push("Finition du placage (brut, vernis…) non choisie");
-  if(/Autre essence/.test((p.coloris_int||"")+(p.coloris_ext||"")) && !p.lignes.some(l=>l.obs)) W.push("Essence « autre » : la préciser en observation");
+  ["int","ext"].forEach(c=>{ if(/^Autre/.test(p["coloris_"+c]||"") && !String(p["essence_"+c]||"").trim()) E.push(`Essence « autre » côté ${c==="int"?"logement":"couloir"} : écrire laquelle`); });
   if(!p.poignee) W.push("Poignée côté palier non choisie (tirage, béquillage ou aucune)");
   if(/^Oui/.test(p.gravage) && !p.motif) W.push("Gravage Technidécor : nom du motif à préciser");
   if(!p.etancheite) W.push("Étanchéité basse non choisie (joint balai ou seuil suisse)");
@@ -6601,7 +6602,9 @@ function renderPP(t){
   <div class="card"><h2><span class="num">1</span>Portes palières rénovation – HUET <small style="font-weight:400;text-transform:none">– bloc-porte blindé, bâti rénovation 4 côtés posé en applique, sans réduction de passage</small></h2><div class="grid g4">
     <div style="grid-column:span 2">${F.sel("pp.modele","Modèle de porte",PP_MODELES,p.modele)}</div><div style="grid-column:span 2">${F.sel("pp.huisserie","Modèle d'huisserie (bâti rénovation)",PP_HUISSERIES,p.huisserie)}</div>
     ${F.sel("pp.finition","Finition de la porte",PP_FINITIONS,p.finition)}<div></div>
-    ${/placage/i.test(p.finition||"")?F.sel("pp.coloris_int","Essence côté logement",PP_ESSENCES,p.coloris_int)+F.sel("pp.coloris_ext","Essence côté couloir / palier",PP_ESSENCES,p.coloris_ext)+F.sel("pp.fin_placage","Finition du placage",PP_FIN_PLACAGE,p.fin_placage)+"<div></div>"
+    ${/placage/i.test(p.finition||"")?F.sel("pp.coloris_int","Essence côté logement",PP_ESSENCES,p.coloris_int)+F.sel("pp.coloris_ext","Essence côté couloir / palier",PP_ESSENCES,p.coloris_ext)
+      +(/^Autre/.test(p.coloris_int||"")?F.text("pp.essence_int","Quelle essence côté logement ?",p.essence_int||""):"")+(/^Autre/.test(p.coloris_ext||"")?F.text("pp.essence_ext","Quelle essence côté couloir ?",p.essence_ext||""):"")
+      +F.sel("pp.fin_placage","Finition du placage",PP_FIN_PLACAGE,p.fin_placage)+"<div></div>"
       :/laqu/i.test(p.finition||"")?F.text("pp.coloris_int","Teinte côté logement (RAL…)",p.coloris_int)+F.text("pp.coloris_ext","Teinte côté couloir / palier (RAL…)",p.coloris_ext)
       :/stratifi/i.test(p.finition||"")?F.text("pp.coloris_int","Coloris côté logement (Boréal : Blanc Premium…)",p.coloris_int)+F.text("pp.coloris_ext","Coloris côté couloir / palier",p.coloris_ext):"<div></div><div></div>"}
     ${F.sel("pp.gravage","Gravage Technidécor",PP_GRAVAGE,p.gravage)}${/^Oui/.test(p.gravage)?F.text("pp.motif","Nom du motif gravé",p.motif):"<div></div>"}
@@ -6625,7 +6628,7 @@ function renderPP(t){
   $$("[data-ppdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer cette porte ?","Supprimer")) return; p.lignes.splice(+b.dataset.ppdel,1); save(); re(); });
   $$("[data-ppdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.ppdup, s=p.lignes[i], n=Object.assign(nouvelleLignePP(),{existant:s.existant, sens:s.sens, C:s.C, D:s.D});
     const r=repDecoupe(s.repere); if(r.piece&&r.num){ r.num=String((parseInt(r.num)||0)+1); n.repere=repCompose(r); } p.lignes.splice(i+1,0,n); save(); re(); toast("Même porte : il reste le repère et les cotes A / B / espaces"); });
-  ["pp.finition","pp.gravage","pp.etancheite","pp.microviseur"].forEach(k=>{ const el=$(`[data-k="${k}"]`); if(el) el.addEventListener("change",()=>setTimeout(()=>{ if(k==="pp.finition"){ const ok=x=>/placage/i.test(p.finition||"")?PP_ESSENCES.includes(x):!PP_ESSENCES.includes(x);
+  ["pp.finition","pp.gravage","pp.etancheite","pp.microviseur","pp.coloris_int","pp.coloris_ext"].forEach(k=>{ const el=$(`[data-k="${k}"]`); if(el) el.addEventListener("change",()=>setTimeout(()=>{ if(k==="pp.finition"){ const ok=x=>/placage/i.test(p.finition||"")?PP_ESSENCES.includes(x):!PP_ESSENCES.includes(x);
       if(!ok(p.coloris_int)) p.coloris_int=""; if(!ok(p.coloris_ext)) p.coloris_ext=""; if(/stratifi/i.test(p.finition||"")){ p.coloris_int=p.coloris_int||"Blanc Premium"; p.coloris_ext=p.coloris_ext||"Blanc Premium"; } save(); } re(); },0)); });
   initPhotos(p, re);
 }
@@ -6648,7 +6651,7 @@ function dessinPP(l){
 function pagesPP(d, head, row){
   const p=d.pp; if(!aPP(d)) return ""; ppMigrer(p);
   const ck=b=>b?"Oui":"", c=controlePP(d), n=(l,i)=>l.repere||`porte ${i+1}`;
-  const commun=[["Modèle de porte",p.modele],["Modèle d'huisserie",p.huisserie],["Finition",p.finition],[/placage/i.test(p.finition||"")?"Essence côté logement":"Coloris côté logement",ppAvecColoris(p.finition)?p.coloris_int:""],[/placage/i.test(p.finition||"")?"Essence côté couloir":"Coloris côté couloir",ppAvecColoris(p.finition)?p.coloris_ext:""],["Finition du placage",/placage/i.test(p.finition||"")?p.fin_placage:""],["Gravage Technidécor",p.gravage!=="Non"?[p.gravage,p.motif].filter(Boolean).join(" – "):""],
+  const commun=[["Modèle de porte",p.modele],["Modèle d'huisserie",p.huisserie],["Finition",p.finition],[/placage/i.test(p.finition||"")?"Essence côté logement":"Coloris côté logement",ppAvecColoris(p.finition)?(/placage/i.test(p.finition||"")?ppEssence(p,"int"):p.coloris_int):""],[/placage/i.test(p.finition||"")?"Essence côté couloir":"Coloris côté couloir",ppAvecColoris(p.finition)?(/placage/i.test(p.finition||"")?ppEssence(p,"ext"):p.coloris_ext):""],["Finition du placage",/placage/i.test(p.finition||"")?p.fin_placage:""],["Gravage Technidécor",p.gravage!=="Non"?[p.gravage,p.motif].filter(Boolean).join(" – "):""],
     ["Étanchéité basse",[p.etancheite,p.etancheite==="Seuil suisse"?p.seuil:""].filter(Boolean).join(" – ")],["Serrure",p.serrure],["Poignée côté palier",p.poignee],["Microviseur",p.microviseur?"Oui – "+p.microviseur_fin:""],["Cylindre VACHETTE A2P* débrayable 4 clés",ck(p.cylindre)],
     ["Paumelles avec pions anti-dégond",ck(p.plots)],["Entrebâilleur",ck(p.entrebailleur)],["Performances",PP_PERF]];
   let h=`<div class="pg">${head(`Portes palières réno HUET – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}

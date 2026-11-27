@@ -2192,7 +2192,13 @@ function chronoJourRDV(d){ const r=d&&d.client&&d.client.date_rdv; if(!r || r!==
   return true; }
 function chronoOuverture(d){ if(!chronoJourRDV(d) || (d.chrono&&d.chrono.debut)) return false; d.chrono={debut:new Date().toISOString(), fin:null}; return true; }
 function chronoModif(d){ if(!chronoJourRDV(d)) return false; const n=new Date().toISOString(); d.chrono=Object.assign({debut:n}, d.chrono||{}, {fin:n}); if(!d.chrono.debut) d.chrono.debut=n; return true; }
-function renderDossier(){
+/* 27/11/2026 : carte « 📐 Plans du chantier » sur TOUS les onglets de métré (VR, portail, garde-corps, persiennes…), comme dans Ouvertures.
+   Mêmes plans du dossier (d.plans_exclus / d.plans_masques) : « Joindre au PDF », Ouvrir, Retirer / Remettre. */
+function ajouterCartePlans(){ const d=S.dossier; if(S.view!=="dossier" || !d || aSAV(d) || ["client","ouvertures","controle"].includes(S.tab)) return;
+  const t=document.getElementById("tab"); if(!t || document.getElementById("plansL")) return;
+  t.insertAdjacentHTML("beforeend",`<div class="card" style="margin-top:16px"><h2>📐 Plans du chantier</h2><div id="plansL"><p class="hint">…</p></div></div>`); majPlans(d); }
+function renderDossier(){ renderDossier0.apply(this, arguments); try{ ajouterCartePlans(); }catch(e){ console.warn("plans", e); } }
+function renderDossier0(){
   S.view="dossier"; S.ouv=null; const d=normaliser(S.dossier); syncVR(d); S.derSuppr=null;
   if(HIST.id!==d.id) histInit(d); else histNoter();   // changements faits sans save() : comptent aussi comme une action
   majTitre();

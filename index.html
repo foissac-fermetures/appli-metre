@@ -4618,7 +4618,7 @@ const GCA_COULEURS = ["Noir foncé RAL 9005","Gris ombre RAL 7022","Gris anthrac
 const GCA_COUL_AUTRE = "Autre coloris La Toulousaine (à préciser)";
 const GCA_POSES = ["Sur dalle","Nez de dalle (à l'anglaise)","Entre tableaux","Habillage de dalle","À sceller","Sur muret / sur écuyer"];
 const GCA_TYPES = ["Droit","Rampant (escalier)"];
-const GCA_EXTREMITES = ["Libre (bouchon)","Contre un mur","Angle 90° sortant","Angle 90° rentrant","Angle autre (préciser)","Portillon"];
+const GCA_EXTREMITES = ["Libre (bouchon)","Contre un mur","Entre bois (poteau / montant bois)","Angle 90° sortant","Angle 90° rentrant","Angle autre (préciser)","Portillon"];
 const GCA_SUPPORTS = ["Dalle béton plein","Béton avec étanchéité (membrane)","Carrelage sur dalle béton","Bois (terrasse, solivage)","Maçonnerie (muret, parpaing)","Pierre","Brique creuse / parpaing creux","Autre (préciser)"];
 const GCA_USAGES = ["Privé (maison, appartement)","Public / ERP (commerce, gîte, collectif)"];
 const GCA_HAUTEUR = 1000, GCA_ECLISSE = 6500, GCA_RAMPANT_MAX = 40;
@@ -4791,6 +4791,8 @@ function dessinGCA(v, l, cls="pdessin"){
   s+=ramp?`<path d="M${X-6},${base+2} ${Array.from({length:8},(_,k)=>{ const x1=X+W*k/8, x2=X+W*(k+1)/8; return `L${x1},${y0(x1)+2} L${x2},${y0(x1)+2}`; }).join(" ")} L${X+W+6},${y0(X+W)+2}" fill="none" stroke="${NAVY}" stroke-width="2"/>`
           :`<line x1="${X-12}" y1="${base}" x2="${X+W+12}" y2="${base}" stroke="${NAVY}" stroke-width="2.4"/>`;
   if(/mur/.test(l.depart)) s+=mur(0); if(/mur/.test(l.arrivee)) s+=mur(1);
+  { const bois=k=>{ const x=k?X+W:X-12, y=base-dy*(k?1:0)-Hd-25; return `<rect x="${x}" y="${y}" width="12" height="${Hd+40}" fill="#c8a06a" stroke="#7a5a2e"/><line x1="${x+4}" y1="${y+6}" x2="${x+4}" y2="${y+Hd+34}" stroke="#7a5a2e" stroke-width="0.8"/><line x1="${x+8}" y1="${y+12}" x2="${x+8}" y2="${y+Hd+30}" stroke="#7a5a2e" stroke-width="0.8"/><text x="${x+6}" y="${y-3}" text-anchor="middle" font-family="Arial" font-size="9" fill="#7a5a2e">bois</text>`; };   /* 27/11/2026 : départ / arrivée entre bois */
+    if(/bois/i.test(l.depart)) s+=bois(0); if(/bois/i.test(l.arrivee)) s+=bois(1); }
   const nbP=Math.max(2,Math.round((L||2400)/1300)+1), px=[...Array(nbP)].map((_,k)=>X+W*k/(nbP-1));
   const yl=x=>y0(x)-Hd*0.45, ymc=x=>top(x);
   if(m){ const t=m[1], sous=m[2]==="mc";

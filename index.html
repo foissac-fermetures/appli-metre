@@ -1212,7 +1212,7 @@ const texteOculus = o => !aOculus(o) ? "" : (o.oculus_h?`hauteur du vitrage ${o.
 /* 25/11/2026 : couleur « RAL brillant (à préciser) », « Autre RAL »… → case pour noter le RAL / la référence ; le PDF affiche la couleur précisée */
 const couleurAPreciser = c => /à préciser|à définir|autre ral|autre teinte|ral\s*\(option\)|tout ral/i.test(c||"");
 const texteCouleur = (o,c) => { const v=o["couleur_"+c]||"", r=(o["couleur_"+c+"_ref"]||"").trim(); return couleurAPreciser(v)&&r ? `${v.replace(/\s*\((à préciser|à définir[^)]*|option)\)/i,"")} : ${r}` : v; };
-const sansGV = o => porteEntree(o) || cintreDe(o);   // 25/11 : jamais de grille sur une porte d'entrée ni sur une menuiserie cintrée
+const sansGV = o => modeleDe(o)?.famille==="porte" || porteEntree(o) || cintreDe(o);   // 27/11 : aucune porte (entrée, service, habitat…) n'a de grille   // 25/11 : jamais de grille sur une porte d'entrée ni sur une menuiserie cintrée
 const porteEntree = o => { const md=modeleDe(o); return !!md && md.famille==="porte" && !/service|habitat|lourde|campagnarde|oculus|vitrée/i.test(md.nom||""); };
 function sensExterieur(o){ const md=modeleDe(o); if(!md||md.famille!=="porte") return null; const v=o.vantaux||{}, g=/OP/.test(v.G||""), dr=/OP/.test(v.D||"");
   if(dr&&!g) return "Poussant gauche"; if(g&&!dr) return "Poussant droit"; return null; }
@@ -1858,7 +1858,7 @@ const GV_SANS=["Pas de grille de ventilation – à la demande du client","Pas d
 const PIECE_HUMIDE = /cuisine|salle\s*de\s*bains?|salle\s*d['’]\s*eau|\bs\.?d\.?b\b|\bs\.?d\.?e\b|\bw\.?c\b|toilettes?/i;
 const pieceHumide = o => PIECE_HUMIDE.test(o.repere||"");
 const vmcDoubleFlux = d => !!(d&&(d.ouvertures||[]).some(x=>x.gv===GV_SANS[1]));
-const grilleReelle = o => !!o.gv && !GV_SANS.includes(o.gv);
+const grilleReelle = o => !!o.gv && !GV_SANS.includes(o.gv) && !sansGV(o);   // 27/11 : jamais sur une porte même si une ancienne fiche en a une
 function listeGV(g){ return [...CAT.gv, ...GV_SANS]; }   // 19/11 : la case reste jaune tant que rien n'est choisi   // même liste pour toutes les gammes (Nicolas)
 function listeVitrages(g){ if(g==="ALU - LALOI") return CAT.vitrages_laloi; const fr=FRN(g).vitrages; return fr || CAT.vitrage_composition; }
 /* 18/11/2026 : avec un seuil (alu standard, alu plat, 40 mm, PMR… ou seuil du fournisseur) → ni allège ni appui bas à remplir */
@@ -2197,7 +2197,10 @@ function chronoModif(d){ if(!chronoJourRDV(d)) return false; const n=new Date().
 function ajouterCartePlans(){ const d=S.dossier; if(S.view!=="dossier" || !d || aSAV(d) || ["client","ouvertures","controle"].includes(S.tab)) return;
   const t=document.getElementById("tab"); if(!t || document.getElementById("plansL")) return;
   t.insertAdjacentHTML("beforeend",`<div class="card" style="margin-top:16px"><h2>📐 Plans du chantier</h2><div id="plansL"><p class="hint">…</p></div></div>`); majPlans(d); }
-function renderDossier(){ renderDossier0.apply(this, arguments); try{ ajouterCartePlans(); }catch(e){ console.warn("plans", e); } }
+function mailDepuisLienCRM(){ const m=window.CRM_MAIL, d=S.dossier; if(!m||!d||!d.client) return;
+  if(normNomCRM(d.client.nom)!==normNomCRM(m.client) && !normNomCRM(d.client.nom).split(" ").includes(normNomCRM(m.client).split(" ")[0])) return;
+  if(!String(d.client.email||"").trim()){ d.client.email=m.mail; save(); } window.CRM_MAIL=null; }
+function renderDossier(){ try{ mailDepuisLienCRM(); }catch(e){} renderDossier0.apply(this, arguments); try{ ajouterCartePlans(); }catch(e){ console.warn("plans", e); } }
 function renderDossier0(){
   S.view="dossier"; S.ouv=null; const d=normaliser(S.dossier); syncVR(d); S.derSuppr=null;
   if(HIST.id!==d.id) histInit(d); else histNoter();   // changements faits sans save() : comptent aussi comme une action
@@ -2534,7 +2537,7 @@ function renderOuverture(){
 
   <div class="card"><h2><span class="num">4</span>Ouvrants</h2><div class="grid g4">
     <label class="f">Répartition vantaux (G · M · D)<div class="vantaux">${["G","M","D"].map(k=>`<select data-k="vantaux.${k}">${opts(sansOB(o)?CAT.vantail.filter(x=>!/OB/.test(x)):CAT.vantail,o.vantaux[k],k)}</select>`).join("")}</div></label>
-    ${sansGV(o)?`<div class="hint" style="align-self:end">${porteEntree(o)?"Porte d'entrée":"Menuiserie cintrée"} : pas de grille de ventilation${sensExterieur(o)?`<br><b>Sens vue extérieure : ${sensExterieur(o).toUpperCase()}</b>`:""}</div>`:F.sel("gv","GV (grille de ventilation)",listeGV(o.gamme),o.gv)}
+    ${sansGV(o)?`<div class="hint" style="align-self:end">${porteEntree(o)?"Porte d'entrée":cintreDe(o)?"Menuiserie cintrée":"Porte de service"} : pas de grille de ventilation${sensExterieur(o)?`<br><b>Sens vue extérieure : ${sensExterieur(o).toUpperCase()}</b>`:""}</div>`:F.sel("gv","GV (grille de ventilation)",listeGV(o.gamme),o.gv)}
     ${sansAllege(o)&&!o.allege?"":F.numb("allege","Allège (mm)",o.allege)}<div class="checks" style="align-self:end">${F.chk("gc.etage","À l'étage",o.gc.etage)}<span class="rep-num">${[1,2,3,4].map(n=>`<button class="btn small${new RegExp(`\\s${n}$`).test(o.repere||"")?" on":""}" data-repnum="${n}" title="Ajouter ${n} au repère (ex. Chambre ${n})">${n}</button>`).join("")}</span></div>${FRN(o.gamme).ob&&!sansOB(o)?F.sel("ob_type","Oscillo-battant (type)",FRN(o.gamme).ob,o.ob_type):""}${FRN(o.gamme).ferrage?F.sel("ferrage","Ferrage / fiches",FRN(o.gamme).ferrage,o.ferrage):""}
   </div></div>
 
@@ -7529,7 +7532,7 @@ function construireImpression(d){
       <table class="pt">${row([["Type de pose",libellePose(o)],["Quantité",o.quantite],["Produit et gamme",o.gamme],["Profil / essence",[o.profil,o.essence].filter(Boolean).join(" – ")],["Couleur int.",texteCouleur(o,"int")],["Couleur ext.",texteCouleur(o,"ext")],["Dormant / aile",[o.dormant_aile, aileRecouvrement(o)&&o.delignage?"délignage : "+o.delignage.toLowerCase():""].filter(Boolean).join(" – ")],
         ["Dépose",[o.deligner&&"Déligner les cochonnets",o.depose_totale&&"Dépose totale",o.depose_seuil&&"Dépose seuil/appui"].filter(Boolean)],
         ["Vantaux G·M·D",[o.vantaux.G,o.vantaux.M,o.vantaux.D].some(Boolean)?[o.vantaux.G,o.vantaux.M,o.vantaux.D].map(x=>x||"–").join(" · "):""],["Sens vue intérieure",sensInterieur(o)],["Sens vue extérieure",sensExterieurPDF(o)],["Oculus vitré",texteOculus(o)],["Cintre",texteCintre(o)],["Vitrage",[o.vitrage,o.teinte,o.clair_voulu&&"clair à la demande du client",o.intercalaire&&"intercalaire "+o.intercalaire].filter(Boolean).join(" – ")],["Petits bois",textePB(o)],
-        ["Appui bas",o.appui_bas===DORMANT_PERI?"Dormant en périphérique (sans appui)":o.appui_bas],["Seuil",[o.seuil_std&&"Alu standard",o.seuil_plat&&"Alu PLAT",seuilEncastre(o)&&"ENCASTRÉ 4 cm (+40 mm compris dans la hauteur de fabrication)"].filter(Boolean)],["Serrure à pêne",o.serrure],["Cylindre",o.cylindre],["Clé",texteCle(d,o)],["Fermeture semi-fixe",o.semi_fixe],["Soubassement",[o.sb&&o.sb+" mm",o.sb_type].filter(Boolean).join(" – ")],["Poignée",[o.poignee,o.poignee_modele].filter(Boolean).join(" – ")],["Fermeture",o.fermeture],["Oscillo-battant",sansOB(o)?"":o.ob_type],["Ferrage",o.ferrage],["Seuil fournisseur",o.seuil_type],["Modèle de porte",modelePorteTexte(o)],["GV",o.gv],["Allège",o.allege],["Imposte",[o.imposte,o.imposte_type].filter(Boolean).join(" – ")],["Accessoires",o.accessoires],["Garde-corps",texteGC(o)],["Accès public (ERP)",texteERP(o)],["Compensateur",texteComp(o)],["Appui",o.gc&&num(o.gc.appui_h)!=null?`${o.gc.appui_h} mm du sol${o.gc.etage?" · étage":""}${o.gc.zsp&&o.gc.zsp_h?` · radiateur/marche ${o.gc.zsp_h} mm`:""}`:""]])}</table></div><div>
+        ["Appui bas",o.appui_bas===DORMANT_PERI?"Dormant en périphérique (sans appui)":o.appui_bas],["Seuil",[o.seuil_std&&"Alu standard",o.seuil_plat&&"Alu PLAT",seuilEncastre(o)&&"ENCASTRÉ 4 cm (+40 mm compris dans la hauteur de fabrication)"].filter(Boolean)],["Serrure à pêne",o.serrure],["Cylindre",o.cylindre],["Clé",texteCle(d,o)],["Fermeture semi-fixe",o.semi_fixe],["Soubassement",[o.sb&&o.sb+" mm",o.sb_type].filter(Boolean).join(" – ")],["Poignée",[o.poignee,o.poignee_modele].filter(Boolean).join(" – ")],["Fermeture",o.fermeture],["Oscillo-battant",sansOB(o)?"":o.ob_type],["Ferrage",o.ferrage],["Seuil fournisseur",o.seuil_type],["Modèle de porte",modelePorteTexte(o)],["GV",sansGV(o)?"":o.gv],["Allège",o.allege],["Imposte",[o.imposte,o.imposte_type].filter(Boolean).join(" – ")],["Accessoires",o.accessoires],["Garde-corps",texteGC(o)],["Accès public (ERP)",texteERP(o)],["Compensateur",texteComp(o)],["Appui",o.gc&&num(o.gc.appui_h)!=null?`${o.gc.appui_h} mm du sol${o.gc.etage?" · étage":""}${o.gc.zsp&&o.gc.zsp_h?` · radiateur/marche ${o.gc.zsp_h} mm`:""}`:""]])}</table></div><div>
       <table class="pt">${row([
         ...lignesVRPDF(d,o),
         ["Finitions int.",texteFinitions(o,"int").join(" + ")],["Finitions ext.",texteFinitions(o,"ext").join(" + ")],["Chantier",o.observations],["Support",o.support],["Note devis",o.obs_libre],["Note poseurs",o.obs_pose]])}</table>
@@ -8245,13 +8248,15 @@ async function chargerAgenda(forcer){
 function infosRdv(e){
   const champ=k=>(e.desc.match(new RegExp("^\\s*"+k+"\\s*:\\s*(.+)$","im"))||[])[1]?.trim()||"";
   const m=e.titre.match(/^\s*RDV\s+(.+?)(?:\s+[–-]\s+(.+))?$/i);
+  // 27/11/2026 : e-mail du client s'il est dans la description (« Mail : … », « E-mail : … » ou une adresse seule)
+  const mail=(champ("(?:E-?)?mail|Courriel").match(/[^\s<>,;]+@[^\s<>,;]+\.[a-z]{2,}/i)||String(e.desc||"").match(/[^\s<>,;:]+@[^\s<>,;]+\.[a-z]{2,}/i)||[""])[0];
   return { nom: champ("Client") || (m?m[1]:e.titre).trim(), tel: champ("T[ée]l[ée]phone"), projet: champ("Projet") || (m&&m[2]||""), precision: champ("Pr[ée]cision"),
-    adresse: e.lieu, date: e.debut.slice(0,10) };
+    adresse: e.lieu, date: e.debut.slice(0,10), mail };
 }
 const normNom = t => String(t||"").toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Z0-9]+/g," ").trim();
 async function metreDepuisRdv(e){
   const i=infosRdv(e), d=nouveauDossier();
-  d.client.nom=i.nom; d.client.telephone=telFr(i.tel)||i.tel; d.client.date_rdv=i.date; d.adresse_chantier=i.adresse.replace(/,\s*(\d{5})/,"\n$1");
+  d.client.nom=i.nom; d.client.telephone=telFr(i.tel)||i.tel; d.client.date_rdv=i.date; if(i.mail) d.client.email=i.mail; d.adresse_chantier=i.adresse.replace(/,\s*(\d{5})/,"\n$1");
   const lignes=[i.projet&&`Projet (agenda) : ${i.projet}`, i.precision&&`Précision (agenda) : ${i.precision}`].filter(Boolean).join("\n");
   if(lignes) d.logement.precisions=lignes;
   d.agenda={id:e.id, titre:e.titre, debut:e.debut};
@@ -8989,6 +8994,8 @@ async function ouvrirDepuisLienCRM(){
   let nom="";
   try{ const P=new URLSearchParams(location.search); nom=(P.get("client")||"").trim();
     /* 24/11/2026 : le CRM peut donner le devis précis (?devis=<id Drive>&devisnom=<nom du fichier>) → « Partir du devis signé » le prend directement */
+    /* 27/11/2026 : le CRM donne aussi l'e-mail du client (&mail=) → mis dans la fiche s'il manque (le classeur CRM n'a pas de colonne mail) */
+    window.CRM_MAIL = P.get("mail") ? {mail:P.get("mail").trim(), client:nom} : null;
     window.CRM_DEVIS = P.get("devis") ? {id:P.get("devis").trim(), nom:(P.get("devisnom")||"").trim(), client:nom} : null;
     if(P.get("client")!=null||P.get("retour")!=null) history.replaceState(null,"",location.pathname); }catch(e){}
   if(!nom) return false;

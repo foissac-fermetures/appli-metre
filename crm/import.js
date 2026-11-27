@@ -64,7 +64,9 @@
   const findRow = id => rows.find(r => r.id === id);
   const tel = r => { const t = (r.tel || "").replace(/\s/g, ""); return /\d{6}/.test(t) ? t : ""; };
   const nomLien = r => encodeURIComponent((r.client || "").trim());
-  const lienMetre = r => "../?client=" + nomLien(r) + "&retour=crm";
+  // 27/11/2026 : l'e-mail du client part aussi vers le métré (le classeur CRM n'a pas de colonne mail) → case « E-mail » de la fiche Client
+  const mailLien = r => { try { const m = (typeof mailOf === "function" ? mailOf(r) : r.mail) || ""; return /@/.test(m) ? "&mail=" + encodeURIComponent(m.trim()) : ""; } catch (e) { return ""; } };
+  const lienMetre = r => "../?client=" + nomLien(r) + mailLien(r) + "&retour=crm";
   const lienPlan = r => "../dao/?client=" + nomLien(r) + "&retour=crm";
 
   /* -- boutons d'action -- */

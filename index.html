@@ -478,7 +478,7 @@ input:disabled{background:#eef1f7;color:#4a5368}
 </div></div>
 <div class="modal" id="mCoul"><div class="box" style="max-width:720px">
   <h2>🎨 Aide au choix de la couleur</h2>
-  <p class="hint" style="margin-top:0">Tape ce que cherche le client : « beige », « gris clair », « vert Périgord », « bleu charrette », « gris Quercy »…</p>
+  <p class="hint" style="margin-top:0">Tape ce que cherche le client : « beige », « gris clair », « vert Périgord », « gris Quercy », « chêne doré », « bois clair », « bois foncé »…</p>
   <input id="coulRech" placeholder="Ex. beige" style="width:100%;font-size:18px;padding:10px;border:1px solid var(--line);border-radius:10px">
   <div id="coulRes" style="margin-top:12px;max-height:55vh;overflow:auto"></div>
   <div class="row" style="margin-top:12px"><span class="spacer"></span><button class="btn" id="coulFermer">Fermer</button></div>
@@ -4289,6 +4289,29 @@ function ouvrirAideCouleur(){
 
 /* ---------- Aide couleur sur toutes les fiches (27/11/2026) : bouton 🎨 à côté de chaque case couleur / coloris / teinte / RAL ----------
    Liste déroulante : couleurs du fournisseur qui ont ce RAL, puis les plus proches, puis « RAL spécial » si la liste le propose. Case texte : on écrit « RAL xxxx Nom ». */
+/* Plaxés / tons bois (27/11/2026) : reconnus dans les listes des fournisseurs par leur nom ; teintes de pastille approchées */
+const PLAX_TEINTES = [
+ [/ch[êe]ne dor|golden|imitation ch[êe]ne|faux bois/i,"#A8682E","bois moyen dore miel classique chene"],
+ [/irlandais/i,"#5E3B22","bois fonce chene"],
+ [/ch[êe]ne (fonc|chocolat|[ée]b[èe]ne|br[ûu]l|caff)|06 ch[êe]ne/i,"#4A3224","bois fonce chene"],
+ [/noyer|nogal|walnut/i,"#5A3B26","bois fonce noyer"],
+ [/acajou|bois de rose|merisier|cerisier|sapelli/i,"#6E2F1C","bois rouge acajou fonce"],
+ [/ch[êe]ne (clair|natur|amande|cr[èe]me|champagne|alpin|blanchi|polaire)|turner oak/i,"#C9A274","bois clair naturel chene"],
+ [/ch[êe]ne (moyen|ambre)/i,"#9A6A3E","bois moyen chene"],
+ [/pin (miel|nature|dune|du jura)|pin naturel/i,"#C8955A","bois clair pin miel"],
+ [/pin (blanc|cendr|sabl|taupe|ardoise)|c[èe]dre gris|c[ée]rus|ch[êe]ne urbain|veiné/i,"#9A9284","bois gris ceruse vieilli flotte"],
+ [/plax[ée] gris anthracite|anthracite veiné/i,"#383E42","gris anthracite plaxe"],
+ [/plax[ée] gris quartz/i,"#6B695F","gris quartz plaxe"],
+ [/blanc textur[ée] plax/i,"#F2F2EE","blanc plaxe"]];
+const plaxDe = t => PLAX_TEINTES.find(p=>p[0].test(t||""));
+const MOTS_BOIS = /bois|plax|ch[êe]ne|noyer|acajou|teck|pin\b|merisier|weng|douglas|imitation|ve[ii]n|c[ée]rus|ton bois|dor[ée]|miel|chocolat/i;
+function chercherPlax(q, opts){ const t=minAcc(q); if(!t.trim()) return []; const P=opts.map(c=>({c,p:plaxDe(c)})).filter(x=>x.p); if(!P.length) return [];
+  const generique=/^(bois|plaxe?s?|ton bois|imitation bois|tons bois|faux bois)$/.test(t.trim());
+  const mots=t.split(/\s+/).filter(m=>m.length>2 && !/^(bois|plaxe|plaxes|ton|tons|imitation|effet)$/.test(m));
+  if(!MOTS_BOIS.test(q) && !mots.length) return [];
+  const sc=x=>{ const tags=x.p[2]+" "+minAcc(x.c); return mots.filter(m=>tags.includes(m.replace(/s$/,"").replace(/e$/,""))).length; };
+  const R=generique||!mots.length ? P : P.filter(x=>sc(x)>0).sort((a,b)=>sc(b)-sc(a));
+  return MOTS_BOIS.test(q)||R.length ? R : []; }
 const AIDE_COUL_EXCLU = /^(vb\.couleur|vb\.couleur_ral|zip\.toile_couleur)$/;
 const hexRGB = x => { const n=parseInt(String(x).slice(1),16); return [n>>16,(n>>8)&255,n&255]; };
 const distCoul = (a,b) => { const p=hexRGB(a), q=hexRGB(b); return Math.hypot(p[0]-q[0],p[1]-q[1],p[2]-q[2]); };
@@ -4299,12 +4322,15 @@ function aideCouleurChamp(el){
   const pastille=h=>`<span style="display:inline-block;width:46px;height:46px;border-radius:10px;border:1px solid #999;background:${h};flex:none"></span>`;
   const btn=(r,txt,sous,attrs)=>`<button class="btn" ${attrs} style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin-bottom:6px;padding:8px">${pastille(r?r[2]:"linear-gradient(135deg,#ddd,#888)")}<span><b>${esc(txt)}</b><br><small>${esc(sous)}</small></span></button>`;
   const appliquer=v=>{ el.value=v; el.dispatchEvent(new Event("input",{bubbles:true})); el.dispatchEvent(new Event("change",{bubbles:true})); };
-  const aff=()=>{ const {L,note}=chercherRAL(inp.value);
-    if(!inp.value.trim()){ res.innerHTML=`<p class="hint">${sel?"Les couleurs proposées par le fournisseur pour cette case passent en premier.":"Le RAL choisi sera écrit dans la case."}</p>`; return; }
-    if(!L.length){ res.innerHTML=`<p class="hint">Rien trouvé. Essaie « beige », « gris », « vert », « bleu », « rouge », « marron », « clair », « foncé », ou un n° de RAL.</p>`; return; }
+  const aff=()=>{ let {L,note}=chercherRAL(inp.value); const PX=sel?chercherPlax(inp.value,opts):[];
+    if(!inp.value.trim()){ res.innerHTML=`<p class="hint">${sel?"Les couleurs proposées par le fournisseur pour cette case passent en premier."+(opts.some(o=>plaxDe(o))?" Pour les plaxés, tape « bois clair », « bois foncé », « chêne doré », « noyer », « gris »… ou juste « bois ».":""):"Le RAL choisi sera écrit dans la case."}</p>`; return; }
+    if(!L.length && !PX.length){ res.innerHTML=`<p class="hint">Rien trouvé. Essaie « beige », « gris », « vert », « bleu », « rouge », « marron », « clair », « foncé », « bois clair », « chêne doré », ou un n° de RAL.</p>`; return; }
     let h=note?`<p class="hint" style="margin-top:0">${esc(note)}</p>`:"";
+    if(PX.length) h+=`<h3 style="margin:4px 0 6px">🪵 Plaxés / tons bois du fournisseur</h3>`+PX.map(x=>`<button class="btn" data-ac-opt="${esc(x.c)}" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin-bottom:6px;padding:8px"><span style="display:inline-block;width:46px;height:46px;border-radius:10px;border:1px solid #999;background:repeating-linear-gradient(100deg,${x.p[1]} 0 7px,rgba(0,0,0,.18) 7px 9px,${x.p[1]} 9px 15px);flex:none"></span><span><b>${esc(x.c)}</b><br><small>Au catalogue</small></span></button>`).join("");
+    if(!L.length){ res.innerHTML=h+`<p class="hint">Teintes à l'écran approchées : toujours valider sur l'échantillon avec le client.</p>`; res.querySelectorAll("[data-ac-opt]").forEach(b=>b.onclick=()=>{ appliquer(b.dataset.acOpt); m.classList.remove("open"); toast("Couleur : "+b.dataset.acOpt); }); return; }
+    const dejaPX=new Set(PX.map(x=>x.c));
     if(!sel){ h+=`<h3 style="margin:4px 0 6px">✅ Proposition de RAL</h3>`+L.map(r=>btn(r,`RAL ${r[0]} ${r[1]}`,"Écrire ce RAL dans la case",`data-ac-txt="RAL ${r[0]} ${esc(r[1])}"`)).join(""); }
-    else { const exacts=[], vus=new Set(); L.forEach(r=>frn.filter(f=>f.ral===r[0]).forEach(f=>{ if(!vus.has(f.c)){ vus.add(f.c); exacts.push([r,f.c]); } }));
+    else { const exacts=[], vus=new Set(dejaPX); L.forEach(r=>frn.filter(f=>f.ral===r[0]).forEach(f=>{ if(!vus.has(f.c)){ vus.add(f.c); exacts.push([r,f.c]); } }));
       const mots=minAcc(inp.value).split(/\s+/).filter(x=>x.length>3); frn.filter(f=>!vus.has(f.c) && mots.some(w=>minAcc(f.c).includes(w))).forEach(f=>{ vus.add(f.c); exacts.push([f.ral?RAL_TEINTES.find(r=>r[0]===f.ral):null,f.c]); });
       const proches=frn.filter(f=>f.ral && !vus.has(f.c)).map(f=>({f,r:RAL_TEINTES.find(r=>r[0]===f.ral)})).sort((a,b)=>distCoul(a.r[2],L[0][2])-distCoul(b.r[2],L[0][2])).slice(0,exacts.length?2:3);
       if(exacts.length) h+=`<h3 style="margin:4px 0 6px">✅ Couleurs du fournisseur</h3>`+exacts.map(([r,c])=>btn(r,c,"Au catalogue",`data-ac-opt="${esc(c)}"`)).join("");
@@ -4385,7 +4411,7 @@ function renderVB(t){
       <div class="row"><button class="btn small" data-phedit="${k}">✏️ Annoter</button><span class="spacer"></span><button class="btn small danger" data-phdel="${k}" aria-label="Supprimer la photo ${k+1}">✕</button></div></figure>`).join("")}
     <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple id="phAdd" class="hide"></label></div></div>`;
   const re=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); };
-  { const b=$("#vbAideCoul"); if(b) b.onclick=ouvrirAideCouleur; }
+  { const b=$("#vbAideCoul"); if(b) b.onclick=()=>{ if(!v.matiere){ toast("Choisis d'abord la matière (PVC, alu ou bois)"); return; } aideCouleurChamp($('[data-k="vb.couleur"]')); }; }
   remplirDlRAL(); const ri=$("[data-k='vb.couleur_ral']"); if(ri) ri.addEventListener("change",()=>retenirRAL(ri.value));
   $$("[data-vbcok]").forEach(b=>b.onclick=()=>{ v.lignes[+b.dataset.vbcok].cotes_devis=false; save(); const y=scrollY; re(); scrollTo(0,y); });
   if($("#vbDevis")) $("#vbDevis").onclick=ouvrirDevisSigne;

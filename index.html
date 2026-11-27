@@ -4288,8 +4288,8 @@ function renderVB(t){
   if(v.pose==="Sur gonds existants"){ v.pose=""; v.sur_gonds=true; save(); }   // anciens métrés
   v.lignes.forEach(l=>{ if(l.g&&l.g.diam){ ["g","d"].forEach(sd=>["h","b"].forEach(p=>{ if(!l.g["d"+p+"_"+sd]) l.g["d"+p+"_"+sd]=l.g.diam; })); delete l.g.diam; save(); } });
   const ligne=l=>{ const i=v.lignes.indexOf(l), k=`vb.lignes.${i}.`;
-    return `<div class="card clim-l"><div class="row" style="margin-bottom:8px"><b>${esc(l.repere||"Nouveau volet")}</b>${vbPose(v,l)?` <span class="badge b-n" style="margin-left:8px">${esc(vbPoseLigne(v,l))}</span>`:""}<span class="spacer"></span>
-      <button class="btn small" data-vbdup="${i}">Dupliquer</button><button class="btn small danger" data-vbdel="${i}" aria-label="Supprimer le volet">✕</button></div>
+    return `<div class="card clim-l"${l.variante_de?' style="border:2px solid #d3232f"':""}><div class="row" style="margin-bottom:8px"><b>${esc(l.repere||"Nouveau volet")}</b>${l.variante_de?` <span class="badge" style="background:#d3232f;color:#fff;margin-left:8px">VARIANTE ${esc(l.var_lettre||"B")}</span>`:""}${vbPose(v,l)?` <span class="badge b-n" style="margin-left:8px">${esc(vbPoseLigne(v,l))}</span>`:""}<span class="spacer"></span>
+      ${l.variante_de?"":`<button class="btn small" data-vbvar="${i}" title="Variante de ce volet seulement (ex. 1 vantail au lieu de 2)">Variante</button>`}<button class="btn small" data-vbdup="${i}">Dupliquer</button><button class="btn small danger" data-vbdel="${i}" aria-label="Supprimer le volet">✕</button></div>
       <div class="grid g4">
         <label class="f">Repère<div class="rep-in"><input data-k="${k}repere" value="${esc(l.repere)}" list="dlPiecesVB">${boutonRep(k+"repere")}</div></label>${F.numb(k+"qte","Quantité",l.qte)}
         <div style="grid-column:span 2">${F.sel(k+"vantaux","Nombre de vantaux",C.vantaux||[],l.vantaux)}</div>
@@ -4347,6 +4347,11 @@ function renderVB(t){
   t.addEventListener("input", e=>{ if(e.target.dataset&&/^vb\./.test(e.target.dataset.k||"")) setTimeout(majD,0); });
   t.addEventListener("change", e=>{ if(e.target.dataset&&/^vb\./.test(e.target.dataset.k||"")) setTimeout(majD,0); });
   $$("[data-vbdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer ce volet ?","Supprimer")) return; v.lignes.splice(+b.dataset.vbdel,1); save(); re(); });
+  /* 27/11/2026 : variante d'un seul volet (comme les ouvertures) : copie juste en dessous, marquée VARIANTE B, non comptée dans le nombre de volets */
+  $$("[data-vbvar]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.vbvar, base=v.lignes[i]; if(!base.id) base.id=uid();
+    const fr=v.lignes.filter(x=>x.variante_de===base.id), lettre=String.fromCharCode(66+fr.length), n=JSON.parse(JSON.stringify(base)); n.id=uid(); n.variante_de=base.id; n.var_lettre=lettre; n.photos=[];
+    const rb=String(base.repere||`Volet ${i+1}`).trim(); n.repere=`${rb} – variante ${lettre}`; const pos=i+1+fr.length; v.lignes.splice(pos,0,n); save(); re();
+    toast(`Variante ${lettre} de « ${rb} » créée juste en dessous : change les vantaux (ou autre chose)`); });
   $$("[data-vbdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.vbdup, n=JSON.parse(JSON.stringify(v.lignes[i])); n.id=uid(); v.lignes.splice(i+1,0,n); save(); re(); });
   initPhotos(v, re);
 }
@@ -6802,10 +6807,10 @@ function pagesVB(d, head, row){
   const v=d.vb; if(!aVB(d)) return ""; const c=controleVB(d), n=(l,i)=>l.repere||`volet ${i+1}`, ge=gondsExistants(v)||v.lignes.some(l=>vbSurGonds(v,l)), mix=vbPosesMixtes(v), obsV=v.lignes.some(l=>l.obs||(l.g&&l.g.obs)), gmix=vbGondsMixtes(v), amix=new Set(v.lignes.map(vbArret)).size>1;
   const commun=[["Matière",v.matiere],["Type",vbTypeSansDim(v.type)],[v.matiere==="Bois"?"Finition":"Couleur",vbCouleurTexte(v)],["Essence",v.essence],["Lame",v.lame],["Barres et écharpes",v.barre],["Ferrage (pentures)",v.ferrage],["Gonds",vbMemeValeur(v,l=>vbGonds(v,l))],["Couleur des ferrages",v.ferrage_couleur],["Pose",mix?"Variable selon le volet (voir le tableau)":vbPoseLigne(v,v.lignes[0])],["Type de dimensions",mix?"":vbTypeDim(v,v.lignes[0])],["Arrêts de vent",vbMemeValeur(v,vbArret)],["Manutention",v.manutention]];
   let h=`<div class="pg">${head(`Volets battants Corrèze – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
-    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","Corrèze Fermetures"],["Pose (équipe · durée)",textePose(d,"vb")],["Nombre de volets",String(v.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div>
+    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","Corrèze Fermetures"],["Pose (équipe · durée)",textePose(d,"vb")],["Nombre de volets",String(v.lignes.filter(l=>!l.variante_de).reduce((s,l)=>s+(num(l.qte)||1),0))+(v.lignes.some(l=>l.variante_de)?` + ${v.lignes.filter(l=>l.variante_de).length} variante(s)`:"")]])}</table></div>
     <div><table class="pt">${row(commun)}</table></div></div>
     <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Vantaux</th>${mix?"<th>Pose</th>":""}${gmix?"<th>Gonds</th>":""}${amix?"<th>Arrêts</th>":""}<th>Largeur</th><th>Hauteur</th><th>Allège</th><th>Espagn. sur ouvrant</th><th>Feuillure l × p · côtés</th><th>Cintre</th><th>Espagnolette</th><th>Options</th>${obsV?"<th>Observation</th>":""}</tr>
-    ${v.lignes.map((l,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.qte)}</td><td>${esc(l.vantaux)}</td>${mix?`<td>${esc(vbPoseLigne(v,l))}${vbTypeDim(v,l)===VB_TYPE_DIM[1]?" (fond de feuill.)":""}</td>`:""}${gmix?`<td>${esc(vbGonds(v,l))}</td>`:""}${amix?`<td>${esc(vbArret(l))}</td>`:""}<td><b>${esc(l.L)}</b></td><td><b>${esc(l.H)}</b></td><td>${esc(l.allege)}</td><td>${[l.sens_g&&"Gauche",l.sens_d&&"Droite"].filter(Boolean).join(" + ")}</td>
+    ${v.lignes.map((l,i)=>`<tr${l.variante_de?' style="color:#d3232f;font-weight:700"':""}><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.qte)}</td><td>${esc(l.vantaux)}</td>${mix?`<td>${esc(vbPoseLigne(v,l))}${vbTypeDim(v,l)===VB_TYPE_DIM[1]?" (fond de feuill.)":""}</td>`:""}${gmix?`<td>${esc(vbGonds(v,l))}</td>`:""}${amix?`<td>${esc(vbArret(l))}</td>`:""}<td><b>${esc(l.L)}</b></td><td><b>${esc(l.H)}</b></td><td>${esc(l.allege)}</td><td>${[l.sens_g&&"Gauche",l.sens_d&&"Droite"].filter(Boolean).join(" + ")}</td>
       <td>${[l.f_l||l.f_p?`${l.f_l||"?"} × ${l.f_p||"?"}`:"",l.f_cotes].filter(Boolean).join(" · ")}</td><td>${l.cintre_f?`flèche ${esc(l.cintre_f)}${l.cintre_n?" / naiss. "+esc(l.cintre_n):""}`:""}</td><td>${esc(l.espagnolette)}</td><td>${esc((l.options||[]).join(", "))}</td>${obsV?`<td>${esc([l.obs,l.g&&l.g.obs].filter(Boolean).join(" – "))}</td>`:""}</tr>`).join("")}</table>
     ${(()=>{ const pv=v.lignes.map((l,k)=>n(l,k)+" : "), gen=[...c.E,...c.W].filter(x=>!pv.some(p=>x.startsWith(p))), nb=c.E.length+c.W.length-gen.length; return gen.length||nb?`<div class="pwarn">À vérifier : ${esc([...gen, nb?`${nb} point(s) sur les volets, détaillés volet par volet`:""].filter(Boolean).join(" · "))}</div>`:""; })()}
     </div>`;
@@ -6814,7 +6819,7 @@ function pagesVB(d, head, row){
   const bloc=(l,i)=>{ const pre=n(l,i)+" : ", msg=[...c.E,...c.W].filter(x=>x.startsWith(pre)).map(x=>x.slice(pre.length));
     const g=l.g||{}, aG=["A","B","C","D","R"].some(x=>g[x+"_g"]||g[x+"_d"])||VB_POS_GONDS.some(([p])=>g["d"+p+"_g"]||g["d"+p+"_d"]);
     return `<div class="vbbloc"><div class="pdim">
-      <div class="pposetitre">${i+1}. ${esc(l.repere||"Volet battant")} <small style="font-weight:400">– qté ${esc(l.qte||"1")} · ${esc(vbPoseLigne(v,l)||"pose ?")}${vbGonds(v,l)?" · gonds "+esc(vbGonds(v,l).toLowerCase()):""}</small></div>
+      <div class="pposetitre"${l.variante_de?' style="color:#d3232f"':""}>${i+1}. ${esc(l.repere||"Volet battant")} <small style="font-weight:400">– qté ${esc(l.qte||"1")} · ${esc(vbPoseLigne(v,l)||"pose ?")}${vbGonds(v,l)?" · gonds "+esc(vbGonds(v,l).toLowerCase()):""}</small></div>
       <div class="pdt2"><table class="pt pdt"><tr class="pdir"><th colspan="2">TABLEAU</th></tr>
           <tr><th>Largeur</th><td>${esc(l.L)}</td></tr><tr><th>Hauteur</th><td>${esc(l.H)}</td></tr><tr><th>Allège</th><td>${esc(l.allege)}</td></tr>
           <tr class="pfabr"><th>${esc(vbTypeDim(v,l)===VB_TYPE_DIM[1]?"FOND FEUILL.":"TABLEAU")}</th><td>${esc(l.L)} × ${esc(l.H)}</td></tr></table>

@@ -7517,7 +7517,14 @@ function construireImpression(d){
       ${tablePosePDF(d)}<table class="pt">${row([["Observations",d.observations]])}</table>${boitePrev}</div></div>
 `) + `    ${!d.ouvertures.length?"":`<table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Pose</th><th>Gamme</th><th>Tableau L×H</th><th>Fabrication L×H</th><th>Vantaux</th></tr>
     ${d.ouvertures.map((o,i)=>{const f=calcFab(o);return `<tr${estVariante(o)?' style="background:#fff4e5"':""}><td><b>${esc(o.num_poseur||"")}</b>${estVariante(o)?` <small>var. ${esc(o.variante||"B")}</small>`:""}</td><td>${esc(o.repere)}${estVariante(o)?" <i>(variante – option)</i>":""}</td><td>${esc(o.quantite)}</td><td>${esc(libellePose(o))}</td><td>${esc(o.gamme)}</td><td>${esc(coteTab(o,"L"))} × ${esc(coteTab(o,"H"))}</td><td><b>${f.L??""} × ${f.H??""}</b></td><td>${esc([o.vantaux.G,o.vantaux.M,o.vantaux.D].filter(Boolean).join(" · "))}</td></tr>`;}).join("")}</table>`}</div>`;
-  /* 27/11/2026 : temps de pose de la partie tout en haut de sa 1re page (menuiseries, VR, portail, stores, garde-corps…) */
+  /* 27/11/2026 (Nicolas) : la fiche d'identité client ne sort que s'il y a de vraies infos commerciales (ou, en définitif, des choses « À prévoir »).
+     Origine et lignes « (CRM) / (agenda) » remplies toutes seules ne comptent pas : tout le reste est déjà sur les pages suivantes.
+     Sans elle : le récapitulatif des ouvertures garde une page seulement à partir de 3 menuiseries. */
+  { const precPerso=String(d.logement.precisions||"").split("\n").filter(l=>l.trim() && !/\((CRM|agenda)\)/.test(l)).length>0;
+    const com=[d.client.situation,d.client.travail,d.logement.maison,d.logement.motivation1,d.logement.motivation2,d.budget.moyens,d.budget.ressenti,d.budget.projet,d.budget.aide,d.budget.aide_laquelle,d.budget.precision,...(d.concurrents||[]),d.observations].some(x=>String(x||"").trim()) || precPerso;
+    const garder = estDefinitif(d) ? (PV.length>0 || !!String(d.observations||"").trim()) : com;
+    if(!garder){ const k=h.indexOf('<table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th>'), recap=k>=0?h.slice(k,h.lastIndexOf("</div>")):"";
+      h = (recap && d.ouvertures.length>=3) ? `<div class="pg">${head("Récapitulatif des ouvertures – "+(d.client.nom||""))}<div class="vbsous">${esc(d.client.telephone||"")}${d.adresse_chantier?" · "+esc(String(d.adresse_chantier).replace(/\n/g," ")):""}</div>${recap}</div>` : ""; } }
   const avecPose=(html,k)=>{ if(!html) return html; const i=html.indexOf('<div class="ph">'); if(i<0) return html; const j=html.indexOf('</div></div>',i); if(j<0) return html;
     const lab=(POSE_PARTIES.find(x=>x[0]===k)||[k,k])[1].toLowerCase(), t=textePose(d,k);
     const ban=`<div class="ppose${t?"":" vide"}">POSE ${esc(lab.toUpperCase())} : ${esc(t||"à renseigner")}</div>`; let out=html.slice(0,j+12)+ban+html.slice(j+12);

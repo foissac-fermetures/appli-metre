@@ -6446,7 +6446,11 @@ const PP_MODELES = ["Axiome 39 DB (CR3 – EI30)","Axiome 42 DB","Isaclub 30 DB"
    4 paumelles avec pions anti-dégond, serrure 3 points VACHETTE A2P*, poignée de tirage extérieure / béquillage / aucune, cylindre VACHETTE A2P* débrayable 4 clés,
    seuil suisse métallique intégré, microviseur chromé, entrebâilleur, stabilité 3c, Rw = 39 dB, anti-effraction 5 min. Dimensions maxi ProDevis 997 × 2494. */
 const PP_HUISSERIES = ["Réno métallique blanc (RAL 9016)","Réno métallique noir (RAL 9022)","RBA (bois et aile alu blanche)","RBA (bois et aile alu noire)"];
-const PP_FINITIONS = ["Pré-peint blanc","Stratifié 2 faces","Placage bois"];
+const PP_FINITIONS = ["Pré-peint blanc","Stratifié 2 faces","Placage bois","Laqué blanc ou couleur (RAL)"];
+/* doc HUET Axiome 39 Réno : « Placage bois essence fine » (liste précise non donnée → essences courantes, à confirmer à la commande) */
+const PP_ESSENCES = ["Chêne","Chêne teinté","Hêtre","Frêne","Merisier","Noyer","Sapelli","Sipo","Autre essence (à préciser en observation)"];
+const PP_FIN_PLACAGE = ["Brut (à vernir / peindre sur place)","Vernis incolore","Vernis teinté (à préciser)"];
+const ppAvecColoris = f => /stratifi|placage|laqu/i.test(f||"");
 const PP_GRAVAGE = ["Non","Oui – 2 faces","Oui – 1 face extérieure","Oui – 1 face intérieure"];
 const PP_ETANCHEITE = ["Joint balai","Seuil suisse"];
 const PP_SEUILS = ["50 × 20 mm bois rouge","35 × 20 mm bois revêtu inox","37 × 20 mm métallique intégré"];
@@ -6470,8 +6474,11 @@ const ppAxiome = p => /axiome/i.test(p.modele||""), ppCR3 = p => /cr3/i.test(p.m
 function controlePP(d){
   const p=d.pp, E=[], W=[]; if(!p) return {E,W}; ppMigrer(p);
   if(!p.modele) E.push("Modèle de porte non choisi"); if(!p.huisserie) E.push("Modèle d'huisserie non choisi"); if(!p.finition) E.push("Finition de la porte non choisie");
-  if(/stratifi|placage/i.test(p.finition) && !(p.coloris_int||p.coloris) ) E.push("Coloris côté logement non renseigné");
-  if(/stratifi|placage/i.test(p.finition) && !(p.coloris_ext||p.coloris)) E.push("Coloris côté couloir (palier) non renseigné");
+  const qq=/placage/i.test(p.finition||"")?"Essence du placage":"Coloris";
+  if(ppAvecColoris(p.finition) && !(p.coloris_int||p.coloris) ) E.push(`${qq} côté logement non renseigné(e)`);
+  if(ppAvecColoris(p.finition) && !(p.coloris_ext||p.coloris)) E.push(`${qq} côté couloir (palier) non renseigné(e)`);
+  if(/placage/i.test(p.finition||"") && !p.fin_placage) W.push("Finition du placage (brut, vernis…) non choisie");
+  if(/Autre essence/.test((p.coloris_int||"")+(p.coloris_ext||"")) && !p.lignes.some(l=>l.obs)) W.push("Essence « autre » : la préciser en observation");
   if(!p.poignee) W.push("Poignée côté palier non choisie (tirage, béquillage ou aucune)");
   if(/^Oui/.test(p.gravage) && !p.motif) W.push("Gravage Technidécor : nom du motif à préciser");
   if(!p.etancheite) W.push("Étanchéité basse non choisie (joint balai ou seuil suisse)");
@@ -6518,7 +6525,9 @@ function renderPP(t){
   <div class="card"><h2><span class="num">1</span>Portes palières rénovation – HUET <small style="font-weight:400;text-transform:none">– bloc-porte blindé, bâti rénovation 4 côtés posé en applique, sans réduction de passage</small></h2><div class="grid g4">
     <div style="grid-column:span 2">${F.sel("pp.modele","Modèle de porte",PP_MODELES,p.modele)}</div><div style="grid-column:span 2">${F.sel("pp.huisserie","Modèle d'huisserie (bâti rénovation)",PP_HUISSERIES,p.huisserie)}</div>
     ${F.sel("pp.finition","Finition de la porte",PP_FINITIONS,p.finition)}<div></div>
-    ${/stratifi|placage/i.test(p.finition)?F.text("pp.coloris_int","Coloris côté logement (Boréal : Blanc Premium…)",p.coloris_int)+F.text("pp.coloris_ext","Coloris côté couloir / palier",p.coloris_ext):"<div></div><div></div>"}
+    ${/placage/i.test(p.finition||"")?F.sel("pp.coloris_int","Essence côté logement",PP_ESSENCES,p.coloris_int)+F.sel("pp.coloris_ext","Essence côté couloir / palier",PP_ESSENCES,p.coloris_ext)+F.sel("pp.fin_placage","Finition du placage",PP_FIN_PLACAGE,p.fin_placage)+"<div></div>"
+      :/laqu/i.test(p.finition||"")?F.text("pp.coloris_int","Teinte côté logement (RAL…)",p.coloris_int)+F.text("pp.coloris_ext","Teinte côté couloir / palier (RAL…)",p.coloris_ext)
+      :/stratifi/i.test(p.finition||"")?F.text("pp.coloris_int","Coloris côté logement (Boréal : Blanc Premium…)",p.coloris_int)+F.text("pp.coloris_ext","Coloris côté couloir / palier",p.coloris_ext):"<div></div><div></div>"}
     ${F.sel("pp.gravage","Gravage Technidécor",PP_GRAVAGE,p.gravage)}${/^Oui/.test(p.gravage)?F.text("pp.motif","Nom du motif gravé",p.motif):"<div></div>"}
     ${F.sel("pp.etancheite","Étanchéité basse",PP_ETANCHEITE,p.etancheite)}${p.etancheite==="Seuil suisse"?F.sel("pp.seuil","Seuil suisse",PP_SEUILS,p.seuil):"<div></div>"}
     ${F.sel("pp.serrure","Serrure",PP_SERRURES,p.serrure)}${F.sel("pp.poignee","Poignée côté palier",PP_POIGNEES,p.poignee)}${p.microviseur?F.sel("pp.microviseur_fin","Finition microviseur",["Chrome","Laiton"],p.microviseur_fin):"<div></div>"}
@@ -6540,7 +6549,8 @@ function renderPP(t){
   $$("[data-ppdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer cette porte ?","Supprimer")) return; p.lignes.splice(+b.dataset.ppdel,1); save(); re(); });
   $$("[data-ppdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.ppdup, s=p.lignes[i], n=Object.assign(nouvelleLignePP(),{existant:s.existant, sens:s.sens, C:s.C, D:s.D});
     const r=repDecoupe(s.repere); if(r.piece&&r.num){ r.num=String((parseInt(r.num)||0)+1); n.repere=repCompose(r); } p.lignes.splice(i+1,0,n); save(); re(); toast("Même porte : il reste le repère et les cotes A / B / espaces"); });
-  ["pp.finition","pp.gravage","pp.etancheite","pp.microviseur"].forEach(k=>{ const el=$(`[data-k="${k}"]`); if(el) el.addEventListener("change",()=>setTimeout(re,0)); });
+  ["pp.finition","pp.gravage","pp.etancheite","pp.microviseur"].forEach(k=>{ const el=$(`[data-k="${k}"]`); if(el) el.addEventListener("change",()=>setTimeout(()=>{ if(k==="pp.finition"){ const ok=x=>/placage/i.test(p.finition||"")?PP_ESSENCES.includes(x):!PP_ESSENCES.includes(x);
+      if(!ok(p.coloris_int)) p.coloris_int=""; if(!ok(p.coloris_ext)) p.coloris_ext=""; if(/stratifi/i.test(p.finition||"")){ p.coloris_int=p.coloris_int||"Blanc Premium"; p.coloris_ext=p.coloris_ext||"Blanc Premium"; } save(); } re(); },0)); });
   initPhotos(p, re);
 }
 /* ---------- PDF : même présentation que les menuiseries (en-tête logo, tableaux, une page par porte) ---------- */
@@ -6562,7 +6572,7 @@ function dessinPP(l){
 function pagesPP(d, head, row){
   const p=d.pp; if(!aPP(d)) return ""; ppMigrer(p);
   const ck=b=>b?"Oui":"", c=controlePP(d), n=(l,i)=>l.repere||`porte ${i+1}`;
-  const commun=[["Modèle de porte",p.modele],["Modèle d'huisserie",p.huisserie],["Finition",p.finition],["Coloris côté logement",/stratifi|placage/i.test(p.finition||"")?p.coloris_int:""],["Coloris côté couloir",/stratifi|placage/i.test(p.finition||"")?p.coloris_ext:""],["Gravage Technidécor",p.gravage!=="Non"?[p.gravage,p.motif].filter(Boolean).join(" – "):""],
+  const commun=[["Modèle de porte",p.modele],["Modèle d'huisserie",p.huisserie],["Finition",p.finition],[/placage/i.test(p.finition||"")?"Essence côté logement":"Coloris côté logement",ppAvecColoris(p.finition)?p.coloris_int:""],[/placage/i.test(p.finition||"")?"Essence côté couloir":"Coloris côté couloir",ppAvecColoris(p.finition)?p.coloris_ext:""],["Finition du placage",/placage/i.test(p.finition||"")?p.fin_placage:""],["Gravage Technidécor",p.gravage!=="Non"?[p.gravage,p.motif].filter(Boolean).join(" – "):""],
     ["Étanchéité basse",[p.etancheite,p.etancheite==="Seuil suisse"?p.seuil:""].filter(Boolean).join(" – ")],["Serrure",p.serrure],["Poignée côté palier",p.poignee],["Microviseur",p.microviseur?"Oui – "+p.microviseur_fin:""],["Cylindre VACHETTE A2P* débrayable 4 clés",ck(p.cylindre)],
     ["Paumelles avec pions anti-dégond",ck(p.plots)],["Entrebâilleur",ck(p.entrebailleur)],["Performances",PP_PERF]];
   let h=`<div class="pg">${head(`Portes palières réno HUET – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}

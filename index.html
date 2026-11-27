@@ -2091,7 +2091,7 @@ async function renderHome(){
   <div class="hb-top"><h1>Accueil</h1>
     <input class="hb-rech" id="hRech" type="search" placeholder="🔎 Chercher un client…" value="${esc(S.homeRech||"")}" autocomplete="off">
     <span class="spacer"></span>
-    <button class="btn hb-ic" id="hSync" title="Actualiser : récupérer les métrés faits ou modifiés sur mes autres appareils" aria-label="Actualiser">☁</button>
+    <button class="btn hb-ic" id="hSync" title="Actualiser : métrés des autres appareils + dernière version de l'appli" aria-label="Actualiser">☁</button>
     <button class="btn hb-ic" id="hOpen" title="Ouvrir un fichier…" aria-label="Ouvrir un fichier">📂</button>
     <button class="btn hb-ic" id="hCRM" title="Nouveau métré depuis le CRM" aria-label="Depuis le CRM">📇</button>
     <button class="btn hb-ic" id="hTablette" title="Tablette de dessin : relier cet iPad au PC pour y dessiner" aria-label="Tablette de dessin">📲</button>
@@ -2119,7 +2119,7 @@ async function renderHome(){
     const bd=$("#hCorbDrive"); if(bd) bd.onclick=afficherCorbeilleDrive; });
   $("#hNew").onclick=()=>nouveauRendezVous(); $("#hTablette").onclick=tabletteRejoindre; $("#hDAO").onclick=()=>{ location.href="dao/?retour=accueil"; };   // Mini DAO (voir CLAUDE.md du dépôt)
   $("#hOpen").onclick=()=>$("#fileOpen").click();
-  $("#hSync").onclick=async()=>{ const b=$("#hSync"); b.disabled=true; b.textContent="…"; await synchroAccueil(true); const b2=$("#hSync"); if(b2){ b2.disabled=false; b2.textContent="☁"; } };
+  $("#hSync").onclick=async()=>{ const b=$("#hSync"); b.disabled=true; b.textContent="…"; try{ window.__verifMaj&&window.__verifMaj(); }catch(_){} await synchroAccueil(true);   /* ☁ = métrés des autres appareils + nouvelle version de l'appli (rechargée toute seule sur l'accueil) */ const b2=$("#hSync"); if(b2){ b2.disabled=false; b2.textContent="☁"; } };
   { const z=document.createElement("div"); z.id="hSyncLe"; z.className="hint"; z.style.cssText="text-align:right;font-size:12px;margin-top:-6px"; z.textContent=texteSyncLe(); $("#app .hb-top").after(z); }
   if(!S.syncAuto || Date.now()-S.syncAuto>120000){ S.syncAuto=Date.now(); setTimeout(()=>synchroAccueil(false),300); } else setTimeout(envoyerEnAttente,500);
   if(driveDispo() && !jetonValide()){ const z=document.createElement("button"); z.className="btn small"; z.style.cssText="display:block;margin:4px 0 0 auto;border:2px solid #e07b00;color:#b35f00";
@@ -8986,8 +8986,9 @@ async function normaliserTout(){ try{ for(const d of await DB.all()){ const avan
 if("serviceWorker" in navigator && location.protocol==="https:"){
   const avaitCtrl=!!navigator.serviceWorker.controller;
   navigator.serviceWorker.register("sw.js").then(reg=>{
-    const verif=()=>reg.update().catch(()=>{}); setInterval(verif, 10*60*1000);
+    const verif=()=>reg.update().catch(()=>{}); window.__verifMaj=verif; setInterval(verif, 3*60*1000); verif();   // 27/11 : vérif au démarrage + toutes les 3 min (avant 10)
     document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") verif(); });
+    window.addEventListener("focus", verif);
   }).catch(()=>{});
   navigator.serviceWorker.addEventListener("controllerchange", ()=>{
     if(!avaitCtrl || window.__majFaite) return;

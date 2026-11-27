@@ -2213,7 +2213,7 @@ function ajouterCartePlans(){ const d=S.dossier; if(S.view!=="dossier" || !d || 
 function mailDepuisLienCRM(){ const m=window.CRM_MAIL, d=S.dossier; if(!m||!d||!d.client) return;
   if(normNomCRM(d.client.nom)!==normNomCRM(m.client) && !normNomCRM(d.client.nom).split(" ").includes(normNomCRM(m.client).split(" ")[0])) return;
   if(!String(d.client.email||"").trim()){ d.client.email=m.mail; save(); } window.CRM_MAIL=null; }
-function renderDossier(){ try{ mailDepuisLienCRM(); }catch(e){} renderDossier0.apply(this, arguments); try{ ajouterCartePlans(); }catch(e){ console.warn("plans", e); } try{ barreVariantes(); }catch(e){ console.warn("variantes", e); } }
+function renderDossier(){ try{ mailDepuisLienCRM(); }catch(e){} renderDossier0.apply(this, arguments); try{ ajouterCartePlans(); }catch(e){ console.warn("plans", e); } try{ barreVariantes(); }catch(e){ console.warn("variantes", e); } try{ boutonsVarLignes(); }catch(e){ console.warn("variantes lignes", e); } }
 function renderDossier0(){
   S.view="dossier"; S.ouv=null; const d=normaliser(S.dossier); syncVR(d); S.derSuppr=null;
   if(HIST.id!==d.id) histInit(d); else histNoter();   // changements faits sans save() : comptent aussi comme une action
@@ -7825,7 +7825,21 @@ function barreVariantes(){ const d=S.dossier, k=S.tab; if(S.view!=="dossier"||!d
   if($("#vpDel")) $("#vpDel").onclick=async()=>{ if(!await demander(`Supprimer la variante ${String.fromCharCode(65+cur)} ?`,"Supprimer")) return; vpartSupprimer(d,k); save(); renderDossier(); };
 }
 /* PDF : les parties à variantes sortent à la fin, A puis B, C… avec un bandeau rouge « VARIANTE B » sur chaque page */
-function construireImpression(d){
+/* lignes « … – variante B » en rouge dans les tableaux du PDF (toutes les fiches) */
+function marquerVariantesPDF(h){ if(!/– variante [B-Z]/.test(h)) return h; return h.split("<tr>").map((p,i)=>{ if(!i) return p; const f=p.indexOf("</tr>"); return (/– variante [B-Z]/.test(f<0?p:p.slice(0,f))?'<tr style="color:#d3232f;font-weight:700">':"<tr>")+p; }).join(""); }
+/* 27/11/2026 : bouton « Variante » sur chaque ligne des autres fiches (comme les volets battants) */
+const LVAR = {vr:"vrdup", sb:"sbdup", gca:"gcadup", gar:"gardup", per:"perdup", zip:"zipdup", vit:"vitdup", vt:"vtdup", pp:"ppdup", pi:"pidup", rm:"rmdup"};
+function boutonsVarLignes(){ const d=S.dossier, k=S.tab, a=LVAR[k]; if(S.view!=="dossier"||!d||!a||!d[k]||!Array.isArray(d[k].lignes)) return; const L=d[k].lignes;
+  document.querySelectorAll(`#tab [data-${a}]`).forEach(b=>{ const i=+b.getAttribute("data-"+a), l=L[i]; if(!l) return; const carte=b.closest(".card");
+    if(l.variante_de){ if(carte) carte.style.border="2px solid #d3232f"; b.insertAdjacentHTML("beforebegin",`<span class="badge" style="background:#d3232f;color:#fff;margin-right:6px">VARIANTE ${esc(l.var_lettre||"B")}</span>`); return; }
+    if(k==="vr" && (l.ouv_id || (typeof vrUsine==="function" && vrUsine(l)))) return;   // volet lié à une menuiserie : variante sur l'ouverture
+    const v=document.createElement("button"); v.className="btn small"; v.textContent="Variante"; v.title="Variante de cette ligne seulement"; v.style.marginRight="6px";
+    v.onclick=()=>{ if(!l.id) l.id=uid(); const fr=L.filter(x=>x.variante_de===l.id), lettre=String.fromCharCode(66+fr.length), n=sansPhotos(JSON.parse(JSON.stringify(l)));
+      n.id=uid(); n.variante_de=l.id; n.var_lettre=lettre; const rb=String(l.repere||`Ligne ${i+1}`).trim(); n.repere=`${rb} – variante ${lettre}`; L.splice(i+1+fr.length,0,n); save();
+      const y=scrollY; renderDossier(); scrollTo(0,y); toast(`Variante ${lettre} de « ${rb} » créée juste en dessous : change ce qui doit changer`); };
+    b.insertAdjacentElement("beforebegin",v); }); }
+function construireImpression(d){ return marquerVariantesPDF(construireImpression1(d)); }
+function construireImpression1(d){
   const K=VPARTS.filter(k=>vpartListe(d,k)); if(aSAV(d)||!K.length) return construireImpression0(d);
   const sans=Object.assign({},d); K.forEach(k=>sans[k]=null); let h=construireImpression0(sans);
   K.forEach(k=>{ const L=d.vparts[k];

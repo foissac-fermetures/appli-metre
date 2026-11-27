@@ -4286,6 +4286,54 @@ function ouvrirAideCouleur(){
   };
   inp.value=""; inp.oninput=aff; aff(); $("#coulFermer").onclick=()=>m.classList.remove("open"); m.classList.add("open"); setTimeout(()=>inp.focus(),50);
 }
+
+/* ---------- Aide couleur sur toutes les fiches (27/11/2026) : bouton 🎨 à côté de chaque case couleur / coloris / teinte / RAL ----------
+   Liste déroulante : couleurs du fournisseur qui ont ce RAL, puis les plus proches, puis « RAL spécial » si la liste le propose. Case texte : on écrit « RAL xxxx Nom ». */
+const AIDE_COUL_EXCLU = /^(vb\.couleur|vb\.couleur_ral|zip\.toile_couleur)$/;
+const hexRGB = x => { const n=parseInt(String(x).slice(1),16); return [n>>16,(n>>8)&255,n&255]; };
+const distCoul = (a,b) => { const p=hexRGB(a), q=hexRGB(b); return Math.hypot(p[0]-q[0],p[1]-q[1],p[2]-q[2]); };
+const ralDe = t => { const m=String(t||"").match(/\b([1-9]\d{3})\b/); if(m && RAL_TEINTES.some(r=>r[0]===m[1])) return m[1]; if(/^\s*(24 mm |28 mm )?blanc\b/i.test(t||"")) return "9016"; return null; };
+function aideCouleurChamp(el){
+  const m=$("#mCoul"), inp=$("#coulRech"), res=$("#coulRes"), sel=el.tagName==="SELECT", k=el.dataset.k;
+  const opts=sel?[...el.options].map(o=>o.value).filter(Boolean):[], frn=opts.map(c=>({c, ral:ralDe(c)})), special=opts.find(o=>!ralDe(o) && /ral\b|pr[ée]ciser|sp[ée]cial|hors gamme|au choix|^autre/i.test(o));
+  const pastille=h=>`<span style="display:inline-block;width:46px;height:46px;border-radius:10px;border:1px solid #999;background:${h};flex:none"></span>`;
+  const btn=(r,txt,sous,attrs)=>`<button class="btn" ${attrs} style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin-bottom:6px;padding:8px">${pastille(r?r[2]:"linear-gradient(135deg,#ddd,#888)")}<span><b>${esc(txt)}</b><br><small>${esc(sous)}</small></span></button>`;
+  const appliquer=v=>{ el.value=v; el.dispatchEvent(new Event("input",{bubbles:true})); el.dispatchEvent(new Event("change",{bubbles:true})); };
+  const aff=()=>{ const {L,note}=chercherRAL(inp.value);
+    if(!inp.value.trim()){ res.innerHTML=`<p class="hint">${sel?"Les couleurs proposées par le fournisseur pour cette case passent en premier.":"Le RAL choisi sera écrit dans la case."}</p>`; return; }
+    if(!L.length){ res.innerHTML=`<p class="hint">Rien trouvé. Essaie « beige », « gris », « vert », « bleu », « rouge », « marron », « clair », « foncé », ou un n° de RAL.</p>`; return; }
+    let h=note?`<p class="hint" style="margin-top:0">${esc(note)}</p>`:"";
+    if(!sel){ h+=`<h3 style="margin:4px 0 6px">✅ Proposition de RAL</h3>`+L.map(r=>btn(r,`RAL ${r[0]} ${r[1]}`,"Écrire ce RAL dans la case",`data-ac-txt="RAL ${r[0]} ${esc(r[1])}"`)).join(""); }
+    else { const exacts=[], vus=new Set(); L.forEach(r=>frn.filter(f=>f.ral===r[0]).forEach(f=>{ if(!vus.has(f.c)){ vus.add(f.c); exacts.push([r,f.c]); } }));
+      const mots=minAcc(inp.value).split(/\s+/).filter(x=>x.length>3); frn.filter(f=>!vus.has(f.c) && mots.some(w=>minAcc(f.c).includes(w))).forEach(f=>{ vus.add(f.c); exacts.push([f.ral?RAL_TEINTES.find(r=>r[0]===f.ral):null,f.c]); });
+      const proches=frn.filter(f=>f.ral && !vus.has(f.c)).map(f=>({f,r:RAL_TEINTES.find(r=>r[0]===f.ral)})).sort((a,b)=>distCoul(a.r[2],L[0][2])-distCoul(b.r[2],L[0][2])).slice(0,exacts.length?2:3);
+      if(exacts.length) h+=`<h3 style="margin:4px 0 6px">✅ Couleurs du fournisseur</h3>`+exacts.map(([r,c])=>btn(r,c,"Au catalogue",`data-ac-opt="${esc(c)}"`)).join("");
+      else h+=`<p class="pwarn" style="margin:0 0 8px">Cette teinte n'est pas dans la liste du fournisseur pour cette case.</p>`;
+      if(proches.length) h+=`<h3 style="margin:10px 0 6px">Les plus proches au catalogue</h3>`+proches.map(({f,r})=>btn(r,f.c,`Proche de RAL ${L[0][0]} ${L[0][1]}`,`data-ac-opt="${esc(f.c)}"`)).join("");
+      if(special) h+=`<h3 style="margin:10px 0 6px">En RAL spécial (« ${esc(special)} »)</h3>`+L.slice(0,5).map(r=>btn(r,`RAL ${r[0]} ${r[1]}`,`Choisit « ${special} » et note ce RAL`,`data-ac-spe="RAL ${r[0]} ${esc(r[1])}"`)).join("");
+      else if(!exacts.length) h+=`<h3 style="margin:10px 0 6px">RAL proches (à demander au fournisseur)</h3>`+L.slice(0,4).map(r=>btn(r,`RAL ${r[0]} ${r[1]}`,"Pas dans la liste : à noter en observation",`data-ac-info="RAL ${r[0]} ${esc(r[1])}"`)).join(""); }
+    res.innerHTML=h+`<p class="hint">Teintes à l'écran approchées : toujours valider sur le nuancier avec le client.</p>`;
+    res.querySelectorAll("[data-ac-txt]").forEach(b=>b.onclick=()=>{ appliquer(b.dataset.acTxt); try{ retenirRAL(b.dataset.acTxt); }catch(e){} m.classList.remove("open"); toast("Couleur : "+b.dataset.acTxt); });
+    res.querySelectorAll("[data-ac-opt]").forEach(b=>b.onclick=()=>{ appliquer(b.dataset.acOpt); m.classList.remove("open"); toast("Couleur : "+b.dataset.acOpt); });
+    res.querySelectorAll("[data-ac-info]").forEach(b=>b.onclick=()=>demander(`${b.dataset.acInfo} n'est pas dans la liste du fournisseur pour cette case. Choisis la plus proche, ou note ce RAL en observation pour le demander au fournisseur.`,"Compris","Fermer"));
+    res.querySelectorAll("[data-ac-spe]").forEach(b=>b.onclick=()=>{ const ral=b.dataset.acSpe; appliquer(special); m.classList.remove("open");
+      setTimeout(()=>{ const c=[k+"_ral",k.replace(/(couleur|coloris)/,"$1_ral"),k+"_txt",k+"_autre",k+"_precis"].map(x=>document.querySelector(`[data-k="${x}"]`)).find(Boolean);
+        if(c){ c.value=ral; c.dispatchEvent(new Event("input",{bubbles:true})); c.dispatchEvent(new Event("change",{bubbles:true})); toast("Couleur : "+special+" → "+ral); }
+        else toast(`« ${special} » choisi : note ${ral} dans la case de la teinte`); },150); });
+  };
+  inp.value=""; inp.oninput=aff; aff(); $("#coulFermer").onclick=()=>m.classList.remove("open"); m.classList.add("open"); setTimeout(()=>inp.focus(),50);
+}
+function attacherAideCouleur(){
+  document.querySelectorAll("main [data-k]").forEach(el=>{ const k=el.dataset.k||""; if(el.dataset.aideCoul || !/(couleur|coloris|teinte|^coul_)|(^|_)ral$/i.test(k.split(".").pop()) || AIDE_COUL_EXCLU.test(k)) return;
+    if(!(el.tagName==="SELECT" || (el.tagName==="INPUT" && (el.type==="text"||!el.type||el.type==="search")))) return;
+    if(el.tagName==="SELECT"){ const o=[...el.options].map(x=>x.value).filter(Boolean); if(o.length && !o.some(x=>ralDe(x)||/ral|blanc|gris|noir|beige|ch[êe]ne|anthracite/i.test(x))) return; }   // ex. essences de bois : pas de RAL
+    el.dataset.aideCoul="1"; const b=document.createElement("button"); b.dataset.aideFor=k; b.type="button"; b.className="btn small"; b.textContent="🎨 Aide couleur"; b.style.marginTop="6px";
+    b.onclick=e=>{ e.preventDefault(); e.stopPropagation(); aideCouleurChamp(el); };
+    const lab=el.closest("label"); if(lab) lab.appendChild(b); else el.insertAdjacentElement("afterend",b); });
+}
+(()=>{ let t=null; const obs=new MutationObserver(()=>{ clearTimeout(t); t=setTimeout(()=>{ try{ attacherAideCouleur(); }catch(e){ console.warn("aide couleur",e); } },120); });
+  const go=()=>{ const mm=document.querySelector("main")||document.body; obs.observe(mm,{childList:true,subtree:true}); attacherAideCouleur(); };
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",go); else go(); })();
 function renderVB(t){
   const d=S.dossier; if(!d.vb) d.vb=nouveauVB(); const v=d.vb, C=VB_CAT();
   if(v.pose==="Sur gonds existants"){ v.pose=""; v.sur_gonds=true; save(); }   // anciens métrés

@@ -659,7 +659,7 @@ const textePoseGlobal = d => d.equipe_pose==="Sans pose" ? "Sans pose" : [d.equi
    Chez un même client : 3 jours de menuiseries, 2 jours de volets battants, 1 jour de portail… Réglé en haut de chaque onglet
    (d.pose_p = {ouvertures:{eq,duree}, vb:{…}, pt:{…}…}), récapitulé avec le total dans « Client & chantier » et sur le PDF.
    d.equipe_pose / d.jours_pose restent remplis (équipe la plus grande, durée totale) pour tout ce qui les lisait déjà. */
-const POSE_PARTIES=[["ouvertures","Menuiseries"],["vr","Volets roulants"],["pt","Portail"],["vb","Volets battants"],["zip","Stores zip"],["vit","Vitrages"],["per","Pergola / carport"],["gar","Portes de garage"],["gca","Garde-corps alu"],["sb","Store banne"],["pp","Portes palières"],["vt","Remplacement de vitrage"]];
+const POSE_PARTIES=[["ouvertures","Menuiseries"],["vr","Volets roulants"],["pt","Portail"],["vb","Volets battants"],["zip","Stores zip"],["vit","Vitrages"],["per","Pergola / carport"],["gar","Portes de garage"],["gca","Garde-corps alu"],["sb","Store banne"],["pp","Portes palières"],["pi","Portes intérieures"],["vt","Remplacement de vitrage"]];
 const partiesPose = d => { let v=[]; try{ v=ongletsVisibles(d); }catch(e){} return POSE_PARTIES.filter(([k])=>v.includes(k)); };
 const posePart = (d,k) => Object.assign({eq:"",duree:""}, (d.pose_p||{})[k]||{});
 const poseParParties = d => !!d.pose_p && Object.values(d.pose_p).some(p=>p&&(p.eq||p.duree));
@@ -1694,7 +1694,7 @@ function controleDossier(d){
   if(!d.client.date_rdv) W.push("Date du RDV manquante");
   if(!d.adresse_chantier) W.push("Adresse du chantier manquante");
   partiesPose(d).forEach(([k,l])=>{ const p=posePart(d,k); if(p.eq==="Sans pose") return; if(!p.eq) W.push(`Pose ${l.toLowerCase()} : nombre de personnes non choisi (en haut de l'onglet ${l})`); if(!p.duree) W.push(`Pose ${l.toLowerCase()} : temps de pose non choisi (en haut de l'onglet ${l})`); });
-  if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aClim(d) && !aVB(d) && !aZIP(d) && !aVIT(d) && !aPER(d) && !aGAR(d) && !aGCA(d) && !aSB(d) && !aPT(d) && !aPP(d) && !aSAV(d) && !aVT(d)) E.push("Aucune ouverture, volet, portail ni climatisation saisi");
+  if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aClim(d) && !aVB(d) && !aZIP(d) && !aVIT(d) && !aPER(d) && !aGAR(d) && !aGCA(d) && !aSB(d) && !aPT(d) && !aPP(d) && !aPI(d) && !aSAV(d) && !aVT(d)) E.push("Aucune ouverture, volet, portail ni climatisation saisi");
   if(aClim(d) && aAutreQueClim(d)) E.push("Clim et menuiseries / volets / portail dans le même devis : la clim doit être un devis à part (onglet Climatisation › « Sortir la clim »)");
   comparerDevisDossier(d, E, W);
   return {E,W};
@@ -1796,11 +1796,11 @@ function listeErreurs(d){ normaliser(d); const L=[], add=(ou,E,go)=>E.forEach(e=
   add("Client",controleDossier(d).E,{tab:"client"});
   d.ouvertures.forEach((o,i)=>add(`${o.num_poseur?"N°"+o.num_poseur+" ":""}${o.repere||"Ouverture "+(i+1)}`,controleOuverture(o,d).E,{ouv:o.id}));
   add("Volets roulants",controleVREntete(vrSeparees(d.vr)).E,{tab:"vr"}); d.vr.lignes.forEach((l,i)=>add(`Volet ${l.repere||i+1}`,controleLigneVR(l,d.vr).E,vrUsine(l)&&l.ouv_id?{ouv:l.ouv_id}:{tab:"vr"}));   // monobloc : on corrige sur la fiche de l'ouverture
-  if(aClim(d)) add("Clim",controleClim(d).E,{tab:"clim"}); if(aVB(d)) add("Volets battants",controleVB(d).E,{tab:"vb"}); if(aZIP(d)) add("Stores zip",controleZIP(d).E,{tab:"zip"}); if(aVIT(d)) add("Vitrages",controleVIT(d).E,{tab:"vit"}); if(aPER(d)) add("Pergola / carport",controlePER(d).E,{tab:"per"}); if(aGAR(d)) add("Portes de garage",controleGAR(d).E,{tab:"gar"}); if(aGCA(d)) add("Garde-corps alu",controleGCA(d).E,{tab:"gca"}); if(aSB(d)) add("Store banne",controleSB(d).E,{tab:"sb"}); if(aPT(d)) add("Portail",controlePT(d).E,{tab:"pt"}); if(aPP(d)) add("Portes palières",controlePP(d).E,{tab:"pp"}); if(aSAV(d)) add("Fiche SAV",controleSAV(d).E,{tab:"sav"}); if(aVT(d)) add("Vitrages",controleVT(d).E,{tab:"vt"});
+  if(aClim(d)) add("Clim",controleClim(d).E,{tab:"clim"}); if(aVB(d)) add("Volets battants",controleVB(d).E,{tab:"vb"}); if(aZIP(d)) add("Stores zip",controleZIP(d).E,{tab:"zip"}); if(aVIT(d)) add("Vitrages",controleVIT(d).E,{tab:"vit"}); if(aPER(d)) add("Pergola / carport",controlePER(d).E,{tab:"per"}); if(aGAR(d)) add("Portes de garage",controleGAR(d).E,{tab:"gar"}); if(aGCA(d)) add("Garde-corps alu",controleGCA(d).E,{tab:"gca"}); if(aSB(d)) add("Store banne",controleSB(d).E,{tab:"sb"}); if(aPT(d)) add("Portail",controlePT(d).E,{tab:"pt"}); if(aPP(d)) add("Portes palières",controlePP(d).E,{tab:"pp"}); if(aPI(d)) add("Portes intérieures",controlePI(d).E,{tab:"pi"}); if(aSAV(d)) add("Fiche SAV",controleSAV(d).E,{tab:"sav"}); if(aVT(d)) add("Vitrages",controleVT(d).E,{tab:"vt"});
   return L; }
 function allerErreur(go){ if(!go) return; if(go.ouv){ const o=S.dossier.ouvertures.find(x=>x.id===go.ouv); if(o){ S.ouv=o; renderOuverture(); scrollTo(0,0); return; } } S.tab=go.tab||"client"; renderDossier(); scrollTo(0,0); }
 function nbErreurs(d){ normaliser(d); return controleDossier(d).E.length + d.ouvertures.reduce((a,o)=>a+controleOuverture(o,d).E.length,0)
-  + controleVREntete(vrSeparees(d.vr)).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0) + (aClim(d)?controleClim(d).E.length:0) + (aVB(d)?controleVB(d).E.length:0) + (aZIP(d)?controleZIP(d).E.length:0) + (aVIT(d)?controleVIT(d).E.length:0) + (aPER(d)?controlePER(d).E.length:0) + (aGAR(d)?controleGAR(d).E.length:0) + (aGCA(d)?controleGCA(d).E.length:0) + (aSB(d)?controleSB(d).E.length:0) + (aPT(d)?controlePT(d).E.length:0) + (aPP(d)?controlePP(d).E.length:0) + (aSAV(d)?controleSAV(d).E.length:0) + (aVT(d)?controleVT(d).E.length:0); }
+  + controleVREntete(vrSeparees(d.vr)).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0) + (aClim(d)?controleClim(d).E.length:0) + (aVB(d)?controleVB(d).E.length:0) + (aZIP(d)?controleZIP(d).E.length:0) + (aVIT(d)?controleVIT(d).E.length:0) + (aPER(d)?controlePER(d).E.length:0) + (aGAR(d)?controleGAR(d).E.length:0) + (aGCA(d)?controleGCA(d).E.length:0) + (aSB(d)?controleSB(d).E.length:0) + (aPT(d)?controlePT(d).E.length:0) + (aPP(d)?controlePP(d).E.length:0) + (aPI(d)?controlePI(d).E.length:0) + (aSAV(d)?controleSAV(d).E.length:0) + (aVT(d)?controleVT(d).E.length:0); }
 
 /* ---------- Catalogue : aides ---------- */
 const GAMME_COULEUR = { "PVC - REHAU PORTEO":"REHAU", "PVC - FENSTAR FLAT (droit)":"FENSTAR", "PVC - FENSTAR NEW (arrondie)":"FENSTAR",
@@ -2052,13 +2052,13 @@ function majTitre(){ if(S.dossier) setBar(`${S.dossier.client.nom||"Nouveau clie
 const cleClient = d => (d.client.nom||"").trim().toUpperCase().replace(/\s+/g," ") || ("#"+d.id);
 function groupesClients(ds){ const M=new Map(); ds.forEach(d=>{ const k=cleClient(d); if(!M.has(k)) M.set(k,{cle:k, nom:d.client.nom||"Sans nom", L:[]}); M.get(k).L.push(d); });
   return [...M.values()].map(G=>{ G.L.sort((x,y)=>String(x.devis_nom||x.variante).localeCompare(String(y.devis_nom||y.variante),"fr",{numeric:true})); return G; }); }
-const contenuDevis = d => [d.ouvertures.length&&"Menuiseries", d.vr&&d.vr.lignes.length&&"Volets roulants", aPT(d)&&"Portail", aVB(d)&&"Volets battants", aZIP(d)&&"Stores zip", aVIT(d)&&"Vitrages", aPER(d)&&"Pergola / carport", aGAR(d)&&"Portes de garage", aGCA(d)&&"Garde-corps alu", aSB(d)&&"Store banne", aPP(d)&&"Portes palières", aVT(d)&&"Vitrages", aClim(d)&&"Clim", aSAV(d)&&"🔧 SAV"].filter(Boolean).join(" + ")||"Devis vide";
+const contenuDevis = d => [d.ouvertures.length&&"Menuiseries", d.vr&&d.vr.lignes.length&&"Volets roulants", aPT(d)&&"Portail", aVB(d)&&"Volets battants", aZIP(d)&&"Stores zip", aVIT(d)&&"Vitrages", aPER(d)&&"Pergola / carport", aGAR(d)&&"Portes de garage", aGCA(d)&&"Garde-corps alu", aSB(d)&&"Store banne", aPP(d)&&"Portes palières", aPI(d)&&"Portes intérieures", aVT(d)&&"Vitrages", aClim(d)&&"Clim", aSAV(d)&&"🔧 SAV"].filter(Boolean).join(" + ")||"Devis vide";
 function carteMetre(d, sous=false){ normaliser(d); const n=nbErreurs(d);
   const cf=d._conflit?`<div class="conflit" style="margin:6px 0;padding:8px 10px;border:2px solid #d3232f;border-radius:8px;background:#fdecec;color:#7a1218">⚠ <b>Modifié sur cet appareil et sur un autre</b> (autre version enregistrée le ${new Date(d._conflit.le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})}). Laquelle garder ?
       <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" data-cfd="${d.id}">Prendre celle de l'autre appareil</button><button class="btn small" data-cfl="${d.id}">Garder celle de cet appareil</button></div></div>`:"";
   return `<div class="item${S.selMode&&S.sel.has(d.id)?" sel":""}" data-id="${d.id}">${cf}
       <div class="row">${S.selMode?`<input type="checkbox" class="hchk" ${S.sel.has(d.id)?"checked":""} aria-label="Sélectionner">`:""}${sous?`<span class="t">${d.devis_nom?esc(d.devis_nom):`<i style="font-weight:600;color:#6b7385">${esc(contenuDevis(d))}</i>`}</span><button class="btn small" data-hren="${d.id}" title="Renommer ce devis" aria-label="Renommer ce devis" style="margin-left:6px">✏️</button>`:`<span class="t">${esc(d.client.nom||"Sans nom")}</span>${d.devis_nom?`<span class="badge b-warn" style="margin-left:6px">${esc(d.devis_nom)}</span>`:""}`}<span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span>${S.selMode?"":`<button class="btn small danger" data-hdel="${d.id}" title="Supprimer ce métré" aria-label="Supprimer ce métré">🗑</button>`}</div>
-      <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.filter(o=>!estVariante(o)).length} ouverture(s)${d.ouvertures.some(estVariante)?` (+ ${d.ouvertures.filter(estVariante).length} variante(s))`:""}${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}${aPT(d)?` · ${d.pt.elements.length} portail / portillon`:""}${aVB(d)?` · ${d.vb.lignes.length} volet(s) battant(s)`:""}${aZIP(d)?` · ${d.zip.lignes.length} store(s) zip`:""}${aVIT(d)?` · ${d.vit.lignes.length} vitrage(s)`:""}${aPER(d)?` · ${d.per.lignes.length} pergola(s) / carport(s)`:""}${aGAR(d)?` · ${d.gar.lignes.length} portes de garage`:""}${aGCA(d)?` · ${d.gca.lignes.length} garde-corps alu`:""}${aSB(d)?` · ${d.sb.lignes.length} store banne`:""}${aPP(d)?` · ${d.pp.lignes.length} porte(s) palière(s)`:""}${aClim(d)?` · clim ${d.clim.lignes.length} pièce(s)`:""}</div>
+      <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.filter(o=>!estVariante(o)).length} ouverture(s)${d.ouvertures.some(estVariante)?` (+ ${d.ouvertures.filter(estVariante).length} variante(s))`:""}${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}${aPT(d)?` · ${d.pt.elements.length} portail / portillon`:""}${aVB(d)?` · ${d.vb.lignes.length} volet(s) battant(s)`:""}${aZIP(d)?` · ${d.zip.lignes.length} store(s) zip`:""}${aVIT(d)?` · ${d.vit.lignes.length} vitrage(s)`:""}${aPER(d)?` · ${d.per.lignes.length} pergola(s) / carport(s)`:""}${aGAR(d)?` · ${d.gar.lignes.length} portes de garage`:""}${aGCA(d)?` · ${d.gca.lignes.length} garde-corps alu`:""}${aSB(d)?` · ${d.sb.lignes.length} store banne`:""}${aPP(d)?` · ${d.pp.lignes.length} porte(s) palière(s)`:""}${aPI(d)?` · ${d.pi.lignes.length} porte(s) intérieure(s)`:""}${aClim(d)?` · clim ${d.clim.lignes.length} pièce(s)`:""}</div>
       <div>${n?`<span class="badge b-err">${n} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} <span class="badge ${estDefinitif(d)?"b-err":"b-n"}">${estDefinitif(d)?"Métré définitif":"Devis"}</span> ${d.drive_attente?`<span class="badge b-n">☁ envoi en attente</span>`:d.drive?`<span class="badge b-ok">☁ dans le Drive</span>`:""} ${envoisClemence(d).length?`<span class="badge b-ok">📨 Clémence ${new Date(envoisClemence(d).slice(-1)[0].le).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</span>`:""}</div>
     </div>`; }
 /* Avant d'ouvrir un métré : s'il a pu changer sur un autre appareil, on récupère d'abord la dernière version du Drive (18/11/2026) */
@@ -2209,7 +2209,7 @@ function renderDossier0(){
   if(S.chronoVu!==d.id){ S.chronoVu=d.id; if(chronoOuverture(d)) DB.put(d,true); }
   if(S.tab==="chantier") S.tab="client";
   if(!ongletsVisibles(d).includes(S.tab)) S.tab=ongletsVisibles(d)[0];
-  const T=[["client","Client & chantier"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["pt",`Portail${d.pt&&d.pt.elements.length?` (${d.pt.elements.length})`:""}`],["vb",`Volets battants${d.vb&&d.vb.lignes.length?` (${d.vb.lignes.length})`:""}`],["zip",`Stores zip${d.zip&&d.zip.lignes.length?` (${d.zip.lignes.length})`:""}`],["vit",`Vitrages${d.vit&&d.vit.lignes.length?` (${d.vit.lignes.length})`:""}`],["per",`Pergola / carport${d.per&&d.per.lignes.length?` (${d.per.lignes.length})`:""}`],["gar",`Portes de garage${d.gar&&d.gar.lignes.length?` (${d.gar.lignes.length})`:""}`],["gca",`Garde-corps alu${d.gca&&d.gca.lignes.length?` (${d.gca.lignes.length})`:""}`],["sb",`Store banne${d.sb&&d.sb.lignes.length?` (${d.sb.lignes.length})`:""}`],["pp",`Portes palières${d.pp&&d.pp.lignes.length?` (${d.pp.lignes.length})`:""}`],["vt",`Vitrages${d.vt&&d.vt.lignes.length?` (${d.vt.lignes.length})`:""}`],["clim",`Climatisation${d.clim&&d.clim.lignes.length?` (${d.clim.lignes.length})`:""}`],["sav","🔧 Fiche SAV"],["controle","Contrôle"]];
+  const T=[["client","Client & chantier"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["pt",`Portail${d.pt&&d.pt.elements.length?` (${d.pt.elements.length})`:""}`],["vb",`Volets battants${d.vb&&d.vb.lignes.length?` (${d.vb.lignes.length})`:""}`],["zip",`Stores zip${d.zip&&d.zip.lignes.length?` (${d.zip.lignes.length})`:""}`],["vit",`Vitrages${d.vit&&d.vit.lignes.length?` (${d.vit.lignes.length})`:""}`],["per",`Pergola / carport${d.per&&d.per.lignes.length?` (${d.per.lignes.length})`:""}`],["gar",`Portes de garage${d.gar&&d.gar.lignes.length?` (${d.gar.lignes.length})`:""}`],["gca",`Garde-corps alu${d.gca&&d.gca.lignes.length?` (${d.gca.lignes.length})`:""}`],["sb",`Store banne${d.sb&&d.sb.lignes.length?` (${d.sb.lignes.length})`:""}`],["pp",`Portes palières${d.pp&&d.pp.lignes.length?` (${d.pp.lignes.length})`:""}`],["pi",`Portes intérieures${d.pi&&d.pi.lignes.length?` (${d.pi.lignes.length})`:""}`],["vt",`Vitrages${d.vt&&d.vt.lignes.length?` (${d.vt.lignes.length})`:""}`],["clim",`Climatisation${d.clim&&d.clim.lignes.length?` (${d.clim.lignes.length})`:""}`],["sav","🔧 Fiche SAV"],["controle","Contrôle"]];
   const def=estDefinitif(d);
   $("#app").innerHTML=`
   <div class="circuit" role="group" aria-label="Type de métré">
@@ -2351,7 +2351,7 @@ function renderDossier0(){
       if(!await demander(lv?"Supprimer cette ouverture et son volet roulant ?":"Supprimer cette ouverture ?","Supprimer")) return;
       d.ouvertures=d.ouvertures.filter(x=>x.id!==b.dataset.del); if(lv) d.vr.lignes=d.vr.lignes.filter(l=>l!==lv); save(); renderDossier(); });
   }
-  const climAPart = (S.tab==="clim" && aAutreQueClim(d)) || (["ouvertures","vr","pt","vb","zip","vit","per","gar","gca","sb","pp","vt"].includes(S.tab) && aClim(d) && !aAutreQueClim(d));
+  const climAPart = (S.tab==="clim" && aAutreQueClim(d)) || (["ouvertures","vr","pt","vb","zip","vit","per","gar","gca","sb","pp","pi","vt"].includes(S.tab) && aClim(d) && !aAutreQueClim(d));
   if(climAPart){ carteDevisAPart(d, t); }
   else {
   if(POSE_PARTIES.some(([k])=>k===S.tab)) $("#posePart").innerHTML=blocPosePartie(d,S.tab);
@@ -2365,6 +2365,7 @@ function renderDossier0(){
   if(S.tab==="gca") renderGCA(t);
   if(S.tab==="sb") renderSB(t);
   if(S.tab==="pp") renderPP(t);
+  if(S.tab==="pi") renderPI(t);
   if(S.tab==="sav") renderSAV(t);
   if(S.tab==="vt") renderVT(t);
   if(S.tab==="pt") renderPT(t);
@@ -2383,6 +2384,7 @@ function renderDossier0(){
       +(aGCA(d)?bloc("Garde-corps alu",controleGCA(d)):"")
       +(aSB(d)?bloc("Store banne",controleSB(d)):"")
       +(aPP(d)?bloc("Portes palières HUET",controlePP(d)):"")
+      +(aPI(d)?bloc("Portes intérieures HUET",controlePI(d)):"")
       +(aSAV(d)?bloc("Fiche SAV",controleSAV(d)):"")
       +(aVT(d)?bloc("Remplacement de vitrage",controleVT(d)):"")
       +(aClim(d)?bloc("Climatisation",controleClim(d)):"")
@@ -3733,7 +3735,7 @@ const nomSchema = (c,k) => (c.sch_noms&&c.sch_noms[k]) || CLIM_SCH_DEF[k] || `Sc
 /* ---------- Nouveau rendez-vous : un seul bouton, « Qu'est-ce qu'on mesure ? » (17/11/2026) ----------
    Crée le bon dossier client avec les bons devis : menuiseries / VR / portail / VB / portes palières ensemble, la clim TOUJOURS à part. */
 /* 20/11 : chaque type a son petit logo – en ajouter un pour tout nouveau type */
-const TYPES_RDV = [["menuiseries","🪟 Menuiseries"],["vr","🎚️ Volets roulants"],["pt","🏡 Portail / portillon"],["vb","🏠 Volets battants"],["zip","🔳 Stores zip"],["vit","🪟 Vitrages"],["per","🌿 Pergola / carport (GardenGate)"],["gar","🚗 Portes de garage"],["gca","🛡️ Garde-corps alu (La Toulousaine)"],["sb","⛱️ Store banne (Marquises)"],["pp","🚪 Portes palières (HUET)"],["clim","❄️ Climatisation (devis à part)"],["sav","🔧 SAV (fiche à part)"]];
+const TYPES_RDV = [["menuiseries","🪟 Menuiseries"],["vr","🎚️ Volets roulants"],["pt","🏡 Portail / portillon"],["vb","🏠 Volets battants"],["zip","🔳 Stores zip"],["vit","🪟 Vitrages"],["per","🌿 Pergola / carport (GardenGate)"],["gar","🚗 Portes de garage"],["gca","🛡️ Garde-corps alu (La Toulousaine)"],["sb","⛱️ Store banne (Marquises)"],["pp","🚪 Portes palières (HUET)"],["pi","🚪 Portes intérieures (HUET)"],["clim","❄️ Climatisation (devis à part)"],["sav","🔧 SAV (fiche à part)"]];
 function initTypes(d, types){
   d.types=[...new Set([...(d.types||[]), ...types.filter(t=>t!=="clim"&&t!=="sav")])];
   if(types.includes("pt") && !aPT(d)){ d.pt=d.pt||nouveauPT(); if(!d.pt.elements.length) d.pt.elements.push(nouvelElementPT("BATTANT")); }
@@ -3746,9 +3748,10 @@ function initTypes(d, types){
   if(types.includes("vb") && !aVB(d)){ d.vb=d.vb||nouveauVB(); if(!d.vb.lignes.length) d.vb.lignes.push(nouvelleLigneVB()); }
   if(types.includes("vt") && !aVT(d)){ d.vt=d.vt||nouveauVT(); if(!d.vt.lignes.length) d.vt.lignes.push(nouvelleLigneVT()); }
   if(types.includes("pp") && !aPP(d)){ d.pp=d.pp||nouveauPP(); if(!d.pp.lignes.length) d.pp.lignes.push(nouvelleLignePP()); }
+  if(types.includes("pi") && !aPI(d)){ d.pi=d.pi||nouveauPI(); if(!d.pi.lignes.length) d.pi.lignes.push(nouvelleLignePI()); }
   return d;
 }
-function premierOnglet(d){ if(aSAV(d)) return "sav"; return (d.types||[]).find(t=>["menuiseries","vr","pt","vb","zip","vit","per","gar","gca","sb","pp","vt"].includes(t))?.replace("menuiseries","ouvertures") || (aClim(d)?"clim":"ouvertures"); }
+function premierOnglet(d){ if(aSAV(d)) return "sav"; return (d.types||[]).find(t=>["menuiseries","vr","pt","vb","zip","vit","per","gar","gca","sb","pp","pi","vt"].includes(t))?.replace("menuiseries","ouvertures") || (aClim(d)?"clim":"ouvertures"); }
 async function nouveauRendezVous(pre={}){
   const clients=[...new Set((await DB.all()).map(x=>x.client.nom).filter(Boolean))].sort();
   return new Promise(ok=>{
@@ -3811,10 +3814,10 @@ async function ajouterAuMetre(d){
 function ongletsVisibles(d){
   if(aSAV(d)) return ["sav","controle"];   // fiche SAV : document à part
   const t=new Set(d.types||[]), v=["client"];
-  const rien=!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aPT(d) && !aVB(d) && !aZIP(d) && !aVIT(d) && !aPER(d) && !aGAR(d) && !aGCA(d) && !aSB(d) && !aPP(d) && !aVT(d) && !aClim(d) && !t.size;
+  const rien=!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aPT(d) && !aVB(d) && !aZIP(d) && !aVIT(d) && !aPER(d) && !aGAR(d) && !aGCA(d) && !aSB(d) && !aPP(d) && !aPI(d) && !aVT(d) && !aClim(d) && !t.size;
   if(rien || t.has("menuiseries") || d.ouvertures.length) v.push("ouvertures");
   if(vrSeparees(d.vr).lignes.length || (t.has("vr") && !(d.vr&&d.vr.lignes.length))) v.push("vr");   // seulement s'il y a des volets à part (pas les monoblocs posés sur la menuiserie)
-  if(t.has("pt") || aPT(d)) v.push("pt"); if(t.has("vb") || aVB(d)) v.push("vb"); if(t.has("zip") || aZIP(d)) v.push("zip"); if(t.has("vit") || aVIT(d)) v.push("vit"); if(t.has("per") || aPER(d)) v.push("per"); if(t.has("gar") || aGAR(d)) v.push("gar"); if(t.has("gca") || aGCA(d)) v.push("gca"); if(t.has("sb") || aSB(d)) v.push("sb"); if(t.has("pp") || aPP(d)) v.push("pp"); if(t.has("vt") || aVT(d)) v.push("vt");
+  if(t.has("pt") || aPT(d)) v.push("pt"); if(t.has("vb") || aVB(d)) v.push("vb"); if(t.has("zip") || aZIP(d)) v.push("zip"); if(t.has("vit") || aVIT(d)) v.push("vit"); if(t.has("per") || aPER(d)) v.push("per"); if(t.has("gar") || aGAR(d)) v.push("gar"); if(t.has("gca") || aGCA(d)) v.push("gca"); if(t.has("sb") || aSB(d)) v.push("sb"); if(t.has("pp") || aPP(d)) v.push("pp"); if(t.has("pi") || aPI(d)) v.push("pi"); if(t.has("vt") || aVT(d)) v.push("vt");
   if(aClim(d)) v.push("clim");
   v.push("controle"); return v;
 }
@@ -3826,7 +3829,7 @@ function initBarreLogement(d, re){ const s=$("#logCourant"); if(!s) return; s.on
 function avecLogement(d, repere){ if(!d.logement_courant || !repere) return repere; const r=repDecoupe(repere); if(r.log) return repere; r.log=d.logement_courant; return repCompose(r)||repere; }
 
 /* ---------- La clim est TOUJOURS un devis à part (Nicolas, 17/11/2026) : jamais avec menuiseries, volets, portail… ---------- */
-const aAutreQueClim = d => !!(d.ouvertures.length || (typeof aVT==="function"&&aVT(d)) || (d.vr&&d.vr.lignes.length) || (typeof aPT==="function"&&aPT(d)) || (typeof aVB==="function"&&aVB(d)) || (typeof aZIP==="function"&&aZIP(d)) || (typeof aVIT==="function"&&aVIT(d)) || (typeof aPER==="function"&&aPER(d)) || (typeof aGAR==="function"&&aGAR(d)) || (typeof aGCA==="function"&&aGCA(d)) || (typeof aSB==="function"&&aSB(d)) || (typeof aPP==="function"&&aPP(d)));
+const aAutreQueClim = d => !!(d.ouvertures.length || (typeof aVT==="function"&&aVT(d)) || (d.vr&&d.vr.lignes.length) || (typeof aPT==="function"&&aPT(d)) || (typeof aVB==="function"&&aVB(d)) || (typeof aZIP==="function"&&aZIP(d)) || (typeof aVIT==="function"&&aVIT(d)) || (typeof aPER==="function"&&aPER(d)) || (typeof aGAR==="function"&&aGAR(d)) || (typeof aGCA==="function"&&aGCA(d)) || (typeof aSB==="function"&&aSB(d)) || (typeof aPP==="function"&&aPP(d)) || (typeof aPI==="function"&&aPI(d)));
 async function sortirClim(d){
   const nom=await demanderTexte(`La clim part dans un devis à part pour ${d.client.nom||"ce client"}.\nNom de ce devis clim :`, d.devis_nom?d.devis_nom+" clim":"Clim", "Créer le devis clim"); if(!nom) return;
   const c=copierClient(d, nouveauDossier()); c.devis_nom=nom; c.variante=d.variante||"V1"; c.clim=d.clim; if(d.drive&&d.drive.dossier) c.drive={dossier:d.drive.dossier};
@@ -6475,6 +6478,88 @@ function pagesPP(d, head, row){
   return h;
 }
 
+
+/* ---------- Portes intérieures HUET (bloc-porte de communication) – 27/11/2026 ----------
+   Relevé dans ProDevis en LECTURE SEULE (bibliothèque « HUET – BLOC PORTE COMMUNICATION 2026-11 », fiche produit, rien enregistré) :
+   collections, Bloc porte / Porte seule / Huisserie seule, dimensions standards 830 × 2040 (maxi 1860 × 2500), sens gauche / droite poussant,
+   finition prépeint / laqué blanc mat, oculus, huisserie (type, essence, section), serrure pène dormant demi-tour axe 50, garnitures. */
+const PI_COLLECTIONS = ["Collection PLANE","Collection POSTFORME","Collection TECHNIDECOR","Collection MATRICEE","Collection INSERT","Collection MODULIGHT","Collection PLAQUEE / STRATIFIEE"];
+const PI_AMES = ["Porte alvéolaire","Porte confort (âme pleine)","Porte isolante Isad K0.9","Porte isolante Isad K1.6"];
+const PI_FOURNITURE = ["Bloc porte (porte + huisserie)","Porte seule","Huisserie seule"];
+const PI_FINITIONS = ["Prépeint","Laqué blanc (mat)","Plaqué / stratifié (coloris à préciser)"];
+const PI_OCULUS = ["Sans oculus","Oculus – vitrage non fourni","Oculus – vitrage fourni et posé"];
+const PI_HUISSERIES = ["Huisserie bois (cadre résineux)","Huisserie bois exotique","Huisserie métallique","Huisserie à recouvrement (rénovation)"];
+const PI_SERRURES = ["Pène dormant demi-tour axe 50 (PD1/2T) – trou de clé","Bec de cane (sans clé)","Condamnation WC / SDB","Serrure à cylindre"];
+const PI_GARNITURES = ["Garniture 165 (100+55)","Garniture 195 (130+65)","Rosace béquille uniquement"];
+const PI_ETANCHEITE = ["Sans étanchéité basse","Plinthe automatique","Joint balai"];
+const PI_TYPES = ["1 vantail","2 vantaux","Coulissante à galandage (caisson)"];
+const PI_SENS = ["Gauche poussant","Droite poussant"];
+const PI_STD_L = [630,730,830,930];
+const nouveauPI = () => ({ collection:PI_COLLECTIONS[0], ame:PI_AMES[0], fourniture:PI_FOURNITURE[0], finition:PI_FINITIONS[0], coloris:"", huisserie:"", serrure:PI_SERRURES[0], garniture:"", etancheite:PI_ETANCHEITE[0], oculus:PI_OCULUS[0], lignes:[], photos:[] });
+const nouvelleLignePI = () => ({ id:uid(), repere:"", qte:"1", type:PI_TYPES[0], sens:"", L:"830", H:"2040", cloison:"", passage_L:"", passage_H:"", condamnation:false, obs:"" });
+const aPI = d => !!(d.pi && d.pi.lignes.length);
+function controlePI(d){ const p=d.pi, E=[], W=[]; if(!p) return {E,W};
+  if(!p.collection) E.push("Collection non choisie"); if(!p.finition) E.push("Finition non choisie");
+  if(/plaqu|stratif/i.test(p.finition||"") && !p.coloris) E.push("Coloris du plaqué / stratifié à préciser");
+  if(p.fourniture!=="Porte seule" && !p.huisserie) W.push("Type d'huisserie non choisi");
+  if(!p.garniture) W.push("Garniture (béquille) non choisie");
+  if(!p.lignes.length) E.push("Aucune porte saisie");
+  p.lignes.forEach((l,i)=>{ const n=l.repere||`porte ${i+1}`, L=num(l.L), H=num(l.H), c=num(l.cloison);
+    if(L==null||H==null) E.push(`${n} : largeur / hauteur manquante`);
+    if(L!=null && L>1860) E.push(`${n} : largeur ${L} > 1860 maxi HUET`); if(H!=null && H>2500) E.push(`${n} : hauteur ${H} > 2500 maxi HUET`);
+    if(!l.sens && l.type!=="Coulissante à galandage (caisson)") E.push(`${n} : sens d'ouverture non choisi`);
+    if(p.fourniture!=="Porte seule" && c==null) E.push(`${n} : épaisseur de cloison manquante (section de l'huisserie)`);
+    if(L!=null && H!=null && !(PI_STD_L.includes(L) && H===2040)) W.push(`${n} : ${L} × ${H} hors dimensions standards (630 / 730 / 830 / 930 × 2040) → sur mesure`); });
+  return {E,W}; }
+function renderPI(t){
+  const d=S.dossier; if(!d.pi) d.pi=nouveauPI(); const p=d.pi;
+  const ligne=l=>{ const i=p.lignes.indexOf(l), k=`pi.lignes.${i}.`;
+    return `<div class="card clim-l"><div class="row" style="margin-bottom:8px"><b>${esc(l.repere||"Nouvelle porte")}</b><span class="spacer"></span>
+      <button class="btn small" data-pidup="${i}">⧉ Comme celle-ci</button><button class="btn small danger" data-pidel="${i}" aria-label="Supprimer la porte">✕</button></div>
+      <div class="grid g4">
+        <label class="f">Repère (pièce)<div class="rep-in"><input data-k="${k}repere" value="${esc(l.repere)}" list="dlPiecesPI">${boutonRep(k+"repere")}</div></label>${F.numb(k+"qte","Quantité",l.qte)}
+        ${F.sel(k+"type","Type",PI_TYPES,l.type)}${l.type==="Coulissante à galandage (caisson)"?"<div></div>":F.sel(k+"sens","Sens d'ouverture (côté poussant)",PI_SENS,l.sens)}
+        ${F.numb(k+"L","Largeur porte (mm) – std 630/730/830/930",l.L)}${F.numb(k+"H","Hauteur porte (mm) – std 2040",l.H)}
+        ${F.numb(k+"cloison","Épaisseur de cloison (mm)",l.cloison)}<div class="checks" style="align-self:end">${F.chk(k+"condamnation","Condamnation (WC / SDB)",l.condamnation)}</div>
+        ${F.numb(k+"passage_L","Largeur de passage relevée (mm)",l.passage_L)}${F.numb(k+"passage_H","Hauteur de passage relevée (mm)",l.passage_H)}
+      </div><div style="margin-top:8px">${F.text(k+"obs","Observation",l.obs)}</div></div>`; };
+  t.innerHTML=`<datalist id="dlPiecesPI">${listePiecesDL()}</datalist>
+  <div class="card"><h2><span class="num">1</span>Portes intérieures – HUET <small style="font-weight:400;text-transform:none">– bloc-porte de communication (ProDevis : HUET – BLOC PORTE COMMUNICATION)</small></h2><div class="grid g4">
+    <div style="grid-column:span 2">${F.sel("pi.collection","Collection",PI_COLLECTIONS,p.collection)}</div><div style="grid-column:span 2">${F.sel("pi.ame","Porte (âme)",PI_AMES,p.ame)}</div>
+    ${F.sel("pi.fourniture","Fourniture",PI_FOURNITURE,p.fourniture)}${F.sel("pi.finition","Finition",PI_FINITIONS,p.finition)}
+    ${/plaqu|stratif/i.test(p.finition||"")?F.text("pi.coloris","Coloris plaqué / stratifié",p.coloris):"<div></div>"}${F.sel("pi.oculus","Oculus",PI_OCULUS,p.oculus)}
+    ${p.fourniture==="Porte seule"?"":F.sel("pi.huisserie","Huisserie",PI_HUISSERIES,p.huisserie)}${F.sel("pi.serrure","Serrure",PI_SERRURES,p.serrure)}
+    ${F.sel("pi.garniture","Garniture / béquille",PI_GARNITURES,p.garniture)}${F.sel("pi.etancheite","Étanchéité basse",PI_ETANCHEITE,p.etancheite)}
+  </div><p class="hint">HUET : dimensions standards 830 × 2040 (aussi 630 / 730 / 930), maxi 1860 × 2500. Pour un bloc-porte, l'épaisseur de cloison donne la section de l'huisserie.</p></div>
+  <div class="row" style="margin:14px 0 8px"><h2 style="margin:0"><span class="num">2</span> Portes</h2><span class="spacer"></span><button class="btn primary" id="piAdd">+ Ajouter une porte</button></div>
+  ${p.lignes.map(ligne).join("")||`<p class="hint">Aucune porte. Appuie sur « + Ajouter une porte ».</p>`}
+  <div class="card"><h2><span class="num">3</span>Photos</h2>
+    <div class="photos">${p.photos.map((ph,k)=>`<figure class="photo"><img src="${ph.img}" alt="Photo ${k+1}" data-phedit="${k}">
+      <textarea data-k="pi.photos.${k}.txt" rows="2" placeholder="Repère et remarque">${esc(ph.txt||"")}</textarea>
+      <div class="row"><button class="btn small" data-phedit="${k}">✏️ Annoter</button><span class="spacer"></span><button class="btn small danger" data-phdel="${k}" aria-label="Supprimer la photo ${k+1}">✕</button></div></figure>`).join("")}
+    <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple id="phAdd" class="hide"></label></div></div>`;
+  const re=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); };
+  $("#piAdd").onclick=()=>{ const s=p.lignes[p.lignes.length-1]; p.lignes.push(Object.assign(nouvelleLignePI(), s?{type:s.type, sens:s.sens, L:s.L, H:s.H, cloison:s.cloison}:{})); save(); re(); };
+  $$("[data-pidel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer cette porte ?","Supprimer")) return; p.lignes.splice(+b.dataset.pidel,1); save(); re(); });
+  $$("[data-pidup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.pidup, n=Object.assign(JSON.parse(JSON.stringify(p.lignes[i])),{id:uid(), repere:""}); p.lignes.splice(i+1,0,n); save(); re(); });
+  ["pi.finition","pi.fourniture"].forEach(k=>{ const el=$(`[data-k="${k}"]`); if(el) el.addEventListener("change",()=>setTimeout(re,0)); });
+  $$('[data-k$=".type"]').forEach(el=>{ if(/^pi\./.test(el.dataset.k)) el.addEventListener("change",()=>setTimeout(re,0)); });
+  initPhotos(p, re);
+}
+function pagesPI(d, head, row){
+  const p=d.pi; if(!aPI(d)) return ""; const c=controlePI(d);
+  const commun=[["Collection",p.collection],["Porte",p.ame],["Fourniture",p.fourniture],["Finition",[p.finition,p.coloris].filter(Boolean).join(" – ")],["Huisserie",p.fourniture==="Porte seule"?"":p.huisserie],["Oculus",p.oculus],["Serrure",p.serrure],["Garniture",p.garniture],["Étanchéité basse",p.etancheite]];
+  let h=`<div class="pg">${head(`Portes intérieures HUET – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
+    <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","HUET – bloc-porte de communication"],["Nombre de portes",String(p.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div>
+    <div><table class="pt">${row(commun)}</table></div></div>
+    <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Type</th><th>Sens</th><th>Largeur</th><th>Hauteur</th><th>Cloison</th><th>Passage relevé</th><th>Condamn.</th><th>Observation</th></tr>
+    ${p.lignes.map((l,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.qte)}</td><td>${esc(l.type)}</td><td>${esc(l.type==="Coulissante à galandage (caisson)"?"":l.sens)}</td><td><b>${esc(l.L)}</b></td><td><b>${esc(l.H)}</b></td><td>${esc(l.cloison)}</td><td>${l.passage_L||l.passage_H?esc((l.passage_L||"?")+" × "+(l.passage_H||"?")):""}</td><td>${l.condamnation?"Oui":""}</td><td>${esc(l.obs)}</td></tr>`).join("")}</table>
+    ${c.E.length||c.W.length?`<div class="pwarn">À vérifier : ${esc([...c.E,...c.W].join(" · "))}</div>`:`<div class="pok">Contrôle OK</div>`}</div>`;
+  const ph=(p.photos||[]).filter(x=>x.img);
+  for(let i=0;i<ph.length;i+=4) h+=`<div class="pg">${head(`Portes intérieures – Photos${ph.length>4?` (${i/4+1})`:""} – ${d.client.nom||""}`)}
+    <div class="pphotos">${ph.slice(i,i+4).map((x,j)=>`<figure><img src="${x.img}"><figcaption><b>Photo ${i+j+1}</b>${x.txt?" – "+esc(x.txt):""}</figcaption></figure>`).join("")}</div></div>`;
+  return h;
+}
 /* ---------- PDF : feuilles « Volet » et « Schéma » de Nicolas ---------- */
 /* ancienne page volets battants (style feuille Numbers) remplacée le 17/11/2026 par la présentation menuiseries */
 /* ---------- Dessin d'un volet battant (vue de l'intérieur, comme le sens Corrèze) ---------- */
@@ -7582,7 +7667,7 @@ function construireImpression(d){
   }
   h=h.slice(0,h1)+avecPose(h.slice(h1),"vr");
   h+=avecPose(pagesPT2(d, head, row),"pt");
-  h+=avecPose(pagesVB(d, head, row),"vb"); h+=avecPose(pagesZIP(d, head, row),"zip"); h+=avecPose(pagesVIT(d, head, row),"vit"); h+=avecPose(pagesPER(d, head, row),"per"); h+=avecPose(pagesGAR(d, head, row),"gar"); h+=avecPose(pagesGCA(d, head, row),"gca"); h+=avecPose(pagesSB(d, head, row),"sb"); h+=avecPose(pagesPP(d, head, row),"pp"); h+=avecPose(pagesVT(d, head, row),"vt");
+  h+=avecPose(pagesVB(d, head, row),"vb"); h+=avecPose(pagesZIP(d, head, row),"zip"); h+=avecPose(pagesVIT(d, head, row),"vit"); h+=avecPose(pagesPER(d, head, row),"per"); h+=avecPose(pagesGAR(d, head, row),"gar"); h+=avecPose(pagesGCA(d, head, row),"gca"); h+=avecPose(pagesSB(d, head, row),"sb"); h+=avecPose(pagesPP(d, head, row),"pp"); h+=avecPose(pagesPI(d, head, row),"pi"); h+=avecPose(pagesVT(d, head, row),"vt");
   h+=pagesClim(d);
   return h;
 }
@@ -7796,6 +7881,7 @@ function nomMetre(d){
   if(typeof aGCA==="function" && aGCA(d)) mat.push("GARDE-CORPS");
   if(typeof aSB==="function" && aSB(d)) mat.push("STORE BANNE");
   if(typeof aPP==="function" && aPP(d)) mat.push("PORTES PALIERES");
+  if(typeof aPI==="function" && aPI(d)) mat.push("PORTES INTERIEURES");
   if(typeof aVT==="function" && aVT(d)) mat.push("VITRAGE");
   if(typeof aClim==="function" && aClim(d)) mat.push("CLIM");
   const lab=(d.devis_nom||"").trim().toUpperCase().replace(/[\\/:*?"<>|]+/g," ");

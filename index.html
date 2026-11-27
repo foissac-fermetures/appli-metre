@@ -659,7 +659,7 @@ const textePoseGlobal = d => d.equipe_pose==="Sans pose" ? "Sans pose" : [d.equi
    Chez un même client : 3 jours de menuiseries, 2 jours de volets battants, 1 jour de portail… Réglé en haut de chaque onglet
    (d.pose_p = {ouvertures:{eq,duree}, vb:{…}, pt:{…}…}), récapitulé avec le total dans « Client & chantier » et sur le PDF.
    d.equipe_pose / d.jours_pose restent remplis (équipe la plus grande, durée totale) pour tout ce qui les lisait déjà. */
-const POSE_PARTIES=[["ouvertures","Menuiseries"],["vr","Volets roulants"],["pt","Portail"],["vb","Volets battants"],["zip","Stores zip"],["vit","Vitrages"],["per","Pergola / carport"],["gar","Portes de garage"],["gca","Garde-corps alu"],["sb","Store banne"],["pp","Portes palières"],["pi","Portes intérieures"],["vt","Remplacement de vitrage"]];
+const POSE_PARTIES=[["ouvertures","Menuiseries"],["vr","Volets roulants"],["pt","Portail"],["vb","Volets battants"],["zip","Stores zip"],["vit","Vitrages"],["per","Pergola / carport"],["gar","Portes de garage"],["gca","Garde-corps alu"],["sb","Store banne"],["pp","Portes palières"],["pi","Portes intérieures"],["rm","Rideaux métalliques"],["vt","Remplacement de vitrage"]];
 const partiesPose = d => { let v=[]; try{ v=ongletsVisibles(d); }catch(e){} return POSE_PARTIES.filter(([k])=>v.includes(k)); };
 const posePart = (d,k) => Object.assign({eq:"",duree:""}, (d.pose_p||{})[k]||{});
 const poseParParties = d => !!d.pose_p && Object.values(d.pose_p).some(p=>p&&(p.eq||p.duree));
@@ -1694,7 +1694,7 @@ function controleDossier(d){
   if(!d.client.date_rdv) W.push("Date du RDV manquante");
   if(!d.adresse_chantier) W.push("Adresse du chantier manquante");
   partiesPose(d).forEach(([k,l])=>{ const p=posePart(d,k); if(p.eq==="Sans pose") return; if(!p.eq) W.push(`Pose ${l.toLowerCase()} : nombre de personnes non choisi (en haut de l'onglet ${l})`); if(!p.duree) W.push(`Pose ${l.toLowerCase()} : temps de pose non choisi (en haut de l'onglet ${l})`); });
-  if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aClim(d) && !aVB(d) && !aZIP(d) && !aVIT(d) && !aPER(d) && !aGAR(d) && !aGCA(d) && !aSB(d) && !aPT(d) && !aPP(d) && !aPI(d) && !aSAV(d) && !aVT(d)) E.push("Aucune ouverture, volet, portail ni climatisation saisi");
+  if(!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aClim(d) && !aVB(d) && !aZIP(d) && !aVIT(d) && !aPER(d) && !aGAR(d) && !aGCA(d) && !aSB(d) && !aPT(d) && !aPP(d) && !aPI(d) && !aRM(d) && !aSAV(d) && !aVT(d)) E.push("Aucune ouverture, volet, portail ni climatisation saisi");
   if(aClim(d) && aAutreQueClim(d)) E.push("Clim et menuiseries / volets / portail dans le même devis : la clim doit être un devis à part (onglet Climatisation › « Sortir la clim »)");
   comparerDevisDossier(d, E, W);
   return {E,W};
@@ -1796,11 +1796,11 @@ function listeErreurs(d){ normaliser(d); const L=[], add=(ou,E,go)=>E.forEach(e=
   add("Client",controleDossier(d).E,{tab:"client"});
   d.ouvertures.forEach((o,i)=>add(`${o.num_poseur?"N°"+o.num_poseur+" ":""}${o.repere||"Ouverture "+(i+1)}`,controleOuverture(o,d).E,{ouv:o.id}));
   add("Volets roulants",controleVREntete(vrSeparees(d.vr)).E,{tab:"vr"}); d.vr.lignes.forEach((l,i)=>add(`Volet ${l.repere||i+1}`,controleLigneVR(l,d.vr).E,vrUsine(l)&&l.ouv_id?{ouv:l.ouv_id}:{tab:"vr"}));   // monobloc : on corrige sur la fiche de l'ouverture
-  if(aClim(d)) add("Clim",controleClim(d).E,{tab:"clim"}); if(aVB(d)) add("Volets battants",controleVB(d).E,{tab:"vb"}); if(aZIP(d)) add("Stores zip",controleZIP(d).E,{tab:"zip"}); if(aVIT(d)) add("Vitrages",controleVIT(d).E,{tab:"vit"}); if(aPER(d)) add("Pergola / carport",controlePER(d).E,{tab:"per"}); if(aGAR(d)) add("Portes de garage",controleGAR(d).E,{tab:"gar"}); if(aGCA(d)) add("Garde-corps alu",controleGCA(d).E,{tab:"gca"}); if(aSB(d)) add("Store banne",controleSB(d).E,{tab:"sb"}); if(aPT(d)) add("Portail",controlePT(d).E,{tab:"pt"}); if(aPP(d)) add("Portes palières",controlePP(d).E,{tab:"pp"}); if(aPI(d)) add("Portes intérieures",controlePI(d).E,{tab:"pi"}); if(aSAV(d)) add("Fiche SAV",controleSAV(d).E,{tab:"sav"}); if(aVT(d)) add("Vitrages",controleVT(d).E,{tab:"vt"});
+  if(aClim(d)) add("Clim",controleClim(d).E,{tab:"clim"}); if(aVB(d)) add("Volets battants",controleVB(d).E,{tab:"vb"}); if(aZIP(d)) add("Stores zip",controleZIP(d).E,{tab:"zip"}); if(aVIT(d)) add("Vitrages",controleVIT(d).E,{tab:"vit"}); if(aPER(d)) add("Pergola / carport",controlePER(d).E,{tab:"per"}); if(aGAR(d)) add("Portes de garage",controleGAR(d).E,{tab:"gar"}); if(aGCA(d)) add("Garde-corps alu",controleGCA(d).E,{tab:"gca"}); if(aSB(d)) add("Store banne",controleSB(d).E,{tab:"sb"}); if(aPT(d)) add("Portail",controlePT(d).E,{tab:"pt"}); if(aPP(d)) add("Portes palières",controlePP(d).E,{tab:"pp"}); if(aPI(d)) add("Portes intérieures",controlePI(d).E,{tab:"pi"}); if(aRM(d)) add("Rideaux métalliques",controleRM(d).E,{tab:"rm"}); if(aSAV(d)) add("Fiche SAV",controleSAV(d).E,{tab:"sav"}); if(aVT(d)) add("Vitrages",controleVT(d).E,{tab:"vt"});
   return L; }
 function allerErreur(go){ if(!go) return; if(go.ouv){ const o=S.dossier.ouvertures.find(x=>x.id===go.ouv); if(o){ S.ouv=o; renderOuverture(); scrollTo(0,0); return; } } S.tab=go.tab||"client"; renderDossier(); scrollTo(0,0); }
 function nbErreurs(d){ normaliser(d); return controleDossier(d).E.length + d.ouvertures.reduce((a,o)=>a+controleOuverture(o,d).E.length,0)
-  + controleVREntete(vrSeparees(d.vr)).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0) + (aClim(d)?controleClim(d).E.length:0) + (aVB(d)?controleVB(d).E.length:0) + (aZIP(d)?controleZIP(d).E.length:0) + (aVIT(d)?controleVIT(d).E.length:0) + (aPER(d)?controlePER(d).E.length:0) + (aGAR(d)?controleGAR(d).E.length:0) + (aGCA(d)?controleGCA(d).E.length:0) + (aSB(d)?controleSB(d).E.length:0) + (aPT(d)?controlePT(d).E.length:0) + (aPP(d)?controlePP(d).E.length:0) + (aPI(d)?controlePI(d).E.length:0) + (aSAV(d)?controleSAV(d).E.length:0) + (aVT(d)?controleVT(d).E.length:0); }
+  + controleVREntete(vrSeparees(d.vr)).E.length + d.vr.lignes.reduce((a,l)=>a+controleLigneVR(l,d.vr).E.length,0) + (aClim(d)?controleClim(d).E.length:0) + (aVB(d)?controleVB(d).E.length:0) + (aZIP(d)?controleZIP(d).E.length:0) + (aVIT(d)?controleVIT(d).E.length:0) + (aPER(d)?controlePER(d).E.length:0) + (aGAR(d)?controleGAR(d).E.length:0) + (aGCA(d)?controleGCA(d).E.length:0) + (aSB(d)?controleSB(d).E.length:0) + (aPT(d)?controlePT(d).E.length:0) + (aPP(d)?controlePP(d).E.length:0) + (aPI(d)?controlePI(d).E.length:0) + (aRM(d)?controleRM(d).E.length:0) + (aSAV(d)?controleSAV(d).E.length:0) + (aVT(d)?controleVT(d).E.length:0); }
 
 /* ---------- Catalogue : aides ---------- */
 const GAMME_COULEUR = { "PVC - REHAU PORTEO":"REHAU", "PVC - FENSTAR FLAT (droit)":"FENSTAR", "PVC - FENSTAR NEW (arrondie)":"FENSTAR",
@@ -2052,13 +2052,13 @@ function majTitre(){ if(S.dossier) setBar(`${S.dossier.client.nom||"Nouveau clie
 const cleClient = d => (d.client.nom||"").trim().toUpperCase().replace(/\s+/g," ") || ("#"+d.id);
 function groupesClients(ds){ const M=new Map(); ds.forEach(d=>{ const k=cleClient(d); if(!M.has(k)) M.set(k,{cle:k, nom:d.client.nom||"Sans nom", L:[]}); M.get(k).L.push(d); });
   return [...M.values()].map(G=>{ G.L.sort((x,y)=>String(x.devis_nom||x.variante).localeCompare(String(y.devis_nom||y.variante),"fr",{numeric:true})); return G; }); }
-const contenuDevis = d => [d.ouvertures.length&&"Menuiseries", d.vr&&d.vr.lignes.length&&"Volets roulants", aPT(d)&&"Portail", aVB(d)&&"Volets battants", aZIP(d)&&"Stores zip", aVIT(d)&&"Vitrages", aPER(d)&&"Pergola / carport", aGAR(d)&&"Portes de garage", aGCA(d)&&"Garde-corps alu", aSB(d)&&"Store banne", aPP(d)&&"Portes palières", aPI(d)&&"Portes intérieures", aVT(d)&&"Vitrages", aClim(d)&&"Clim", aSAV(d)&&"🔧 SAV"].filter(Boolean).join(" + ")||"Devis vide";
+const contenuDevis = d => [d.ouvertures.length&&"Menuiseries", d.vr&&d.vr.lignes.length&&"Volets roulants", aPT(d)&&"Portail", aVB(d)&&"Volets battants", aZIP(d)&&"Stores zip", aVIT(d)&&"Vitrages", aPER(d)&&"Pergola / carport", aGAR(d)&&"Portes de garage", aGCA(d)&&"Garde-corps alu", aSB(d)&&"Store banne", aPP(d)&&"Portes palières", aPI(d)&&"Portes intérieures", aRM(d)&&"Rideaux métalliques", aVT(d)&&"Vitrages", aClim(d)&&"Clim", aSAV(d)&&"🔧 SAV"].filter(Boolean).join(" + ")||"Devis vide";
 function carteMetre(d, sous=false){ normaliser(d); const n=nbErreurs(d);
   const cf=d._conflit?`<div class="conflit" style="margin:6px 0;padding:8px 10px;border:2px solid #d3232f;border-radius:8px;background:#fdecec;color:#7a1218">⚠ <b>Modifié sur cet appareil et sur un autre</b> (autre version enregistrée le ${new Date(d._conflit.le).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})}). Laquelle garder ?
       <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" data-cfd="${d.id}">Prendre celle de l'autre appareil</button><button class="btn small" data-cfl="${d.id}">Garder celle de cet appareil</button></div></div>`:"";
   return `<div class="item${S.selMode&&S.sel.has(d.id)?" sel":""}" data-id="${d.id}">${cf}
       <div class="row">${S.selMode?`<input type="checkbox" class="hchk" ${S.sel.has(d.id)?"checked":""} aria-label="Sélectionner">`:""}${sous?`<span class="t">${d.devis_nom?esc(d.devis_nom):`<i style="font-weight:600;color:#6b7385">${esc(contenuDevis(d))}</i>`}</span><button class="btn small" data-hren="${d.id}" title="Renommer ce devis" aria-label="Renommer ce devis" style="margin-left:6px">✏️</button>`:`<span class="t">${esc(d.client.nom||"Sans nom")}</span>${d.devis_nom?`<span class="badge b-warn" style="margin-left:6px">${esc(d.devis_nom)}</span>`:""}`}<span class="spacer"></span><span class="badge b-n">${esc(d.variante)}</span>${S.selMode?"":`<button class="btn small danger" data-hdel="${d.id}" title="Supprimer ce métré" aria-label="Supprimer ce métré">🗑</button>`}</div>
-      <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.filter(o=>!estVariante(o)).length} ouverture(s)${d.ouvertures.some(estVariante)?` (+ ${d.ouvertures.filter(estVariante).length} variante(s))`:""}${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}${aPT(d)?` · ${d.pt.elements.length} portail / portillon`:""}${aVB(d)?` · ${d.vb.lignes.length} volet(s) battant(s)`:""}${aZIP(d)?` · ${d.zip.lignes.length} store(s) zip`:""}${aVIT(d)?` · ${d.vit.lignes.length} vitrage(s)`:""}${aPER(d)?` · ${d.per.lignes.length} pergola(s) / carport(s)`:""}${aGAR(d)?` · ${d.gar.lignes.length} portes de garage`:""}${aGCA(d)?` · ${d.gca.lignes.length} garde-corps alu`:""}${aSB(d)?` · ${d.sb.lignes.length} store banne`:""}${aPP(d)?` · ${d.pp.lignes.length} porte(s) palière(s)`:""}${aPI(d)?` · ${d.pi.lignes.length} porte(s) intérieure(s)`:""}${aClim(d)?` · clim ${d.clim.lignes.length} pièce(s)`:""}</div>
+      <div class="s">${esc(d.type_document)} · ${fmtDate(d.client.date_rdv)} · ${d.ouvertures.filter(o=>!estVariante(o)).length} ouverture(s)${d.ouvertures.some(estVariante)?` (+ ${d.ouvertures.filter(estVariante).length} variante(s))`:""}${d.vr.lignes.length?` · ${d.vr.lignes.length} volet(s) roulant(s)`:""}${aPT(d)?` · ${d.pt.elements.length} portail / portillon`:""}${aVB(d)?` · ${d.vb.lignes.length} volet(s) battant(s)`:""}${aZIP(d)?` · ${d.zip.lignes.length} store(s) zip`:""}${aVIT(d)?` · ${d.vit.lignes.length} vitrage(s)`:""}${aPER(d)?` · ${d.per.lignes.length} pergola(s) / carport(s)`:""}${aGAR(d)?` · ${d.gar.lignes.length} portes de garage`:""}${aGCA(d)?` · ${d.gca.lignes.length} garde-corps alu`:""}${aSB(d)?` · ${d.sb.lignes.length} store banne`:""}${aPP(d)?` · ${d.pp.lignes.length} porte(s) palière(s)`:""}${aPI(d)?` · ${d.pi.lignes.length} porte(s) intérieure(s)`:""}${aRM(d)?` · ${d.rm.lignes.length} rideau(x) métallique(s)`:""}${aClim(d)?` · clim ${d.clim.lignes.length} pièce(s)`:""}</div>
       <div>${n?`<span class="badge b-err">${n} point(s) à corriger</span>`:`<span class="badge b-ok">Contrôle OK</span>`} <span class="badge ${estDefinitif(d)?"b-err":"b-n"}">${estDefinitif(d)?"Métré définitif":"Devis"}</span> ${d.drive_attente?`<span class="badge b-n">☁ envoi en attente</span>`:d.drive?`<span class="badge b-ok">☁ dans le Drive</span>`:""} ${envoisClemence(d).length?`<span class="badge b-ok">📨 Clémence ${new Date(envoisClemence(d).slice(-1)[0].le).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</span>`:""}</div>
     </div>`; }
 /* Avant d'ouvrir un métré : s'il a pu changer sur un autre appareil, on récupère d'abord la dernière version du Drive (18/11/2026) */
@@ -2209,7 +2209,7 @@ function renderDossier0(){
   if(S.chronoVu!==d.id){ S.chronoVu=d.id; if(chronoOuverture(d)) DB.put(d,true); }
   if(S.tab==="chantier") S.tab="client";
   if(!ongletsVisibles(d).includes(S.tab)) S.tab=ongletsVisibles(d)[0];
-  const T=[["client","Client & chantier"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["pt",`Portail${d.pt&&d.pt.elements.length?` (${d.pt.elements.length})`:""}`],["vb",`Volets battants${d.vb&&d.vb.lignes.length?` (${d.vb.lignes.length})`:""}`],["zip",`Stores zip${d.zip&&d.zip.lignes.length?` (${d.zip.lignes.length})`:""}`],["vit",`Vitrages${d.vit&&d.vit.lignes.length?` (${d.vit.lignes.length})`:""}`],["per",`Pergola / carport${d.per&&d.per.lignes.length?` (${d.per.lignes.length})`:""}`],["gar",`Portes de garage${d.gar&&d.gar.lignes.length?` (${d.gar.lignes.length})`:""}`],["gca",`Garde-corps alu${d.gca&&d.gca.lignes.length?` (${d.gca.lignes.length})`:""}`],["sb",`Store banne${d.sb&&d.sb.lignes.length?` (${d.sb.lignes.length})`:""}`],["pp",`Portes palières${d.pp&&d.pp.lignes.length?` (${d.pp.lignes.length})`:""}`],["pi",`Portes intérieures${d.pi&&d.pi.lignes.length?` (${d.pi.lignes.length})`:""}`],["vt",`Vitrages${d.vt&&d.vt.lignes.length?` (${d.vt.lignes.length})`:""}`],["clim",`Climatisation${d.clim&&d.clim.lignes.length?` (${d.clim.lignes.length})`:""}`],["sav","🔧 Fiche SAV"],["controle","Contrôle"]];
+  const T=[["client","Client & chantier"],["ouvertures",`Ouvertures (${d.ouvertures.length})`],["vr",`Volets roulants (${d.vr.lignes.length})`],["pt",`Portail${d.pt&&d.pt.elements.length?` (${d.pt.elements.length})`:""}`],["vb",`Volets battants${d.vb&&d.vb.lignes.length?` (${d.vb.lignes.length})`:""}`],["zip",`Stores zip${d.zip&&d.zip.lignes.length?` (${d.zip.lignes.length})`:""}`],["vit",`Vitrages${d.vit&&d.vit.lignes.length?` (${d.vit.lignes.length})`:""}`],["per",`Pergola / carport${d.per&&d.per.lignes.length?` (${d.per.lignes.length})`:""}`],["gar",`Portes de garage${d.gar&&d.gar.lignes.length?` (${d.gar.lignes.length})`:""}`],["gca",`Garde-corps alu${d.gca&&d.gca.lignes.length?` (${d.gca.lignes.length})`:""}`],["sb",`Store banne${d.sb&&d.sb.lignes.length?` (${d.sb.lignes.length})`:""}`],["pp",`Portes palières${d.pp&&d.pp.lignes.length?` (${d.pp.lignes.length})`:""}`],["pi",`Portes intérieures${d.pi&&d.pi.lignes.length?` (${d.pi.lignes.length})`:""}`],["rm",`Rideaux métalliques${d.rm&&d.rm.lignes.length?` (${d.rm.lignes.length})`:""}`],["vt",`Vitrages${d.vt&&d.vt.lignes.length?` (${d.vt.lignes.length})`:""}`],["clim",`Climatisation${d.clim&&d.clim.lignes.length?` (${d.clim.lignes.length})`:""}`],["sav","🔧 Fiche SAV"],["controle","Contrôle"]];
   const def=estDefinitif(d);
   $("#app").innerHTML=`
   <div class="circuit" role="group" aria-label="Type de métré">
@@ -2351,7 +2351,7 @@ function renderDossier0(){
       if(!await demander(lv?"Supprimer cette ouverture et son volet roulant ?":"Supprimer cette ouverture ?","Supprimer")) return;
       d.ouvertures=d.ouvertures.filter(x=>x.id!==b.dataset.del); if(lv) d.vr.lignes=d.vr.lignes.filter(l=>l!==lv); save(); renderDossier(); });
   }
-  const climAPart = (S.tab==="clim" && aAutreQueClim(d)) || (["ouvertures","vr","pt","vb","zip","vit","per","gar","gca","sb","pp","pi","vt"].includes(S.tab) && aClim(d) && !aAutreQueClim(d));
+  const climAPart = (S.tab==="clim" && aAutreQueClim(d)) || (["ouvertures","vr","pt","vb","zip","vit","per","gar","gca","sb","pp","pi","rm","vt"].includes(S.tab) && aClim(d) && !aAutreQueClim(d));
   if(climAPart){ carteDevisAPart(d, t); }
   else {
   if(POSE_PARTIES.some(([k])=>k===S.tab)) $("#posePart").innerHTML=blocPosePartie(d,S.tab);
@@ -2366,6 +2366,7 @@ function renderDossier0(){
   if(S.tab==="sb") renderSB(t);
   if(S.tab==="pp") renderPP(t);
   if(S.tab==="pi") renderPI(t);
+  if(S.tab==="rm") renderRM(t);
   if(S.tab==="sav") renderSAV(t);
   if(S.tab==="vt") renderVT(t);
   if(S.tab==="pt") renderPT(t);
@@ -2385,6 +2386,7 @@ function renderDossier0(){
       +(aSB(d)?bloc("Store banne",controleSB(d)):"")
       +(aPP(d)?bloc("Portes palières HUET",controlePP(d)):"")
       +(aPI(d)?bloc("Portes intérieures HUET",controlePI(d)):"")
+      +(aRM(d)?bloc("Rideaux métalliques La Toulousaine",controleRM(d)):"")
       +(aSAV(d)?bloc("Fiche SAV",controleSAV(d)):"")
       +(aVT(d)?bloc("Remplacement de vitrage",controleVT(d)):"")
       +(aClim(d)?bloc("Climatisation",controleClim(d)):"")
@@ -3735,7 +3737,7 @@ const nomSchema = (c,k) => (c.sch_noms&&c.sch_noms[k]) || CLIM_SCH_DEF[k] || `Sc
 /* ---------- Nouveau rendez-vous : un seul bouton, « Qu'est-ce qu'on mesure ? » (17/11/2026) ----------
    Crée le bon dossier client avec les bons devis : menuiseries / VR / portail / VB / portes palières ensemble, la clim TOUJOURS à part. */
 /* 20/11 : chaque type a son petit logo – en ajouter un pour tout nouveau type */
-const TYPES_RDV = [["menuiseries","🪟 Menuiseries"],["vr","🎚️ Volets roulants"],["pt","🏡 Portail / portillon"],["vb","🏠 Volets battants"],["zip","🔳 Stores zip"],["vit","🪟 Vitrages"],["per","🌿 Pergola / carport (GardenGate)"],["gar","🚗 Portes de garage"],["gca","🛡️ Garde-corps alu (La Toulousaine)"],["sb","⛱️ Store banne (Marquises)"],["pp","🚪 Portes palières (HUET)"],["pi","🚪 Portes intérieures (HUET)"],["clim","❄️ Climatisation (devis à part)"],["sav","🔧 SAV (fiche à part)"]];
+const TYPES_RDV = [["menuiseries","🪟 Menuiseries"],["vr","🎚️ Volets roulants"],["pt","🏡 Portail / portillon"],["vb","🏠 Volets battants"],["zip","🔳 Stores zip"],["vit","🪟 Vitrages"],["per","🌿 Pergola / carport (GardenGate)"],["gar","🚗 Portes de garage"],["gca","🛡️ Garde-corps alu (La Toulousaine)"],["sb","⛱️ Store banne (Marquises)"],["pp","🚪 Portes palières (HUET)"],["pi","🚪 Portes intérieures (HUET)"],["rm","🏪 Rideau métallique (La Toulousaine)"],["clim","❄️ Climatisation (devis à part)"],["sav","🔧 SAV (fiche à part)"]];
 function initTypes(d, types){
   d.types=[...new Set([...(d.types||[]), ...types.filter(t=>t!=="clim"&&t!=="sav")])];
   if(types.includes("pt") && !aPT(d)){ d.pt=d.pt||nouveauPT(); if(!d.pt.elements.length) d.pt.elements.push(nouvelElementPT("BATTANT")); }
@@ -3749,9 +3751,10 @@ function initTypes(d, types){
   if(types.includes("vt") && !aVT(d)){ d.vt=d.vt||nouveauVT(); if(!d.vt.lignes.length) d.vt.lignes.push(nouvelleLigneVT()); }
   if(types.includes("pp") && !aPP(d)){ d.pp=d.pp||nouveauPP(); if(!d.pp.lignes.length) d.pp.lignes.push(nouvelleLignePP()); }
   if(types.includes("pi") && !aPI(d)){ d.pi=d.pi||nouveauPI(); if(!d.pi.lignes.length) d.pi.lignes.push(nouvelleLignePI()); }
+  if(types.includes("rm") && !aRM(d)){ d.rm=d.rm||nouveauRM(); if(!d.rm.lignes.length) d.rm.lignes.push(nouvelleLigneRM()); }
   return d;
 }
-function premierOnglet(d){ if(aSAV(d)) return "sav"; return (d.types||[]).find(t=>["menuiseries","vr","pt","vb","zip","vit","per","gar","gca","sb","pp","pi","vt"].includes(t))?.replace("menuiseries","ouvertures") || (aClim(d)?"clim":"ouvertures"); }
+function premierOnglet(d){ if(aSAV(d)) return "sav"; return (d.types||[]).find(t=>["menuiseries","vr","pt","vb","zip","vit","per","gar","gca","sb","pp","pi","rm","vt"].includes(t))?.replace("menuiseries","ouvertures") || (aClim(d)?"clim":"ouvertures"); }
 async function nouveauRendezVous(pre={}){
   const clients=[...new Set((await DB.all()).map(x=>x.client.nom).filter(Boolean))].sort();
   return new Promise(ok=>{
@@ -3814,10 +3817,10 @@ async function ajouterAuMetre(d){
 function ongletsVisibles(d){
   if(aSAV(d)) return ["sav","controle"];   // fiche SAV : document à part
   const t=new Set(d.types||[]), v=["client"];
-  const rien=!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aPT(d) && !aVB(d) && !aZIP(d) && !aVIT(d) && !aPER(d) && !aGAR(d) && !aGCA(d) && !aSB(d) && !aPP(d) && !aPI(d) && !aVT(d) && !aClim(d) && !t.size;
+  const rien=!d.ouvertures.length && !(d.vr&&d.vr.lignes.length) && !aPT(d) && !aVB(d) && !aZIP(d) && !aVIT(d) && !aPER(d) && !aGAR(d) && !aGCA(d) && !aSB(d) && !aPP(d) && !aPI(d) && !aRM(d) && !aVT(d) && !aClim(d) && !t.size;
   if(rien || t.has("menuiseries") || d.ouvertures.length) v.push("ouvertures");
   if(vrSeparees(d.vr).lignes.length || (t.has("vr") && !(d.vr&&d.vr.lignes.length))) v.push("vr");   // seulement s'il y a des volets à part (pas les monoblocs posés sur la menuiserie)
-  if(t.has("pt") || aPT(d)) v.push("pt"); if(t.has("vb") || aVB(d)) v.push("vb"); if(t.has("zip") || aZIP(d)) v.push("zip"); if(t.has("vit") || aVIT(d)) v.push("vit"); if(t.has("per") || aPER(d)) v.push("per"); if(t.has("gar") || aGAR(d)) v.push("gar"); if(t.has("gca") || aGCA(d)) v.push("gca"); if(t.has("sb") || aSB(d)) v.push("sb"); if(t.has("pp") || aPP(d)) v.push("pp"); if(t.has("pi") || aPI(d)) v.push("pi"); if(t.has("vt") || aVT(d)) v.push("vt");
+  if(t.has("pt") || aPT(d)) v.push("pt"); if(t.has("vb") || aVB(d)) v.push("vb"); if(t.has("zip") || aZIP(d)) v.push("zip"); if(t.has("vit") || aVIT(d)) v.push("vit"); if(t.has("per") || aPER(d)) v.push("per"); if(t.has("gar") || aGAR(d)) v.push("gar"); if(t.has("gca") || aGCA(d)) v.push("gca"); if(t.has("sb") || aSB(d)) v.push("sb"); if(t.has("pp") || aPP(d)) v.push("pp"); if(t.has("pi") || aPI(d)) v.push("pi"); if(t.has("rm") || aRM(d)) v.push("rm"); if(t.has("vt") || aVT(d)) v.push("vt");
   if(aClim(d)) v.push("clim");
   v.push("controle"); return v;
 }
@@ -3829,7 +3832,7 @@ function initBarreLogement(d, re){ const s=$("#logCourant"); if(!s) return; s.on
 function avecLogement(d, repere){ if(!d.logement_courant || !repere) return repere; const r=repDecoupe(repere); if(r.log) return repere; r.log=d.logement_courant; return repCompose(r)||repere; }
 
 /* ---------- La clim est TOUJOURS un devis à part (Nicolas, 17/11/2026) : jamais avec menuiseries, volets, portail… ---------- */
-const aAutreQueClim = d => !!(d.ouvertures.length || (typeof aVT==="function"&&aVT(d)) || (d.vr&&d.vr.lignes.length) || (typeof aPT==="function"&&aPT(d)) || (typeof aVB==="function"&&aVB(d)) || (typeof aZIP==="function"&&aZIP(d)) || (typeof aVIT==="function"&&aVIT(d)) || (typeof aPER==="function"&&aPER(d)) || (typeof aGAR==="function"&&aGAR(d)) || (typeof aGCA==="function"&&aGCA(d)) || (typeof aSB==="function"&&aSB(d)) || (typeof aPP==="function"&&aPP(d)) || (typeof aPI==="function"&&aPI(d)));
+const aAutreQueClim = d => !!(d.ouvertures.length || (typeof aVT==="function"&&aVT(d)) || (d.vr&&d.vr.lignes.length) || (typeof aPT==="function"&&aPT(d)) || (typeof aVB==="function"&&aVB(d)) || (typeof aZIP==="function"&&aZIP(d)) || (typeof aVIT==="function"&&aVIT(d)) || (typeof aPER==="function"&&aPER(d)) || (typeof aGAR==="function"&&aGAR(d)) || (typeof aGCA==="function"&&aGCA(d)) || (typeof aSB==="function"&&aSB(d)) || (typeof aPP==="function"&&aPP(d)) || (typeof aPI==="function"&&aPI(d)) || (typeof aRM==="function"&&aRM(d)));
 async function sortirClim(d){
   const nom=await demanderTexte(`La clim part dans un devis à part pour ${d.client.nom||"ce client"}.\nNom de ce devis clim :`, d.devis_nom?d.devis_nom+" clim":"Clim", "Créer le devis clim"); if(!nom) return;
   const c=copierClient(d, nouveauDossier()); c.devis_nom=nom; c.variante=d.variante||"V1"; c.clim=d.clim; if(d.drive&&d.drive.dossier) c.drive={dossier:d.drive.dossier};
@@ -6576,6 +6579,94 @@ function pagesPI(d, head, row){
     <div class="pphotos">${ph.slice(i,i+4).map((x,j)=>`<figure><img src="${x.img}"><figcaption><b>Photo ${i+j+1}</b>${x.txt?" – "+esc(x.txt):""}</figcaption></figure>`).join("")}</div></div>`;
   return h;
 }
+
+/* ---------- Rideaux métalliques LA TOULOUSAINE – 27/11/2026 ----------
+   Pas de bibliothèque La Toulousaine dans ProDevis : champs repris (LECTURE SEULE) des devis / ARC La Toulousaine du Drive partagé
+   (Murax pas de 110 lames pleines / micro-perforées 6-8-10/10e, Granvision, coulisses 60×30×60 / 80×30×80 / à talon 70, enroulement intérieur / extérieur,
+   pose en tableau / en applique, caisson, moteur axial (pression maintenue, hors zone publique) ou tubulaire, boîte à bouton / à clé, télécommande,
+   dépannage et sortie des fils à gauche / droite, serrure lame finale, stopchute si tablier > 120 kg). LA/LB = largeur coulisses non comprises / comprises. */
+const RM_TABLIERS = ["Murax pas de 110 – lames pleines","Murax pas de 110 – lames micro-perforées","Murax Granvision – maillons transparents","Grille articulée / ajourée"];
+const RM_EPAIS = ["6/10e","8/10e","10/10e"];
+const RM_FINITIONS = ["Acier galvanisé","Pré-laqué blanc","Pré-laqué gris anthracite (≈ RAL 7016)","Pré-laqué autre RAL"];
+const RM_POSES = ["En tableau (entre murs)","En applique (contre le mur)"];
+const RM_ENROUL = ["Intérieur – sans caisson","Intérieur – avec caisson","Extérieur – avec caisson (en façade)"];
+const RM_COULISSES = ["60 × 30 × 60","80 × 30 × 80","À talon 70 × 60 × 70"];
+const RM_MANOEUVRES = ["Moteur axial (pression maintenue)","Moteur axial + télécommande (impulsion)","Moteur tubulaire","Manuel à ressort","Manuel par treuil / manivelle"];
+const RM_COTES = ["Gauche (vue intérieure)","Droite (vue intérieure)"];
+const RM_SERRURES = ["Serrure au centre (canon européen) + cache-verrou","Serrures aux 2 extrémités","Sans serrure (motorisé)"];
+const rmLarg = c => /80/.test(c||"") ? 80 : /70/.test(c||"") ? 70 : 60;
+const rmMoteur = l => /moteur/i.test(l.manoeuvre||"");
+function rmLaLb(l){ const v=num(l.L), c=rmLarg(l.coulisses); if(v==null) return {LA:null,LB:null};
+  return /tableau/i.test(l.pose||"") ? {LB:v, LA:v-2*c} : {LA:v, LB:v+2*c}; }
+const nouveauRM = () => ({ lignes:[], photos:[] });
+const nouvelleLigneRM = () => ({ id:uid(), repere:"", qte:"1", tablier:RM_TABLIERS[0], epais:"8/10e", finition:RM_FINITIONS[0], ral:"", pose:RM_POSES[0], enroul:RM_ENROUL[0], coulisses:RM_COULISSES[0],
+  L:"", H:"", h_enroul:"", ecoinc_g:"", ecoinc_d:"", manoeuvre:RM_MANOEUVRES[0], bouton:true, cle:false, telecommande:false, depannage:"", fils:"", serrure:RM_SERRURES[0], alim:false, zone_publique:false, obs:"" });
+const aRM = d => !!(d.rm && d.rm.lignes.length);
+function controleRM(d){ const p=d.rm, E=[], W=[]; if(!p) return {E,W};
+  if(!p.lignes.length) E.push("Aucun rideau saisi");
+  p.lignes.forEach((l,i)=>{ const n=l.repere||`rideau ${i+1}`, L=num(l.L), H=num(l.H), he=num(l.h_enroul), c=rmLarg(l.coulisses);
+    if(L==null) E.push(`${n} : largeur manquante`); if(H==null) E.push(`${n} : hauteur de passage (HA) manquante`);
+    if(!l.tablier) E.push(`${n} : type de tablier non choisi`); if(!l.pose) E.push(`${n} : pose non choisie`); if(!l.enroul) E.push(`${n} : enroulement non choisi`);
+    if(/autre RAL/.test(l.finition||"") && !l.ral) E.push(`${n} : n° de RAL à préciser`);
+    if(he==null) W.push(`${n} : place disponible pour l'enroulement non relevée (environ 380 à 410 mm)`); else if(he<380) W.push(`${n} : place pour l'enroulement ${he} mm < 380 → à faire valider par La Toulousaine`);
+    if(/applique/i.test(l.pose||"")) [["ecoinc_g","à gauche"],["ecoinc_d","à droite"]].forEach(([k,t])=>{ const v=num(l[k]); if(v==null) W.push(`${n} : écoinçon ${t} non relevé (pose en applique)`); else if(v<c+20) E.push(`${n} : écoinçon ${t} ${v} mm trop petit pour des coulisses de ${c} mm`); });
+    if(rmMoteur(l)){ if(!l.depannage) E.push(`${n} : côté de la manœuvre de dépannage non choisi`); if(!l.fils) W.push(`${n} : côté de sortie des fils non choisi`);
+      if(!l.bouton && !l.cle && !l.telecommande) E.push(`${n} : aucun accessoire de commande (boîte à bouton, à clé, télécommande)`);
+      if(!l.alim) W.push(`${n} : alimentation électrique 230 V à prévoir près de l'enroulement`);
+      if(l.zone_publique && /pression maintenue/i.test(l.manoeuvre)) E.push(`${n} : rideau en zone publique : la pression maintenue ne suffit pas → automatisme avec sécurités`); }
+    if(/Granvision/.test(l.tablier) && !/talon/i.test(l.coulisses)) W.push(`${n} : Granvision : coulisses à talon 70 habituellement`);
+  });
+  return {E,W}; }
+function renderRM(t){
+  const d=S.dossier; if(!d.rm) d.rm=nouveauRM(); const p=d.rm;
+  const ligne=l=>{ const i=p.lignes.indexOf(l), k=`rm.lignes.${i}.`, x=rmLaLb(l), tab=/tableau/i.test(l.pose||"");
+    return `<div class="card clim-l"><div class="row" style="margin-bottom:8px"><b>${esc(l.repere||"Nouveau rideau")}</b>${x.LA!=null?`<span class="badge b-n" style="margin-left:8px">LA ${x.LA} · LB ${x.LB}</span>`:""}<span class="spacer"></span>
+      <button class="btn small" data-rmdup="${i}">⧉ Comme celui-ci</button><button class="btn small danger" data-rmdel="${i}" aria-label="Supprimer le rideau">✕</button></div>
+      <div class="grid g4">
+        <label class="f">Repère<div class="rep-in"><input data-k="${k}repere" value="${esc(l.repere)}">${boutonRep(k+"repere")}</div></label>${F.numb(k+"qte","Quantité",l.qte)}
+        <div style="grid-column:span 2">${F.sel(k+"tablier","Tablier",RM_TABLIERS,l.tablier)}</div>
+        ${/Murax pas/.test(l.tablier)?F.sel(k+"epais","Épaisseur des lames",RM_EPAIS,l.epais):"<div></div>"}${F.sel(k+"finition","Finition du tablier",RM_FINITIONS,l.finition)}
+        ${/autre RAL/.test(l.finition||"")?F.text(k+"ral","N° RAL",l.ral):"<div></div>"}${F.sel(k+"coulisses","Coulisses",RM_COULISSES,l.coulisses)}
+        ${F.sel(k+"pose","Pose",RM_POSES,l.pose)}${F.sel(k+"enroul","Enroulement",RM_ENROUL,l.enroul)}
+        ${F.numb(k+"L",tab?"Largeur entre murs (mm) = LB":"Largeur du tableau (mm) = LA",l.L)}${F.numb(k+"H","Hauteur de passage HA (mm)",l.H)}
+        ${F.numb(k+"h_enroul","Place pour l'enroulement (mm)",l.h_enroul)}<div></div>
+        ${tab?"<div></div><div></div>":F.numb(k+"ecoinc_g","Écoinçon gauche (mm)",l.ecoinc_g)+F.numb(k+"ecoinc_d","Écoinçon droit (mm)",l.ecoinc_d)}
+        <div style="grid-column:span 2">${F.sel(k+"manoeuvre","Manœuvre",RM_MANOEUVRES,l.manoeuvre)}</div><div style="grid-column:span 2">${F.sel(k+"serrure","Lame finale",RM_SERRURES,l.serrure)}</div>
+        ${rmMoteur(l)?F.sel(k+"depannage","Dépannage (côté enroulement)",RM_COTES,l.depannage)+F.sel(k+"fils","Sortie des fils",RM_COTES,l.fils):""}
+      </div>
+      ${rmMoteur(l)?`<div class="checks" style="margin-top:8px">${F.chk(k+"bouton","Boîte à bouton",l.bouton)}${F.chk(k+"cle","Boîte à clé",l.cle)}${F.chk(k+"telecommande","Télécommande radio",l.telecommande)}${F.chk(k+"alim","Alimentation 230 V prévue",l.alim)}${F.chk(k+"zone_publique","Zone publique (accessible au public)",l.zone_publique)}</div>`:""}
+      <div style="margin-top:8px">${F.text(k+"obs","Observation",l.obs)}</div></div>`; };
+  t.innerHTML=`<div class="card"><h2><span class="num">1</span>Rideaux métalliques – LA TOULOUSAINE</h2>
+    <p class="hint">LA = largeur coulisses non comprises · LB = coulisses comprises · HA = hauteur de passage (enroulement non compris), HB = enroulement compris (≈ +380 à 410 mm).
+    En tableau on relève la largeur entre murs (LB), en applique la largeur du tableau (LA) et les écoinçons pour les coulisses. Tablier > 120 kg : axe avec Stopchute.</p></div>
+  <div class="row" style="margin:14px 0 8px"><h2 style="margin:0"><span class="num">2</span> Rideaux</h2><span class="spacer"></span><button class="btn primary" id="rmAdd">+ Ajouter un rideau</button></div>
+  ${p.lignes.map(ligne).join("")||`<p class="hint">Aucun rideau. Appuie sur « + Ajouter un rideau ».</p>`}
+  <div class="card"><h2><span class="num">3</span>Photos</h2>
+    <div class="photos">${p.photos.map((ph,k)=>`<figure class="photo"><img src="${ph.img}" alt="Photo ${k+1}" data-phedit="${k}">
+      <textarea data-k="rm.photos.${k}.txt" rows="2" placeholder="Repère et remarque">${esc(ph.txt||"")}</textarea>
+      <div class="row"><button class="btn small" data-phedit="${k}">✏️ Annoter</button><span class="spacer"></span><button class="btn small danger" data-phdel="${k}" aria-label="Supprimer la photo ${k+1}">✕</button></div></figure>`).join("")}
+    <label class="btn primary photo-add">📷 Prendre / ajouter une photo<input type="file" accept="image/*" multiple id="phAdd" class="hide"></label></div></div>`;
+  const re=()=>{ const y=scrollY; renderDossier(); scrollTo(0,y); };
+  $("#rmAdd").onclick=()=>{ p.lignes.push(nouvelleLigneRM()); save(); re(); };
+  $$("[data-rmdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer ce rideau ?","Supprimer")) return; p.lignes.splice(+b.dataset.rmdel,1); save(); re(); });
+  $$("[data-rmdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.rmdup, n=Object.assign(JSON.parse(JSON.stringify(p.lignes[i])),{id:uid(), repere:"", L:"", H:"", h_enroul:"", ecoinc_g:"", ecoinc_d:""}); p.lignes.splice(i+1,0,n); save(); re(); });
+  $$('[data-k^="rm.lignes."]').forEach(el=>{ if(/\.(tablier|finition|pose|manoeuvre|L|coulisses)$/.test(el.dataset.k)) el.addEventListener("change",()=>setTimeout(re,0)); });
+  initPhotos(p, re);
+}
+function pagesRM(d, head, row){
+  const p=d.rm; if(!aRM(d)) return ""; const c=controleRM(d), ck=b=>b?"Oui":"";
+  let h=`<div class="pg">${head(`Rideaux métalliques La Toulousaine – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
+    <table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","LA TOULOUSAINE"],["Nombre de rideaux",String(p.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table>`;
+  p.lignes.forEach((l,i)=>{ const x=rmLaLb(l), mot=rmMoteur(l);
+    h+=`<h3 style="margin:10px 0 4px">${i+1}. ${esc(l.repere||"Rideau")} ${num(l.qte)>1?"× "+esc(l.qte):""}</h3><div class="pcols"><div><table class="pt">${row([["Tablier",[l.tablier,/Murax pas/.test(l.tablier)?l.epais:""].filter(Boolean).join(" – ")],["Finition",[l.finition,l.ral].filter(Boolean).join(" ")],["Coulisses",l.coulisses],["Pose",l.pose],["Enroulement",l.enroul],["Lame finale",l.serrure]])}</table></div>
+      <div><table class="pt">${row([["LA (coulisses non comprises)",x.LA!=null?String(x.LA):""],["LB (coulisses comprises)",x.LB!=null?String(x.LB):""],["HA hauteur de passage",l.H],["Place pour l'enroulement",l.h_enroul],["Écoinçons G / D",/applique/i.test(l.pose||"")?[l.ecoinc_g||"–",l.ecoinc_d||"–"].join(" / "):""],
+      ["Manœuvre",l.manoeuvre],["Dépannage / sortie des fils",mot?[l.depannage||"?",l.fils||"?"].join(" / "):""],["Commande",mot?[l.bouton&&"boîte à bouton",l.cle&&"boîte à clé",l.telecommande&&"télécommande"].filter(Boolean).join(", "):""],["Alimentation 230 V prévue",mot?ck(l.alim):""],["Zone publique",ck(l.zone_publique)],["Observation",l.obs]])}</table></div></div>`; });
+  h+=`${c.E.length||c.W.length?`<div class="pwarn">À vérifier : ${esc([...c.E,...c.W].join(" · "))}</div>`:`<div class="pok">Contrôle OK</div>`}</div>`;
+  const ph=(p.photos||[]).filter(x=>x.img);
+  for(let i=0;i<ph.length;i+=4) h+=`<div class="pg">${head(`Rideaux métalliques – Photos${ph.length>4?` (${i/4+1})`:""} – ${d.client.nom||""}`)}
+    <div class="pphotos">${ph.slice(i,i+4).map((x,j)=>`<figure><img src="${x.img}"><figcaption><b>Photo ${i+j+1}</b>${x.txt?" – "+esc(x.txt):""}</figcaption></figure>`).join("")}</div></div>`;
+  return h;
+}
 /* ---------- PDF : feuilles « Volet » et « Schéma » de Nicolas ---------- */
 /* ancienne page volets battants (style feuille Numbers) remplacée le 17/11/2026 par la présentation menuiseries */
 /* ---------- Dessin d'un volet battant (vue de l'intérieur, comme le sens Corrèze) ---------- */
@@ -7683,7 +7774,7 @@ function construireImpression(d){
   }
   h=h.slice(0,h1)+avecPose(h.slice(h1),"vr");
   h+=avecPose(pagesPT2(d, head, row),"pt");
-  h+=avecPose(pagesVB(d, head, row),"vb"); h+=avecPose(pagesZIP(d, head, row),"zip"); h+=avecPose(pagesVIT(d, head, row),"vit"); h+=avecPose(pagesPER(d, head, row),"per"); h+=avecPose(pagesGAR(d, head, row),"gar"); h+=avecPose(pagesGCA(d, head, row),"gca"); h+=avecPose(pagesSB(d, head, row),"sb"); h+=avecPose(pagesPP(d, head, row),"pp"); h+=avecPose(pagesPI(d, head, row),"pi"); h+=avecPose(pagesVT(d, head, row),"vt");
+  h+=avecPose(pagesVB(d, head, row),"vb"); h+=avecPose(pagesZIP(d, head, row),"zip"); h+=avecPose(pagesVIT(d, head, row),"vit"); h+=avecPose(pagesPER(d, head, row),"per"); h+=avecPose(pagesGAR(d, head, row),"gar"); h+=avecPose(pagesGCA(d, head, row),"gca"); h+=avecPose(pagesSB(d, head, row),"sb"); h+=avecPose(pagesPP(d, head, row),"pp"); h+=avecPose(pagesPI(d, head, row),"pi"); h+=avecPose(pagesRM(d, head, row),"rm"); h+=avecPose(pagesVT(d, head, row),"vt");
   h+=pagesClim(d);
   return h;
 }
@@ -7898,6 +7989,7 @@ function nomMetre(d){
   if(typeof aSB==="function" && aSB(d)) mat.push("STORE BANNE");
   if(typeof aPP==="function" && aPP(d)) mat.push("PORTES PALIERES");
   if(typeof aPI==="function" && aPI(d)) mat.push("PORTES INTERIEURES");
+  if(typeof aRM==="function" && aRM(d)) mat.push("RIDEAU METALLIQUE");
   if(typeof aVT==="function" && aVT(d)) mat.push("VITRAGE");
   if(typeof aClim==="function" && aClim(d)) mat.push("CLIM");
   const lab=(d.devis_nom||"").trim().toUpperCase().replace(/[\\/:*?"<>|]+/g," ");

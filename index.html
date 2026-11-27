@@ -424,6 +424,7 @@ input:disabled{background:#eef1f7;color:#4a5368}
   .vbbloc{display:grid;grid-template-columns:33% 1fr 25%;gap:8px;align-items:start;border-top:1.5px solid #1b2f5e;padding:6px 0 4px;margin-top:4px;break-inside:avoid}
   .vbbloc .pdim{grid-row:auto} .vbdes svg{display:block;margin:0 auto;max-width:100%;max-height:50mm;width:auto;height:auto}
   .vbsous{font-size:9pt;color:#5b6478;margin:-2px 0 2px}
+  .ppose{margin:0 0 5px;border:1.5px solid #1b2f5e;background:#eef1f7;color:#1b2f5e;padding:3px 8px;font-size:10pt;font-weight:700}.ppose.vide{border-color:#e07b00;background:#fff4e5;color:#a35b00}
   .pelarg{margin-top:4px;border:1.5px solid #d3232f;color:#1b2f5e;padding:2px 6px;font-size:9.5pt}
   .pposetitre{background:#d3232f;color:#fff;font-weight:800;font-size:10pt;padding:3px 6px;margin:-6px -6px 6px;border-radius:4px 4px 0 0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .pok{border:2px solid #1f8a4c;color:#1f8a4c;padding:4px 8px;margin-top:6px;font-weight:700}
@@ -6157,7 +6158,9 @@ function pagesZIP(d, head, row){
         ["Enroulement",l.enroul],["Caisson",l.coffre],["Coulisses",l.coulisses],["Manœuvre",zipManTexte(g,l.manoeuvre)],["Commande",zipCdeTexte(g,l.manoeuvre,l.commande)],["Côté de manœuvre (vue int.)",l.cote],["Sortie du câble",(ZIP_SORTIES.find(x=>x[0]===l.sortie)||[0,l.sortie])[1]],["Perçage coulisses",l.percage],["Alimentation",l.support],["Observation",l.obs]].filter(x=>x[1]))}</table>
 </div><div class="sbdes">${dessinZIP(l,z)}</div></div>`; };
   for(let i=0;i<z.lignes.length;i+=2){ const fin=Math.min(i+2,z.lignes.length); h+=`<div class="pg">${head(`Stores zip – ${z.lignes.length>2?`stores ${i+1}${fin>i+1?" à "+fin:""} sur ${z.lignes.length}`:"détail"} – ${d.client.nom||""}`)}
-    <div class="vbsous">Dimensions de fabrication largeur × hauteur en mm, vues de l'intérieur (bon de commande Soprofen)</div>${z.lignes.slice(i,fin).map((l,j)=>bloc(l,i+j)).join("")}</div>`; }
+    <div class="vbsous">Dimensions de fabrication largeur × hauteur en mm, vues de l'intérieur (bon de commande Soprofen)</div>
+    <table class="pt" style="margin-bottom:4px"><tr><th>Toile</th><td><b>${esc(zipToileTexte(z)||"à choisir")}</b>${z.sens_toile?` · sens ${esc(z.sens_toile)}`:""}</td><th>Couleur de toile</th><td><b>${esc(z.toile_couleur||"à indiquer")}</b></td></tr></table>
+    ${z.lignes.slice(i,fin).map((l,j)=>bloc(l,i+j)).join("")}</div>`; }
   const ph=(z.photos||[]).filter(x=>x.img);
   for(let i=0;i<ph.length;i+=4) h+=`<div class="pg">${head(`Stores zip – Photos${ph.length>4?` (${i/4+1})`:""} – ${d.client.nom||""}`)}
     <div class="pphotos">${ph.slice(i,i+4).map((x,j)=>`<figure><img src="${x.img}"><figcaption><b>Photo ${j+i+1}</b>${x.txt?" – "+esc(x.txt):""}</figcaption></figure>`).join("")}</div></div>`;
@@ -7514,6 +7517,13 @@ function construireImpression(d){
       ${tablePosePDF(d)}<table class="pt">${row([["Observations",d.observations]])}</table>${boitePrev}</div></div>
 `) + `    ${!d.ouvertures.length?"":`<table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Pose</th><th>Gamme</th><th>Tableau L×H</th><th>Fabrication L×H</th><th>Vantaux</th></tr>
     ${d.ouvertures.map((o,i)=>{const f=calcFab(o);return `<tr${estVariante(o)?' style="background:#fff4e5"':""}><td><b>${esc(o.num_poseur||"")}</b>${estVariante(o)?` <small>var. ${esc(o.variante||"B")}</small>`:""}</td><td>${esc(o.repere)}${estVariante(o)?" <i>(variante – option)</i>":""}</td><td>${esc(o.quantite)}</td><td>${esc(libellePose(o))}</td><td>${esc(o.gamme)}</td><td>${esc(coteTab(o,"L"))} × ${esc(coteTab(o,"H"))}</td><td><b>${f.L??""} × ${f.H??""}</b></td><td>${esc([o.vantaux.G,o.vantaux.M,o.vantaux.D].filter(Boolean).join(" · "))}</td></tr>`;}).join("")}</table>`}</div>`;
+  /* 27/11/2026 : temps de pose de la partie tout en haut de sa 1re page (menuiseries, VR, portail, stores, garde-corps…) */
+  const avecPose=(html,k)=>{ if(!html) return html; const i=html.indexOf('<div class="ph">'); if(i<0) return html; const j=html.indexOf('</div></div>',i); if(j<0) return html;
+    const lab=(POSE_PARTIES.find(x=>x[0]===k)||[k,k])[1].toLowerCase(), t=textePose(d,k);
+    const ban=`<div class="ppose${t?"":" vide"}">POSE ${esc(lab.toUpperCase())} : ${esc(t||"à renseigner")}</div>`; let out=html.slice(0,j+12)+ban+html.slice(j+12);
+    const m=out.search(/<div class="tt">[^<]*(détail|stores? 1\b)/); if(m>j+12+ban.length){ const j2=out.indexOf('</div></div>',m); if(j2>0) out=out.slice(0,j2+12)+ban+out.slice(j2+12); }   // aussi sur la 1re page « détail »
+    return out; };
+  const h0=h.length;
   d.ouvertures.forEach((o,i)=>{ const f=calcFab(o), P=CAT.poses[o.pose], c=controleOuverture(o,d);
     h+=`<div class="pg">${head(`${numP(o)||(i+1)+"."} ${o.repere||"Ouverture"}${estVariante(o)?` – VARIANTE ${o.variante||"B"} (option)`:""} – ${d.client.nom||""}`)}${estVariante(o)?`<div class="pelarg" style="margin:0 0 4px">⇄ ${esc(libVariante(o,d))}</div>`:""}<div class="p3"><div class="pdim">
       <div class="pposetitre">${esc(libellePose(o).toUpperCase())}</div>
@@ -7541,6 +7551,7 @@ function construireImpression(d){
       </div><div class="pbas">
       ${c.E.length||c.W.length?`<div class="pwarn">À vérifier : ${esc([...c.E,...c.W].join(" · "))}</div>`:""}
 </div></div></div>`+pagesPhotos(d,o,head); });
+  h=h.slice(0,h0)+avecPose(h.slice(h0),"ouvertures"); const h1=h.length;
   const v=vrSeparees(d.vr);   // les monoblocs posés sur la menuiserie sont sur la fiche de l'ouverture
   if(v && v.lignes.length){
     const tp=CAT.vr.types_pose.find(p=>p.id===v.type_pose), ck=b=>b?"✔":"", ch=controleVREntete(v);
@@ -7562,8 +7573,9 @@ function construireImpression(d){
       <div>${[...new Set([v.type_pose,...v.lignes.map(l=>l.type_pose)].filter(Boolean))].map(id=>CAT.vr.types_pose.find(p=>p.id===id)).filter(p=>p&&SCHEMAS[p.img]).map(p=>`<img src="${SCHEMAS[p.img]}" style="max-width:100%;border:1px solid #9aa3b5"><div style="text-align:center;font-weight:700;margin-bottom:6px">${esc(p.nom)}${p.id!==v.type_pose?" (certains volets)":""}</div>`).join("")}</div></div></div>`;
     v.lignes.forEach(l=>{ if((l.photos||[]).length) h+=pagesPhotos(d,{repere:"Volet roulant "+(l.repere||""), num_poseur:l.num_poseur, photos:l.photos},head); });
   }
-  h+=pagesPT2(d, head, row);
-  h+=pagesVB(d, head, row); h+=pagesZIP(d, head, row); h+=pagesVIT(d, head, row); h+=pagesPER(d, head, row); h+=pagesGAR(d, head, row); h+=pagesGCA(d, head, row); h+=pagesSB(d, head, row); h+=pagesPP(d, head, row); h+=pagesVT(d, head, row);
+  h=h.slice(0,h1)+avecPose(h.slice(h1),"vr");
+  h+=avecPose(pagesPT2(d, head, row),"pt");
+  h+=avecPose(pagesVB(d, head, row),"vb"); h+=avecPose(pagesZIP(d, head, row),"zip"); h+=avecPose(pagesVIT(d, head, row),"vit"); h+=avecPose(pagesPER(d, head, row),"per"); h+=avecPose(pagesGAR(d, head, row),"gar"); h+=avecPose(pagesGCA(d, head, row),"gca"); h+=avecPose(pagesSB(d, head, row),"sb"); h+=avecPose(pagesPP(d, head, row),"pp"); h+=avecPose(pagesVT(d, head, row),"vt");
   h+=pagesClim(d);
   return h;
 }

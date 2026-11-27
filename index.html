@@ -8203,6 +8203,8 @@ function remplirDepuisCRM(d, c, remplacer){
   /* remplacer (27/11/2026, cas GUZOU / SCI PAULOUIS BASTIE) : la fiche avait été remplie avec un autre client du CRM →
      on remet nom, téléphone, adresse, origine et les lignes « (CRM) » de ce client-ci ; le dossier Drive est renommé au prochain envoi */
   const vide=v=>remplacer||!v||!String(v).trim();
+  // 27/11/2026 : trace de chaque remplissage depuis le CRM (pour retrouver d'où vient un mauvais client)
+  try{ d.journal_crm=(d.journal_crm||[]).concat([{le:new Date().toISOString(), avant:d.client.nom||"", crm:c.nom, ligne:`${c.onglet} ${c.ligne}`, remplacer:!!remplacer, mode:S.crmMode||"", vue:S.view||""}]).slice(-20); }catch(e){}
   if(remplacer){ d.logement.precisions=String(d.logement.precisions||"").split("\n").filter(l=>!/\((CRM)\)/.test(l)).join("\n");
     d.notes_client=String(d.notes_client||"").split("\n").filter(l=>!/^Suivi CRM :/.test(l)).join("\n");
     if(d.drive && d.drive.dossier && normNom(d.client.nom)!==normNom(c.nom)) d.drive.renommer=true; }
@@ -8234,7 +8236,7 @@ function afficherCRM(){
   $$("[data-crm]").forEach(b=>b.onclick=async()=>{ const c=L[+b.dataset.crm]; if(!c) return; $("#mCRM").classList.remove("open");
     if(S.crmMode==="nouveau"){ S.dossier=remplirDepuisCRM(nouveauDossier(), c); await DB.put(S.dossier); S.tab="client"; renderDossier(); }
     else { const d=S.dossier, autre=(d.client.nom&&normNom(d.client.nom)!==normNom(c.nom)) || (d.crm&&d.crm.nom&&(d.crm.onglet!==c.onglet||d.crm.ligne!==c.ligne));
-      const rempl = autre ? await demander(`La fiche contient « ${d.client.nom||d.crm.nom} ». Remplacer le nom, le téléphone, l'adresse et les infos CRM par celles de ${c.nom} ?`,"Remplacer","Compléter seulement les cases vides") : false;
+      const rempl = autre ? await demander(`⚠ La fiche est au nom de « ${d.client.nom||d.crm.nom} ».\n\nRemplacer le nom, le téléphone et l'adresse par ceux de :\n${c.nom} – ${c.lieu||""}${c.projet?" – "+c.projet:""} ?\n\n(Si ce n'est pas le bon client, touche « Compléter seulement les cases vides ».)`,"Remplacer par "+c.nom,"Compléter seulement les cases vides") : false;
       remplirDepuisCRM(d, c, rempl); save(); renderDossier(); }
     toast(`Fiche remplie depuis le CRM : ${c.nom}`); });
 }

@@ -1006,7 +1006,7 @@ function mmDepuisMesure(v){ const s=String(v||"").trim().toLowerCase().replace(/
   const m=s.match(/^(\d+(?:[.,]\d+)?)(mm|cm|m)?$/); if(!m) return v; const n=parseFloat(m[1].replace(",",".")), u=m[2]||"";
   if(u==="mm") return String(Math.round(n)); if(u==="cm") return String(Math.round(n*10)); if(u==="m") return String(Math.round(n*1000));
   if(/[.,]/.test(m[1]) && n<20) return String(Math.round(n*1000)); return v; }
-const estCoteMM = el => el && el.matches && el.matches('input[data-k^="cotes."]');
+const estCoteMM = el => el && el.matches && el.matches('input[data-k^="cotes."],input[data-k^="pp.lignes."][data-k*=".cotes."]');
 /* Ordre de saisie des cotes (24/11/2026, demande de Nicolas) : en embrasure / feuillure / tunnel,
    tableau L → H, puis cadre existant L → H, puis embrasure (feuillure, hors tout) L → H — au télémètre, à Entrée et au pavé. */
 const POSES_ORDRE_CROISE=["embrasure","feuillure","tunnel"];
@@ -1018,7 +1018,7 @@ function convertirCote(el){ const nv=mmDepuisMesure(el.value); if(nv!==el.value)
 document.addEventListener("change", e=>{ if(estCoteMM(e.target)) convertirCote(e.target); }, true);
 document.addEventListener("keydown", e=>{ const el=e.target; if(e.key!=="Enter" || !el.matches || !el.matches('input[inputmode="decimal"],input[inputmode="numeric"]')) return;
   e.preventDefault(); if(estCoteMM(el)) convertirCote(el);
-  const L=ordreCotes([...document.querySelectorAll(estCoteMM(el)?'#app input[data-k^="cotes."]':'#app input[inputmode="decimal"],#app input[inputmode="numeric"]')].filter(x=>x.offsetParent && !x.disabled)), i=L.indexOf(el);
+  const L=ordreCotes([...document.querySelectorAll(estCoteMM(el)?'#app input[data-k^="cotes."],#app input[data-k^="pp.lignes."][data-k*=".cotes."]':'#app input[inputmode="decimal"],#app input[inputmode="numeric"]')].filter(x=>x.offsetParent && !x.disabled)), i=L.indexOf(el);
   if(i>=0 && L[i+1]){ L[i+1].focus(); try{ L[i+1].select(); }catch(_){} } else el.blur(); });
 
 /* ---------- Télémètre Bosch GLM 120 C en direct (18/11/2026) : deux façons de prendre les cotes ----------
@@ -1039,7 +1039,7 @@ const MANUEL_SEUL = /dormant|épaisseur|epaisseur|feuillure –|aile|élargisseu
 function libelleCase(el){ const l=el.closest("label"); let t=""; if(l){ t=[...l.childNodes].filter(n=>n.nodeType===3||(n.nodeType===1&&!/INPUT|SELECT|TEXTAREA|BUTTON/.test(n.tagName)&&!n.querySelector("input"))).map(n=>n.textContent).join(" "); }
   return (t||el.placeholder||"").replace(/\s+/g," ").replace(/\(.*?\)/g,"").trim(); }
 const auMetre = el => !!el && (MANUEL_SEUL.test(libelleCase(el)+" "+(el.placeholder||"")) || /\.g\.[A-Rd]/.test(el.dataset.k||"") || /^vt\.lignes\.\d+\.epaisseur$/.test(el.dataset.k||"") || /fab_force|elarg/.test(el.dataset.k||""));
-const casesTelemetre = el => ordreCotes([...document.querySelectorAll(estCoteMM(el)?'#app input[data-k^="cotes."]':'#app input[inputmode="decimal"],#app input[inputmode="numeric"]')].filter(x=>x.offsetParent && !x.disabled && !auMetre(x)));
+const casesTelemetre = el => ordreCotes([...document.querySelectorAll(estCoteMM(el)?'#app input[data-k^="cotes."],#app input[data-k^="pp.lignes."][data-k*=".cotes."]':'#app input[inputmode="decimal"],#app input[inputmode="numeric"]')].filter(x=>x.offsetParent && !x.disabled && !auMetre(x)));
 /* 21/11 : voix française choisie (Thomas, Amélie, versions « améliorée / premium », Google français…) – sinon le navigateur prenait une voix étrangère avec un fort accent */
 let VOIX_FR=null;
 function choisirVoixFR(){ try{ const V=speechSynthesis.getVoices().filter(v=>/^fr(-|_|$)/i.test(v.lang)); if(!V.length) return null;
@@ -6543,10 +6543,16 @@ const PP_EXISTANT = ["Huisserie bois","Huisserie métallique"];
 const PP_SENS = ["Poussant gauche","Poussant droit"];
 const nouveauPP = () => ({ modele:PP_MODELES[0], huisserie:"", finition:"", coloris:"", coloris_int:"Blanc Premium", coloris_ext:"Blanc Premium", gravage:"Non", motif:"", etancheite:"Seuil suisse", seuil:"37 × 20 mm métallique intégré", microviseur:true, microviseur_fin:"Chrome",
   serrure:PP_SERRURES[0], poignee:PP_POIGNEES[0], cylindre:true, plots:true, entrebailleur:false, garniture:false, lignes:[], photos:[] });
-const nouvelleLignePP = () => ({ id:uid(), repere:"", qte:"1", existant:"", sens:"", A1:"", A2:"", B1:"", B2:"", B3:"", C:"", D:"", el_g:"", el_d:"", el_h:"", cloison:false, obs:"" });
+const nouvelleLignePP = () => ({ id:uid(), repere:"", qte:"1", existant:"", sens:"", pose:"feuillure", cotes:{L:["","","",""],H:["","","",""]}, A1:"", A2:"", B1:"", B2:"", B3:"", C:"", D:"", el_g:"", el_d:"", el_h:"", cloison:false, obs:"" });
 const aPP = d => !!(d.pp && (d.pp.lignes.length));
 const ppMin = (...v) => { const n=v.map(num).filter(x=>x!=null); return n.length?Math.min(...n):null; };
-const ppA = l => ppMin(l.A1,l.A2), ppB = l => ppMin(l.B1,l.B2,l.B3);
+/* 28/11/2026 : prise de cotes comme les ouvertures (pose en tunnel ou en feuillure, mêmes schémas et mêmes cases) ;
+   A / B HUET = relevés détaillés s'ils sont saisis, sinon le tableau. */
+const PP_POSES = {tunnel:"Pose en tunnel", feuillure:"Pose en feuillure"};
+function ppPseudo(l){ if(!l.cotes) l.cotes={L:["","","",""],H:["","","",""]}; if(!PP_POSES[l.pose]) l.pose="feuillure"; return {pose:l.pose, cotes:l.cotes}; }
+const ppTab = (l,k) => num(ppPseudo(l).cotes[k][0]);
+const ppA = l => ppMin(l.A1,l.A2) ?? ppTab(l,"H"), ppB = l => ppMin(l.B1,l.B2,l.B3) ?? ppTab(l,"L");
+const ppCotesTxt = (l,k) => { const o=ppPseudo(l); return (CAT.poses[o.pose].cotes||[]).map((c,i)=>coteUtile(o,i,k)&&String(o.cotes[k][i]??"")!==""?`${c} ${o.cotes[k][i]}`:"").filter(Boolean).join(" · "); };
 const ppAxiome = p => /axiome/i.test(p.modele||""), ppCR3 = p => /cr3/i.test(p.modele||"");
 function controlePP(d){
   const p=d.pp, E=[], W=[]; if(!p) return {E,W}; ppMigrer(p);
@@ -6563,7 +6569,7 @@ function controlePP(d){
   if(!p.lignes.length) E.push("Aucune porte saisie");
   p.lignes.forEach((l,i)=>{ const n=l.repere||`porte ${i+1}`, A=ppA(l), B=ppB(l), C=num(l.C), D=num(l.D);
     if(A==null) E.push(`${n} : hauteur de passage (A) manquante`); if(B==null) E.push(`${n} : largeur de passage (B) manquante`);
-    if(C==null) E.push(`${n} : profondeur de feuillure (C) manquante`); if(D==null) E.push(`${n} : largeur de feuillure (D) manquante`);
+    if(C==null) (l.pose==="tunnel"?W:E).push(`${n} : profondeur de feuillure (C) manquante`); if(D==null) (l.pose==="tunnel"?W:E).push(`${n} : largeur de feuillure (D) manquante`);
     if(!l.sens) E.push(`${n} : sens d'ouverture (vue extérieure) non choisi`);
     if(!l.existant) W.push(`${n} : huisserie existante bois ou métallique ?`);
     if(A!=null && A<1950) E.push(`${n} : A = ${A} < 1950 mini HUET`);
@@ -6591,12 +6597,18 @@ function renderPP(t){
         <label class="f">Repère (appartement, étage…)<div class="rep-in"><input data-k="${k}repere" value="${esc(l.repere)}" list="dlPiecesPP">${boutonRep(k+"repere")}</div></label>${F.numb(k+"qte","Quantité",l.qte)}
         ${F.sel(k+"existant","Huisserie existante",PP_EXISTANT,l.existant)}${F.sel(k+"sens","Sens d'ouverture vue extérieure",PP_SENS,l.sens)}
       </div>
-      <div class="hint" style="margin:10px 0 4px"><b>A – Hauteur de passage</b> (du sol fini intérieur) : relever à gauche et à droite · <b>B – Largeur de passage</b> : en haut, au milieu, en bas. La plus petite est retenue.</div>
-      <div class="grid g4">${F.numb(k+"A1","A1 – hauteur à gauche (mm)",l.A1)}${F.numb(k+"A2","A2 – hauteur à droite (mm)",l.A2)}<div></div><div></div>
-        ${F.numb(k+"B1","B1 – largeur en haut (mm)",l.B1)}${F.numb(k+"B2","B2 – largeur au milieu (mm)",l.B2)}${F.numb(k+"B3","B3 – largeur en bas (mm)",l.B3)}<div></div>
-        ${F.numb(k+"C","C – profondeur de feuillure (27 à 50)",l.C)}${F.numb(k+"D","D – largeur de feuillure (11 à 20)",l.D)}<div></div><div></div>
+      ${(()=>{ const o=ppPseudo(l), P=CAT.poses[o.pose];
+        const box=(K,titre)=>`<div class="cote-box"><h3>${titre}</h3><div class="schema">${schemaHTML(o,K)}</div>
+          <div class="cote-in">${P.cotes.map((_,j)=>!coteUtile(o,j,K)?"":`<span class="n">${numCote(o,K,j)}</span><label class="f">${esc(libCote(o,K,j))}${libCote(o,K,j)==="Cadre existant"?" (ancienne huisserie)":""}<input data-k="${k}cotes.${K}.${j}" inputmode="numeric" value="${esc(o.cotes[K][j])}" placeholder="mm"></label>`).join("")}</div></div>`;
+        return `<div class="row" style="margin:12px 0 6px;gap:8px"><b>Pose :</b>${Object.entries(PP_POSES).map(([x,n])=>`<button class="btn small${o.pose===x?" primary":""}" data-pppose="${i}:${x}">${n}</button>`).join("")}</div>
+          <div class="cotes">${box("L","Largeur")}${box("H","Hauteur")}</div>`; })()}
+      <div class="hint" style="margin:8px 0 4px">Passage HUET retenu : A (hauteur) et B (largeur) = le tableau, sauf si tu saisis les relevés détaillés ci-dessous.</div>
+      <div class="grid g4">${F.numb(k+"C","C – profondeur de feuillure de l'ancienne huisserie (27 à 50)",l.C)}${F.numb(k+"D","D – largeur de feuillure (11 à 20)",l.D)}<div></div><div></div>
         ${F.numb(k+"el_g","Espace libre à gauche (mm)",l.el_g)}${F.numb(k+"el_d","Espace libre à droite (mm)",l.el_d)}${F.numb(k+"el_h","Espace libre en haut (mm)",l.el_h)}
         <div class="checks" style="align-self:end">${F.chk(k+"cloison","Retour de cloison",l.cloison)}</div></div>
+      <details style="margin-top:8px"${[l.A1,l.A2,l.B1,l.B2,l.B3].some(x=>String(x??"")!=="")?" open":""}><summary class="hint" style="cursor:pointer"><b>Relevés HUET détaillés (facultatif)</b> : A1 / A2 hauteurs à gauche et à droite, B1 / B2 / B3 largeurs en haut, au milieu, en bas – la plus petite est retenue</summary>
+      <div class="grid g4" style="margin-top:6px">${F.numb(k+"A1","A1 – hauteur à gauche (mm)",l.A1)}${F.numb(k+"A2","A2 – hauteur à droite (mm)",l.A2)}<div></div><div></div>
+        ${F.numb(k+"B1","B1 – largeur en haut (mm)",l.B1)}${F.numb(k+"B2","B2 – largeur au milieu (mm)",l.B2)}${F.numb(k+"B3","B3 – largeur en bas (mm)",l.B3)}<div></div></div></details>
       <div style="margin-top:8px">${F.text(k+"obs","Observation",l.obs)}</div></div>`; };
   t.innerHTML=`<datalist id="dlPiecesPP">${listePiecesDL()}</datalist>
   <div class="card"><h2><span class="num">1</span>Portes palières rénovation – HUET <small style="font-weight:400;text-transform:none">– bloc-porte blindé, bâti rénovation 4 côtés posé en applique, sans réduction de passage</small></h2><div class="grid g4">
@@ -6628,6 +6640,10 @@ function renderPP(t){
   $$("[data-ppdel]").forEach(b=>b.onclick=async()=>{ if(!await demander("Supprimer cette porte ?","Supprimer")) return; p.lignes.splice(+b.dataset.ppdel,1); save(); re(); });
   $$("[data-ppdup]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.ppdup, s=p.lignes[i], n=Object.assign(nouvelleLignePP(),{existant:s.existant, sens:s.sens, C:s.C, D:s.D});
     const r=repDecoupe(s.repere); if(r.piece&&r.num){ r.num=String((parseInt(r.num)||0)+1); n.repere=repCompose(r); } p.lignes.splice(i+1,0,n); save(); re(); toast("Même porte : il reste le repère et les cotes A / B / espaces"); });
+  $$("[data-pppose]").forEach(b=>b.onclick=()=>{ const [i,x]=b.dataset.pppose.split(":"); p.lignes[+i].pose=x; save(); re(); });
+  $$('[data-k^="pp.lignes."]').forEach(el=>{ const m=el.dataset.k.match(/^pp\.lignes\.(\d+)\.cotes\.([LH])\.\d$/); if(!m) return;
+    const maj=()=>setTimeout(()=>{ const sc=el.closest(".cote-box")?.querySelector(".schema"), l=p.lignes[+m[1]]; if(sc&&l) sc.innerHTML=schemaHTML(ppPseudo(l),m[2]); },0);   // sans tout redessiner (garde la case suivante au télémètre)
+    el.addEventListener("input",maj); el.addEventListener("change",maj); });
   ["pp.finition","pp.gravage","pp.etancheite","pp.microviseur","pp.coloris_int","pp.coloris_ext"].forEach(k=>{ const el=$(`[data-k="${k}"]`); if(el) el.addEventListener("change",()=>setTimeout(()=>{ if(k==="pp.finition"){ const ok=x=>/placage/i.test(p.finition||"")?PP_ESSENCES.includes(x):!PP_ESSENCES.includes(x);
       if(!ok(p.coloris_int)) p.coloris_int=""; if(!ok(p.coloris_ext)) p.coloris_ext=""; if(/stratifi/i.test(p.finition||"")){ p.coloris_int=p.coloris_int||"Blanc Premium"; p.coloris_ext=p.coloris_ext||"Blanc Premium"; } save(); } re(); },0)); });
   initPhotos(p, re);
@@ -6657,14 +6673,16 @@ function pagesPP(d, head, row){
   let h=`<div class="pg">${head(`Portes palières réno HUET – ${estDefinitif(d)?"Métré définitif":"Devis"} – ${d.client.nom||""}`)}
     <div class="pcols"><div><table class="pt">${row([["Client",d.client.nom],["Adresse chantier",d.adresse_chantier],["Fournisseur","HUET (JH Industries)"],["Pose",textePose(d,"pp")],["Nombre de portes",String(p.lignes.reduce((s,l)=>s+(num(l.qte)||1),0))]])}</table></div>
     <div><table class="pt">${row(commun)}</table></div></div>
-    <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Sens (vue ext.)</th><th>Huisserie existante</th><th>A hauteur</th><th>B largeur</th><th>C prof.</th><th>D larg.</th><th>Espace libre G · D · H</th><th>Observation</th></tr>
-    ${p.lignes.map((l,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.qte)}</td><td>${esc(l.sens)}</td><td>${esc(l.existant)}</td><td><b>${ppA(l)??""}</b></td><td><b>${ppB(l)??""}</b></td><td>${esc(l.C)}</td><td>${esc(l.D)}</td><td>${[l.el_g,l.el_d,l.el_h].map(x=>x||"–").join(" · ")}</td><td>${esc(l.obs)}</td></tr>`).join("")}</table>
+    <table class="pt"><tr><th>N°</th><th>Repère</th><th>Qté</th><th>Pose</th><th>Sens (vue ext.)</th><th>Huisserie existante</th><th>A hauteur</th><th>B largeur</th><th>C prof.</th><th>D larg.</th><th>Espace libre G · D · H</th><th>Observation</th></tr>
+    ${p.lignes.map((l,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(l.repere)}</td><td>${esc(l.qte)}</td><td>${esc((PP_POSES[ppPseudo(l).pose]||"").replace("Pose en ",""))}</td><td>${esc(l.sens)}</td><td>${esc(l.existant)}</td><td><b>${ppA(l)??""}</b></td><td><b>${ppB(l)??""}</b></td><td>${esc(l.C)}</td><td>${esc(l.D)}</td><td>${[l.el_g,l.el_d,l.el_h].map(x=>x||"–").join(" · ")}</td><td>${esc(l.obs)}</td></tr>`).join("")}</table>
     ${c.E.length||c.W.length?`<div class="pwarn">À vérifier : ${esc([...c.E,...c.W].join(" · "))}</div>`:`<div class="pok">Contrôle OK</div>`}</div>`;
   p.lignes.forEach((l,i)=>{ const pre=n(l,i)+" : ", msg=[...c.E,...c.W].filter(x=>x.startsWith(pre)).map(x=>x.slice(pre.length));
     h+=`<div class="pg">${head(`${i+1}. ${l.repere||"Porte palière"} – ${d.client.nom||""}`)}<div class="p3"><div class="pdim">
       <div class="pposetitre">PORTE PALIÈRE – RÉNOVATION HUET</div>
-      <div class="pst">LARGEUR <small>– vue en plan, sur l'ancienne huisserie</small></div><img class="pimg" src="img/pp-plan.png" style="width:auto;max-width:100%;display:block;margin:0 auto;max-height:60mm">
-      <div class="pst">HAUTEUR <small>– vue en coupe</small></div><img class="pimg" src="img/pp-coupe.png" style="width:auto;max-width:100%;display:block;margin:0 auto;max-height:48mm">
+      ${(()=>{ const o=ppPseudo(l), ok=["L","H"].some(K=>o.cotes[K].some(x=>String(x??"")!==""));
+        return ok ? `<div class="pst">${esc(PP_POSES[o.pose].toUpperCase())} – LARGEUR <small>– vue en plan</small></div>${schemaHTML(o,"L","psch",true)}<div class="pst">HAUTEUR <small>– vue en coupe</small></div>${schemaHTML(o,"H","psch",true)}`
+        : `<div class="pst">LARGEUR <small>– vue en plan, sur l'ancienne huisserie</small></div><img class="pimg" src="img/pp-plan.png" style="width:auto;max-width:100%;display:block;margin:0 auto;max-height:60mm">
+      <div class="pst">HAUTEUR <small>– vue en coupe</small></div><img class="pimg" src="img/pp-coupe.png" style="width:auto;max-width:100%;display:block;margin:0 auto;max-height:48mm">`; })()}
       <div class="pdt2"><table class="pt pdt"><tr class="pdir"><th colspan="2">LARGEUR</th></tr>
           <tr><th>B1 en haut</th><td>${esc(l.B1)}</td></tr><tr><th>B2 au milieu</th><td>${esc(l.B2)}</td></tr><tr><th>B3 en bas</th><td>${esc(l.B3)}</td></tr>
           <tr><th>C prof. feuillure</th><td>${esc(l.C)}</td></tr><tr><th>D larg. feuillure</th><td>${esc(l.D)}</td></tr><tr class="pfabr"><th>B RETENUE</th><td>${ppB(l)??""}</td></tr></table>
@@ -6672,7 +6690,7 @@ function pagesPP(d, head, row){
           <tr><th>A1 à gauche</th><td>${esc(l.A1)}</td></tr><tr><th>A2 à droite</th><td>${esc(l.A2)}</td></tr>
           <tr><th>Espace libre G</th><td>${esc(l.el_g)}</td></tr><tr><th>Espace libre D</th><td>${esc(l.el_d)}</td></tr><tr><th>Espace libre haut</th><td>${esc(l.el_h)}</td></tr><tr class="pfabr"><th>A RETENUE</th><td>${ppA(l)??""}</td></tr></table></div>
       </div><div>
-      <table class="pt">${row([["Quantité",l.qte],["Sens (vue extérieure)",l.sens],["Huisserie existante",l.existant],["Retour de cloison",l.cloison?"Oui":""],...commun,["Observation",l.obs]])}</table>
+      <table class="pt">${row([["Quantité",l.qte],["Pose",PP_POSES[ppPseudo(l).pose]],["Cotes largeur",ppCotesTxt(l,"L")],["Cotes hauteur",ppCotesTxt(l,"H")],["Sens (vue extérieure)",l.sens],["Huisserie existante",l.existant],["Retour de cloison",l.cloison?"Oui":""],...commun,["Observation",l.obs]])}</table>
       </div><div>
       <div class="pst">DESSIN <small>– vue de l'extérieur (palier)</small></div>${dessinPP(l)}
       <div class="pst" style="margin-top:6px">SENS</div><img class="pimg" src="img/pp-sens.png" style="width:auto;max-width:100%;display:block;margin:0 auto;max-height:55mm">

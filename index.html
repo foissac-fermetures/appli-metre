@@ -9343,8 +9343,11 @@ async function synchroAccueil(manuel){
 }
 /* Métrés présents dans le Drive mais supprimés (poubelle) sur CET appareil : on les signale à l'actualisation et on propose de les remettre (18/11/2026) */
 async function proposerRecuperation(L){
-  const noms=L.map(([,x])=>x.nom); 
-  if(!await demander(`${L.length>1?L.length+" métrés du Drive ne s'affichent pas":"Un métré du Drive ne s'affiche pas"} sur cet appareil parce ${L.length>1?"qu'ils y ont été supprimés":"qu'il y a été supprimé"} :\n${noms.join(", ")}\n\n${L.length>1?"Les":"Le"} remettre sur cet appareil ?`, L.length>1?"Les remettre":"Le remettre", "Non")) return;
+  /* 28/11/2026 : « Non » = ne plus jamais demander pour ces métrés-là (Nicolas les a supprimés exprès) */
+  const REFUS="sync_refus_recup", refus=lireLS(REFUS,[]); L=L.filter(([,x])=>!refus.includes(x.id)); if(!L.length) return;
+  const noms=L.map(([,x])=>x.nom);
+  if(!await demander(`${L.length>1?L.length+" métrés du Drive ne s'affichent pas":"Un métré du Drive ne s'affiche pas"} sur cet appareil parce ${L.length>1?"qu'ils y ont été supprimés":"qu'il y a été supprimé"} :\n${noms.join(", ")}\n\n${L.length>1?"Les":"Le"} remettre sur cet appareil ?`, L.length>1?"Les remettre":"Le remettre", "Non, ne plus demander")){
+    ecrireLS(REFUS,[...new Set([...refus,...L.map(([,x])=>x.id)])]); toast("D'accord, l'appli ne les proposera plus sur cet appareil"); return; }
   const ids=new Set(L.map(([,x])=>x.id)), vus=lireLS(SYNC_VUS,{}), ign=lireLS(SYNC_IGN,{});
   ecrireLS(SYNC_SUPPR, lireLS(SYNC_SUPPR,[]).filter(i=>!ids.has(i)));
   L.forEach(([fid])=>{ delete vus[fid]; delete ign[fid]; }); ecrireLS(SYNC_VUS,vus); ecrireLS(SYNC_IGN,ign);
